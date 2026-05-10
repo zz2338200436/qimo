@@ -1,0 +1,1062 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com._202510007517.major_assignment.mapper.StudentMapper">
+
+    <!-- 获取学生课程列表（支持通过 class_courses 表查询，同时兼容 course_classes 表的 course_id 字段） -->
+    <select id="getStudentCourses" resultType="com._202510007517.major_assignment.entity.Course">
+        SELECT
+            DISTINCT c.id,
+            c.course_code,
+            c.course_name,
+            c.credit,
+            c.course_category,
+            c.description,
+            c.total_hours,
+            c.teacher_id,
+            u.name as teacher_name,
+            c.course_status,
+            c.semester,
+            c.start_date,
+            c.end_date
+        FROM
+            class_students cs
+        JOIN
+            course_classes cc ON cs.class_id = cc.id
+        LEFT JOIN
+            class_courses cc_c ON cc.id = cc_c.class_id
+        LEFT JOIN
+            courses c ON (cc_c.course_id = c.id OR (cc_c.course_id IS NULL AND cc.course_id = c.id))
+        LEFT JOIN
+            users u ON (c.teacher_id = u.id OR (cc_c.teacher_id IS NOT NULL AND cc_c.teacher_id = u.id))
+        WHERE
+            cs.student_id = #{studentId}
+            AND c.id IS NOT NULL
+    </select>
+
+    <!-- 带筛选与分页的学生课程列表（支持通过 class_courses 表查询） -->
+    <select id="getStudentCoursesWithFilters" resultType="com._202510007517.major_assignment.entity.Course">
+        SELECT
+            DISTINCT c.id,
+            c.course_code,
+            c.course_name,
+            c.credit,
+            c.course_category,
+            c.description,
+            c.total_hours,
+            c.teacher_id,
+            u.name AS teacher_name,
+            c.course_status,
+            c.semester,
+            c.start_date,
+            c.end_date
+        FROM
+            class_students cs
+        JOIN
+            course_classes cc ON cs.class_id = cc.id
+        LEFT JOIN
+            class_courses cc_c ON cc.id = cc_c.class_id
+        LEFT JOIN
+            courses c ON (cc_c.course_id = c.id OR (cc_c.course_id IS NULL AND cc.course_id = c.id))
+        LEFT JOIN
+            users u ON (c.teacher_id = u.id OR (cc_c.teacher_id IS NOT NULL AND cc_c.teacher_id = u.id))
+        <where>
+            cs.student_id = #{studentId}
+            AND c.id IS NOT NULL
+            <if test="courseStatus != null and courseStatus != ''">
+                AND c.course_status = #{courseStatus}
+            </if>
+            <if test="semester != null and semester != ''">
+                AND c.semester = #{semester}
+            </if>
+            <if test="courseCategory != null and courseCategory != ''">
+                AND c.course_category = #{courseCategory}
+            </if>
+            <if test="searchQuery != null and searchQuery != ''">
+                AND (
+                    LOWER(c.course_name) LIKE CONCAT('%', LOWER(#{searchQuery}), '%')
+                    OR LOWER(u.name) LIKE CONCAT('%', LOWER(#{searchQuery}), '%')
+                    OR LOWER(c.course_code) LIKE CONCAT('%', LOWER(#{searchQuery}), '%')
+                )
+            </if>
+        </where>
+        ORDER BY ${sortBy} ${order}
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- 统计带筛选条件的课程总数（支持通过 class_courses 表查询） -->
+    <select id="countStudentCoursesWithFilters" resultType="int">
+        SELECT
+            COUNT(DISTINCT c.id)
+        FROM
+            class_students cs
+        JOIN
+            course_classes cc ON cs.class_id = cc.id
+        LEFT JOIN
+            class_courses cc_c ON cc.id = cc_c.class_id
+        LEFT JOIN
+            courses c ON (cc_c.course_id = c.id OR (cc_c.course_id IS NULL AND cc.course_id = c.id))
+        LEFT JOIN
+            users u ON (c.teacher_id = u.id OR (cc_c.teacher_id IS NOT NULL AND cc_c.teacher_id = u.id))
+        <where>
+            cs.student_id = #{studentId}
+            AND c.id IS NOT NULL
+            <if test="courseStatus != null and courseStatus != ''">
+                AND c.course_status = #{courseStatus}
+            </if>
+            <if test="semester != null and semester != ''">
+                AND c.semester = #{semester}
+            </if>
+            <if test="courseCategory != null and courseCategory != ''">
+                AND c.course_category = #{courseCategory}
+            </if>
+            <if test="searchQuery != null and searchQuery != ''">
+                AND (
+                    LOWER(c.course_name) LIKE CONCAT('%', LOWER(#{searchQuery}), '%')
+                    OR LOWER(u.name) LIKE CONCAT('%', LOWER(#{searchQuery}), '%')
+                    OR LOWER(c.course_code) LIKE CONCAT('%', LOWER(#{searchQuery}), '%')
+                )
+            </if>
+        </where>
+    </select>
+
+    <!-- 获取学生学习统计数据（优先读取手动维护的student_performance，缺失时退回动态计算） -->
+    <select id="getLearningStats" resultType="java.util.Map">
+        SELECT
+            -- 课程统计
+            (SELECT COUNT(DISTINCT cc.course_id) 
+             FROM class_students cs 
+             JOIN course_classes cc ON cs.class_id = cc.id 
+             JOIN courses c ON cc.course_id = c.id
+             WHERE cs.student_id = #{studentId}
+             <if test="semester != null and semester != ''">
+                 AND c.semester = #{semester}
+             </if>
+             <if test="courseId != null">
+                 AND c.id = #{courseId}
+             </if>
+            ) AS totalCourses,
+            (SELECT COUNT(DISTINCT cc.course_id) 
+             FROM class_students cs 
+             JOIN course_classes cc ON cs.class_id = cc.id 
+             JOIN courses c ON cc.course_id = c.id
+             WHERE cs.student_id = #{studentId}
+             <if test="semester != null and semester != ''">
+                 AND c.semester = #{semester}
+             </if>
+             <if test="courseId != null">
+                 AND c.id = #{courseId}
+             </if>
+            ) AS pendingCourses,
+            
+            -- 作业统计（通过assignment_classes表关联）
+            (SELECT COUNT(DISTINCT a.id) 
+             FROM assignments a 
+             JOIN assignment_classes ac ON a.id = ac.assignment_id 
+             JOIN class_students cs ON ac.class_id = cs.class_id
+             JOIN course_classes cc ON cs.class_id = cc.id
+             JOIN courses c ON cc.course_id = c.id
+             WHERE cs.student_id = #{studentId}
+             <if test="semester != null and semester != ''">
+                 AND c.semester = #{semester}
+             </if>
+             <if test="courseId != null">
+                 AND c.id = #{courseId}
+             </if>
+            ) AS totalAssignments,
+            -- 已完成作业数：动态计算
+            (SELECT COUNT(DISTINCT asub.assignment_id) 
+             FROM assignment_submissions asub
+             JOIN assignments a ON asub.assignment_id = a.id
+             JOIN assignment_classes ac ON a.id = ac.assignment_id
+             JOIN class_students cs ON ac.class_id = cs.class_id
+             JOIN course_classes cc ON cs.class_id = cc.id
+             JOIN courses c ON cc.course_id = c.id
+             WHERE asub.student_id = #{studentId} 
+             AND CAST(asub.graded AS UNSIGNED) = 1
+             <if test="semester != null and semester != ''">
+                 AND c.semester = #{semester}
+             </if>
+             <if test="courseId != null">
+                 AND c.id = #{courseId}
+             </if>
+             <if test="timeRange != null and timeRange != ''">
+                 <choose>
+                     <when test="timeRange == 'week'">
+                         AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK)
+                     </when>
+                     <when test="timeRange == 'month'">
+                         AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
+                     </when>
+                     <when test="timeRange == 'quarter'">
+                         AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
+                     </when>
+                 </choose>
+             </if>
+            ) AS completedAssignments,
+            (SELECT COUNT(DISTINCT a.id) 
+             FROM assignments a 
+             JOIN assignment_classes ac ON a.id = ac.assignment_id 
+             JOIN class_students cs ON ac.class_id = cs.class_id
+             JOIN course_classes cc ON cs.class_id = cc.id
+             JOIN courses c ON cc.course_id = c.id
+             WHERE cs.student_id = #{studentId}
+             AND a.id NOT IN (SELECT assignment_id FROM assignment_submissions WHERE student_id = #{studentId})
+             <if test="semester != null and semester != ''">
+                 AND c.semester = #{semester}
+             </if>
+             <if test="courseId != null">
+                 AND c.id = #{courseId}
+             </if>
+            ) AS pendingAssignments,
+            
+            -- 平均成绩：优先使用手工维护值，缺失时回退到动态计算（使用真实成绩）
+            COALESCE(
+                sp.average_score,
+                (SELECT IFNULL(AVG(score), 0) FROM (
+                    SELECT asub.score 
+                    FROM assignment_submissions asub
+                    JOIN assignments a ON asub.assignment_id = a.id
+                    JOIN assignment_classes ac ON a.id = ac.assignment_id
+                    JOIN class_students cs ON ac.class_id = cs.class_id
+                    JOIN course_classes cc ON cs.class_id = cc.id
+                    JOIN courses c ON cc.course_id = c.id
+                    WHERE asub.student_id = #{studentId} 
+                    AND asub.score IS NOT NULL 
+                    AND CAST(asub.graded AS UNSIGNED) = 1
+                    <if test="semester != null and semester != ''">
+                        AND c.semester = #{semester}
+                    </if>
+                    <if test="courseId != null">
+                        AND c.id = #{courseId}
+                    </if>
+                    <if test="timeRange != null and timeRange != ''">
+                        <choose>
+                            <when test="timeRange == 'week'">
+                                AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK)
+                            </when>
+                            <when test="timeRange == 'month'">
+                                AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
+                            </when>
+                            <when test="timeRange == 'quarter'">
+                                AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
+                            </when>
+                        </choose>
+                    </if>
+                    UNION ALL
+                    SELECT es.score 
+                    FROM exam_submissions es
+                    JOIN exams e ON es.exam_id = e.id
+                    JOIN exam_classes ec ON e.id = ec.exam_id
+                    JOIN class_students cs ON ec.class_id = cs.class_id
+                    JOIN course_classes cc ON cs.class_id = cc.id
+                    JOIN courses c ON cc.course_id = c.id
+                    WHERE es.student_id = #{studentId} 
+                    AND es.score IS NOT NULL 
+                    AND CAST(es.graded AS UNSIGNED) = 1
+                    <if test="semester != null and semester != ''">
+                        AND c.semester = #{semester}
+                    </if>
+                    <if test="courseId != null">
+                        AND c.id = #{courseId}
+                    </if>
+                    <if test="timeRange != null and timeRange != ''">
+                        <choose>
+                            <when test="timeRange == 'week'">
+                                AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK)
+                            </when>
+                            <when test="timeRange == 'month'">
+                                AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
+                            </when>
+                            <when test="timeRange == 'quarter'">
+                                AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
+                            </when>
+                        </choose>
+                    </if>
+                ) AS all_scores)
+            ) AS averageScore
+        FROM
+            (SELECT 1) AS d
+        LEFT JOIN
+            student_performance sp ON sp.student_id = #{studentId}
+    </select>
+    
+    <!-- 获取课程进度 -->
+    <select id="getCourseProgress" resultType="java.lang.Integer">
+        SELECT
+            CASE 
+                WHEN (total_tasks > 0) 
+                THEN ROUND((completed_tasks / total_tasks) * 100, 0) 
+                ELSE 0 
+            END AS progress
+        FROM (
+            SELECT 
+                -- 统计课程的作业数（通过assignment_classes表关联，只统计学生所在班级的作业）
+                (SELECT COUNT(DISTINCT a.id) 
+                 FROM assignments a 
+                 JOIN assignment_classes ac ON a.id = ac.assignment_id
+                 JOIN class_students cs ON ac.class_id = cs.class_id
+                 JOIN course_classes cc ON cs.class_id = cc.id
+                 WHERE cc.course_id = #{courseId} AND cs.student_id = #{studentId}) AS total_assignments,
+                -- 统计已完成的作业数
+                (SELECT COUNT(DISTINCT asub.assignment_id) 
+                 FROM assignment_submissions asub 
+                 JOIN assignments a ON asub.assignment_id = a.id 
+                 JOIN assignment_classes ac ON a.id = ac.assignment_id
+                 JOIN class_students cs ON ac.class_id = cs.class_id
+                 JOIN course_classes cc ON cs.class_id = cc.id
+                 WHERE cc.course_id = #{courseId} AND asub.student_id = #{studentId}) AS completed_assignments,
+                -- 统计课程的考试数（通过exam_classes表关联，只统计学生所在班级的考试）
+                (SELECT COUNT(DISTINCT e.id) 
+                 FROM exams e 
+                 JOIN exam_classes ec ON e.id = ec.exam_id
+                 JOIN class_students cs ON ec.class_id = cs.class_id
+                 JOIN course_classes cc ON cs.class_id = cc.id
+                 WHERE cc.course_id = #{courseId} AND cs.student_id = #{studentId}) AS total_exams,
+                -- 统计已完成的考试数
+                (SELECT COUNT(DISTINCT es.exam_id) 
+                 FROM exam_submissions es 
+                 JOIN exams e ON es.exam_id = e.id 
+                 JOIN exam_classes ec ON e.id = ec.exam_id
+                 JOIN class_students cs ON ec.class_id = cs.class_id
+                 JOIN course_classes cc ON cs.class_id = cc.id
+                 WHERE cc.course_id = #{courseId} AND es.student_id = #{studentId}) AS completed_exams,
+                -- 计算总任务数
+                ((SELECT COUNT(DISTINCT a.id) 
+                  FROM assignments a 
+                  JOIN assignment_classes ac ON a.id = ac.assignment_id
+                  JOIN class_students cs ON ac.class_id = cs.class_id
+                  JOIN course_classes cc ON cs.class_id = cc.id
+                  WHERE cc.course_id = #{courseId} AND cs.student_id = #{studentId}) + 
+                 (SELECT COUNT(DISTINCT e.id) 
+                  FROM exams e 
+                  JOIN exam_classes ec ON e.id = ec.exam_id
+                  JOIN class_students cs ON ec.class_id = cs.class_id
+                  JOIN course_classes cc ON cs.class_id = cc.id
+                  WHERE cc.course_id = #{courseId} AND cs.student_id = #{studentId})) AS total_tasks,
+                -- 计算已完成任务数
+                ((SELECT COUNT(DISTINCT asub.assignment_id) 
+                  FROM assignment_submissions asub 
+                  JOIN assignments a ON asub.assignment_id = a.id 
+                  JOIN assignment_classes ac ON a.id = ac.assignment_id
+                  JOIN class_students cs ON ac.class_id = cs.class_id
+                  JOIN course_classes cc ON cs.class_id = cc.id
+                  WHERE cc.course_id = #{courseId} AND asub.student_id = #{studentId}) + 
+                 (SELECT COUNT(DISTINCT es.exam_id) 
+                  FROM exam_submissions es 
+                  JOIN exams e ON es.exam_id = e.id 
+                  JOIN exam_classes ec ON e.id = ec.exam_id
+                  JOIN class_students cs ON ec.class_id = cs.class_id
+                  JOIN course_classes cc ON cs.class_id = cc.id
+                  WHERE cc.course_id = #{courseId} AND es.student_id = #{studentId})) AS completed_tasks
+            FROM dual
+        ) AS task_stats
+    </select>
+
+    <!-- 获取学生知识点掌握情况 -->
+    <select id="getKnowledgePoints" resultType="java.util.Map">
+        SELECT
+            kp.id,
+            kp.point_name AS name,
+            CASE 
+                WHEN km.mastery_level = '优秀' THEN 90
+                WHEN km.mastery_level = '良好' THEN 75
+                WHEN km.mastery_level = '一般' THEN 60
+                WHEN km.mastery_level = '较差' THEN 40
+                ELSE 0
+            END AS mastery,
+            c.course_name AS courseName
+        FROM
+            knowledge_points kp
+        JOIN
+            courses c ON kp.course_id = c.id
+        JOIN
+            class_students cs ON cs.student_id = #{studentId}
+        LEFT JOIN
+            knowledge_mastery km ON kp.id = km.knowledge_point_id AND cs.student_id = km.student_id
+        WHERE
+            (
+                -- 通过course_classes关联
+                EXISTS (SELECT 1 FROM course_classes cc WHERE cc.course_id = c.id AND cc.id = cs.class_id)
+                OR
+                -- 通过class_courses关联
+                EXISTS (SELECT 1 FROM class_courses clc WHERE clc.course_id = c.id AND clc.class_id = cs.class_id)
+            )
+            <if test="semester != null and semester != ''">
+                AND c.semester = #{semester}
+            </if>
+            <if test="courseId != null">
+                AND c.id = #{courseId}
+            </if>
+        GROUP BY
+            kp.id, kp.point_name, c.course_name, km.mastery_level
+    </select>
+    
+    <!-- 获取学生成绩列表 -->
+    <select id="getScores" resultType="java.util.Map">
+        <!-- 作业成绩 -->
+        SELECT
+            a.id AS id,
+            c.course_name AS course,
+            c.course_name AS courseName,
+            'assignment' AS type,
+            a.title AS name,
+            a.title AS examName,
+            a.due_date AS examDate,
+            asub.score AS score,
+            100 AS total,
+            asub.submission_date AS submitDate,
+            CASE WHEN asub.graded THEN 'graded' ELSE 'submitted' END AS status,
+            cs.class_id AS classId,
+            (
+                SELECT COUNT(*) + 1
+                FROM assignment_submissions asub2
+                WHERE asub2.assignment_id = a.id
+                AND asub2.score > asub.score
+                AND CAST(asub2.graded AS UNSIGNED) = 1
+                AND asub2.student_id IN (
+                    SELECT cs2.student_id
+                    FROM class_students cs2
+                    WHERE cs2.class_id = cs.class_id
+                )
+            ) AS `rank`
+        FROM
+            assignments a
+        JOIN
+            assignment_classes ac ON a.id = ac.assignment_id
+        JOIN
+            class_students cs ON ac.class_id = cs.class_id
+        JOIN
+            courses c ON a.course_id = c.id
+        LEFT JOIN
+            assignment_submissions asub ON a.id = asub.assignment_id AND cs.student_id = asub.student_id
+        WHERE
+            cs.student_id = #{studentId}
+            AND asub.score IS NOT NULL
+            AND CAST(asub.graded AS UNSIGNED) = 1
+            <if test="semester != null and semester != ''">
+                AND c.semester = #{semester}
+            </if>
+            <if test="courseId != null">
+                AND c.id = #{courseId}
+            </if>
+            <if test="timeRange != null and timeRange != ''">
+                <choose>
+                    <when test="timeRange == 'week'">
+                        AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK)
+                    </when>
+                    <when test="timeRange == 'month'">
+                        AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
+                    </when>
+                    <when test="timeRange == 'quarter'">
+                        AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
+                    </when>
+                    <when test="timeRange == 'semester'">
+                        AND c.semester = (SELECT semester FROM courses WHERE id = #{courseId} LIMIT 1)
+                    </when>
+                </choose>
+            </if>
+        
+        UNION
+        
+        <!-- 考试成绩 -->
+        SELECT
+            e.id AS id,
+            c.course_name AS course,
+            c.course_name AS courseName,
+            'exam' AS type,
+            e.title AS name,
+            e.title AS examName,
+            e.start_time AS examDate,
+            es.score AS score,
+            100 AS total,
+            es.submission_date AS submitDate,
+            CASE WHEN es.graded THEN 'graded' ELSE 'submitted' END AS status,
+            cs.class_id AS classId,
+            (
+                SELECT COUNT(*) + 1
+                FROM exam_submissions es2
+                WHERE es2.exam_id = e.id
+                AND es2.score > es.score
+                AND CAST(es2.graded AS UNSIGNED) = 1
+                AND es2.student_id IN (
+                    SELECT cs2.student_id
+                    FROM class_students cs2
+                    WHERE cs2.class_id = cs.class_id
+                )
+            ) AS `rank`
+        FROM
+            exams e
+        JOIN
+            exam_classes ec ON e.id = ec.exam_id
+        JOIN
+            class_students cs ON ec.class_id = cs.class_id
+        JOIN
+            courses c ON e.course_id = c.id
+        LEFT JOIN
+            exam_submissions es ON e.id = es.exam_id AND cs.student_id = es.student_id
+        WHERE
+            cs.student_id = #{studentId}
+            AND es.score IS NOT NULL
+            AND CAST(es.graded AS UNSIGNED) = 1
+            <if test="semester != null and semester != ''">
+                AND c.semester = #{semester}
+            </if>
+            <if test="courseId != null">
+                AND c.id = #{courseId}
+            </if>
+            <if test="timeRange != null and timeRange != ''">
+                <choose>
+                    <when test="timeRange == 'week'">
+                        AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK)
+                    </when>
+                    <when test="timeRange == 'month'">
+                        AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
+                    </when>
+                    <when test="timeRange == 'quarter'">
+                        AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
+                    </when>
+                    <when test="timeRange == 'semester'">
+                        AND c.semester = (SELECT semester FROM courses WHERE id = #{courseId} LIMIT 1)
+                    </when>
+                </choose>
+            </if>
+        
+        ORDER BY
+            submitDate DESC
+    </select>
+
+    <!-- 获取学生学习进度趋势 -->
+    <select id="getLearningProgressTrend" resultType="java.util.Map">
+        <!-- 计算过去5周的学习进度 -->
+        SELECT
+            -- 使用预先计算的week_index，避免ONLY_FULL_GROUP_BY问题
+            CONCAT('第', WEEK(current_date()) - week_index + 1, '周') AS week,
+            SUM(completed) AS completed_tasks,
+            SUM(total) AS total_tasks,
+            CASE 
+                WHEN SUM(total) > 0 THEN ROUND((SUM(completed) / SUM(total)) * 100, 0)
+                ELSE 0
+            END AS progress
+        FROM (
+            <!-- 作业完成情况 -->
+            SELECT
+                a.id,
+                a.course_id,
+                DATE(a.due_date) AS week_ending,
+                asub.submission_date AS submit_date,
+                -- 以提交时间为主、截止时间为辅计算周索引
+                WEEK(COALESCE(asub.submission_date, a.due_date)) AS week_index,
+                CASE WHEN asub.id IS NOT NULL THEN 1 ELSE 0 END AS completed,
+                1 AS total
+            FROM
+                assignments a
+            JOIN
+                assignment_classes ac ON a.id = ac.assignment_id
+            JOIN
+                class_students cs ON ac.class_id = cs.class_id
+            LEFT JOIN
+                assignment_submissions asub ON a.id = asub.assignment_id AND cs.student_id = asub.student_id
+            WHERE
+                cs.student_id = #{studentId}
+                AND a.due_date >= DATE_SUB(current_date(), INTERVAL 5 WEEK)
+            
+            UNION ALL
+            
+            <!-- 考试完成情况 -->
+            SELECT
+                e.id,
+                e.course_id,
+                DATE(e.end_time) AS week_ending,
+                es.submission_date AS submit_date,
+                -- 以提交时间为主、考试结束时间为辅计算周索引
+                WEEK(COALESCE(es.submission_date, e.end_time)) AS week_index,
+                CASE WHEN es.id IS NOT NULL THEN 1 ELSE 0 END AS completed,
+                1 AS total
+            FROM
+                exams e
+            JOIN
+                exam_classes ec ON e.id = ec.exam_id
+            JOIN
+                class_students cs ON ec.class_id = cs.class_id
+            LEFT JOIN
+                exam_submissions es ON e.id = es.exam_id AND cs.student_id = es.student_id
+            WHERE
+                cs.student_id = #{studentId}
+                AND e.end_time >= DATE_SUB(current_date(), INTERVAL 5 WEEK)
+        ) AS weekly_tasks
+        GROUP BY
+            week_index
+        ORDER BY
+            week_index DESC
+        LIMIT 5
+    </select>
+    
+    <!-- 获取学生学习时间分布（支持每日和每周） -->
+    <select id="getStudyTimeDistribution" resultType="java.util.Map">
+        <choose>
+            <when test="type == 'weekly'">
+                <!-- 每周视图：计算过去4周的学习时间分布 -->
+                SELECT
+                    CONCAT('第', week_index, '周') AS date,
+                    CONCAT('第', week_index, '周') AS label,
+                    COALESCE(SUM(sa.study_time), 0) AS study_time
+                FROM (
+                    <!-- 生成过去4周的周索引（从当前周往前数） -->
+                    SELECT 
+                        4 - n AS week_index,
+                        DATE_SUB(CURRENT_DATE(), INTERVAL n WEEK) AS week_start_date,
+                        YEAR(DATE_SUB(CURRENT_DATE(), INTERVAL n WEEK)) AS year_num,
+                        WEEK(DATE_SUB(CURRENT_DATE(), INTERVAL n WEEK), 1) AS week_num
+                    FROM (
+                        SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3
+                    ) AS numbers
+                ) AS d
+                LEFT JOIN (
+                    <!-- 作业学习时间：按周聚合 -->
+                    SELECT
+                        YEAR(asub.submission_date) AS year_num,
+                        WEEK(asub.submission_date, 1) AS week_num,
+                        COUNT(*) * 1.0 AS study_time
+                    FROM
+                        assignment_submissions asub
+                    JOIN assignments a ON asub.assignment_id = a.id
+                    JOIN assignment_classes ac ON a.id = ac.assignment_id
+                    JOIN class_students cs ON ac.class_id = cs.class_id
+                    JOIN course_classes cc ON cs.class_id = cc.id
+                    JOIN courses c ON cc.course_id = c.id
+                    WHERE
+                        asub.student_id = #{studentId}
+                        AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 4 WEEK)
+                        <if test="semester != null and semester != ''">
+                            AND c.semester = #{semester}
+                        </if>
+                        <if test="courseId != null">
+                            AND c.id = #{courseId}
+                        </if>
+                        <if test="timeRange != null and timeRange != ''">
+                            <choose>
+                                <when test="timeRange == 'week'">
+                                    AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK)
+                                </when>
+                                <when test="timeRange == 'month'">
+                                    AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
+                                </when>
+                                <when test="timeRange == 'quarter'">
+                                    AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
+                                </when>
+                            </choose>
+                        </if>
+                    GROUP BY
+                        YEAR(asub.submission_date), WEEK(asub.submission_date, 1)
+                    
+                    UNION ALL
+                    
+                    <!-- 考试学习时间：按周聚合 -->
+                    SELECT
+                        YEAR(es.submission_date) AS year_num,
+                        WEEK(es.submission_date, 1) AS week_num,
+                        LEAST(SUM(
+                            CASE 
+                                WHEN COALESCE(e.duration, 120) > 1000000000 THEN COALESCE(e.duration, 7200000000000) / 3600000000000.0
+                                ELSE COALESCE(e.duration, 120) / 60.0
+                            END
+                        ), 56) AS study_time
+                    FROM
+                        exam_submissions es
+                    JOIN
+                        exams e ON es.exam_id = e.id
+                    JOIN exam_classes ec ON e.id = ec.exam_id
+                    JOIN class_students cs ON ec.class_id = cs.class_id
+                    JOIN course_classes cc ON cs.class_id = cc.id
+                    JOIN courses c ON cc.course_id = c.id
+                    WHERE
+                        es.student_id = #{studentId}
+                        AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 4 WEEK)
+                        <if test="semester != null and semester != ''">
+                            AND c.semester = #{semester}
+                        </if>
+                        <if test="courseId != null">
+                            AND c.id = #{courseId}
+                        </if>
+                        <if test="timeRange != null and timeRange != ''">
+                            <choose>
+                                <when test="timeRange == 'week'">
+                                    AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK)
+                                </when>
+                                <when test="timeRange == 'month'">
+                                    AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
+                                </when>
+                                <when test="timeRange == 'quarter'">
+                                    AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
+                                </when>
+                            </choose>
+                        </if>
+                    GROUP BY
+                        YEAR(es.submission_date), WEEK(es.submission_date, 1)
+                    
+                    UNION ALL
+                    
+                    <!-- 知识点学习时间：按周聚合 -->
+                    SELECT
+                        YEAR(km.last_assessed_date) AS year_num,
+                        WEEK(km.last_assessed_date, 1) AS week_num,
+                        LEAST(COUNT(*) * 0.5, 56) AS study_time
+                    FROM
+                        knowledge_mastery km
+                    WHERE
+                        km.student_id = #{studentId}
+                        AND km.last_assessed_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 4 WEEK)
+                    GROUP BY
+                        YEAR(km.last_assessed_date), WEEK(km.last_assessed_date, 1)
+                ) AS sa ON d.year_num = sa.year_num AND d.week_num = sa.week_num
+                GROUP BY
+                    d.week_index
+                ORDER BY
+                    d.week_index ASC
+            </when>
+            <otherwise>
+                <!-- 每日视图：计算过去7天的学习时间分布 -->
+                SELECT
+                    DATE_FORMAT(d.activity_date, '%Y-%m-%d') AS date,
+                    DATE_FORMAT(d.activity_date, '%m-%d') AS label,
+                    COALESCE(SUM(sa.study_time), 0) AS study_time
+                FROM (
+                    <!-- 生成过去7天的日期序列 -->
+                    SELECT DATE_SUB(CURRENT_DATE(), INTERVAL n DAY) AS activity_date
+                    FROM (
+                        SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL 
+                        SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6
+                    ) AS numbers
+                ) AS d
+                LEFT JOIN (
+                    <!-- 作业学习时间：基于提交时间，假设每个提交花费1小时 -->
+                    SELECT
+                        DATE(asub.submission_date) AS activity_date,
+                        COUNT(*) * 1.0 AS study_time
+                    FROM
+                        assignment_submissions asub
+                    JOIN assignments a ON asub.assignment_id = a.id
+                    JOIN assignment_classes ac ON a.id = ac.assignment_id
+                    JOIN class_students cs ON ac.class_id = cs.class_id
+                    JOIN course_classes cc ON cs.class_id = cc.id
+                    JOIN courses c ON cc.course_id = c.id
+                    WHERE
+                        asub.student_id = #{studentId}
+                        AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+                        <if test="semester != null and semester != ''">
+                            AND c.semester = #{semester}
+                        </if>
+                        <if test="courseId != null">
+                            AND c.id = #{courseId}
+                        </if>
+                        <if test="timeRange != null and timeRange != ''">
+                            <choose>
+                                <when test="timeRange == 'week'">
+                                    AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK)
+                                </when>
+                                <when test="timeRange == 'month'">
+                                    AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
+                                </when>
+                                <when test="timeRange == 'quarter'">
+                                    AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
+                                </when>
+                            </choose>
+                        </if>
+                    GROUP BY
+                        DATE(asub.submission_date)
+                    
+                    UNION ALL
+                    
+                    <!-- 考试学习时间：基于考试时长和提交记录 -->
+                    SELECT
+                        DATE(es.submission_date) AS activity_date,
+                        -- 将考试学习时间按小时折算（duration单位可能是分钟或微秒），并限制在合理范围内（每天最多8小时）
+                        LEAST(SUM(
+                            CASE 
+                                WHEN COALESCE(e.duration, 120) > 1000000000 THEN COALESCE(e.duration, 7200000000000) / 3600000000000.0
+                                ELSE COALESCE(e.duration, 120) / 60.0
+                            END
+                        ), 8) AS study_time
+                    FROM
+                        exam_submissions es
+                    JOIN
+                        exams e ON es.exam_id = e.id
+                    JOIN exam_classes ec ON e.id = ec.exam_id
+                    JOIN class_students cs ON ec.class_id = cs.class_id
+                    JOIN course_classes cc ON cs.class_id = cc.id
+                    JOIN courses c ON cc.course_id = c.id
+                    WHERE
+                        es.student_id = #{studentId}
+                        AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+                        <if test="semester != null and semester != ''">
+                            AND c.semester = #{semester}
+                        </if>
+                        <if test="courseId != null">
+                            AND c.id = #{courseId}
+                        </if>
+                        <if test="timeRange != null and timeRange != ''">
+                            <choose>
+                                <when test="timeRange == 'week'">
+                                    AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK)
+                                </when>
+                                <when test="timeRange == 'month'">
+                                    AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
+                                </when>
+                                <when test="timeRange == 'quarter'">
+                                    AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
+                                </when>
+                            </choose>
+                        </if>
+                    GROUP BY
+                        DATE(es.submission_date)
+                    
+                    UNION ALL
+                    
+                    <!-- 知识点学习时间：假设每个知识点掌握度记录花费0.5小时 -->
+                    SELECT
+                        DATE(km.last_assessed_date) AS activity_date,
+                        -- 知识点学习时间同样限制每日上限，避免异常数据
+                        LEAST(COUNT(*) * 0.5, 8) AS study_time
+                    FROM
+                        knowledge_mastery km
+                    WHERE
+                        km.student_id = #{studentId}
+                        AND km.last_assessed_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+                    GROUP BY
+                        DATE(km.last_assessed_date)
+                ) AS sa ON d.activity_date = sa.activity_date
+                GROUP BY
+                    d.activity_date
+                ORDER BY
+                    d.activity_date
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 获取学生学习表现数据（优先读取手动维护的student_performance，缺失时退回动态计算） -->
+    <select id="getStudentPerformance" resultType="java.util.Map">
+        SELECT
+            -- 课程统计
+            (SELECT COUNT(DISTINCT cc.course_id) FROM class_students cs JOIN course_classes cc ON cs.class_id = cc.id WHERE cs.student_id = #{studentId}) AS courseCount,
+            
+            -- 平均成绩：优先使用手工维护值，缺失时回退到动态计算（使用真实成绩）
+            COALESCE(
+                sp.average_score,
+                (SELECT IFNULL(AVG(score), 0) FROM (
+                    SELECT score FROM assignment_submissions WHERE student_id = #{studentId} AND score IS NOT NULL AND CAST(graded AS UNSIGNED) = 1
+                    UNION ALL
+                    SELECT score FROM exam_submissions WHERE student_id = #{studentId} AND score IS NOT NULL AND CAST(graded AS UNSIGNED) = 1
+                ) AS all_scores)
+            ) AS averageScore,
+            
+            -- 待交作业：始终使用动态计算，确保数据实时准确
+            (SELECT COUNT(DISTINCT a.id) FROM assignments a JOIN assignment_classes ac ON a.id = ac.assignment_id JOIN class_students cs ON ac.class_id = cs.class_id WHERE cs.student_id = #{studentId}
+             AND a.id NOT IN (SELECT assignment_id FROM assignment_submissions WHERE student_id = #{studentId})) AS pendingAssignments,
+            
+            -- 考试统计（与前端一致：按开始时间>当前时间统计“即将到来”的考试）
+            (SELECT COUNT(DISTINCT e.id)
+             FROM exams e
+             JOIN exam_classes ec ON e.id = ec.exam_id
+             JOIN class_students cs ON ec.class_id = cs.class_id
+             WHERE cs.student_id = #{studentId}
+               AND e.start_time > NOW()
+            ) AS upcomingExams,
+            
+            -- 学习进度：优先使用手工维护值，缺失时回退到动态计算
+            COALESCE(
+                sp.overall_progress,
+                IFNULL(
+                    (
+                        -- 计算作业和考试的总完成率
+                        SELECT 
+                            CASE WHEN (total_assignments + total_exams) > 0 
+                            THEN ROUND((completed_assignments + completed_exams) / (total_assignments + total_exams) * 100, 0) 
+                            ELSE 0 END 
+                        FROM (
+                                -- 统计总作业数和已完成作业数（通过assignment_classes表关联）
+                            SELECT 
+                                (SELECT COUNT(DISTINCT a.id) FROM assignments a JOIN assignment_classes ac ON a.id = ac.assignment_id JOIN class_students cs ON ac.class_id = cs.class_id WHERE cs.student_id = #{studentId}) AS total_assignments,
+                                (SELECT COUNT(DISTINCT asub.assignment_id) FROM assignment_submissions asub WHERE asub.student_id = #{studentId} AND CAST(asub.graded AS UNSIGNED) = 1) AS completed_assignments,
+                                -- 统计总考试数和已完成考试数（通过exam_classes表关联）
+                                (SELECT COUNT(DISTINCT e.id) FROM exams e JOIN exam_classes ec ON e.id = ec.exam_id JOIN class_students cs ON ec.class_id = cs.class_id WHERE cs.student_id = #{studentId}) AS total_exams,
+                                (SELECT COUNT(DISTINCT es.exam_id) FROM exam_submissions es WHERE es.student_id = #{studentId} AND CAST(es.graded AS UNSIGNED) = 1) AS completed_exams
+                            FROM dual
+                        ) AS completion_stats
+                    ),
+                    0
+                )
+            ) AS overallProgress
+        FROM
+            (SELECT 1) AS d
+        LEFT JOIN
+            student_performance sp ON sp.student_id = #{studentId}
+        LIMIT 1
+    </select>
+    
+    <!-- 更新/插入学生学习表现数据（持久化手工维护值，供前端同步显示） -->
+    <update id="updateStudentPerformance">
+        INSERT INTO student_performance (student_id, average_score, pending_assignments, overall_progress, created_at, updated_at)
+        VALUES (#{studentId}, COALESCE(#{averageScore}, 0), COALESCE(#{pendingAssignments}, 0), COALESCE(#{overallProgress}, 0), NOW(), NOW())
+        ON DUPLICATE KEY UPDATE
+            average_score = VALUES(average_score),
+            pending_assignments = VALUES(pending_assignments),
+            overall_progress = VALUES(overall_progress),
+            updated_at = NOW();
+    </update>
+    
+    <!-- 更新学生班级信息 -->
+    <!-- 注意：MyBatis中<update>标签只能执行单个UPDATE语句，不能执行多个语句 -->
+    <!-- 所以我们将这个操作拆分为两个步骤：1) 删除旧关联，2) 插入新关联 -->
+    
+    <!-- 删除学生旧的班级关联 -->
+    <delete id="deleteStudentClass">
+        DELETE FROM class_students WHERE student_id = #{studentId};
+    </delete>
+    
+    <!-- 插入学生新的班级关联 -->
+    <insert id="insertStudentClass">
+        INSERT IGNORE INTO class_students (class_id, student_id) VALUES (#{classId}, #{studentId});
+    </insert>
+    
+    <!-- 为了保持原有方法名的兼容性，我们创建一个新的方法来处理学生班级更新 -->
+    <!-- 注意：这个方法名与原有方法名相同，但是实现方式不同 -->
+    <!-- 我们使用<select>标签来调用两个语句，但是这不是MyBatis的最佳实践 -->
+    <!-- 更好的方式是在Service层调用两个独立的方法 -->
+    <select id="updateStudentClass">
+        <!-- 由于MyBatis的限制，我们不能在一个方法中执行多个语句 -->
+        <!-- 所以这个方法现在是一个空实现，实际的更新逻辑在Service层处理 -->
+    </select>
+
+    <!-- ==================== 从 StudentMapperExtension.xml 合并的内容 ==================== -->
+    
+    <!-- 获取所有活跃的学生-课程组合 -->
+    <select id="getAllActiveStudentCourses" resultType="map">
+        SELECT DISTINCT 
+            cs.student_id as studentId,
+            c.id as courseId,
+            c.teacher_id as teacherId
+        FROM class_students cs
+        JOIN course_classes cc ON cs.class_id = cc.id
+        JOIN class_courses cc_c ON cc.id = cc_c.class_id
+        JOIN courses c ON cc_c.course_id = c.id
+        WHERE c.course_status = 'active'
+        AND EXISTS (
+            SELECT 1 FROM users u 
+            WHERE u.id = cs.student_id 
+            AND u.is_active = 1
+        )
+    </select>
+
+    <!-- 获取学生最近的成绩数据 -->
+    <select id="getRecentScores" resultType="map">
+        SELECT 
+            score,
+            submission_date as submissionDate,
+            'assignment' as type
+        FROM assignment_submissions asub
+        JOIN assignments a ON asub.assignment_id = a.id
+        WHERE asub.student_id = #{studentId}
+        AND a.course_id = #{courseId}
+        AND asub.graded = 1
+        AND asub.score IS NOT NULL
+        AND asub.submission_date >= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+        
+        UNION ALL
+        
+        SELECT 
+            score,
+            submission_date as submissionDate,
+            'exam' as type
+        FROM exam_submissions esub
+        JOIN exams e ON esub.exam_id = e.id
+        WHERE esub.student_id = #{studentId}
+        AND e.course_id = #{courseId}
+        AND esub.graded = 1
+        AND esub.score IS NOT NULL
+        AND esub.submission_date >= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+        
+        ORDER BY submissionDate DESC
+    </select>
+
+    <!-- 获取学生学习进度数据 -->
+    <select id="getStudentProgressData" resultType="map">
+        SELECT 
+            COALESCE(
+                (SELECT COUNT(*) FROM assignment_submissions asub 
+                 JOIN assignments a ON asub.assignment_id = a.id 
+                 WHERE asub.student_id = #{studentId} AND a.course_id = #{courseId}) +
+                (SELECT COUNT(*) FROM exam_submissions esub 
+                 JOIN exams e ON esub.exam_id = e.id 
+                 WHERE esub.student_id = #{studentId} AND e.course_id = #{courseId}), 0
+            ) / NULLIF(
+                (SELECT COUNT(*) FROM assignments WHERE course_id = #{courseId}) +
+                (SELECT COUNT(*) FROM exams WHERE course_id = #{courseId}), 0
+            ) as completionRate,
+            
+            COALESCE(
+                DATEDIFF(NOW(), 
+                    GREATEST(
+                        COALESCE((SELECT MAX(submission_date) FROM assignment_submissions asub 
+                                 JOIN assignments a ON asub.assignment_id = a.id 
+                                 WHERE asub.student_id = #{studentId} AND a.course_id = #{courseId}), '1970-01-01'),
+                        COALESCE((SELECT MAX(submission_date) FROM exam_submissions esub 
+                                 JOIN exams e ON esub.exam_id = e.id 
+                                 WHERE esub.student_id = #{studentId} AND e.course_id = #{courseId}), '1970-01-01')
+                    )
+                ), 999
+            ) as daysWithoutActivity
+    </select>
+
+    <!-- 获取知识点相关的成绩数据 -->
+    <select id="getKnowledgePointRelatedScores" resultType="map">
+        SELECT 
+            asub.score,
+            asub.submission_date as submissionDate,
+            'assignment' as type
+        FROM assignment_submissions asub
+        JOIN assignments a ON asub.assignment_id = a.id
+        WHERE asub.student_id = #{studentId}
+        AND a.course_id = (
+            SELECT course_id FROM knowledge_points WHERE id = #{knowledgePointId} LIMIT 1
+        )
+        AND asub.graded = 1
+        AND asub.score IS NOT NULL
+        
+        UNION ALL
+        
+        SELECT 
+            esub.score,
+            esub.submission_date as submissionDate,
+            'exam' as type
+        FROM exam_submissions esub
+        JOIN exams e ON esub.exam_id = e.id
+        WHERE esub.student_id = #{studentId}
+        AND e.course_id = (
+            SELECT course_id FROM knowledge_points WHERE id = #{knowledgePointId} LIMIT 1
+        )
+        AND esub.graded = 1
+        AND esub.score IS NOT NULL
+        
+        ORDER BY submissionDate DESC
+    </select>
+
+    <!-- 更新知识点掌握情况 -->
+    <insert id="updateKnowledgePointMastery">
+        INSERT IGNORE INTO student_knowledge_points (
+            student_id, 
+            knowledge_point_id, 
+            mastery_level, 
+            average_score, 
+            practice_count, 
+            last_update_time
+        ) VALUES (
+            #{studentId}, 
+            #{knowledgePointId}, 
+            #{masteryData.masteryLevel}, 
+            #{masteryData.averageScore}, 
+            #{masteryData.practiceCount}, 
+            NOW()
+        )
+    </insert>
+
+</mapper>

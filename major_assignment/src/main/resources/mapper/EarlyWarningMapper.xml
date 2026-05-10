@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com._202510007517.major_assignment.mapper.EarlyWarningMapper">
+
+    <!-- 根据教师 ID 查询未解决的预警（多表 JOIN） -->
+    <select id="findUnresolvedByTeacherId" resultType="com._202510007517.major_assignment.entity.EarlyWarning">
+        SELECT ew.*, u.name as studentName, c.course_name as courseName
+        FROM early_warnings ew
+        JOIN users u ON ew.student_id = u.id
+        JOIN courses c ON ew.course_id = c.id
+        WHERE ew.teacher_id = #{teacherId} AND ew.is_resolved = 0
+    </select>
+
+    <!-- 带筛选的总预警数统计（动态 JOIN） -->
+    <select id="countTotalWarningsWithFilter" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM early_warnings ew
+        <if test="classId != null">JOIN class_students cs ON ew.student_id = cs.student_id</if>
+        WHERE ew.teacher_id = #{teacherId}
+        <if test="classId != null"> AND cs.class_id = #{classId}</if>
+        <if test="courseId != null"> AND ew.course_id = #{courseId}</if>
+    </select>
+
+    <!-- 带筛选的待处理预警数统计（动态 JOIN） -->
+    <select id="countPendingWarningsWithFilter" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM early_warnings ew
+        <if test="classId != null">JOIN class_students cs ON ew.student_id = cs.student_id</if>
+        WHERE ew.teacher_id = #{teacherId} AND ew.is_resolved = 0
+        <if test="classId != null"> AND cs.class_id = #{classId}</if>
+        <if test="courseId != null"> AND ew.course_id = #{courseId}</if>
+    </select>
+
+    <!-- 带筛选按类型的预警数统计（动态 JOIN） -->
+    <select id="countWarningsByTypeWithFilter" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM early_warnings ew
+        <if test="classId != null">JOIN class_students cs ON ew.student_id = cs.student_id</if>
+        WHERE ew.teacher_id = #{teacherId} AND ew.warning_type = #{warningType}
+        <if test="classId != null"> AND cs.class_id = #{classId}</if>
+        <if test="courseId != null"> AND ew.course_id = #{courseId}</if>
+    </select>
+
+    <!-- 根据条件查询预警列表 -->
+    <select id="findWarningsByCondition" resultType="com._202510007517.major_assignment.entity.EarlyWarning">
+        SELECT DISTINCT ew.*, u.name as studentName, c.course_name as courseName 
+        FROM early_warnings ew 
+        JOIN users u ON ew.student_id = u.id 
+        JOIN courses c ON ew.course_id = c.id 
+        <if test="classId != null">JOIN class_students cs ON ew.student_id = cs.student_id</if>
+        WHERE ew.teacher_id = #{teacherId}
+        <if test="classId != null"> AND cs.class_id = #{classId}</if>
+        <if test="courseId != null"> AND ew.course_id = #{courseId}</if>
+        <if test="warningType != null"> AND ew.warning_type = #{warningType}</if>
+        <if test="status != null"> 
+          <choose>
+            <when test="status == 'pending'"> AND ew.is_resolved = 0</when>
+            <when test="status == 'processing'"> AND ew.is_resolved = 0</when>
+            <when test="status == 'resolved'"> AND ew.is_resolved = 1</when>
+          </choose>
+        </if>
+        ORDER BY ew.trigger_date DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+    
+    <!-- 根据条件统计预警数量 -->
+    <select id="countWarningsByCondition" resultType="java.lang.Long">
+        SELECT COUNT(DISTINCT ew.id) FROM early_warnings ew 
+        <if test="classId != null">JOIN class_students cs ON ew.student_id = cs.student_id</if>
+        WHERE ew.teacher_id = #{teacherId}
+        <if test="classId != null"> AND cs.class_id = #{classId}</if>
+        <if test="courseId != null"> AND ew.course_id = #{courseId}</if>
+        <if test="warningType != null"> AND ew.warning_type = #{warningType}</if>
+        <if test="status != null"> 
+          <choose>
+            <when test="status == 'pending'"> AND ew.is_resolved = 0</when>
+            <when test="status == 'processing'"> AND ew.is_resolved = 0</when>
+            <when test="status == 'resolved'"> AND ew.is_resolved = 1</when>
+          </choose>
+        </if>
+    </select>
+    
+    <!-- 根据ID查询预警详情 -->
+    <select id="findWarningById" resultType="com._202510007517.major_assignment.entity.EarlyWarning">
+        SELECT ew.*, u.name as studentName, c.course_name as courseName 
+        FROM early_warnings ew 
+        JOIN users u ON ew.student_id = u.id 
+        JOIN courses c ON ew.course_id = c.id 
+        WHERE ew.id = #{warningId}
+    </select>
+    
+    <!-- 更新预警状态 -->
+    <update id="updateWarningStatus">
+        UPDATE early_warnings SET 
+        <if test="updateDTO.status == 'processing'">
+          is_resolved = 0
+        </if>
+        <if test="updateDTO.status == 'resolved'">
+          is_resolved = 1, resolved_by = #{userId}, resolved_date = NOW()
+        </if>
+        <if test="updateDTO.resolvedNote != null">
+          , resolved_note = #{updateDTO.resolvedNote}
+        </if>
+        WHERE id = #{warningId}
+    </update>
+    
+    <!-- 获取导出的预警数据 -->
+    <select id="findWarningsForExport" resultType="com._202510007517.major_assignment.entity.EarlyWarning">
+        SELECT DISTINCT ew.*, u.name as studentName, c.course_name as courseName 
+        FROM early_warnings ew 
+        JOIN users u ON ew.student_id = u.id 
+        JOIN courses c ON ew.course_id = c.id 
+        <if test="classId != null">JOIN class_students cs ON ew.student_id = cs.student_id</if>
+        WHERE ew.teacher_id = #{teacherId}
+        <if test="classId != null"> AND cs.class_id = #{classId}</if>
+        <if test="courseId != null"> AND ew.course_id = #{courseId}</if>
+        <if test="warningType != null"> AND ew.warning_type = #{warningType}</if>
+        <if test="status != null"> 
+          <choose>
+            <when test="status == 'pending'"> AND ew.is_resolved = 0</when>
+            <when test="status == 'processing'"> AND ew.is_resolved = 0</when>
+            <when test="status == 'resolved'"> AND ew.is_resolved = 1</when>
+          </choose>
+        </if>
+        ORDER BY ew.trigger_date DESC
+    </select>
+    
+    <!-- 根据课程ID查询预警列表 -->
+    <select id="findByCourseId" resultType="com._202510007517.major_assignment.entity.EarlyWarning">
+        SELECT ew.*, u.name as studentName, c.course_name as courseName 
+        FROM early_warnings ew 
+        JOIN users u ON ew.student_id = u.id 
+        JOIN courses c ON ew.course_id = c.id 
+        WHERE ew.course_id = #{courseId}
+        <if test="warningType != null"> AND ew.warning_type = #{warningType}</if>
+        <if test="warningLevel != null"> AND ew.warning_level = #{warningLevel}</if>
+        <if test="isResolved != null"> AND ew.is_resolved = #{isResolved}</if>
+        ORDER BY ew.trigger_date DESC
+    </select>
+</mapper>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com._202510007517.major_assignment.mapper.ExamSubmissionMapper">
+
+    <!-- 分页查询：多表 JOIN + 动态 WHERE → XML -->
+    <select id="findWithPagination" resultType="com._202510007517.major_assignment.entity.ExamSubmission">
+        SELECT esub.*,
+               u.name AS studentName,
+               e.title AS examTitle
+        FROM exam_submissions esub
+        LEFT JOIN users u ON esub.student_id = u.id
+        LEFT JOIN exams e ON esub.exam_id = e.id
+        WHERE 1=1
+        <if test="examId != null">AND esub.exam_id = #{examId}</if>
+        <if test="studentId != null">AND esub.student_id = #{studentId}</if>
+        <if test="graded != null">AND esub.graded = #{graded}</if>
+        ORDER BY ${sortBy} ${order}
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 条件计数：动态 WHERE → XML -->
+    <select id="countSubmissions" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM exam_submissions
+        WHERE 1=1
+        <if test="examId != null">AND exam_id = #{examId}</if>
+        <if test="studentId != null">AND student_id = #{studentId}</if>
+        <if test="graded != null">AND graded = #{graded}</if>
+    </select>
+
+    <!-- 教师仪表盘：最近考试提交记录（多表 JOIN）→ XML -->
+    <select id="getRecentSubmissionsByTeacher" resultType="java.util.Map">
+        SELECT esub.id, esub.student_id, esub.submission_date,
+               u.name AS student_name, e.title AS exam_title
+        FROM exam_submissions esub
+        JOIN exams e ON esub.exam_id = e.id
+        JOIN users u ON esub.student_id = u.id
+        WHERE e.teacher_id = #{teacherId}
+        ORDER BY esub.submission_date DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

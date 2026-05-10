@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com._202510007517.major_assignment.mapper.AssignmentSubmissionMapper">
+
+    <!-- 分页查询：多表 JOIN + 动态 WHERE → XML -->
+    <select id="findWithPagination" resultType="com._202510007517.major_assignment.entity.AssignmentSubmission">
+        SELECT asub.*,
+               u.name AS studentName,
+               a.title AS assignmentTitle
+        FROM assignment_submissions asub
+        LEFT JOIN users u ON asub.student_id = u.id
+        LEFT JOIN assignments a ON asub.assignment_id = a.id
+        WHERE 1=1
+        <if test="assignmentId != null">AND asub.assignment_id = #{assignmentId}</if>
+        <if test="studentId != null">AND asub.student_id = #{studentId}</if>
+        <if test="graded != null">AND asub.graded = #{graded}</if>
+        ORDER BY ${sortBy} ${order}
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 条件计数：动态 WHERE → XML -->
+    <select id="countSubmissions" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM assignment_submissions
+        WHERE 1=1
+        <if test="assignmentId != null">AND assignment_id = #{assignmentId}</if>
+        <if test="studentId != null">AND student_id = #{studentId}</if>
+        <if test="graded != null">AND graded = #{graded}</if>
+    </select>
+
+    <!-- 成绩趋势：多表 JOIN + 动态 WHERE → XML -->
+    <select id="getAssignmentScoreTrend" resultType="java.util.Map">
+        SELECT DATE_FORMAT(asub.submission_date, '%Y-%m-%d') AS day, AVG(asub.score) AS avgScore
+        FROM assignment_submissions asub
+        JOIN assignments a ON asub.assignment_id = a.id
+        <if test="classId != null">JOIN class_students cs ON cs.student_id = asub.student_id </if>
+        WHERE a.teacher_id = #{teacherId}
+        AND asub.score IS NOT NULL AND CAST(asub.graded AS UNSIGNED) = 1
+        AND asub.submission_date &gt;= #{startDate}
+        <if test="endDate != null">AND asub.submission_date &lt;= #{endDate}</if>
+        <if test="courseId != null">AND a.course_id = #{courseId}</if>
+        <if test="classId != null">AND cs.class_id = #{classId}</if>
+        GROUP BY DATE_FORMAT(asub.submission_date, '%Y-%m-%d')
+        ORDER BY day
+    </select>
+
+    <!-- 学生作业提交统计：多表 LEFT JOIN → XML -->
+    <select id="getStudentSubmissionStats" resultType="java.util.Map">
+        SELECT
+            COUNT(DISTINCT a.id) AS totalAssignments,
+            COUNT(asub.id) AS submittedAssignments,
+            SUM(CASE WHEN asub.is_late = 1 THEN 1 ELSE 0 END) AS lateSubmissions
+        FROM assignments a
+        LEFT JOIN assignment_submissions asub
+            ON a.id = asub.assignment_id AND asub.student_id = #{studentId}
+        WHERE a.course_id = #{courseId}
+          AND a.due_date &gt;= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+    </select>
+
+    <!-- 教师仪表盘：最近提交记录（多表 JOIN） → XML -->
+    <select id="getRecentSubmissionsByTeacher" resultType="java.util.Map">
+        SELECT asub.id, asub.student_id, asub.submission_date,
+               u.name AS student_name, a.title AS assignment_title
+        FROM assignment_submissions asub
+        JOIN assignments a ON asub.assignment_id = a.id
+        JOIN users u ON asub.student_id = u.id
+        WHERE a.teacher_id = #{teacherId}
+        ORDER BY asub.submission_date DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 教师仪表盘：最近批改记录（多表 JOIN） → XML -->
+    <select id="getRecentGradedByTeacher" resultType="java.util.Map">
+        SELECT asub.id, asub.student_id, asub.score, asub.submission_date AS updated_at,
+               u.name AS student_name, a.title AS assignment_title
+        FROM assignment_submissions asub
+        JOIN assignments a ON asub.assignment_id = a.id
+        JOIN users u ON asub.student_id = u.id
+        WHERE a.teacher_id = #{teacherId} AND CAST(asub.graded AS UNSIGNED) = 1
+        ORDER BY asub.submission_date DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 教师历史单日最大提交数：含子查询 + 多表 JOIN → XML -->
+    <select id="getMaxDailySubmissionsByTeacher" resultType="java.lang.Integer">
+        SELECT MAX(daily_count) FROM (
+            SELECT COUNT(*) AS daily_count
+            FROM assignment_submissions asub
+            JOIN assignments a ON asub.assignment_id = a.id
+            WHERE a.teacher_id = #{teacherId}
+            GROUP BY DATE_FORMAT(asub.submission_date, '%Y-%m-%d')
+        ) AS daily_counts
+    </select>
+
+</mapper>

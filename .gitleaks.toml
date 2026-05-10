@@ -1,0 +1,90 @@
+# gitleaks 规则配置（对应 R4 安全不变量）
+# 扫描目标：提交到 Git 的任意文件不得命中明文密码、API Key、私钥、带凭证的 JDBC URL。
+# 用法：gitleaks detect --config .gitleaks.toml --no-banner --redact --source .
+#
+# 设计取舍：
+#   - 覆盖常见机密：通用密码赋值、常见云/AI 提供商的 API Key 前缀、PEM 私钥、JDBC 凭证 URL。
+#   - 通用 32+ 位高熵字符串启发式会带来噪声，因此通过 allowlist 豁免框架占位符与测试夹具。
+#   - 允许本规则所在的 .gitleaks.toml、文档示例文件以及 application-*.properties
+#     中以 ${ENV_NAME} 占位形式出现的条目（见 allowlist.regexes）。
+
+title = "major_assignment gitleaks ruleset"
+
+[extend]
+# 继承 gitleaks 内置默认规则（覆盖 AWS、GCP、GitHub Token 等）。
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# 自定义规则
+# ---------------------------------------------------------------------------
+
+[[rules]]
+id = "generic-password-assignment"
+description = "Generic password or pwd assignment with a literal non-placeholder value"
+# 匹配形如 password = 'abc'、pwd: "abc"、password=abc 且值不是 ${...} / 空串 的赋值。
+regex = '''(?i)\b(?:password|passwd|pwd)\s*[:=]\s*["']?(?!\$\{)([^"'\s$][^"'\s]{2,})["']?'''
+tags = ["password", "generic"]
+
+[[rules]]
+id = "generic-api-key-assignment"
+description = "Generic API key / token / secret assignment with a literal non-placeholder value"
+regex = '''(?i)\b(?:api[_-]?key|api[_-]?token|access[_-]?token|secret[_-]?key|auth[_-]?token|bearer[_-]?token)\s*[:=]\s*["']?(?!\$\{)([A-Za-z0-9_\-]{16,})["']?'''
+tags = ["apikey", "generic"]
+
+[[rules]]
+id = "generic-high-entropy-token"
+description = "Generic long alphanumeric token likely to be a secret (length >= 32)"
+# 作为兜底：成片的 32+ 位字母数字串（带小驼峰/下划线变体）
+regex = '''(?i)(?:secret|token|credential)[^A-Za-z0-9]{0,16}["']?([A-Za-z0-9]{32,})["']?'''
+tags = ["apikey", "entropy"]
+
+[[rules]]
+id = "private-key-pem"
+description = "PEM-encoded private key header"
+regex = '''-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP |ENCRYPTED )?PRIVATE KEY-----'''
+tags = ["key", "pem"]
+
+[[rules]]
+id = "jdbc-url-with-credentials"
+description = "JDBC URL with embedded username/password"
+# 匹配形如 jdbc:mysql://user:pass@host:port/db 或 jdbc:postgresql://...user=u&password=p 的 URL
+regex = '''jdbc:[a-zA-Z0-9]+://[^\s"'<>]*(?::[^\s"'<>]+@|[?&](?:password|pwd|user)=)[^\s"'<>]+'''
+tags = ["jdbc", "credential"]
+
+[[rules]]
+id = "openai-style-api-key"
+description = "OpenAI-style API key prefix"
+regex = '''\bsk-[A-Za-z0-9]{20,}\b'''
+tags = ["openai", "apikey"]
+
+# ---------------------------------------------------------------------------
+# 全局豁免
+# ---------------------------------------------------------------------------
+
+[allowlist]
+description = "框架占位符、文档示例、测试夹具、构建产物等已知不可能包含真实机密的路径"
+paths = [
+    '''(^|/)target/''',
+    '''(^|/)build/''',
+    '''(^|/)node_modules/''',
+    '''(^|/)logs/''',
+    '''(^|/)\.git/''',
+    # 文档中可能出现规则本身的示例片段
+    '''(^|/)\.gitleaks\.toml$''',
+    '''(^|/)docs/.*\.md$''',
+    '''(^|/)\.kiro/specs/.*\.md$''',
+    '''(^|/)scripts/check-secrets\.sh$''',
+    # 静态资源中第三方库（含原版版权头、UMD 打包代码等）
+    '''(^|/)src/main/resources/static/lib/''',
+    '''(^|/)target/classes/static/lib/'''
+]
+regexes = [
+    # 环境变量占位符（R4.1 外置规范）
+    '''\$\{[A-Z0-9_]+(:[^}]*)?\}''',
+    # 允许本地开发默认值的注释性标识
+    '''dev_only_pwd''',
+    '''dev_user''',
+    # 文档中的样例占位
+    '''your[_-]?(api[_-]?key|secret|token|password)[_-]?here''',
+    '''example[_-]?(api[_-]?key|secret|token)'''
+]

@@ -1,0 +1,219 @@
+<!-- 侧边栏导航组件 -->
+<!-- Font Awesome CDN - 使用v5+版本 -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+
+<style>
+    /* 侧边栏样式统一 */
+    .sidebar {
+        width: 280px;
+        height: 100vh;
+        background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+        color: white;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1000;
+        overflow-y: auto;
+        transition: width 0.3s ease;
+    }
+
+    .sidebar.collapsed {
+        width: 80px;
+    }
+
+    .sidebar-header {
+        padding: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .sidebar-logo i {
+        font-size: 28px;
+    }
+
+    .sidebar-logo span {
+        font-size: 18px;
+        font-weight: 700;
+    }
+
+    .sidebar-menu {
+        padding: 20px 0;
+    }
+
+    .menu-item {
+        display: flex;
+        align-items: center;
+        padding: 15px 20px;
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+        transition: all 0.3s ease;
+        border-left: 3px solid transparent;
+        font-size: 16px;
+        line-height: 1;
+        font-family: 'Inter', sans-serif;
+        margin: 0;
+    }
+
+    .menu-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border-left-color: white;
+    }
+
+    .menu-item.active {
+        background: rgba(255, 255, 255, 0.15);
+        color: white;
+        border-left-color: white;
+    }
+
+    .menu-item i {
+        width: 30px;
+        margin-right: 10px;
+        text-align: center;
+        font-size: 1.2rem;
+    }
+
+    /* 折叠状态样式 */
+    .sidebar.collapsed .sidebar-logo span {
+        display: none;
+    }
+
+    .sidebar.collapsed .menu-item span {
+        display: none;
+    }
+
+    .sidebar.collapsed .menu-item i {
+        margin-right: 0;
+    }
+
+    /* 主内容区样式 */
+    .main-content {
+        margin-left: 280px;
+        transition: margin-left 0.3s ease;
+    }
+
+    .sidebar.collapsed + .main-content {
+        margin-left: 80px;
+    }
+
+    /* 响应式布局 - 移动端优化 */
+    @media (max-width: 768px) {
+        .sidebar {
+            transform: translateX(-280px);
+        }
+        
+        .sidebar.collapsed {
+            transform: translateX(0);
+            width: 100%;
+        }
+        
+        .main-content {
+            margin-left: 0;
+        }
+        
+        .sidebar.collapsed + .main-content {
+            margin-left: 0;
+        }
+    }
+</style>
+
+<!-- 侧边栏导航HTML结构 -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-logo">
+            <i class="fas fa-graduation-cap"></i>
+            <span>智能学习系统</span>
+        </div>
+    </div>
+    
+    <nav class="sidebar-menu">
+        <a href="student-dashboard.html" class="menu-item" id="nav-dashboard">
+            <i class="fas fa-tachometer-alt"></i>
+            <span>学生控制台</span>
+        </a>
+        <a href="student-courses.html" class="menu-item" id="nav-courses">
+            <i class="fas fa-book"></i>
+            <span>我的课程</span>
+        </a>
+        
+        <a href="student-assignments.html" class="menu-item" id="nav-assignments">
+            <i class="fas fa-tasks"></i>
+            <span>作业管理</span>
+        </a>
+        <a href="student-stats.html" class="menu-item" id="nav-stats">
+            <i class="fas fa-chart-line"></i>
+            <span>学习统计</span>
+        </a>
+        <a href="student-notifications.html" class="menu-item" id="nav-notifications">
+            <i class="fas fa-bell"></i>
+            <span>消息通知</span>
+        </a>
+         <a href="student-ai-assistant.html" class="menu-item" id="nav-ai">
+            <i class="fas fa-robot"></i>
+            <span>AI学习助手</span>
+        </a>
+        <a href="student-settings.html" class="menu-item" id="nav-settings">
+            <i class="fas fa-cog"></i>
+            <span>系统设置</span>
+        </a>
+    </nav>
+</aside>
+
+<script>
+
+
+    // 高亮当前导航项
+    function highlightActiveNavItem() {
+        try {
+            const currentPath = window.location.pathname;
+            const navItems = document.querySelectorAll('.menu-item');
+            
+            navItems.forEach(item => {
+                const href = item.getAttribute('href');
+                if (currentPath.endsWith(href)) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        } catch (error) {
+            console.error('Error highlighting active nav item:', error);
+        }
+    }
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        highlightActiveNavItem();
+        
+        // 为折叠按钮添加事件监听（如果存在）
+        const collapseBtn = document.querySelector('#collapseSidebar');
+        if (collapseBtn) {
+            collapseBtn.addEventListener('click', function() {
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.getElementById('mainContent');
+                
+                if (sidebar) {
+                    sidebar.classList.toggle('collapsed');
+                    
+                    // 保存状态到localStorage
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('sidebarCollapsed', isCollapsed);
+                    
+                    // 同时调整主内容区的margin-left
+                    if (mainContent) {
+                        if (isCollapsed) {
+                            mainContent.classList.add('collapsed');
+                        } else {
+                            mainContent.classList.remove('collapsed');
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>

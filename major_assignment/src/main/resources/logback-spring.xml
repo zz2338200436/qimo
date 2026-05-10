@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Logback configuration (Design §7.2 / R3.5 JSON 结构化日志 / R4.2 敏感字段打码)
+
+  - 控制台 appender：保留可读文本格式，并通过 %mask(%msg) 对敏感字段打码
+  - 文件 appender：输出 JSON，字段对齐 Design §7.2 —
+      timestamp / level / logger / thread / traceId / userId / role / uri / method /
+      status / elapsed_ms / message / stacktrace
+  - 滚动策略：按日期滚动，保留 30 天（R13.4）
+  - 敏感字段打码：
+      * 控制台：ClassicConverter 注册为 conversionRule `mask`
+      * JSON：MessageMaskingJsonProvider 覆写 message 字段的写入
+-->
+<configuration scan="true" scanPeriod="30 seconds">
+
+    <!-- 启用 MaskingConverter 作为 %mask(...) 转换符 -->
+    <conversionRule conversionWord="mask"
+                    converterClass="com._202510007517.major_assignment.logging.MaskingConverter"/>
+
+    <!-- 允许通过 Spring 属性注入日志文件路径 -->
+    <springProperty scope="context" name="LOG_FILE" source="logging.file.name"
+                    defaultValue="logs/major-assignment.log"/>
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name"
+                    defaultValue="major_assignment"/>
+
+    <!-- 控制台 Appender：保留可读文本 + 敏感字段打码 -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <charset>UTF-8</charset>
+            <!--
+              使用 %mask（无括号参数形式）：MaskingConverter 作为 ClassicConverter
+              会在 convert(event) 内部调用 event.getFormattedMessage()，等价于对 %msg 打码。
+              不能写成 %mask(%msg)，那种语法要求 CompositeConverter（会把子 pattern 作为参数）。
+            -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [traceId=%X{traceId:-} userId=%X{userId:-} role=%X{role:-}] - %mask%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 文件 Appender：JSON 结构化 + 按日滚动 + 敏感字段打码 -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_FILE}</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_FILE}.%d{yyyy-MM-dd}.%i.gz</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>2GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp>
+                    <fieldName>timestamp</fieldName>
+                    <timeZone>UTC</timeZone>
+                </timestamp>
+                <version>
+                    <fieldName>@version</fieldName>
+                </version>
+                <logLevel>
+                    <fieldName>level</fieldName>
+                </logLevel>
+                <loggerName>
+                    <fieldName>logger</fieldName>
+                    <shortenedLoggerNameLength>40</shortenedLoggerNameLength>
+                </loggerName>
+                <threadName>
+                    <fieldName>thread</fieldName>
+                </threadName>
+                <!-- 敏感字段打码：message 字段由自定义 Provider 写入，确保与控制台 %mask 一致 -->
+                <provider class="com._202510007517.major_assignment.logging.MessageMaskingJsonProvider">
+                    <fieldName>message</fieldName>
+                </provider>
+                <!-- 仅透出 Design §7.2 声明的 MDC 字段，避免泄露不相关上下文 -->
+                <mdc>
+                    <includeMdcKeyName>traceId</includeMdcKeyName>
+                    <includeMdcKeyName>userId</includeMdcKeyName>
+                    <includeMdcKeyName>role</includeMdcKeyName>
+                    <includeMdcKeyName>uri</includeMdcKeyName>
+                    <includeMdcKeyName>method</includeMdcKeyName>
+                    <includeMdcKeyName>status</includeMdcKeyName>
+                    <includeMdcKeyName>elapsed_ms</includeMdcKeyName>
+                    <includeMdcKeyName>exceptionType</includeMdcKeyName>
+                </mdc>
+                <stackTrace>
+                    <fieldName>stacktrace</fieldName>
+                    <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                        <maxDepthPerThrowable>30</maxDepthPerThrowable>
+                        <maxLength>4096</maxLength>
+                        <shortenedClassNameLength>40</shortenedClassNameLength>
+                        <rootCauseFirst>true</rootCauseFirst>
+                    </throwableConverter>
+                </stackTrace>
+                <pattern>
+                    <!-- 固定标签字段，便于 Loki / ES 过滤 -->
+                    <pattern>
+                        {"app":"${APP_NAME}"}
+                    </pattern>
+                </pattern>
+            </providers>
+        </encoder>
+    </appender>
+
+    <!-- 根 Logger —— 所有 Profile 共用同一对 appender，profile 仅用于调整 package 粒度的 level -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+
+    <springProfile name="dev,default,test">
+        <logger name="com._202510007517.major_assignment" level="DEBUG"/>
+    </springProfile>
+
+    <springProfile name="prod">
+        <logger name="com._202510007517.major_assignment" level="INFO"/>
+    </springProfile>
+
+</configuration>

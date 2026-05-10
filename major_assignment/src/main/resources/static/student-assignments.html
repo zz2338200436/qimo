@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>作业与考试 - 智能学习辅助系统</title>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 全局样式文件 -->
+    <link href="styles.css" rel="stylesheet">
+</head>
+<body>
+<!-- 侧边栏导航组件 -->
+<div id="sidebar-container"></div>
+<script>
+    $(function() {
+        $('#sidebar-container').load('components/sidebar-nav.html', function() {
+            highlightActiveNavItem();
+        });
+    });
+</script>
+
+<!-- 主内容区 -->
+<main class="main-content" id="mainContent">
+    <!-- 顶部导航栏 -->
+    <header class="top-navbar">
+        <div class="navbar-left">
+            <button class="toggle-btn" id="toggleSidebar" aria-label="切换侧边栏">
+                <i class="fas fa-bars"></i>
+            </button>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="student-dashboard.html">首页</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">作业与考试</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="navbar-right">
+            <!-- 用户下拉菜单组件 -->
+            <div id="userDropdownContainer"></div>
+        </div>
+    </header>
+    
+    <!-- 内容区域 -->
+    <div class="content-container">
+        <!-- 选项卡导航 -->
+        <div class="tab-nav">
+            <button class="tab-btn active" data-tab="assignments">
+                <i class="fa fa-tasks"></i> 作业
+            </button>
+            <button class="tab-btn" data-tab="exams">
+                <i class="fa fa-file-o"></i> 考试
+            </button>
+            <button class="tab-btn" data-tab="scores">
+                <i class="fa fa-star"></i> 成绩查询
+            </button>
+        </div>
+        
+        <!-- 作业选项卡内容 -->
+        <div class="tab-content active" id="assignments">
+            <div class="assignment-list">
+                <div class="list-header">
+                    <h4>作业列表</h4>
+                    <div class="filter-options">
+                        <div class="search-box">
+                            <input type="text" id="assignment-search" class="form-control" placeholder="搜索作业...">
+                            <button class="btn btn-primary" onclick="searchAssignments()">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        </div>
+                        <div>
+                            <button class="filter-btn active" onclick="filterAssignments('all')">全部</button>
+                            <button class="filter-btn" onclick="filterAssignments('pending')">待完成</button>
+                            <button class="filter-btn" onclick="filterAssignments('submitted')">已提交</button>
+                            <button class="filter-btn" onclick="filterAssignments('graded')">已批改</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="assignment-list">
+                    <!-- 作业项将通过JavaScript动态生成 -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- 考试选项卡内容 -->
+        <div class="tab-content" id="exams">
+            <div class="exam-list">
+                <div class="list-header">
+                    <h4>考试列表</h4>
+                    <div class="filter-options">
+                        <div class="search-box">
+                            <input type="text" id="exam-search" class="form-control" placeholder="搜索考试...">
+                            <button class="btn btn-primary" onclick="searchExams()">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        </div>
+                        <div>
+                            <button class="filter-btn active" onclick="filterExams('all')">全部</button>
+                            <button class="filter-btn" onclick="filterExams('upcoming')">即将到来</button>
+                            <button class="filter-btn" onclick="filterExams('completed')">已完成</button>
+                            <button class="filter-btn" onclick="filterExams('graded')">已批改</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="exam-list">
+                    <!-- 考试项将通过JavaScript动态生成 -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- 成绩查询选项卡内容 -->
+        <div class="tab-content" id="scores">
+            <div class="score-search">
+                <div class="search-box">
+                    <select id="score-search" class="form-control">
+                        <option value="">全部课程</option>
+                        <!-- 课程选项将通过JavaScript动态加载 -->
+                    </select>
+                    <button class="btn btn-primary" onclick="searchScores()">
+                        <i class="fa fa-search"></i> 筛选
+                    </button>
+                </div>
+            </div>
+            <div class="score-table-container">
+                <table class="score-table">
+                    <thead>
+                        <tr>
+                            <th>课程名称</th>
+                            <th>考试名称</th>
+                            <th>成绩</th>
+                            <th>班级排名</th>
+                            <th>考试时间</th>
+                        </tr>
+                    </thead>
+                    <tbody id="score-list">
+                        <!-- 成绩列表将通过JavaScript动态生成 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Bootstrap 5 JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- API服务 -->
+<script src="api.js"></script>
+
+<!-- 页面功能脚本 -->
+<script>
+    // 高亮当前导航项 - 已在sidebar-nav.html中定义，这里不再重复定义
+    
+    // 侧边栏折叠/展开功能
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        
+        if (sidebar) {
+            sidebar.classList.toggle('collapsed');
+            
+            // 保存状态到localStorage
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            localStorage.setItem('sidebarCollapsed', isCollapsed);
+            
+            // 同时调整主内容区的margin-left
+            if (mainContent) {
+                if (isCollapsed) {
+                    mainContent.classList.add('collapsed');
+                } else {
+                    mainContent.classList.remove('collapsed');
+                }
+            }
+        }
+    }
+    
+    // 初始化侧边栏状态
+    function initializeSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        
+        // 从localStorage获取侧边栏状态
+        const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+        
+        if (sidebar && mainContent) {
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('collapsed');
+            } else {
+                sidebar.classList.remove('collapsed');
+                mainContent.classList.remove('collapsed');
+            }
+        }
+    }
+    
+    // 绑定选项卡事件
+    function bindTabEvents() {
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                // 移除所有激活状态
+                tabBtns.forEach(b => b.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+                
+                // 添加当前激活状态
+                this.classList.add('active');
+                const tabId = this.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+    }
+    
+    // 存储从API获取的数据
+    let assignments = [];
+    let exams = [];
+    let scores = [];
+    
+    // 渲染作业列表
+    function renderAssignments(assignments) {
+        const container = document.getElementById('assignment-list');
+        container.innerHTML = '';
+
+        // 如果没有任何作业，显示空状态提示，避免列表区域完全空白
+        if (!assignments || assignments.length === 0) {
+            const emptyState = document.createElement('div');
+            emptyState.className = 'empty-state';
+            emptyState.innerHTML = `
+                <div class="empty-icon">
+                    <i class="fa fa-inbox"></i>
+                </div>
+                <div class="empty-text">
+                    <p>当前没有可以显示的作业。</p>
+                    <p class="text-muted">请稍后再来查看，或联系任课教师确认是否已经发布作业。</p>
+                </div>
+            `;
+            container.appendChild(emptyState);
+            return;
+        }
+        
+        assignments.forEach(assignment => {
+            const assignmentItem = document.createElement('div');
+            assignmentItem.className = `assignment-item ${assignment.status}`;
+            
+            // 按钮内容
+            let buttonsHTML = '';
+            if (assignment.status === 'pending' || assignment.status === 'submitted') {
+                buttonsHTML = `
+                    <div class="item-actions">
+                        <button class="btn btn-primary btn-sm" onclick="viewAssignment(${assignment.id})">
+                            <i class="fa fa-eye"></i> 查看
+                        </button>
+                        <button class="btn btn-success btn-sm" onclick="showSubmitAssignmentModal(${assignment.id})">
+                            <i class="fa fa-upload"></i> ${assignment.status === 'pending' ? '提交' : '重新提交'}
+                        </button>
+                    </div>
+                `;
+            } else {
+                buttonsHTML = `
+                    <div class="item-actions">
+                        <button class="btn btn-primary btn-sm" onclick="viewAssignment(${assignment.id})">
+                            <i class="fa fa-eye"></i> 查看
+                        </button>
+                    </div>
+                `;
+            }
+            
+            assignmentItem.innerHTML = `
+                <div class="item-info">
+                    <h5 class="item-title">${assignment.title}</h5>
+                    <div class="item-meta">
+                        <span><i class="fa fa-book"></i> ${assignment.course}</span>
+                        <span><i class="fa fa-calendar"></i> ${assignment.dueDate}</span>
+                    </div>
+                </div>
+                <div class="item-status">
+                    <span class="status-badge ${assignment.status}">
+                        ${assignment.status === 'pending' ? '待完成' : assignment.status === 'submitted' ? '已提交' : '已批改'}
+                    </span>
+                    ${assignment.score ? `<span class="score">${assignment.score}分</span>` : ''}
+                </div>
+                ${buttonsHTML}
+            `;
+            container.appendChild(assignmentItem);
+        });
+    }
+    
+    // 渲染考试列表
+    function renderExams(exams) {
+        const container = document.getElementById('exam-list');
+        container.innerHTML = '';
+        
+        exams.forEach(exam => {
+            const examItem = document.createElement('div');
+            examItem.className = `exam-item ${exam.status}`;
+            
+            // 按钮内容
+            let buttonsHTML = '';
+            if (exam.status === 'upcoming' || exam.status === 'ongoing') {
+                buttonsHTML = `
+                    <div class="item-actions">
+                        <button class="btn btn-primary btn-sm" onclick="viewExam(${exam.id})">
+                            <i class="fa fa-eye"></i> 查看
+                        </button>
+                        <button class="btn btn-success btn-sm" onclick="startExam(${exam.id})">
+                            <i class="fa fa-play"></i> ${exam.status === 'upcoming' ? '准备' : '进入'}
+                        </button>
+                    </div>
+                `;
+            } else {
+                buttonsHTML = `
+                    <div class="item-actions">
+                        <button class="btn btn-primary btn-sm" onclick="viewExam(${exam.id})">
+                            <i class="fa fa-eye"></i> 查看
+                        </button>
+                    </div>
+                `;
+            }
+            
+            examItem.innerHTML = `
+                <div class="item-info">
+                    <h5 class="item-title">${exam.title}</h5>
+                    <div class="item-meta">
+                        <span><i class="fa fa-book"></i> ${exam.course}</span>
+                        <span><i class="fa fa-calendar"></i> ${exam.examDate}</span>
+                    </div>
+                </div>
+                <div class="item-status">
+                    <span class="status-badge ${exam.status}">
+                        ${exam.status === 'upcoming' ? '即将到来' : exam.status === 'ongoing' ? '进行中' : exam.status === 'completed' ? '已完成' : '已批改'}
+                    </span>
+                    ${exam.score ? `<span class="score">${exam.score}分</span>` : ''}
+                </div>
+                ${buttonsHTML}
+            `;
+            container.appendChild(examItem);
+        });
+    }
+    
+    // 渲染成绩列表
+    function renderScores(scores) {
+        const container = document.getElementById('score-list');
+        container.innerHTML = '';
+        
+        scores.forEach(score => {
+            const scoreItem = document.createElement('tr');
+            scoreItem.innerHTML = `
+                <td>${score.course}</td>
+                <td>${score.exam}</td>
+                <td>${score.score}</td>
+                <td>${score.rank}</td>
+                <td>${score.date}</td>
+            `;
+            container.appendChild(scoreItem);
+        });
+    }
+    
+    // 生成课程下拉选项
+    function populateCourseOptions(scores) {
+        const selectElement = document.getElementById('score-search');
+        
+        // 提取所有唯一课程
+        const courses = [...new Set(scores.map(score => score.course))].filter(Boolean);
+        
+        // 清空现有选项（保留第一个"全部课程"选项）
+        selectElement.innerHTML = '<option value="">全部课程</option>';
+        
+        // 添加课程选项
+        courses.forEach(courseName => {
+            const option = document.createElement('option');
+            option.value = courseName;
+            option.textContent = courseName;
+            selectElement.appendChild(option);
+        });
+    }
+    
+    // 搜索作业
+    function searchAssignments() {
+        const searchTerm = document.getElementById('assignment-search').value.toLowerCase();
+        const filteredAssignments = assignments.filter(assignment => 
+            assignment.title.toLowerCase().includes(searchTerm) || 
+            assignment.course.toLowerCase().includes(searchTerm)
+        );
+        renderAssignments(filteredAssignments);
+    }
+    
+    // 筛选作业
+    function filterAssignments(status) {
+        const filteredAssignments = status === 'all' ? 
+            assignments : 
+            assignments.filter(assignment => assignment.status === status);
+        renderAssignments(filteredAssignments);
+    }
+    
+    // 搜索考试
+    function searchExams() {
+        const searchTerm = document.getElementById('exam-search').value.toLowerCase();
+        const filteredExams = exams.filter(exam => 
+            exam.title.toLowerCase().includes(searchTerm) || 
+            exam.course.toLowerCase().includes(searchTerm)
+        );
+        renderExams(filteredExams);
+    }
+    
+    // 筛选考试
+    function filterExams(status) {
+        const filteredExams = status === 'all' ? 
+            exams : 
+            exams.filter(exam => exam.status === status);
+        renderExams(filteredExams);
+    }
+    
+    // 搜索成绩
+    function searchScores() {
+        const selectedCourse = document.getElementById('score-search').value;
+        const filteredScores = selectedCourse ? 
+            scores.filter(score => score.course === selectedCourse) : 
+            scores;
+        renderScores(filteredScores);
+    }
+    
+    // 从API获取作业数据
+    async function fetchAssignments() {
+        try {
+            console.log('=== 开始获取作业数据 ===');
+            const apiService = new APIService();
+            const studentAPI = new StudentAPI(apiService);
+            // 传递分页参数，确保能获取到数据
+            console.log('调用 studentAPI.getAssignments({ page: 1, size: 100 })');
+            const response = await studentAPI.getAssignments({ page: 1, size: 100 });
+            
+            console.log('作业API完整响应:', JSON.stringify(response, null, 2));
+            console.log('response类型:', typeof response);
+            console.log('response.success:', response?.success);
+            console.log('response.data:', response?.data);
+            
+            // 处理API响应，确保数据格式正确
+            let assignmentList = [];
+            if (response) {
+                if (response.success !== false) {
+                    // 检查response.data是否存在
+                    if (response.data) {
+                        if (Array.isArray(response.data)) {
+                            console.log('数据是数组格式');
+                            assignmentList = response.data;
+                        } else if (response.data.content) {
+                            console.log('数据是分页格式，content字段存在');
+                            assignmentList = response.data.content;
+                        } else {
+                            console.log('数据格式未知，response.data:', response.data);
+                            // 尝试直接使用response.data作为对象
+                            if (typeof response.data === 'object' && response.data !== null) {
+                                assignmentList = [response.data];
+                            }
+                        }
+                    } else {
+                        console.warn('response.data 不存在');
+                    }
+                } else {
+                    console.error('API返回失败:', response.message);
+                }
+            } else {
+                console.error('API响应为null或undefined');
+            }
+            
+            console.log('解析后的作业列表:', assignmentList);
+            console.log('作业数量:', assignmentList.length);
+            
+            // 转换作业数据格式，确保与前端渲染函数兼容
+            assignments = assignmentList.map(assignment => {
+                // 计算作业状态
+                let status = 'pending';
+                const now = new Date();
+                
+                // 安全处理日期
+                let dueDate = null;
+                if (assignment.dueDate) {
+                    try {
+                        dueDate = new Date(assignment.dueDate);
+                    } catch (e) {
+                        console.error('日期解析错误:', e, assignment.dueDate);
+                    }
+                }
+                
+                if (assignment.submission) {
+                    if (assignment.submission.graded) {
+                        status = 'graded';
+                    } else {
+                        status = 'submitted';
+                    }
+                } else if (dueDate && dueDate < now) {
+                    status = 'closed';
+                }
+                
+                return {
+                    id: assignment.id,
+                    title: assignment.title,
+                    description: assignment.description,
+                    course: assignment.courseName || '未知课程',
+                    dueDate: dueDate ? dueDate.toLocaleString() : '未知',
+                    publishDate: assignment.publishDate ? new Date(assignment.publishDate).toLocaleString() : '未知',
+                    status: status,
+                    score: assignment.submission ? assignment.submission.score : null,
+                    teacherComment: assignment.submission ? assignment.submission.teacherComment : null
+                };
+            });
+            
+            console.log('转换后的作业列表:', assignments);
+            console.log('=== 作业数据获取完成 ===');
+            
+            // 确保即使数据为空也调用renderAssignments
+            if (!assignments || assignments.length === 0) {
+                console.warn('警告：作业列表为空！');
+                console.warn('可能的原因：');
+                console.warn('1. 后端没有返回数据');
+                console.warn('2. 数据格式解析错误');
+                console.warn('3. 学生没有分配作业');
+            }
+            
+            renderAssignments(assignments);
+        } catch (error) {
+            console.error('获取作业数据失败:', error);
+            console.error('错误堆栈:', error.stack);
+            // 失败时显示错误信息
+            const container = document.getElementById('assignment-list');
+            if (container) {
+                container.innerHTML = '<div class="error-message">获取作业数据失败: ' + error.message + '</div>';
+            }
+        }
+    }
+    
+    // 从API获取考试数据
+    async function fetchExams() {
+        try {
+            const apiService = new APIService();
+            const studentAPI = new StudentAPI(apiService);
+            const response = await studentAPI.getExams();
+            
+            console.log('考试API响应:', response);
+            
+            // 处理API响应，确保数据格式正确
+            let examList = [];
+            if (response && response.success && response.data) {
+                if (Array.isArray(response.data)) {
+                    examList = response.data;
+                } else if (response.data.content) {
+                    // 处理分页格式的数据
+                    examList = response.data.content;
+                } else {
+                    examList = [];
+                }
+            }
+            
+            // 转换考试数据格式，确保与前端渲染函数兼容
+            exams = examList.map(exam => {
+                // 计算考试状态
+                let status = 'upcoming';
+                const now = new Date();
+                const startTime = new Date(exam.startTime);
+                const endTime = new Date(exam.endTime);
+                
+                if (endTime < now) {
+                    status = 'completed';
+                } else if (startTime <= now && endTime >= now) {
+                    status = 'ongoing';
+                }
+                
+                return {
+                    id: exam.id,
+                    title: exam.title,
+                    description: exam.description,
+                    course: exam.courseName || '未知课程',
+                    examDate: exam.startTime ? new Date(exam.startTime).toLocaleString() : '未知',
+                    status: status,
+                    score: exam.submission ? exam.submission.score : null,
+                    teacherComment: exam.submission ? exam.submission.teacherComment : null
+                };
+            });
+            
+            renderExams(exams);
+        } catch (error) {
+            console.error('获取考试数据失败:', error);
+            // 失败时显示错误信息
+            const container = document.getElementById('exam-list');
+            container.innerHTML = '<div class="error-message">获取考试数据失败: ' + error.message + '</div>';
+        }
+    }
+    
+    // 从API获取成绩数据
+    async function fetchScores() {
+        try {
+            const apiService = new APIService();
+            const studentAPI = new StudentAPI(apiService);
+            const response = await studentAPI.getScores();
+            
+            console.log('成绩API响应:', response);
+            
+            // 处理API响应，确保数据格式正确
+            let scoreList = [];
+            if (response && response.success && response.data) {
+                if (Array.isArray(response.data)) {
+                    scoreList = response.data;
+                } else {
+                    scoreList = [];
+                }
+            }
+            
+            // 转换成绩数据格式，确保与前端渲染函数兼容
+            scores = scoreList.map(score => {
+                // 优先使用examDate（考试时间），如果没有则使用submitDate（提交时间）
+                let examDate = score.examDate || score.submitDate || score.submissionDate;
+                let dateStr = '未知日期';
+                if (examDate) {
+                    try {
+                        dateStr = new Date(examDate).toLocaleDateString();
+                    } catch (e) {
+                        console.error('日期解析错误:', e, examDate);
+                    }
+                }
+                
+                return {
+                    course: score.courseName || score.course || '未知课程',
+                    exam: score.examName || score.name || score.title || '未知考试',
+                    score: score.score || 0,
+                    rank: score.rank || 0,
+                    date: dateStr
+                };
+            });
+            
+            // 生成课程选项
+            populateCourseOptions(scores);
+            renderScores(scores);
+        } catch (error) {
+            console.error('获取成绩数据失败:', error);
+            // 失败时显示错误信息
+            const container = document.getElementById('score-list');
+            container.innerHTML = '<tr><td colspan="5" class="text-center">获取成绩数据失败: ' + error.message + '</td></tr>';
+        }
+    }
+    
+    // 检查用户登录状态
+    function checkLoginStatus() {
+        const user = sessionStorage.getItem('user');
+        if (!user) {
+            window.location.href = 'student-login.html';
+            return false;
+        }
+        
+        // 加载用户下拉组件
+        if ($('#userDropdownContainer').length > 0) {
+            $('#userDropdownContainer').load('components/user-dropdown.html', function() {
+                if (typeof UserDropdown !== 'undefined') {
+                    new UserDropdown('userDropdownContainer');
+                }
+            });
+        }
+        return true;
+    }
+    
+    // 作业详情模态框
+    const assignmentModalHTML = `
+        <div class="modal fade" id="assignmentModal" tabindex="-1" aria-labelledby="assignmentModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="assignmentModalLabel">作业详情</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+                    </div>
+                    <div class="modal-body" id="assignmentModalBody">
+                        <!-- 作业详情将通过JavaScript动态加载 -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // 提交作业模态框
+    const submitAssignmentModalHTML = `
+        <div class="modal fade" id="submitAssignmentModal" tabindex="-1" aria-labelledby="submitAssignmentModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="submitAssignmentModalLabel">提交作业</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+                    </div>
+                    <form id="submitAssignmentForm">
+                        <div class="modal-body">
+                            <input type="hidden" id="assignmentId" name="assignmentId">
+                            <div class="mb-3">
+                                <label for="assignmentContent" class="form-label">作业内容</label>
+                                <textarea class="form-control" id="assignmentContent" name="content" rows="10" required placeholder="请输入作业内容..."></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="submit" class="btn btn-primary">提交</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // 考试详情模态框
+    const examModalHTML = `
+        <div class="modal fade" id="examModal" tabindex="-1" aria-labelledby="examModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="examModalLabel">考试详情</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+                    </div>
+                    <div class="modal-body" id="examModalBody">
+                        <!-- 考试详情将通过JavaScript动态加载 -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // 提交考试模态框
+    const submitExamModalHTML = `
+        <div class="modal fade" id="submitExamModal" tabindex="-1" aria-labelledby="submitExamModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="submitExamModalLabel">提交考试</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+                    </div>
+                    <form id="submitExamForm">
+                        <div class="modal-body">
+                            <input type="hidden" id="examId" name="examId">
+                            <div class="mb-3">
+                                <label for="examContent" class="form-label">考试答案/内容</label>
+                                <textarea class="form-control" id="examContent" name="content" rows="10" placeholder="请输入考试答案或内容..."></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="examFiles" class="form-label">上传文件（支持图片和其他文件）</label>
+                                <input type="file" class="form-control" id="examFiles" name="files" multiple accept="image/*,.pdf,.doc,.docx,.txt">
+                                <small class="form-text text-muted">可以上传多个文件，支持图片、PDF、Word文档等格式</small>
+                            </div>
+                            <div id="filePreview" class="mb-3">
+                                <!-- 文件预览区域 -->
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="submit" class="btn btn-primary">提交</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // 将模态框添加到页面
+    document.body.insertAdjacentHTML('beforeend', assignmentModalHTML);
+    document.body.insertAdjacentHTML('beforeend', submitAssignmentModalHTML);
+    document.body.insertAdjacentHTML('beforeend', examModalHTML);
+    document.body.insertAdjacentHTML('beforeend', submitExamModalHTML);
+    
+    // 查看作业详情
+    async function viewAssignment(assignmentId) {
+        try {
+            const apiService = new APIService();
+            const studentAPI = new StudentAPI(apiService);
+            const response = await studentAPI.getAssignmentDetail(assignmentId);
+            
+            if (response && response.success && response.data) {
+                const assignment = response.data;
+                const modalBody = document.getElementById('assignmentModalBody');
+                modalBody.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h4>${assignment.title}</h4>
+                            <p class="text-muted">${assignment.courseName || '未知课程'}</p>
+                            <p>${assignment.description || '暂无描述'}</p>
+                            <div class="mt-4">
+                                <h6>截止时间：</h6>
+                                <p>${assignment.dueDate ? new Date(assignment.dueDate).toLocaleString() : '暂无'}</p>
+                            </div>
+                            ${assignment.submission ? `
+                                <div class="mt-4">
+                                    <h6>我的提交：</h6>
+                                    <div class="submission-content p-3 border rounded">
+                                        <p>${assignment.submission.content || '暂无内容'}</p>
+                                        <p class="text-muted mt-2">提交时间：${new Date(assignment.submission.submissionDate).toLocaleString()}</p>
+                                    </div>
+                                    ${assignment.submission.graded ? `
+                                        <div class="mt-3">
+                                            <h6>批改结果：</h6>
+                                            <p>得分：${assignment.submission.score}分</p>
+                                            <p>评语：${assignment.submission.teacherComment || '暂无评语'}</p>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            ` : '<p class="mt-3 text-muted">尚未提交作业</p>'}
+                        </div>
+                    </div>
+                `;
+                
+                const assignmentModal = new bootstrap.Modal(document.getElementById('assignmentModal'));
+                assignmentModal.show();
+            }
+        } catch (error) {
+            console.error('获取作业详情失败:', error);
+            alert('获取作业详情失败: ' + error.message);
+        }
+    }
+    
+    // 显示提交作业模态框
+    function showSubmitAssignmentModal(assignmentId) {
+        document.getElementById('assignmentId').value = assignmentId;
+        document.getElementById('assignmentContent').value = '';
+        
+        // 如果是重新提交，获取当前提交内容
+        const assignment = assignments.find(item => item.id === assignmentId);
+        if (assignment && assignment.submission) {
+            document.getElementById('assignmentContent').value = assignment.submission.content;
+        }
+        
+        const submitModal = new bootstrap.Modal(document.getElementById('submitAssignmentModal'));
+        submitModal.show();
+    }
+    
+    // 提交作业表单事件监听
+    document.addEventListener('DOMContentLoaded', function() {
+        const submitForm = document.getElementById('submitAssignmentForm');
+        if (submitForm) {
+            submitForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const assignmentId = document.getElementById('assignmentId').value;
+                const content = document.getElementById('assignmentContent').value;
+                
+                // 前端验证
+                if (!content.trim()) {
+                    alert('作业内容不能为空！');
+                    return;
+                }
+                
+                try {
+                    const apiService = new APIService();
+                    const studentAPI = new StudentAPI(apiService);
+                    const response = await studentAPI.submitAssignment(assignmentId, content);
+                    
+                    if (response && (response.success || response.code === 200)) {
+                        alert('作业提交成功！');
+                        const submitModal = bootstrap.Modal.getInstance(document.getElementById('submitAssignmentModal'));
+                        submitModal.hide();
+                        // 重新获取作业列表
+                        fetchAssignments();
+                    } else {
+                        // 显示更详细的错误信息
+                        const errorMsg = response.message || '提交失败，请稍后重试';
+                        alert('作业提交失败: ' + errorMsg);
+                        console.error('作业提交失败:', response);
+                    }
+                } catch (error) {
+                    console.error('提交作业失败:', error);
+                    alert('提交作业失败: 服务器内部错误，请联系管理员');
+                }
+            });
+        }
+    });
+    
+    // 查看考试详情
+    async function viewExam(examId) {
+        try {
+            const apiService = new APIService();
+            const studentAPI = new StudentAPI(apiService);
+            const response = await studentAPI.getExamDetail(examId);
+            
+            if (response && response.success && response.data) {
+                const exam = response.data;
+                const modalBody = document.getElementById('examModalBody');
+                
+                // 检查考试是否可以提交（时间到了可以考试）
+                const now = new Date();
+                const startTime = exam.startTime ? new Date(exam.startTime) : null;
+                const endTime = exam.endTime ? new Date(exam.endTime) : null;
+                const canSubmit = startTime && endTime && now >= startTime && now <= endTime && !exam.submission;
+                
+                // 构建提交按钮HTML
+                let submitButtonHTML = '';
+                if (canSubmit) {
+                    submitButtonHTML = `
+                        <div class="mt-4">
+                            <button type="button" class="btn btn-success" onclick="showSubmitExamModal(${examId})">
+                                <i class="fa fa-upload"></i> 提交考试
+                            </button>
+                        </div>
+                    `;
+                } else if (exam.submission) {
+                    submitButtonHTML = `
+                        <div class="mt-4">
+                            <button type="button" class="btn btn-info" onclick="showSubmitExamModal(${examId})">
+                                <i class="fa fa-edit"></i> 查看/修改提交
+                            </button>
+                        </div>
+                    `;
+                }
+                
+                modalBody.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h4>${exam.title}</h4>
+                            <p class="text-muted">${exam.courseName || '未知课程'}</p>
+                            <p>${exam.description || '暂无描述'}</p>
+                            <div class="mt-4">
+                                <h6>考试时间：</h6>
+                                <p>开始：${exam.startTime ? new Date(exam.startTime).toLocaleString() : '暂无'}</p>
+                                <p>结束：${exam.endTime ? new Date(exam.endTime).toLocaleString() : '暂无'}</p>
+                                <p>时长：${exam.duration || 0}分钟</p>
+                            </div>
+                            ${exam.submission ? `
+                                <div class="mt-4">
+                                    <h6>我的提交：</h6>
+                                    <div class="submission-content p-3 border rounded">
+                                        <p>${exam.submission.content || '暂无内容'}</p>
+                                        <p class="text-muted mt-2">提交时间：${exam.submission.submissionDate ? new Date(exam.submission.submissionDate).toLocaleString() : '未知'}</p>
+                                    </div>
+                                    ${exam.submission.graded ? `
+                                        <div class="mt-3">
+                                            <h6>我的成绩：</h6>
+                                            <p>${exam.submission.score || 0}分</p>
+                                            ${exam.submission.teacherComment ? `
+                                                <p>评语：${exam.submission.teacherComment}</p>
+                                            ` : ''}
+                                        </div>
+                                    ` : '<p class="mt-3 text-muted">尚未批改</p>'}
+                                </div>
+                            ` : '<p class="mt-3 text-muted">尚未提交</p>'}
+                            ${submitButtonHTML}
+                        </div>
+                    </div>
+                `;
+                
+                const examModal = new bootstrap.Modal(document.getElementById('examModal'));
+                examModal.show();
+            }
+        } catch (error) {
+            console.error('获取考试详情失败:', error);
+            alert('获取考试详情失败: ' + error.message);
+        }
+    }
+    
+    // 显示提交考试模态框
+    function showSubmitExamModal(examId) {
+        document.getElementById('examId').value = examId;
+        document.getElementById('examContent').value = '';
+        document.getElementById('examFiles').value = '';
+        document.getElementById('filePreview').innerHTML = '';
+        
+        // 关闭考试详情模态框
+        const examModal = bootstrap.Modal.getInstance(document.getElementById('examModal'));
+        if (examModal) {
+            examModal.hide();
+        }
+        
+        // 显示提交模态框
+        const submitModal = new bootstrap.Modal(document.getElementById('submitExamModal'));
+        submitModal.show();
+    }
+    
+    // 文件预览功能
+    document.addEventListener('DOMContentLoaded', function() {
+        const examFilesInput = document.getElementById('examFiles');
+        if (examFilesInput) {
+            examFilesInput.addEventListener('change', function(e) {
+                const files = e.target.files;
+                const preview = document.getElementById('filePreview');
+                preview.innerHTML = '';
+                
+                if (files.length > 0) {
+                    const fileList = document.createElement('div');
+                    fileList.className = 'file-list';
+                    
+                    Array.from(files).forEach((file, index) => {
+                        const fileItem = document.createElement('div');
+                        fileItem.className = 'file-item mb-2 p-2 border rounded';
+                        
+                        // 如果是图片，显示预览
+                        if (file.type.startsWith('image/')) {
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                const imgPreview = document.createElement('img');
+                                imgPreview.src = e.target.result;
+                                imgPreview.className = 'img-thumbnail me-2';
+                                imgPreview.style.maxWidth = '150px';
+                                imgPreview.style.maxHeight = '150px';
+                                fileItem.insertBefore(imgPreview, fileItem.firstChild);
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                        
+                        const fileInfo = document.createElement('div');
+                        fileInfo.className = 'd-inline-block';
+                        fileInfo.innerHTML = `
+                            <i class="fa fa-file me-2"></i>
+                            <span>${file.name}</span>
+                            <small class="text-muted ms-2">(${(file.size / 1024).toFixed(2)} KB)</small>
+                        `;
+                        fileItem.appendChild(fileInfo);
+                        fileList.appendChild(fileItem);
+                    });
+                    
+                    preview.appendChild(fileList);
+                }
+            });
+        }
+        
+        // 提交考试表单事件监听
+        const submitExamForm = document.getElementById('submitExamForm');
+        if (submitExamForm) {
+            submitExamForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const examId = document.getElementById('examId').value;
+                const content = document.getElementById('examContent').value;
+                const files = document.getElementById('examFiles').files;
+                
+                // 验证：至少要有内容或文件
+                if (!content.trim() && files.length === 0) {
+                    alert('请至少填写考试内容或上传文件！');
+                    return;
+                }
+                
+                try {
+                    const apiService = new APIService();
+                    const studentAPI = new StudentAPI(apiService);
+                    
+                    // 构建answers对象，包含文字内容和文件信息
+                    const answers = {};
+                    
+                    // 添加文字内容
+                    if (content.trim()) {
+                        answers['content'] = content;
+                    }
+                    
+                    // 处理文件：将图片转换为base64，其他文件记录文件名
+                    if (files.length > 0) {
+                        const filePromises = Array.from(files).map((file, index) => {
+                            return new Promise((resolve) => {
+                                if (file.type.startsWith('image/')) {
+                                    // 图片转换为base64
+                                    const reader = new FileReader();
+                                    reader.onload = function(e) {
+                                        answers[`image_${index}`] = {
+                                            name: file.name,
+                                            type: file.type,
+                                            data: e.target.result // base64编码的图片数据
+                                        };
+                                        resolve();
+                                    };
+                                    reader.onerror = function() {
+                                        answers[`file_${index}`] = {
+                                            name: file.name,
+                                            type: file.type,
+                                            error: '读取失败'
+                                        };
+                                        resolve();
+                                    };
+                                    reader.readAsDataURL(file);
+                                } else {
+                                    // 非图片文件，记录文件信息（实际应用中可能需要上传到服务器）
+                                    answers[`file_${index}`] = {
+                                        name: file.name,
+                                        type: file.type,
+                                        size: file.size,
+                                        note: '文件需要单独上传，请联系管理员'
+                                    };
+                                    resolve();
+                                }
+                            });
+                        });
+                        
+                        // 等待所有文件处理完成
+                        await Promise.all(filePromises);
+                    }
+                    
+                    // 将answers对象转换为字符串格式（因为后端API期望Map<String, String>）
+                    const answersString = {};
+                    Object.keys(answers).forEach(key => {
+                        if (typeof answers[key] === 'object') {
+                            answersString[key] = JSON.stringify(answers[key]);
+                        } else {
+                            answersString[key] = String(answers[key]);
+                        }
+                    });
+                    
+                    // 提交考试（使用JSON格式，兼容当前后端API）
+                    const response = await apiService.post(`/api/student/exams/${examId}/submit`, {
+                        timeTaken: 0,
+                        answers: answersString
+                    });
+                    
+                    if (response && (response.success || response.code === 200)) {
+                        alert('考试提交成功！');
+                        const submitModal = bootstrap.Modal.getInstance(document.getElementById('submitExamModal'));
+                        if (submitModal) {
+                            submitModal.hide();
+                        }
+                        // 重新获取考试列表
+                        fetchExams();
+                    } else {
+                        const errorMsg = response.message || '提交失败，请稍后重试';
+                        alert('考试提交失败: ' + errorMsg);
+                        console.error('考试提交失败:', response);
+                    }
+                } catch (error) {
+                    console.error('提交考试失败:', error);
+                    alert('提交考试失败: ' + (error.message || '服务器内部错误，请联系管理员'));
+                }
+            });
+        }
+    });
+    
+    // 进入/开始考试
+    function startExam(examId) {
+        // 这里可以跳转到考试页面或显示考试内容
+        alert(`即将进入考试：${examId}`);
+        // 实际应用中可以跳转到考试页面，如：window.location.href = `student-exam.html?id=${examId}`;
+    }
+    
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        // 检查登录状态
+        checkLoginStatus();
+        
+        // 初始化侧边栏状态
+        setTimeout(initializeSidebar, 100); // 延迟执行，确保侧边栏已经加载
+        
+        // 侧边栏切换按钮事件监听
+        const toggleSidebarBtn = document.getElementById('toggleSidebar');
+        if (toggleSidebarBtn) {
+            toggleSidebarBtn.addEventListener('click', toggleSidebar);
+        }
+        
+        // 绑定选项卡事件
+        bindTabEvents();
+        
+        // 从API获取数据并渲染
+        fetchAssignments();
+        fetchExams();
+        fetchScores();
+    });
+</script>
+</body>
+</html>

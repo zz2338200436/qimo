@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com._202510007517.major_assignment.mapper.KnowledgePointMapper">
+
+    <!-- 多课程 ID 批量查询：foreach 动态 SQL → XML -->
+    <select id="findByCourseIds" resultType="com._202510007517.major_assignment.entity.KnowledgePoint">
+        SELECT id, point_name AS pointName, description, difficulty, order_index AS orderIndex, course_id AS courseId
+        FROM knowledge_points
+        WHERE course_id IN
+        <foreach collection="courseIds" item="courseId" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+        ORDER BY course_id, order_index
+    </select>
+
+    <!-- 知识点平均掌握率：多表 JOIN + CASE + 动态 WHERE → XML -->
+    <select id="getAverageMasteryRatesByCourse" resultType="java.util.Map">
+        SELECT km.knowledge_point_id,
+               AVG(CASE km.mastery_level
+                   WHEN '优秀' THEN 95
+                   WHEN '良好' THEN 80
+                   WHEN '一般' THEN 65
+                   WHEN '较差' THEN 40
+                   ELSE 0 END) AS average_mastery_rate
+        FROM knowledge_mastery km
+        JOIN knowledge_points kp ON km.knowledge_point_id = kp.id
+        <if test="classId != null">JOIN class_students cs ON km.student_id = cs.student_id</if>
+        WHERE 1=1
+        <if test="courseId != null">AND kp.course_id = #{courseId}</if>
+        <if test="classId != null">AND cs.class_id = #{classId}</if>
+        <if test="studentId != null">AND km.student_id = #{studentId}</if>
+        <if test="knowledgePointId != null">AND km.knowledge_point_id = #{knowledgePointId}</if>
+        GROUP BY km.knowledge_point_id
+    </select>
+
+    <!-- 知识点统计：多表 JOIN + 动态 WHERE → XML -->
+    <select id="getKnowledgePointStats" resultType="java.util.Map">
+        SELECT km.knowledge_point_id,
+               COUNT(DISTINCT km.student_id) AS total_students
+        FROM knowledge_mastery km
+        JOIN knowledge_points kp ON km.knowledge_point_id = kp.id
+        <if test="classId != null">JOIN class_students cs ON km.student_id = cs.student_id</if>
+        WHERE 1=1
+        <if test="classId != null">AND cs.class_id = #{classId}</if>
+        <if test="studentId != null">AND km.student_id = #{studentId}</if>
+        <if test="knowledgePointId != null">AND km.knowledge_point_id = #{knowledgePointId}</if>
+        GROUP BY km.knowledge_point_id
+    </select>
+
+    <!-- 需要关注的学生 ID：多表 JOIN + 动态 WHERE → XML -->
+    <select id="getAtRiskStudentIds" resultType="java.lang.Long">
+        SELECT DISTINCT km.student_id
+        FROM knowledge_mastery km
+        JOIN knowledge_points kp ON km.knowledge_point_id = kp.id
+        <if test="classId != null">JOIN class_students cs ON km.student_id = cs.student_id</if>
+        WHERE km.mastery_level IN ('一般', '较差')
+        <if test="courseId != null">AND kp.course_id = #{courseId}</if>
+        <if test="classId != null">AND cs.class_id = #{classId}</if>
+        <if test="studentId != null">AND km.student_id = #{studentId}</if>
+        <if test="knowledgePointId != null">AND km.knowledge_point_id = #{knowledgePointId}</if>
+    </select>
+
+    <!-- 获取作业关联的知识点详情：多表 JOIN → XML -->
+    <select id="getKnowledgePointsByAssignmentId" resultType="java.util.Map">
+        SELECT kp.id, kp.point_name AS pointName, kp.description, kp.difficulty,
+               kp.order_index AS orderIndex, kp.course_id AS courseId
+        FROM knowledge_points kp
+        JOIN assignment_knowledge_points akp ON kp.id = akp.knowledge_point_id
+        WHERE akp.assignment_id = #{assignmentId}
+        ORDER BY kp.order_index
+    </select>
+
+    <!-- 获取考试关联的知识点详情：多表 JOIN → XML -->
+    <select id="getKnowledgePointsByExamId" resultType="java.util.Map">
+        SELECT kp.id, kp.point_name AS pointName, kp.description, kp.difficulty,
+               kp.order_index AS orderIndex, kp.course_id AS courseId
+        FROM knowledge_points kp
+        JOIN exam_knowledge_points ekp ON kp.id = ekp.knowledge_point_id
+        WHERE ekp.exam_id = #{examId}
+        ORDER BY kp.order_index
+    </select>
+
+    <!-- 知识点相关作业成绩：多表 JOIN → XML -->
+    <select id="getAssignmentScoresByKnowledgePointAndStudent" resultType="java.util.Map">
+        SELECT asub.student_id AS studentId, asub.score, a.max_score AS maxScore,
+               a.id AS assignmentId, a.title AS assignmentTitle
+        FROM assignment_submissions asub
+        JOIN assignments a ON asub.assignment_id = a.id
+        JOIN assignment_knowledge_points akp ON a.id = akp.assignment_id
+        WHERE akp.knowledge_point_id = #{knowledgePointId}
+          AND asub.graded = 1
+          AND asub.student_id = #{studentId}
+    </select>
+
+    <!-- 知识点相关考试成绩：多表 JOIN → XML -->
+    <select id="getExamScoresByKnowledgePointAndStudent" resultType="java.util.Map">
+        SELECT esub.student_id AS studentId, esub.score, 100 AS maxScore,
+               e.id AS examId, e.title AS examTitle
+        FROM exam_submissions esub
+        JOIN exams e ON esub.exam_id = e.id
+        JOIN exam_knowledge_points ekp ON e.id = ekp.exam_id
+        WHERE ekp.knowledge_point_id = #{knowledgePointId}
+          AND esub.graded = 1
+          AND esub.student_id = #{studentId}
+    </select>
+
+    <!-- 学生知识点掌握情况：多表 JOIN → XML -->
+    <select id="getStudentKnowledgeMastery" resultType="java.util.Map">
+        SELECT km.student_id AS studentId, km.knowledge_point_id AS knowledgePointId,
+               kp.point_name AS pointName, kp.difficulty, km.mastery_level AS masteryLevel,
+               km.last_assessed_date AS lastAssessedDate
+        FROM knowledge_mastery km
+        JOIN knowledge_points kp ON km.knowledge_point_id = kp.id
+        WHERE km.student_id = #{studentId}
+          AND kp.course_id = #{courseId}
+    </select>
+
+    <!-- 课程下所有知识点的学生掌握情况统计：多表 LEFT JOIN + CASE → XML -->
+    <select id="getKnowledgePointMasteryStats" resultType="java.util.Map">
+        SELECT kp.id AS knowledgePointId, kp.point_name AS pointName, kp.difficulty,
+               COUNT(DISTINCT km.student_id) AS totalStudents,
+               SUM(CASE WHEN km.mastery_level = '优秀' THEN 1 ELSE 0 END) AS excellentCount,
+               SUM(CASE WHEN km.mastery_level = '良好' THEN 1 ELSE 0 END) AS goodCount,
+               SUM(CASE WHEN km.mastery_level = '一般' THEN 1 ELSE 0 END) AS averageCount,
+               SUM(CASE WHEN km.mastery_level = '较差' THEN 1 ELSE 0 END) AS poorCount
+        FROM knowledge_points kp
+        LEFT JOIN knowledge_mastery km ON kp.id = km.knowledge_point_id
+        WHERE kp.course_id = #{courseId}
+        GROUP BY kp.id, kp.point_name, kp.difficulty
+        ORDER BY kp.order_index
+    </select>
+
+    <!-- 课程班级下的学生 ID：UNION 子查询 → XML -->
+    <select id="getStudentIdsByCourseId" resultType="java.lang.Long">
+        SELECT DISTINCT cs.student_id
+        FROM class_students cs
+        WHERE cs.class_id IN (
+            SELECT cc.id FROM course_classes cc WHERE cc.course_id = #{courseId}
+            UNION
+            SELECT cc_c.class_id FROM class_courses cc_c WHERE cc_c.course_id = #{courseId}
+        )
+    </select>
+
+    <!-- 教师所有课程班级下的学生 ID：UNION 子查询 → XML -->
+    <select id="getStudentIdsByTeacherId" resultType="java.lang.Long">
+        SELECT DISTINCT cs.student_id
+        FROM class_students cs
+        WHERE cs.class_id IN (
+            SELECT cc.id FROM course_classes cc WHERE cc.teacher_id = #{teacherId}
+            UNION
+            SELECT cc_c.class_id FROM class_courses cc_c WHERE cc_c.teacher_id = #{teacherId}
+        )
+    </select>
+
+    <!-- 学生在指定知识点的掌握情况：CASE + foreach 动态 SQL → XML -->
+    <select id="getStudentMasteryByKnowledgePoints" resultType="java.util.Map">
+        SELECT km.student_id, km.knowledge_point_id, km.mastery_level,
+               CASE km.mastery_level
+                   WHEN '优秀' THEN 95
+                   WHEN '良好' THEN 80
+                   WHEN '一般' THEN 65
+                   WHEN '较差' THEN 40
+                   ELSE 0 END AS mastery_rate
+        FROM knowledge_mastery km
+        WHERE km.knowledge_point_id IN
+        <foreach collection="knowledgePointIds" item="kpId" open="(" separator="," close=")">
+            #{kpId}
+        </foreach>
+        <if test="studentIds != null and studentIds.size() > 0">
+            AND km.student_id IN
+            <foreach collection="studentIds" item="studentId" open="(" separator="," close=")">
+                #{studentId}
+            </foreach>
+        </if>
+    </select>
+
+    <!-- 学生信息批量查询：foreach 动态 SQL → XML -->
+    <select id="getStudentInfoByIds" resultType="java.util.Map">
+        SELECT id, name FROM users WHERE id IN
+        <foreach collection="studentIds" item="studentId" open="(" separator="," close=")">
+            #{studentId}
+        </foreach>
+    </select>
+
+</mapper>

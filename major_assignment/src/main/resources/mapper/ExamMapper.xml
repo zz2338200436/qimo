@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com._202510007517.major_assignment.mapper.ExamMapper">
+
+    <!-- 多表 JOIN（exam_submissions 与 users）→ XML -->
+    <select id="getSubmissionsByExamId" resultType="java.util.Map">
+        SELECT es.id,
+               es.student_id AS studentId,
+               u.name AS studentName,
+               es.submission_date AS submissionDate,
+               es.time_taken AS timeTaken,
+               es.score,
+               es.teacher_comment AS teacherComment,
+               es.graded
+        FROM exam_submissions es
+        JOIN users u ON es.student_id = u.id
+        WHERE es.exam_id = #{examId}
+    </select>
+
+    <!-- 单表 + UNION 子查询（CASE/WITH/UNION 规则）→ XML -->
+    <select id="countStudentsByCourseId" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT cs.student_id)
+        FROM class_students cs
+        WHERE cs.class_id IN (
+            SELECT cc.id FROM course_classes cc WHERE cc.course_id = #{courseId}
+            UNION
+            SELECT cc_c.class_id FROM class_courses cc_c WHERE cc_c.course_id = #{courseId}
+        )
+    </select>
+
+    <!-- 多表 JOIN（exams / exam_classes / class_students）→ XML -->
+    <select id="getExamsByStudentId" resultType="com._202510007517.major_assignment.entity.Exam">
+        SELECT DISTINCT e.id, e.title, e.description,
+               e.course_id AS courseId,
+               e.start_time AS startTime,
+               e.end_time AS endTime,
+               e.publish_date AS publishDate,
+               e.is_active AS isActive,
+               e.is_online AS isOnline,
+               e.location,
+               e.duration,
+               e.teacher_id AS teacherId
+        FROM exams e
+        JOIN exam_classes ec ON e.id = ec.exam_id
+        JOIN class_students cs ON ec.class_id = cs.class_id
+        WHERE cs.student_id = #{studentId}
+    </select>
+
+    <!-- INSERT ... SELECT，含多表 UNION 子查询 → XML -->
+    <insert id="insertExamClassesForCourseAndTeacher">
+        INSERT INTO exam_classes (exam_id, class_id)
+        SELECT DISTINCT #{examId}, class_id FROM (
+            SELECT cc.id AS class_id FROM course_classes cc
+            WHERE cc.course_id = #{courseId} AND cc.teacher_id = #{teacherId}
+            UNION
+            SELECT cc_c.class_id AS class_id FROM class_courses cc_c
+            WHERE cc_c.course_id = #{courseId} AND cc_c.teacher_id = #{teacherId}
+        ) AS all_classes
+    </insert>
+
+</mapper>

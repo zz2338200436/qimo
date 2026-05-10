@@ -1,0 +1,2421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学习数据 - 智能学习辅助系统</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 全局样式文件 -->
+    <link href="styles.css" rel="stylesheet">
+    <style>
+        /* 页面优化样式 */
+        .content-container {
+            padding: 24px;
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 50%, #93c5fd 100%);
+            min-height: calc(100vh - 80px);
+        }
+
+        /* 筛选区域优化 */
+        .filter-section {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            border-radius: 16px;
+            padding: 28px;
+            margin-bottom: 28px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            border: none;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 180px;
+            flex: 1;
+        }
+
+        .filter-group label {
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .filter-group .form-select {
+            border-radius: 10px;
+            border: none;
+            padding: 12px 16px;
+            font-size: 14px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .filter-group .form-select:focus {
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 12px;
+            margin-left: auto;
+            align-items: flex-end;
+        }
+
+        .filter-actions .btn {
+            border-radius: 10px;
+            padding: 12px 24px;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .filter-actions .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .filter-actions .btn-primary {
+            background: white;
+            color: #3b82f6;
+        }
+
+        .filter-actions .btn-outline-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .filter-actions .btn-outline-secondary:hover {
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+
+        /* 统计卡片优化 */
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .stat-title {
+            font-size: 15px;
+            color: #64748b;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+
+        .stat-change {
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+            min-height: 20px;
+        }
+
+        .stat-change.positive {
+            color: #10b981;
+        }
+
+        .stat-change.negative {
+            color: #ef4444;
+        }
+
+        .stat-change i {
+            font-size: 12px;
+        }
+
+        /* 图表区域优化 */
+        .chart-section {
+            background: white;
+            border-radius: 16px;
+            padding: 28px;
+            margin-bottom: 28px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f1f5f9;
+        }
+
+        .chart-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chart-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .chart-action-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chart-action-btn:hover {
+            border-color: #3b82f6;
+            color: #3b82f6;
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .chart-action-btn.active {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .chart-container {
+            height: 350px;
+            position: relative;
+        }
+
+        /* 知识点区域优化 */
+        .knowledge-section {
+            background: white;
+            border-radius: 16px;
+            padding: 28px;
+            margin-bottom: 28px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .knowledge-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f1f5f9;
+        }
+
+        .knowledge-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .knowledge-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .knowledge-item {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .knowledge-item:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        }
+
+        .knowledge-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .knowledge-item-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0;
+        }
+
+        .knowledge-item-mastery {
+            font-size: 18px;
+            font-weight: 700;
+            color: #3b82f6;
+        }
+
+        .mastery-bar {
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .mastery-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .mastery-fill.excellent {
+            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+        }
+
+        .mastery-fill.good {
+            background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+        }
+
+        .mastery-fill.needs-improvement {
+            background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .mastery-details {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        /* 学习计划区域优化 */
+        .plan-section {
+            background: white;
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .plan-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f1f5f9;
+        }
+
+        .plan-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .plan-progress {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .progress-circle {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            flex-shrink: 0;
+        }
+
+        .progress-circle svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .progress-circle-circle {
+            fill: none;
+            stroke: #e2e8f0;
+            stroke-width: 8;
+        }
+
+        .progress-circle-progress {
+            fill: none;
+            stroke: url(#gradient);
+            stroke-width: 8;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.5s ease;
+            stroke-dasharray: 282.743; /* 2 * π * 45 */
+            stroke-dashoffset: 282.743; /* 初始状态为0% */
+        }
+
+        .progress-circle-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .progress-circle-percentage {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .progress-circle-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        .plan-details {
+            flex: 1;
+        }
+
+        .plan-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .plan-item:hover {
+            background: #f1f5f9;
+            transform: translateX(4px);
+        }
+
+        .plan-item-name {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 15px;
+            font-weight: 500;
+            color: #1e293b;
+        }
+
+        .plan-item-status {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .plan-item-status.completed {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+
+        .plan-item-status.in-progress {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+        }
+
+        .plan-item-status.pending {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+        }
+
+        /* 加载状态 */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 16px;
+            z-index: 10;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e2e8f0;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .content-container {
+                padding: 16px;
+            }
+
+            .filter-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filter-group {
+                min-width: 100%;
+            }
+
+            .filter-actions {
+                margin-left: 0;
+                width: 100%;
+                margin-top: 12px;
+            }
+
+            .filter-actions .btn {
+                flex: 1;
+            }
+
+            .stats-cards {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .chart-container {
+                height: 250px;
+            }
+
+            .chart-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+
+            .chart-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .knowledge-list {
+                grid-template-columns: 1fr;
+            }
+
+            .plan-progress {
+                flex-direction: column;
+                align-items: center;
+                gap: 30px;
+            }
+
+            .progress-circle {
+                margin: 0 auto;
+            }
+
+            .knowledge-header,
+            .plan-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+        }
+    </style>
+    
+    <!-- 全局函数定义 - 必须在页面加载前定义，以便被onclick属性访问 -->
+    <script>
+        // 高亮当前导航项
+        function highlightActiveNavItem() {
+            // 获取当前页面URL
+            const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+            
+            // 移除所有导航项的active类
+            document.querySelectorAll('.menu-item').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // 高亮当前页面的导航项
+            const activeLink = document.querySelector(`.menu-item[href="${currentPage}"]`);
+            if (activeLink) {
+                activeLink.classList.add('active');
+            }
+        }
+        
+        // 侧边栏折叠/展开功能
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            
+            if (sidebar) {
+                sidebar.classList.toggle('collapsed');
+                
+                // 保存状态到localStorage
+                const isCollapsed = sidebar.classList.contains('collapsed');
+                localStorage.setItem('sidebarCollapsed', isCollapsed);
+                
+                // 同时调整主内容区的margin-left
+                if (mainContent) {
+                    if (isCollapsed) {
+                        mainContent.classList.add('collapsed');
+                    } else {
+                        mainContent.classList.remove('collapsed');
+                    }
+                }
+            }
+        }
+        
+        // 初始化侧边栏状态
+        function initializeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            
+            // 从localStorage获取侧边栏状态
+            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            
+            if (sidebar && mainContent) {
+                if (isCollapsed) {
+                    sidebar.classList.add('collapsed');
+                    mainContent.classList.add('collapsed');
+                } else {
+                    sidebar.classList.remove('collapsed');
+                    mainContent.classList.remove('collapsed');
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+    <!-- 侧边栏组件容器 -->
+    <div id="sidebar-container"></div>
+    
+    <!-- 加载侧边栏组件 -->
+    <script>
+        $(function() {
+            $('#sidebar-container').load('components/sidebar-nav.html', function() {
+                highlightActiveNavItem();
+                // 初始化侧边栏状态
+                setTimeout(initializeSidebar, 100); // 延迟执行，确保侧边栏已经加载
+                
+                // 侧边栏切换按钮事件监听
+                const toggleSidebarBtn = document.getElementById('toggleSidebar');
+                if (toggleSidebarBtn) {
+                    toggleSidebarBtn.addEventListener('click', toggleSidebar);
+                }
+            });
+        });
+    </script>
+    
+    <!-- 主内容区 -->
+    <main class="main-content" id="mainContent">
+        <!-- 顶部导航栏 -->
+        <header class="top-navbar">
+            <div class="navbar-left">
+                <button class="toggle-btn" id="toggleSidebar" aria-label="切换侧边栏" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="student-dashboard.html">首页</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">学习数据</li>
+                    </ol>
+                </nav>
+            </div>
+            <div class="navbar-right">
+                <div id="userDropdownContainer"></div>
+            </div>
+        </header>
+        
+        <!-- 内容区域 -->
+        <div class="content-container">
+            <!-- 筛选区域 -->
+            <div class="filter-section">
+                <div class="filter-group">
+                    <label for="semester">学期</label>
+                    <select id="semester" class="form-select">
+                        <option value="">全部学期</option>
+                        <!-- 学期选项将通过JavaScript动态加载 -->
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="course">课程</label>
+                    <select id="course" class="form-select">
+                        <option value="all">全部课程</option>
+                        <!-- 课程选项将通过JavaScript动态加载 -->
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="time-range">时间范围</label>
+                    <select id="time-range" class="form-select">
+                        <option value="week">最近一周</option>
+                        <option value="month" selected>最近一个月</option>
+                        <option value="quarter">最近三个月</option>
+                        <option value="semester">本学期</option>
+                    </select>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn btn-outline-secondary" onclick="resetFilters()" aria-label="重置筛选条件">
+                        <i class="fa fa-refresh"></i> 重置
+                    </button>
+                    <button class="btn btn-primary" onclick="applyFilters()" aria-label="应用筛选条件">
+                        <i class="fa fa-filter"></i> 应用筛选
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 统计卡片 -->
+            <div class="stats-cards" id="statsCards">
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">学习时长</span>
+                        <div class="stat-icon courses">
+                            <i class="fa fa-clock-o"></i>
+                        </div>
+                    </div>
+                    <div class="stat-value" id="studyTime">0h</div>
+                    <div class="stat-change" id="studyTimeChange">
+                        <span style="color: #64748b;">加载中...</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">完成任务数</span>
+                        <div class="stat-icon assignments">
+                            <i class="fa fa-check-circle-o"></i>
+                        </div>
+                    </div>
+                    <div class="stat-value" id="completedTasks">0</div>
+                    <div class="stat-change" id="completedTasksChange">
+                        <span style="color: #64748b;">加载中...</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">平均成绩</span>
+                        <div class="stat-icon exams">
+                            <i class="fa fa-star"></i>
+                        </div>
+                    </div>
+                    <div class="stat-value" id="averageScore">0.0</div>
+                    <div class="stat-change" id="averageScoreChange">
+                        <span style="color: #64748b;">加载中...</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">知识点掌握</span>
+                        <div class="stat-icon progress">
+                            <i class="fa fa-lightbulb-o"></i>
+                        </div>
+                    </div>
+                    <div class="stat-value" id="knowledgeMastery">0.0%</div>
+                    <div class="stat-change" id="knowledgeMasteryChange">
+                        <span style="color: #64748b;">加载中...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 成绩趋势图表 -->
+            <div class="chart-section">
+                <div class="chart-header">
+                    <h3 class="chart-title"><i class="fa fa-line-chart" style="margin-right: 10px; color: #0d6efd;"></i>成绩趋势</h3>
+                    <div class="chart-actions">
+                        <button class="chart-action-btn active" onclick="changeScoreChartType('line', this)" aria-label="切换到折线图">
+                            <i class="fa fa-line-chart"></i> 折线图
+                        </button>
+                        <button class="chart-action-btn" onclick="changeScoreChartType('bar', this)" aria-label="切换到柱状图">
+                            <i class="fa fa-bar-chart"></i> 柱状图
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="scoreChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- 学习时长统计 -->
+            <div class="chart-section">
+                <div class="chart-header">
+                    <h3 class="chart-title"><i class="fa fa-clock-o" style="margin-right: 10px; color: #198754;"></i>学习时长统计</h3>
+                    <div class="chart-actions">
+                        <button class="chart-action-btn" onclick="changeTimeChartType('daily', this)" aria-label="切换到每日视图">
+                            <i class="fa fa-calendar"></i> 每日
+                        </button>
+                        <button class="chart-action-btn active" onclick="changeTimeChartType('weekly', this)" aria-label="切换到每周视图">
+                            <i class="fa fa-calendar-check-o"></i> 每周
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="studyTimeChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- 知识点掌握情况 -->
+            <div class="knowledge-section">
+                <div class="knowledge-header">
+                    <h3 class="knowledge-title"><i class="fa fa-lightbulb-o" style="margin-right: 10px; color: #dc3545;"></i>知识点掌握情况</h3>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="refreshKnowledgeData()" aria-label="刷新知识点数据">
+                        <i class="fa fa-refresh"></i> 刷新
+                    </button>
+                </div>
+                <div class="knowledge-list" id="knowledgeList">
+                    <!-- 知识点列表将通过JavaScript动态生成 -->
+                    <div class="text-center py-5">
+                        <i class="fa fa-spinner fa-spin" style="font-size: 24px; color: #0d6efd;"></i>
+                        <p class="mt-2">加载知识点数据中...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 学习计划完成情况 -->
+            <div class="plan-section">
+                <div class="plan-header">
+                    <h3 class="plan-title"><i class="fa fa-list-alt" style="margin-right: 10px; color: #198754;"></i>学习计划完成情况</h3>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="viewFullPlan()" aria-label="查看完整学习计划">
+                        <i class="fa fa-eye"></i> 查看完整计划
+                    </button>
+                </div>
+                <div class="plan-progress">
+                    <div class="progress-circle">
+                        <svg width="120" height="120" viewBox="0 0 120 120">
+                            <defs>
+                                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                            <circle class="progress-circle-circle" cx="60" cy="60" r="45"></circle>
+                            <circle class="progress-circle-progress" cx="60" cy="60" r="45"></circle>
+                        </svg>
+                        <div class="progress-circle-text">
+                            <div class="progress-circle-percentage" id="planCompletion">0%</div>
+                            <div class="progress-circle-label">完成率</div>
+                        </div>
+                    </div>
+                    <div class="plan-details" id="planDetails">
+                        <!-- 学习计划项目将通过JavaScript动态生成 -->
+                        <div class="text-center py-5">
+                            <i class="fa fa-spinner fa-spin" style="font-size: 24px; color: #0d6efd;"></i>
+                            <p class="mt-2">加载学习计划数据中...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- API服务文件 -->
+    <script src="api.js"></script>
+    
+    <!-- 页面脚本 -->
+    <script>
+        // 声明全局变量
+        let scoreChart = null;
+        let studyTimeChart = null;
+        // apiService和studentAPI已经在api.js中全局声明，无需重新声明
+        
+        // 初始化API服务
+        function initAPIService() {
+            // apiService和studentAPI已经在api.js中全局初始化，无需重新初始化
+            console.log('API服务已从api.js加载，当前实例:', apiService, studentAPI);
+        }
+        
+        // 动态加载学期选项
+        async function loadSemesters() {
+            try {
+                const response = await fetch('/api/system/semesters', {
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (data.success && data.data) {
+                    const semesterSelect = document.getElementById('semester');
+                    if (semesterSelect) {
+                        // 清空现有选项
+                        semesterSelect.innerHTML = '<option value="">全部学期</option>';
+                        // 添加新选项
+                        data.data.forEach(semester => {
+                            const option = document.createElement('option');
+                            option.value = semester;
+                            option.textContent = semester;
+                            semesterSelect.appendChild(option);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('加载学期失败:', error);
+            }
+        }
+        
+        // 动态加载课程选项（从后端获取学生课程）
+        async function loadCourses() {
+            const courseSelect = document.getElementById('course');
+            if (!courseSelect) return;
+            
+            // 先放入默认项，避免空白
+            courseSelect.innerHTML = '<option value="all">全部课程</option>';
+            
+            try {
+                const response = await fetch('/api/system/student/courses', {
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                console.log('加载课程下拉 - 响应数据:', data);
+                
+                if (data && data.success && Array.isArray(data.data)) {
+                    data.data.forEach(course => {
+                        const option = document.createElement('option');
+                        option.value = course.id;
+                        option.textContent = course.courseName || course.course_name || course.name || '未命名课程';
+                        courseSelect.appendChild(option);
+                    });
+                } else {
+                    console.warn('课程数据为空或格式不正确，保留默认选项');
+                }
+            } catch (error) {
+                console.error('加载课程失败:', error);
+                showNotification('加载课程失败，请检查登录状态或网络', 'warning');
+            }
+        }
+        
+        // 动态加载时间范围选项（如果HTML中已有选项则跳过）
+        function loadTimeRanges() {
+            try {
+                const timeRangeSelect = document.getElementById('time-range');
+                if (timeRangeSelect && timeRangeSelect.options.length <= 1) {
+                    // 只有在选项为空或只有默认选项时才添加
+                    const timeRanges = [
+                        { value: 'week', text: '最近一周' },
+                        { value: 'month', text: '最近一个月' },
+                        { value: 'quarter', text: '最近三个月' },
+                        { value: 'semester', text: '本学期' }
+                    ];
+                    timeRanges.forEach(range => {
+                        const option = document.createElement('option');
+                        option.value = range.value;
+                        option.textContent = range.text;
+                        timeRangeSelect.appendChild(option);
+                    });
+                    // 默认选中最近一个月
+                    timeRangeSelect.value = 'month';
+                }
+            } catch (error) {
+                console.error('加载时间范围失败:', error);
+            }
+        }
+        
+        // 构建成绩图表通用配置
+        function buildScoreChartOptions(chartType = 'line') {
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            font: {
+                                size: 13,
+                                weight: '600'
+                            },
+                            padding: 15,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgba(30, 41, 59, 0.95)',
+                        padding: 12,
+                        titleFont: {
+                            size: 14,
+                            weight: '600'
+                        },
+                        bodyFont: {
+                            size: 13
+                        },
+                        borderColor: '#3b82f6',
+                        borderWidth: 2,
+                        cornerRadius: 8
+                    }
+                }
+            };
+            
+            const axisConfig = {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        font: { size: 12 },
+                        color: '#64748b'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: { color: 'rgba(226, 232, 240, 0.5)' },
+                    ticks: {
+                        font: { size: 12 },
+                        color: '#64748b',
+                        callback: function(value) { return value + '%'; }
+                    }
+                }
+            };
+            
+            return {
+                ...commonOptions,
+                scales: axisConfig
+            };
+        }
+        
+        function transformScoreDatasets(datasets = [], chartType = 'line') {
+            const safeDatasets = Array.isArray(datasets) && datasets.length > 0 ? datasets : [{
+                label: '成绩趋势',
+                data: []
+            }];
+            
+            return safeDatasets.map(dataset => {
+                const baseData = Array.isArray(dataset.data) ? [...dataset.data] : [];
+                
+                if (chartType === 'bar') {
+                    return {
+                        label: dataset.label || '成绩趋势',
+                        data: baseData,
+                        backgroundColor: dataset.backgroundColor || 'rgba(59, 130, 246, 0.8)',
+                        borderRadius: dataset.borderRadius ?? 8,
+                        borderColor: dataset.borderColor || '#3b82f6',
+                        borderWidth: dataset.borderWidth ?? 2
+                    };
+                }
+                
+                return {
+                    label: dataset.label || '成绩趋势',
+                    data: baseData,
+                    borderColor: dataset.borderColor || '#3b82f6',
+                    backgroundColor: dataset.backgroundColor || 'rgba(59, 130, 246, 0.1)',
+                    tension: dataset.tension ?? 0.3,
+                    fill: dataset.fill ?? true,
+                    pointBackgroundColor: dataset.pointBackgroundColor || '#3b82f6',
+                    pointBorderColor: dataset.pointBorderColor || '#fff',
+                    pointBorderWidth: dataset.pointBorderWidth ?? 2,
+                    pointRadius: dataset.pointRadius ?? 5,
+                    pointHoverRadius: dataset.pointHoverRadius ?? 7
+                };
+            });
+        }
+        
+        function cloneScoreChartData() {
+            if (!scoreChart || !scoreChart.data) {
+                return null;
+            }
+            
+            const labels = Array.isArray(scoreChart.data.labels) ? [...scoreChart.data.labels] : [];
+            const datasets = scoreChart.data.datasets ? scoreChart.data.datasets.map(ds => ({
+                ...ds,
+                data: Array.isArray(ds.data) ? [...ds.data] : []
+            })) : [];
+            
+            return { labels, datasets };
+        }
+        
+        // 初始化成绩趋势图表
+        function initScoreChart(data = { labels: [], datasets: [] }) {
+            try {
+                const ctx = document.getElementById('scoreChart');
+                if (!ctx) {
+                    console.error('无法获取成绩图表容器');
+                    return;
+                }
+                
+                // 确保canvas元素可见
+                if (ctx.offsetWidth === 0 || ctx.offsetHeight === 0) {
+                    console.warn('成绩图表容器不可见，延迟初始化');
+                    setTimeout(() => initScoreChart(data), 100);
+                    return;
+                }
+                
+                const chartCtx = ctx.getContext('2d');
+                if (!chartCtx) {
+                    console.error('无法获取成绩图表上下文');
+                    return;
+                }
+                
+                // 如果图表已存在，销毁它
+                if (scoreChart) {
+                    scoreChart.destroy();
+                    scoreChart = null;
+                }
+                
+                // 确保数据格式正确
+        const chartData = {
+            labels: data.labels || [],
+            datasets: data.datasets && data.datasets.length > 0 ? data.datasets : [
+                {
+                    label: '成绩趋势',
+                    data: [],
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.3,
+                    fill: true,
+                    pointBackgroundColor: '#3b82f6',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }
+            ]
+        };
+                
+                scoreChart = new Chart(chartCtx, {
+                    type: 'line',
+                    data: {
+                        labels: chartData.labels,
+                        datasets: transformScoreDatasets(chartData.datasets, 'line')
+                    },
+                    options: buildScoreChartOptions('line')
+                });
+                
+                console.log('成绩图表初始化成功');
+            } catch (error) {
+                console.error('成绩图表初始化失败:', error);
+            }
+        }
+        
+        // 初始化学习时长图表
+        function initStudyTimeChart(data = { labels: [], datasets: [] }) {
+            try {
+                const ctx = document.getElementById('studyTimeChart');
+                if (!ctx) {
+                    console.error('无法获取学习时长图表容器');
+                    return;
+                }
+                
+                // 确保canvas元素可见
+                if (ctx.offsetWidth === 0 || ctx.offsetHeight === 0) {
+                    console.warn('学习时长图表容器不可见，延迟初始化');
+                    setTimeout(() => initStudyTimeChart(data), 100);
+                    return;
+                }
+                
+                const chartCtx = ctx.getContext('2d');
+                if (!chartCtx) {
+                    console.error('无法获取学习时长图表上下文');
+                    return;
+                }
+                
+                // 如果图表已存在，销毁它
+                if (studyTimeChart) {
+                    studyTimeChart.destroy();
+                    studyTimeChart = null;
+                }
+                
+                // 确保数据格式正确
+        const chartData = {
+            labels: data.labels || [],
+            datasets: data.datasets && data.datasets.length > 0 ? data.datasets : [
+                {
+                    label: '学习时长 (小时)',
+                    data: [],
+                    backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                    borderRadius: 8,
+                    borderColor: '#3b82f6',
+                    borderWidth: 2
+                }
+            ]
+        };
+                
+                studyTimeChart = new Chart(chartCtx, {
+                    type: 'bar',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(30, 41, 59, 0.95)',
+                                padding: 12,
+                                titleFont: {
+                                    size: 14,
+                                    weight: '600'
+                                },
+                                bodyFont: {
+                                    size: 13
+                                },
+                                borderColor: '#3b82f6',
+                                borderWidth: 2,
+                                cornerRadius: 8,
+                                callbacks: {
+                                    label: function(context) {
+                                        return '学习时长: ' + context.parsed.y + ' 小时';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: {
+                                    display: false
+                                },
+                                ticks: {
+                                    font: {
+                                        size: 12
+                                    },
+                                    color: '#64748b'
+                                }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    color: 'rgba(226, 232, 240, 0.5)'
+                                },
+                                ticks: {
+                                    font: {
+                                        size: 12
+                                    },
+                                    color: '#64748b',
+                                    callback: function(value) {
+                                        return value + 'h';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                console.log('学习时长图表初始化成功');
+            } catch (error) {
+                console.error('学习时长图表初始化失败:', error);
+            }
+        }
+        
+        // 从API获取学生统计数据
+        async function fetchStudentStats(filters = {}) {
+            try {
+                // 构建查询参数
+                const params = {};
+                if (filters.semester) params.semester = filters.semester;
+                if (filters.course && filters.course !== 'all') params.courseId = filters.course;
+                if (filters.timeRange) params.timeRange = filters.timeRange;
+                
+                console.log('fetchStudentStats - 筛选条件:', filters);
+                console.log('fetchStudentStats - 查询参数:', params);
+                
+                const response = await apiService.get('/api/student/stats', params);
+                console.log('获取学生统计数据响应:', response);
+                
+                // 检查响应格式
+                if (response && response.success && response.data) {
+                    // 使用真实数据库数据
+                    console.log('使用数据库数据:', response.data);
+                    updateStatsCards(response.data, filters);
+                } else if (response && response.success === false) {
+                    // API返回了错误
+                    console.error('API返回错误:', response.message || '未知错误');
+                    // 显示错误信息，但不使用模拟数据
+                    showErrorMessage('获取统计数据失败: ' + (response.message || '未知错误'));
+                    // 使用默认值（0）而不是模拟数据
+                    updateStatsCards({
+                        studyTime: 0,
+                        studyTimeChange: 0,
+                        completedTasks: 0,
+                        completedTasksChange: 0,
+                        averageScore: 0.0,
+                        averageScoreChange: 0.0,
+                        knowledgeMastery: 0.0,
+                        knowledgeMasteryChange: 0.0
+                    }, filters);
+                } else {
+                    // 响应格式不正确
+                    console.error('API响应格式错误:', response);
+                    showErrorMessage('API响应格式错误，请检查网络连接');
+                    // 使用默认值
+                    updateStatsCards({
+                        studyTime: 0,
+                        studyTimeChange: 0,
+                        completedTasks: 0,
+                        completedTasksChange: 0,
+                        averageScore: 0.0,
+                        averageScoreChange: 0.0,
+                        knowledgeMastery: 0.0,
+                        knowledgeMasteryChange: 0.0
+                    }, filters);
+                }
+            } catch (error) {
+                console.error('获取学生统计数据失败:', error);
+                showErrorMessage('获取统计数据失败: ' + error.message);
+                // 使用默认值而不是模拟数据
+                updateStatsCards({
+                    studyTime: 0,
+                    studyTimeChange: 0,
+                    completedTasks: 0,
+                    completedTasksChange: 0,
+                    averageScore: 0.0,
+                    averageScoreChange: 0.0,
+                    knowledgeMastery: 0.0,
+                    knowledgeMasteryChange: 0.0
+                }, filters);
+            }
+        }
+        
+        // 显示错误消息
+        function showErrorMessage(message) {
+            // 优先使用通知系统
+            showNotification(message, 'warning');
+            console.warn(message);
+        }
+
+        // 更新统计卡片
+        function updateStatsCards(stats, filters = {}) {
+            if (!stats) return;
+            
+            // 更新学习时长
+            const studyTimeEl = document.getElementById('studyTime');
+            if (studyTimeEl) {
+                studyTimeEl.textContent = `${stats.studyTime || 0}h`;
+            }
+            const studyTimeChange = document.getElementById('studyTimeChange');
+            if (studyTimeChange) {
+                if (stats.studyTimeChange !== undefined && stats.studyTimeChange !== 0) {
+                    const isPositive = stats.studyTimeChange > 0;
+                    studyTimeChange.innerHTML = `
+                        <i class="fa fa-arrow-${isPositive ? 'up' : 'down'}"></i> 
+                        比上周${isPositive ? '增加' : '减少'} ${Math.abs(stats.studyTimeChange)}%
+                    `;
+                    studyTimeChange.className = `stat-change ${isPositive ? 'positive' : 'negative'}`;
+                } else if (stats.studyTimeChange === 0) {
+                    studyTimeChange.innerHTML = '<span style="color: #64748b;"><i class="fa fa-minus"></i> 与上周持平</span>';
+                    studyTimeChange.className = 'stat-change';
+                } else {
+                    studyTimeChange.innerHTML = '<span style="color: #64748b;">暂无对比数据</span>';
+                    studyTimeChange.className = 'stat-change';
+                }
+            }
+            
+            // 更新完成任务数
+            const completedTasksEl = document.getElementById('completedTasks');
+            if (completedTasksEl) {
+                completedTasksEl.textContent = stats.completedTasks || stats.completedAssignments || 0;
+            }
+            const completedTasksChange = document.getElementById('completedTasksChange');
+            if (completedTasksChange) {
+                if (stats.completedTasksChange !== undefined && stats.completedTasksChange !== 0) {
+                    const isPositive = stats.completedTasksChange > 0;
+                    completedTasksChange.innerHTML = `
+                        <i class="fa fa-arrow-${isPositive ? 'up' : 'down'}"></i> 
+                        比上周${isPositive ? '增加' : '减少'} ${Math.abs(stats.completedTasksChange)}
+                    `;
+                    completedTasksChange.className = `stat-change ${isPositive ? 'positive' : 'negative'}`;
+                } else if (stats.completedTasksChange === 0) {
+                    completedTasksChange.innerHTML = '<span style="color: #64748b;"><i class="fa fa-minus"></i> 与上周持平</span>';
+                    completedTasksChange.className = 'stat-change';
+                } else {
+                    completedTasksChange.innerHTML = '<span style="color: #64748b;">暂无对比数据</span>';
+                    completedTasksChange.className = 'stat-change';
+                }
+            }
+            
+            // 更新平均成绩
+            const averageScoreEl = document.getElementById('averageScore');
+            if (averageScoreEl) {
+                const score = stats.averageScore || 0.0;
+                averageScoreEl.textContent = score.toFixed(1);
+            }
+            const averageScoreChange = document.getElementById('averageScoreChange');
+            if (averageScoreChange) {
+                if (stats.averageScoreChange !== undefined && stats.averageScoreChange !== 0) {
+                    const isPositive = stats.averageScoreChange > 0;
+                    averageScoreChange.innerHTML = `
+                        <i class="fa fa-arrow-${isPositive ? 'up' : 'down'}"></i> 
+                        比上周${isPositive ? '提升' : '下降'} ${Math.abs(stats.averageScoreChange).toFixed(1)}
+                    `;
+                    averageScoreChange.className = `stat-change ${isPositive ? 'positive' : 'negative'}`;
+                } else if (stats.averageScoreChange === 0) {
+                    averageScoreChange.innerHTML = '<span style="color: #64748b;"><i class="fa fa-minus"></i> 与上周持平</span>';
+                    averageScoreChange.className = 'stat-change';
+                } else {
+                    averageScoreChange.innerHTML = '<span style="color: #64748b;">暂无对比数据</span>';
+                    averageScoreChange.className = 'stat-change';
+                }
+            }
+            
+            // 更新知识点掌握
+            const knowledgeMasteryEl = document.getElementById('knowledgeMastery');
+            if (knowledgeMasteryEl) {
+                const mastery = stats.knowledgeMastery || 0.0;
+                knowledgeMasteryEl.textContent = `${mastery.toFixed(1)}%`;
+            }
+            const knowledgeMasteryChange = document.getElementById('knowledgeMasteryChange');
+            if (knowledgeMasteryChange) {
+                if (stats.knowledgeMasteryChange !== undefined && stats.knowledgeMasteryChange !== 0) {
+                    const isPositive = stats.knowledgeMasteryChange > 0;
+                    knowledgeMasteryChange.innerHTML = `
+                        <i class="fa fa-arrow-${isPositive ? 'up' : 'down'}"></i> 
+                        比上周${isPositive ? '提升' : '下降'} ${Math.abs(stats.knowledgeMasteryChange).toFixed(1)}%
+                    `;
+                    knowledgeMasteryChange.className = `stat-change ${isPositive ? 'positive' : 'negative'}`;
+                } else if (stats.knowledgeMasteryChange === 0) {
+                    knowledgeMasteryChange.innerHTML = '<span style="color: #64748b;"><i class="fa fa-minus"></i> 与上周持平</span>';
+                    knowledgeMasteryChange.className = 'stat-change';
+                } else {
+                    knowledgeMasteryChange.innerHTML = '<span style="color: #64748b;">暂无对比数据</span>';
+                    knowledgeMasteryChange.className = 'stat-change';
+                }
+            }
+        }
+        
+        // 从API获取成绩趋势数据
+        async function fetchScoreTrend(filters = {}) {
+            try {
+                // 构建查询参数
+                const params = {};
+                if (filters.semester) params.semester = filters.semester;
+                if (filters.course && filters.course !== 'all') params.courseId = filters.course;
+                if (filters.timeRange) params.timeRange = filters.timeRange;
+                
+                // 获取真实成绩数据而不是进度数据
+                const scoresResponse = await apiService.get('/api/student/scores', params);
+                console.log('获取成绩数据:', scoresResponse);
+                
+                if (scoresResponse && scoresResponse.success && scoresResponse.data) {
+                    // 处理成绩数据，按时间排序并提取分数
+                    const scores = Array.isArray(scoresResponse.data) ? scoresResponse.data : [];
+                    
+                    // 按提交日期分组并计算平均分（按周或按月，根据timeRange）
+                    const scoreMap = new Map();
+                    scores.forEach(score => {
+                        if (score.score && score.submitDate) {
+                            try {
+                                const date = new Date(score.submitDate);
+                                let key;
+                                
+                                // 根据时间范围选择分组方式
+                                if (filters.timeRange === 'week') {
+                                    // 按天分组
+                                    key = date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+                                } else if (filters.timeRange === 'quarter') {
+                                    // 按月分组
+                                    key = date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'short' });
+                                } else {
+                                    // 默认按周分组
+                                    key = getWeekKey(date);
+                                }
+                                
+                                if (!scoreMap.has(key)) {
+                                    scoreMap.set(key, []);
+                                }
+                                const scoreValue = parseFloat(score.score);
+                                if (!isNaN(scoreValue) && scoreValue > 0) {
+                                    scoreMap.get(key).push(scoreValue);
+                                }
+                            } catch (e) {
+                                console.warn('解析日期失败:', score.submitDate, e);
+                            }
+                        }
+                    });
+                    
+                    // 计算平均分并生成标签
+                    const labels = [];
+                    const scoreData = [];
+                    
+                    // 如果有数据，按时间排序
+                    if (scoreMap.size > 0) {
+                        const sortedKeys = Array.from(scoreMap.keys()).sort((a, b) => {
+                            // 尝试按时间排序
+                            try {
+                                // 如果是周格式，提取周数
+                                const weekMatchA = a.match(/第(\d+)周/);
+                                const weekMatchB = b.match(/第(\d+)周/);
+                                if (weekMatchA && weekMatchB) {
+                                    return parseInt(weekMatchA[1]) - parseInt(weekMatchB[1]);
+                                }
+                                // 如果是日期格式，按日期排序
+                                const dateA = new Date(a);
+                                const dateB = new Date(b);
+                                if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
+                                    return dateA - dateB;
+                                }
+                            } catch (e) {
+                                // 如果排序失败，保持原顺序
+                            }
+                            return a.localeCompare(b);
+                        });
+                        
+                        sortedKeys.forEach(key => {
+                            const weekScores = scoreMap.get(key);
+                            if (weekScores.length > 0) {
+                                const avgScore = weekScores.reduce((sum, s) => sum + s, 0) / weekScores.length;
+                                labels.push(key);
+                                scoreData.push(Math.round(avgScore * 10) / 10);
+                            }
+                        });
+                    }
+                    
+                    // 如果没有数据，使用时间标签并填充0
+                    if (labels.length === 0) {
+                        const timeLabels = generateTimeLabels(filters.timeRange);
+                        labels.push(...timeLabels);
+                        scoreData.push(...new Array(timeLabels.length).fill(0));
+                    }
+                    
+                    // 确保数据和标签数量一致
+                    while (scoreData.length < labels.length) {
+                        scoreData.push(0);
+                    }
+                    while (labels.length < scoreData.length) {
+                        labels.push('');
+                    }
+                    
+                    console.log('处理后的成绩趋势数据 - 标签:', labels, '数据:', scoreData);
+                    
+                    const chartData = {
+                        labels: labels,
+                        datasets: [{
+                            label: '成绩趋势',
+                            data: scoreData,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            tension: 0.3,
+                            fill: true,
+                            pointBackgroundColor: '#3b82f6',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        }]
+                    };
+                    console.log('准备初始化成绩图表，数据:', chartData);
+                    initScoreChart(chartData);
+                } else {
+                    throw new Error('API返回数据格式错误');
+                }
+                } catch (error) {
+                console.error('获取成绩趋势数据失败:', error);
+                // 接口失败时，使用空数据，仅展示时间轴
+                const timeLabels = generateTimeLabels(filters.timeRange);
+                const defaultData = {
+                    labels: timeLabels,
+                    datasets: [{
+                        label: '成绩趋势',
+                        data: new Array(timeLabels.length).fill(0),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.3,
+                        fill: true,
+                        pointBackgroundColor: '#3b82f6',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                };
+                console.log('接口失败，使用默认数据:', defaultData);
+                initScoreChart(defaultData);
+            }
+        }
+
+        // 生成时间标签
+        function generateTimeLabels(timeRange = 'month') {
+            const labels = [];
+            const now = new Date();
+            
+            if (timeRange === 'week') {
+                for (let i = 6; i >= 0; i--) {
+                    const date = new Date(now);
+                    date.setDate(date.getDate() - i);
+                    labels.push(date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }));
+                }
+            } else if (timeRange === 'month') {
+                for (let i = 3; i >= 0; i--) {
+                    const date = new Date(now);
+                    date.setDate(date.getDate() - i * 7);
+                    labels.push(`第${4-i}周`);
+                }
+            } else if (timeRange === 'quarter') {
+                for (let i = 2; i >= 0; i--) {
+                    const date = new Date(now);
+                    date.setMonth(date.getMonth() - i);
+                    labels.push(date.toLocaleDateString('zh-CN', { month: 'short' }));
+                }
+            } else {
+                labels.push('第1周', '第2周', '第3周', '第4周', '第5周');
+            }
+            
+            return labels;
+        }
+        
+        // 获取周标识（用于成绩分组）
+        function getWeekKey(date) {
+            const year = date.getFullYear();
+            const week = getWeekNumber(date);
+            return `${year}年第${week}周`;
+        }
+        
+        // 获取一年中的第几周
+        function getWeekNumber(date) {
+            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const dayNum = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        }
+
+        // 不再生成模拟成绩数据，改为仅依赖真实后端数据
+        // 从API获取学习时长数据
+        async function fetchStudyTimeData(filters = {}) {
+            try {
+                // 构建查询参数
+                const params = {};
+                if (filters.semester) params.semester = filters.semester;
+                if (filters.course && filters.course !== 'all') params.courseId = filters.course;
+                if (filters.timeRange) params.timeRange = filters.timeRange;
+                // 添加图表类型参数（daily或weekly）
+                const chartType = getCurrentTimeChartType();
+                params.type = chartType;
+                
+                // 调用API获取真实数据
+                const response = await apiService.get('/api/student/study-time-distribution', params);
+                console.log('获取学习时长数据:', response);
+                
+                if (response && response.success && response.data) {
+                    // 处理API返回的数据
+                    const labels = [];
+                    const data = [];
+                    
+                    if (Array.isArray(response.data) && response.data.length > 0) {
+                        response.data.forEach(item => {
+                            // 优先使用label，如果没有则使用date
+                            const label = item.label || item.date || '';
+                            if (label) {
+                                labels.push(label);
+                                const hours = parseFloat(item.hours || item.value || item.study_time || 0);
+                                data.push(isNaN(hours) ? 0 : hours);
+                            }
+                        });
+                    } else if (response.data.studyTimeDistribution) {
+                        // 如果数据在studyTimeDistribution字段中
+                        data.push(...response.data.studyTimeDistribution);
+                        labels.push(...generateTimeLabels(filters.timeRange));
+                    }
+                    
+                    // 如果没有数据，至少生成标签并填充0
+                    const chartType = getCurrentTimeChartType();
+                    if (labels.length === 0) {
+                        if (chartType === 'weekly') {
+                            labels.push('第1周', '第2周', '第3周', '第4周');
+                            data.push(0, 0, 0, 0);
+                        } else {
+                            const now = new Date();
+                            for (let i = 6; i >= 0; i--) {
+                                const date = new Date(now);
+                                date.setDate(date.getDate() - i);
+                                labels.push(date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }));
+                                data.push(0);
+                            }
+                        }
+                    } else {
+                        // 确保数据和标签数量一致
+                        while (data.length < labels.length) {
+                            data.push(0);
+                        }
+                        while (labels.length < data.length) {
+                            labels.push('');
+                        }
+                    }
+                    
+                    console.log('处理后的学习时长数据 - 标签:', labels, '数据:', data);
+                    
+                    const chartData = {
+                        labels: labels.length > 0 ? labels : generateTimeLabels(filters.timeRange),
+                        datasets: [{
+                            label: '学习时长 (小时)',
+                            data: data.length > 0 ? data : new Array(labels.length || 7).fill(0),
+                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                            borderRadius: 8,
+                            borderColor: '#3b82f6',
+                            borderWidth: 2
+                        }]
+                    };
+                    console.log('准备初始化学习时长图表，数据:', chartData);
+                    initStudyTimeChart(chartData);
+                } else {
+                    // 接口返回失败时，仅展示时间轴，数据为空
+                    const chartType = getCurrentTimeChartType();
+                    let defaultLabels = [];
+                    if (chartType === 'weekly') {
+                        defaultLabels = ['第1周', '第2周', '第3周', '第4周'];
+                    } else {
+                        const now = new Date();
+                        for (let i = 6; i >= 0; i--) {
+                            const date = new Date(now);
+                            date.setDate(date.getDate() - i);
+                            defaultLabels.push(date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }));
+                        }
+                    }
+                    const chartData = {
+                        labels: defaultLabels,
+                        datasets: [{
+                            label: '学习时长 (小时)',
+                            data: new Array(defaultLabels.length).fill(0),
+                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                            borderRadius: 8,
+                            borderColor: '#3b82f6',
+                            borderWidth: 2
+                        }]
+                    };
+                    console.log('接口返回失败，使用默认数据:', chartData);
+                    initStudyTimeChart(chartData);
+                }
+            } catch (error) {
+                console.error('获取学习时长数据失败:', error);
+                // 接口异常时，同样仅展示时间轴，数据为空
+                const chartType = getCurrentTimeChartType();
+                let defaultLabels = [];
+                if (chartType === 'weekly') {
+                    defaultLabels = ['第1周', '第2周', '第3周', '第4周'];
+                } else {
+                    const now = new Date();
+                    for (let i = 6; i >= 0; i--) {
+                        const date = new Date(now);
+                        date.setDate(date.getDate() - i);
+                        defaultLabels.push(date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }));
+                    }
+                }
+                const defaultData = {
+                    labels: defaultLabels,
+                    datasets: [{
+                        label: '学习时长 (小时)',
+                        data: new Array(defaultLabels.length).fill(0),
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                        borderRadius: 8,
+                        borderColor: '#3b82f6',
+                        borderWidth: 2
+                    }]
+                };
+                console.log('接口异常，使用默认数据:', defaultData);
+                initStudyTimeChart(defaultData);
+            }
+        }
+        
+        // 从API获取知识点掌握数据
+        async function fetchKnowledgeData(filters = {}) {
+            try {
+                // 构建查询参数
+                const params = {};
+                if (filters.semester) params.semester = filters.semester;
+                if (filters.course && filters.course !== 'all') params.courseId = filters.course;
+                if (filters.timeRange) params.timeRange = filters.timeRange;
+                
+                const knowledgeData = await apiService.get('/api/student/knowledge-points', params);
+                console.log('获取知识点数据响应:', knowledgeData);
+                
+                if (knowledgeData && knowledgeData.success && knowledgeData.data) {
+                    renderKnowledgeList(knowledgeData.data);
+                } else {
+                    console.error('知识点数据获取失败或格式错误:', knowledgeData);
+                    showErrorMessage('知识点数据获取失败');
+                    renderKnowledgeList([]);
+                }
+            } catch (error) {
+                console.error('获取知识点数据失败:', error);
+                showErrorMessage('获取知识点数据失败: ' + error.message);
+                renderKnowledgeList([]);
+            }
+        }
+        
+        // 渲染知识点列表
+        function renderKnowledgeList(knowledgePoints) {
+            const container = document.getElementById('knowledgeList');
+            
+            if (!knowledgePoints || knowledgePoints.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="fa fa-info-circle" style="font-size: 24px; color: #6c757d;"></i>
+                        <p class="mt-2">暂无知识点数据</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = knowledgePoints.map(point => {
+                // 确定掌握程度类名
+                let masteryClass = 'needs-improvement';
+                if (point.mastery >= 90) {
+                    masteryClass = 'excellent';
+                } else if (point.mastery >= 70) {
+                    masteryClass = 'good';
+                }
+                
+                // 确定掌握程度文本
+                let masteryText = '需要加强';
+                if (point.mastery >= 90) {
+                    masteryText = '优秀';
+                } else if (point.mastery >= 70) {
+                    masteryText = '良好';
+                }
+                
+                return `
+                    <div class="knowledge-item">
+                        <div class="knowledge-item-header">
+                            <h4 class="knowledge-item-name">${point.name}</h4>
+                            <div class="knowledge-item-mastery">${point.mastery}%</div>
+                        </div>
+                        <div class="mastery-bar">
+                            <div class="mastery-fill ${masteryClass}" style="width: ${point.mastery}%"></div>
+                        </div>
+                        <div class="mastery-details">
+                            <span>掌握程度：${masteryText}</span>
+                            <span>练习次数：${point.practiceCount || 0}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // 从API获取学习计划数据
+        async function fetchStudyPlanData(filters = {}) {
+            try {
+                // 构建查询参数
+                const params = {};
+                if (filters.semester) params.semester = filters.semester;
+                if (filters.course && filters.course !== 'all') params.courseId = filters.course;
+                if (filters.timeRange) params.timeRange = filters.timeRange;
+                
+                // 使用getStudentStats获取学习计划数据
+                const planData = await apiService.get('/api/student/stats', params);
+                console.log('获取学习计划数据响应:', planData);
+                
+                // 检查学习计划数据是否存在且有效（items不为空）
+                if (planData && planData.success && planData.data && planData.data.studyPlan) {
+                    const studyPlan = planData.data.studyPlan;
+                    // 如果items存在且不为空，使用API返回的数据
+                    if (studyPlan.items && Array.isArray(studyPlan.items) && studyPlan.items.length > 0) {
+                        updateStudyPlan(studyPlan);
+                    } else {
+                        // 如果items为空或不存在，生成基于课程和作业的学习计划
+                        console.log('学习计划items为空，从课程和作业生成学习计划');
+                        await generateStudyPlanFromCourses(filters);
+                    }
+                } else {
+                    // 如果没有学习计划数据，生成基于课程和作业的示例学习计划
+                    await generateStudyPlanFromCourses(filters);
+                }
+            } catch (error) {
+                console.error('获取学习计划数据失败:', error);
+                // 接口异常时，生成示例学习计划
+                await generateStudyPlanFromCourses(filters);
+            }
+        }
+        
+        // 从课程数据生成学习计划
+        async function generateStudyPlanFromCourses(filters = {}) {
+            try {
+                // 获取学生课程数据
+                const coursesResponse = await apiService.get('/api/student/courses', { page: 1, size: 10 });
+                const assignmentsResponse = await apiService.get('/api/student/assignments', { page: 1, size: 20, submitted: false });
+                
+                const items = [];
+                let completedCount = 0;
+                let totalCount = 0;
+                
+                // 从课程生成学习计划项（最多3个）
+                if (coursesResponse && coursesResponse.success && coursesResponse.data && coursesResponse.data.content) {
+                    const courses = coursesResponse.data.content.slice(0, 3);
+                    courses.forEach(course => {
+                        totalCount++;
+                        items.push({
+                            name: `完成课程：${course.courseName || course.course_name || '未知课程'}`,
+                            status: 'in-progress'
+                        });
+                    });
+                }
+                
+                // 从待完成作业生成学习计划项（最多5个）
+                if (assignmentsResponse && assignmentsResponse.success && assignmentsResponse.data && assignmentsResponse.data.content) {
+                    const assignments = assignmentsResponse.data.content.slice(0, 5);
+                    assignments.forEach(assignment => {
+                        // 检查是否有提交记录
+                        const hasSubmission = assignment.submission && assignment.submission.id;
+                        const isGraded = assignment.submission && assignment.submission.graded;
+                        
+                        totalCount++;
+                        if (!hasSubmission || !isGraded) {
+                            try {
+                                const dueDate = assignment.dueDate ? new Date(assignment.dueDate) : null;
+                                const now = new Date();
+                                const isOverdue = dueDate && dueDate < now;
+                                
+                                items.push({
+                                    name: `完成作业：${assignment.title || '未命名作业'}`,
+                                    status: isOverdue ? 'pending' : 'in-progress'
+                                });
+                            } catch (e) {
+                                items.push({
+                                    name: `完成作业：${assignment.title || '未命名作业'}`,
+                                    status: 'in-progress'
+                                });
+                            }
+                        } else {
+                            completedCount++;
+                        }
+                    });
+                }
+                
+                // 如果还没有计划项，添加默认项
+                if (items.length === 0) {
+                    items.push(
+                        {
+                            name: '完成本周学习任务',
+                            status: 'in-progress'
+                        },
+                        {
+                            name: '复习已学知识点',
+                            status: 'pending'
+                        },
+                        {
+                            name: '准备下周考试',
+                            status: 'pending'
+                        }
+                    );
+                    totalCount = 3;
+                    completedCount = 0;
+                }
+                
+                // 计算完成率
+                const completionPercentage = totalCount > 0 ? Math.min(100, Math.max(0, Math.round((completedCount / totalCount) * 100))) : 0;
+                
+                console.log('生成的学习计划:', { completionPercentage, items, totalCount, completedCount });
+                
+                updateStudyPlan({
+                    completionPercentage: completionPercentage,
+                    items: items
+                });
+            } catch (error) {
+                console.error('生成学习计划失败:', error);
+                // 使用默认学习计划
+                updateStudyPlan({
+                    completionPercentage: 0,
+                    items: [
+                        {
+                            name: '完成本周学习任务',
+                            status: 'in-progress'
+                        },
+                        {
+                            name: '复习已学知识点',
+                            status: 'pending'
+                        },
+                        {
+                            name: '准备下周考试',
+                            status: 'pending'
+                        }
+                    ]
+                });
+            }
+        }
+        
+        // 更新学习计划
+        function updateStudyPlan(plan) {
+            // 更新完成率
+            const completionPercentage = plan.completionPercentage || 0;
+            document.getElementById('planCompletion').textContent = `${completionPercentage}%`;
+            
+            // 更新进度圆环
+            const progressCircle = document.querySelector('.progress-circle-progress');
+            const circumference = 2 * Math.PI * 45;
+            const offset = circumference - (completionPercentage / 100) * circumference;
+            progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+            progressCircle.style.strokeDashoffset = offset;
+            
+            // 更新学习计划项目
+            const planDetails = document.getElementById('planDetails');
+            
+            if (!plan.items || plan.items.length === 0) {
+                planDetails.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="fa fa-info-circle" style="font-size: 24px; color: #6c757d;"></i>
+                        <p class="mt-2">暂无学习计划项目</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            planDetails.innerHTML = plan.items.map(item => {
+                // 确定状态图标和类名
+                let statusIcon = 'fa-circle-o';
+                let statusColor = '#0d6efd';
+                let statusClass = 'pending';
+                let statusText = '待开始';
+                
+                switch (item.status) {
+                    case 'completed':
+                        statusIcon = 'fa-check-circle';
+                        statusColor = '#198754';
+                        statusClass = 'completed';
+                        statusText = '已完成';
+                        break;
+                    case 'in-progress':
+                        statusIcon = 'fa-clock-o';
+                        statusColor = '#ffc107';
+                        statusClass = 'in-progress';
+                        statusText = '进行中';
+                        break;
+                    default:
+                        statusIcon = 'fa-circle-o';
+                        statusColor = '#0d6efd';
+                        statusClass = 'pending';
+                        statusText = '待开始';
+                }
+                
+                return `
+                    <div class="plan-item">
+                        <div class="plan-item-name">
+                            <i class="fa ${statusIcon}" style="color: ${statusColor};"></i>
+                            <span>${item.name}</span>
+                        </div>
+                        <div class="plan-item-status ${statusClass}">${statusText}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // 改变成绩图表类型
+        function changeScoreChartType(type, eventElement) {
+            // 移除所有按钮的激活状态
+            document.querySelectorAll('[onclick^="changeScoreChartType"]').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 激活当前按钮
+            const targetBtn = eventElement || document.querySelector(`[onclick*="changeScoreChartType('${type}')"]`);
+            if (targetBtn) {
+                targetBtn.classList.add('active');
+            }
+            
+            // 如果图表存在，销毁并重新创建
+            const existingChart = Chart.getChart('scoreChart');
+            const currentData = cloneScoreChartData();
+            if (existingChart) {
+                existingChart.destroy();
+                scoreChart = null;
+            }
+            
+            // 确保canvas元素可见
+            const ctx = document.getElementById('scoreChart');
+            if (!ctx || ctx.offsetWidth === 0 || ctx.offsetHeight === 0) {
+                console.warn('成绩图表容器不可见，延迟切换');
+                setTimeout(() => changeScoreChartType(type), 100);
+                return;
+            }
+            
+            const chartCtx = ctx.getContext('2d');
+            
+            const datasets = transformScoreDatasets(currentData ? currentData.datasets : [], type);
+            const labels = currentData ? currentData.labels : [];
+            
+            console.log('切换图表类型:', type, '数据:', { labels, datasets });
+            
+            scoreChart = new Chart(chartCtx, {
+                type: type,
+                data: { labels, datasets },
+                options: buildScoreChartOptions(type)
+            });
+            
+            // 更新按钮状态（如果通过参数传入）
+            if (eventElement) {
+                document.querySelectorAll('[onclick^="changeScoreChartType"]').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                eventElement.classList.add('active');
+            }
+        }
+        
+        // 获取当前学习时长图表类型
+        function getCurrentTimeChartType() {
+            const buttons = document.querySelectorAll('[onclick^="changeTimeChartType"]');
+            for (let btn of buttons) {
+                if (btn.classList.contains('active')) {
+                    const onclick = btn.getAttribute('onclick');
+                    if (onclick.includes("'daily'")) {
+                        return 'daily';
+                    } else if (onclick.includes("'weekly'")) {
+                        return 'weekly';
+                    }
+                }
+            }
+            // 默认返回weekly（因为默认按钮是weekly）
+            return 'weekly';
+        }
+        
+        // 改变学习时长图表类型
+        function changeTimeChartType(type, eventElement) {
+            // 移除所有按钮的激活状态
+            document.querySelectorAll('[onclick^="changeTimeChartType"]').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 激活当前按钮
+            const targetBtn = eventElement || document.querySelector(`[onclick*="changeTimeChartType('${type}')"]`);
+            if (targetBtn) {
+                targetBtn.classList.add('active');
+            }
+            
+            // 重新获取数据并渲染图表
+            const filters = getCurrentFilters();
+            fetchStudyTimeData(filters);
+            
+            // 更新按钮状态（如果通过参数传入）
+            if (eventElement) {
+                document.querySelectorAll('[onclick^="changeTimeChartType"]').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                eventElement.classList.add('active');
+            }
+        }
+        
+        // 获取当前筛选条件
+        function getCurrentFilters() {
+            const semesterEl = document.getElementById('semester');
+            const courseEl = document.getElementById('course');
+            const timeRangeEl = document.getElementById('time-range');
+            
+            return {
+                semester: semesterEl ? (semesterEl.value || '') : '',
+                course: courseEl ? (courseEl.value || 'all') : 'all',
+                timeRange: timeRangeEl ? (timeRangeEl.value || 'month') : 'month'
+            };
+        }
+
+        // 显示加载状态
+        function showLoadingState(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.style.position = 'relative';
+                const overlay = document.createElement('div');
+                overlay.className = 'loading-overlay';
+                overlay.id = elementId + '-loading';
+                overlay.innerHTML = `
+                    <div class="loading-spinner"></div>
+                    <p style="margin-top: 12px; color: #64748b; font-size: 14px;">加载中...</p>
+                `;
+                element.appendChild(overlay);
+            }
+        }
+
+        // 隐藏加载状态
+        function hideLoadingState(elementId) {
+            const overlay = document.getElementById(elementId + '-loading');
+            if (overlay) {
+                overlay.remove();
+            }
+        }
+
+        // 应用筛选
+        async function applyFilters() {
+            const filters = getCurrentFilters();
+            console.log('应用筛选 - 筛选条件:', filters);
+            console.log('应用筛选 - 学期元素值:', document.getElementById('semester')?.value);
+            console.log('应用筛选 - 课程元素值:', document.getElementById('course')?.value);
+            console.log('应用筛选 - 时间范围元素值:', document.getElementById('time-range')?.value);
+            
+            // 显示加载状态
+            showLoadingState('statsCards');
+            showLoadingState('scoreChart');
+            showLoadingState('studyTimeChart');
+            showLoadingState('knowledgeList');
+            
+            try {
+                // 并行加载所有数据
+                await Promise.all([
+                    fetchStudentStats(filters),
+                    fetchScoreTrend(filters),
+                    fetchStudyTimeData(filters),
+                    fetchKnowledgeData(filters),
+                    fetchStudyPlanData(filters)
+                ]);
+                
+                showNotification('筛选条件已应用，数据已更新', 'success');
+            } catch (error) {
+                console.error('应用筛选失败:', error);
+                showNotification('筛选应用失败，请重试', 'error');
+            } finally {
+                // 隐藏加载状态
+                setTimeout(() => {
+                    hideLoadingState('statsCards');
+                    hideLoadingState('scoreChart');
+                    hideLoadingState('studyTimeChart');
+                    hideLoadingState('knowledgeList');
+                }, 500);
+            }
+        }
+        
+        // 重置筛选
+        async function resetFilters() {
+            const semesterSelect = document.getElementById('semester');
+            const courseSelect = document.getElementById('course');
+            const timeRangeSelect = document.getElementById('time-range');
+            
+            if (semesterSelect) semesterSelect.value = '';
+            if (courseSelect) courseSelect.value = 'all';
+            if (timeRangeSelect) timeRangeSelect.value = 'month';
+            
+            console.log('重置筛选');
+            
+            // 重新加载数据
+            await applyFilters();
+            
+            showNotification('筛选条件已重置', 'info');
+        }
+        
+        // 刷新知识点数据
+        async function refreshKnowledgeData() {
+            const filters = getCurrentFilters();
+            
+            // 显示加载状态
+            const knowledgeList = document.getElementById('knowledgeList');
+            if (knowledgeList) {
+                knowledgeList.innerHTML = `
+                    <div class="text-center py-5">
+                        <div class="loading-spinner" style="margin: 0 auto;"></div>
+                        <p class="mt-2" style="color: #64748b;">加载知识点数据中...</p>
+                    </div>
+                `;
+            }
+            
+            // 重新获取数据
+            await fetchKnowledgeData(filters);
+            
+            // 显示刷新成功提示
+            showNotification('知识点数据已刷新', 'success');
+        }
+        
+        // 查看完整计划
+        function viewFullPlan() {
+            console.log('查看完整计划');
+            
+            // 这里可以添加查看完整计划的逻辑
+            // 例如打开一个模态框或跳转到新页面
+            showNotification('正在加载完整学习计划...', 'info');
+        }
+        
+        // 显示通知
+        function showNotification(message, type = 'info') {
+            // 映射类型到Bootstrap类
+            const typeMap = {
+                'success': 'success',
+                'error': 'danger',
+                'warning': 'warning',
+                'info': 'info'
+            };
+            
+            const bootstrapType = typeMap[type] || 'info';
+            
+            // 创建通知元素
+            const notification = document.createElement('div');
+            notification.className = `toast align-items-center text-white bg-${bootstrapType} border-0 position-fixed`;
+            notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            notification.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fa fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}" style="margin-right: 8px;"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            `;
+            
+            // 添加到页面
+            document.body.appendChild(notification);
+            
+            // 显示通知
+            const toast = new bootstrap.Toast(notification, {
+                autohide: true,
+                delay: 3000
+            });
+            toast.show();
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 3500);
+        }
+        
+        // 检查登录状态
+        function checkLoginStatus() {
+            const user = sessionStorage.getItem('user');
+            if (!user) {
+                window.location.href = 'student-login.html';
+                return false;
+            }
+            // 加载用户下拉组件
+            $('#userDropdownContainer').load('components/user-dropdown.html', function(response, status, xhr) {
+                if (status == 'error') {
+                    console.error('加载用户下拉组件失败:', xhr.status, xhr.statusText);
+                } else {
+                    // 组件加载成功后初始化
+                    if (typeof UserDropdown !== 'undefined') {
+                        new UserDropdown('userDropdownContainer');
+                    }
+                }
+            });
+            return true;
+        }
+
+        // 设置导航菜单激活状态
+        function setActiveMenu() {
+            const currentPath = window.location.pathname;
+            const menuItems = document.querySelectorAll('.menu-item');
+            
+            menuItems.forEach(item => {
+                const href = item.getAttribute('href');
+                if (currentPath.includes(href)) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', async function() {
+            checkLoginStatus();
+            setActiveMenu();
+            
+            // 初始化API服务
+            initAPIService();
+            
+            // 动态加载下拉选项
+            await loadSemesters();
+            await loadCourses();
+            await loadTimeRanges();
+            
+            // 初始化空图表，后续从API获取数据后更新
+            initScoreChart();
+            initStudyTimeChart();
+            
+            // 获取初始筛选条件并加载数据
+            const initialFilters = getCurrentFilters();
+            
+            // 并行加载所有数据
+            await Promise.all([
+                fetchStudentStats(initialFilters),
+                fetchScoreTrend(initialFilters),
+                fetchStudyTimeData(initialFilters),
+                fetchKnowledgeData(initialFilters),
+                fetchStudyPlanData(initialFilters)
+            ]);
+            
+            // 为筛选下拉框添加change事件监听（可选：实现自动更新）
+            // 当前设计为手动点击"应用筛选"按钮，如需自动更新可取消注释
+            /*
+            const semesterSelect = document.getElementById('semester');
+            const courseSelect = document.getElementById('course');
+            const timeRangeSelect = document.getElementById('time-range');
+            
+            if (semesterSelect) {
+                semesterSelect.addEventListener('change', () => {
+                    applyFilters();
+                });
+            }
+            
+            if (courseSelect) {
+                courseSelect.addEventListener('change', () => {
+                    applyFilters();
+                });
+            }
+            
+            if (timeRangeSelect) {
+                timeRangeSelect.addEventListener('change', () => {
+                    applyFilters();
+                });
+            }
+            */
+            
+            // 侧边栏切换按钮事件监听
+            const toggleSidebarBtn = document.getElementById('toggleSidebar');
+            if (toggleSidebarBtn) {
+                toggleSidebarBtn.addEventListener('click', toggleSidebar);
+            }
+        });
+    </script>
+</body>
+</html>

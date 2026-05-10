@@ -1,0 +1,1692 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI工具模块 - 智能学习辅助系统</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <style>
+        /* 全局样式 */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        /* 侧边栏样式 */
+        .sidebar {
+            height: 100vh;
+            width: 280px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transition: width 0.3s ease;
+            overflow-x: hidden;
+            z-index: 1000;
+        }
+        
+        .sidebar.collapsed {
+            width: 80px;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .sidebar-logo i {
+            font-size: 28px;
+        }
+        
+        .sidebar-logo span {
+            font-size: 18px;
+            font-weight: 700;
+        }
+        
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+        
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+            font-size: 16px;
+            line-height: 1;
+        }
+        
+        .menu-item:hover {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #ffffff;
+        }
+        
+        .menu-item.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-left-color: #ffffff;
+        }
+        
+        .menu-item i {
+            width: 30px;
+            margin-right: 10px;
+            text-align: center;
+            font-size: 1.2rem;
+        }
+        
+        .menu-item span {
+            transition: opacity 0.3s ease;
+        }
+        
+        .sidebar.collapsed .menu-item span {
+            opacity: 0;
+        }
+        
+        /* 主内容区样式 */
+        .main-content {
+            margin-left: 280px;
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+        }
+        
+        .main-content.collapsed {
+            margin-left: 80px;
+        }
+        
+        /* 顶部导航栏 */
+        .top-navbar {
+            background: white;
+            border-bottom: none;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .toggle-btn {
+            background: #f1f5f9;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            color: #475569;
+            margin-right: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .toggle-btn:hover {
+            background-color: #e2e8f0;
+        }
+        
+        .page-title {
+            margin: 0 20px;
+            font-size: 1.5rem;
+            color: #495057;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        /* 内容区域 */
+        .content-container {
+            padding: 20px;
+        }
+        
+        /* AI工具卡片 */
+        .ai-tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .ai-tool-card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .ai-tool-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .ai-tool-card-header {
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .ai-tool-card-title {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+        
+        .ai-tool-card-icon {
+            font-size: 1.5rem;
+        }
+        
+        .ai-tool-card-body {
+            padding: 20px;
+        }
+        
+        .ai-tool-card-description {
+            color: #6c757d;
+            margin-bottom: 20px;
+        }
+        
+        .ai-tool-card-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        /* 表单样式 */
+        .form-section {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .form-section-title {
+            font-size: 1.3rem;
+            color: #212529;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #495057;
+        }
+        
+        .form-group select,
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        /* 结果展示区 */
+        .result-section {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .result-section-title {
+            font-size: 1.3rem;
+            color: #212529;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .result-stats {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        .result-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        /* 题目卡片样式 */
+        .question-card {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            background-color: #f8f9fa;
+            transition: all 0.3s;
+        }
+        
+        .question-card:hover {
+            border-color: #0d6efd;
+            box-shadow: 0 2px 4px rgba(13, 110, 253, 0.1);
+        }
+        
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        
+        .question-number {
+            font-weight: 500;
+            color: #0d6efd;
+            margin-right: 10px;
+        }
+        
+        .question-type {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            background-color: #e9ecef;
+            color: #495057;
+        }
+        
+        .question-content {
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+        
+        .question-options {
+            margin-bottom: 15px;
+        }
+        
+        .question-option {
+            margin-bottom: 8px;
+        }
+        
+        .question-option input {
+            margin-right: 8px;
+        }
+        
+        .question-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .question-difficulty {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .difficulty-easy {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        
+        .difficulty-medium {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        
+        .difficulty-hard {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        
+        /* 知识点标签 */
+        .knowledge-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .knowledge-tag {
+            background-color: #e9ecef;
+            color: #495057;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        /* 加载状态 */
+        .loading-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            color: #6c757d;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            #sidebar {
+                transform: translateX(-250px);
+            }
+            
+            #sidebar.collapsed {
+                transform: translateX(0);
+                width: 100%;
+            }
+            
+            #mainContent {
+                margin-left: 0;
+            }
+            
+            .form-row {
+                flex-direction: column;
+            }
+            
+            .ai-tools-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边栏导航组件 -->
+    <div id="sidebar-container"></div>
+    <script>
+        // 加载侧边栏组件
+        fetch('components/teacher-sidebar-nav.html')
+            .then(response => response.text())
+            .then(data => {
+                document.getElementById('sidebar-container').innerHTML = data;
+                // 确保侧边栏组件完全加载后初始化
+                setTimeout(() => {
+                    if (window.initSidebar) {
+                        window.initSidebar();
+                    }
+                }, 100);
+            })
+            .catch(error => console.error('加载侧边栏组件失败:', error));
+    </script>
+    
+    <!-- 主内容区 -->
+    <main class="main-content" id="mainContent">
+        <!-- 顶部导航栏 -->
+        <nav class="top-navbar">
+            <div style="display: flex; align-items: center;">
+                <button class="toggle-btn"><i class="fa fa-bars"></i></button>
+                <h2 class="page-title">AI工具</h2>
+            </div>
+            <!-- 用户下拉菜单组件（教师端紫色主题） -->
+            <div id="userDropdownContainer"></div>
+        </nav>
+        
+        <!-- 内容区域 -->
+        <div class="content-container">
+            <!-- AI工具卡片 -->
+            <div class="ai-tools-grid">
+                <div class="ai-tool-card">
+                    <div class="ai-tool-card-header">
+                        <h3 class="ai-tool-card-title">题目生成</h3>
+                        <div class="ai-tool-card-icon">
+                            <i class="fa fa-question-circle"></i>
+                        </div>
+                    </div>
+                    <div class="ai-tool-card-body">
+                        <p class="ai-tool-card-description">
+                            基于知识点自动生成各种类型的题目，包括选择题、填空题、简答题等。
+                        </p>
+                        <div class="ai-tool-card-actions">
+                            <button class="btn btn-primary btn-sm" onclick="activateTool('question-generator')">使用</button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="showToolHelp('question-generator')">帮助</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="ai-tool-card">
+                    <div class="ai-tool-card-header">
+                        <h3 class="ai-tool-card-title">试卷生成</h3>
+                        <div class="ai-tool-card-icon">
+                            <i class="fa fa-file-pdf-o"></i>
+                        </div>
+                    </div>
+                    <div class="ai-tool-card-body">
+                        <p class="ai-tool-card-description">
+                            根据课程大纲和知识点自动生成完整的试卷，包括题目分布和分数设置。
+                        </p>
+                        <div class="ai-tool-card-actions">
+                            <button class="btn btn-primary btn-sm" onclick="activateTool('exam-generator')">使用</button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="showToolHelp('exam-generator')">帮助</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="ai-tool-card">
+                    <div class="ai-tool-card-header">
+                        <h3 class="ai-tool-card-title">知识点讲解</h3>
+                        <div class="ai-tool-card-icon">
+                            <i class="fa fa-book"></i>
+                        </div>
+                    </div>
+                    <div class="ai-tool-card-body">
+                        <p class="ai-tool-card-description">
+                            自动生成知识点的详细讲解和示例，帮助学生更好地理解和掌握。
+                        </p>
+                        <div class="ai-tool-card-actions">
+                            <button class="btn btn-primary btn-sm" onclick="activateTool('knowledge-explainer')">使用</button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="showToolHelp('knowledge-explainer')">帮助</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="ai-tool-card">
+                    <div class="ai-tool-card-header">
+                        <h3 class="ai-tool-card-title">作业批改</h3>
+                        <div class="ai-tool-card-icon">
+                            <i class="fa fa-check-circle"></i>
+                        </div>
+                    </div>
+                    <div class="ai-tool-card-body">
+                        <p class="ai-tool-card-description">
+                            自动批改客观题和主观题，生成详细的评分报告和改进建议。
+                        </p>
+                        <div class="ai-tool-card-actions">
+                            <button class="btn btn-primary btn-sm" onclick="activateTool('assignment-evaluator')">使用</button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="showToolHelp('assignment-evaluator')">帮助</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="ai-tool-card">
+                    <div class="ai-tool-card-header">
+                        <h3 class="ai-tool-card-title">学情分析</h3>
+                        <div class="ai-tool-card-icon">
+                            <i class="fa fa-bar-chart"></i>
+                        </div>
+                    </div>
+                    <div class="ai-tool-card-body">
+                        <p class="ai-tool-card-description">
+                            基于学生的学习数据，分析学习情况，生成个性化的学习建议。
+                        </p>
+                        <div class="ai-tool-card-actions">
+                            <button class="btn btn-primary btn-sm" onclick="activateTool('learning-analyzer')">使用</button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="showToolHelp('learning-analyzer')">帮助</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="ai-tool-card">
+                    <div class="ai-tool-card-header">
+                        <h3 class="ai-tool-card-title">教学计划生成</h3>
+                        <div class="ai-tool-card-icon">
+                            <i class="fa fa-calendar"></i>
+                        </div>
+                    </div>
+                    <div class="ai-tool-card-body">
+                        <p class="ai-tool-card-description">
+                            根据课程大纲和时间安排，自动生成详细的教学计划和进度安排。
+                        </p>
+                        <div class="ai-tool-card-actions">
+                            <button class="btn btn-primary btn-sm" onclick="activateTool('teaching-planner')">使用</button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="showToolHelp('teaching-planner')">帮助</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 题目生成工具 -->
+            <div id="question-generator" class="form-section" style="display: none;">
+                <h3 class="form-section-title">AI题目生成</h3>
+                <form id="question-generator-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="course-select">选择课程</label>
+                            <select id="course-select" class="form-control">
+                                <option value="CS101">Python编程基础</option>
+                                <option value="CS102">数据结构与算法</option>
+                                <option value="MA201">高等数学</option>
+                                <option value="DB301">数据库系统</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="knowledge-points">选择知识点</label>
+                            <select id="knowledge-points" class="form-control" multiple>
+                                <option value="KP001">函数定义与调用</option>
+                                <option value="KP002">条件语句</option>
+                                <option value="KP003">循环结构</option>
+                                <option value="KP004">列表与字典</option>
+                                <option value="KP005">面向对象编程</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="question-type">题目类型</label>
+                            <select id="question-type" class="form-control">
+                                <option value="all">全部类型</option>
+                                <option value="multiple-choice">选择题</option>
+                                <option value="true-false">判断题</option>
+                                <option value="fill-in">填空题</option>
+                                <option value="short-answer">简答题</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="difficulty">难度级别</label>
+                            <select id="difficulty" class="form-control">
+                                <option value="all">全部难度</option>
+                                <option value="easy">简单</option>
+                                <option value="medium">中等</option>
+                                <option value="hard">困难</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="question-count">题目数量</label>
+                            <input type="number" id="question-count" class="form-control" value="10" min="1" max="50">
+                        </div>
+                        <div class="form-group">
+                            <label for="specific-requirements">特定要求</label>
+                            <input type="text" id="specific-requirements" class="form-control" placeholder="例如：增加实际应用场景">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="knowledge-depth">知识深度</label>
+                            <input type="range" id="knowledge-depth" class="form-control-range" min="1" max="5" value="3">
+                            <div class="text-center" id="depth-label">3 (中等深度)</div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-12">
+                            <label for="additional-instructions">额外说明</label>
+                            <textarea id="additional-instructions" class="form-control" rows="3" placeholder="请输入额外的生成要求..."></textarea>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-12 text-center">
+                            <button type="submit" class="btn btn-primary">生成题目</button>
+                            <button type="button" class="btn btn-secondary ms-2" onclick="cancelTool('question-generator')">取消</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- 试卷生成工具 -->
+            <div id="exam-generator" class="form-section" style="display: none;">
+                <h3 class="form-section-title">AI试卷生成</h3>
+                <form id="exam-generator-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="exam-course-name">课程名称</label>
+                            <select id="exam-course-name" class="form-control">
+                                <option value="Python编程基础">Python编程基础</option>
+                                <option value="数据结构与算法">数据结构与算法</option>
+                                <option value="高等数学">高等数学</option>
+                                <option value="数据库系统">数据库系统</option>
+                                <option value="线性代数">线性代数</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="exam-total-score">总分</label>
+                            <input type="number" id="exam-total-score" class="form-control" value="100" min="50" max="200">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="exam-duration">考试时长（分钟）</label>
+                            <input type="number" id="exam-duration" class="form-control" value="120" min="30" max="300">
+                        </div>
+                        <div class="form-group">
+                            <label for="exam-difficulty">难度级别</label>
+                            <select id="exam-difficulty" class="form-control">
+                                <option value="easy">简单</option>
+                                <option value="medium">中等</option>
+                                <option value="hard">困难</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-12">
+                            <label for="exam-description">试卷描述（可选）</label>
+                            <textarea id="exam-description" class="form-control" rows="3" placeholder="请输入试卷的额外要求或说明..."></textarea>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-12 text-center">
+                            <button type="submit" class="btn btn-primary">生成试卷</button>
+                            <button type="button" class="btn btn-secondary ms-2" onclick="cancelTool('exam-generator')">取消</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- 知识点讲解工具 -->
+            <div id="knowledge-explainer" class="form-section" style="display: none;">
+                <h3 class="form-section-title">AI知识点讲解</h3>
+                <form id="knowledge-explainer-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="explain-course-name">选择课程</label>
+                            <select id="explain-course-name" class="form-control">
+                                <option value="Python编程基础">Python编程基础</option>
+                                <option value="数据结构与算法">数据结构与算法</option>
+                                <option value="高等数学">高等数学</option>
+                                <option value="数据库系统">数据库系统</option>
+                                <option value="线性代数">线性代数</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="explain-knowledge-point">选择知识点</label>
+                            <select id="explain-knowledge-point" class="form-control">
+                                <option value="函数定义与调用">函数定义与调用</option>
+                                <option value="条件语句">条件语句</option>
+                                <option value="循环结构">循环结构</option>
+                                <option value="列表与字典">列表与字典</option>
+                                <option value="面向对象编程">面向对象编程</option>
+                                <option value="数据库设计">数据库设计</option>
+                                <option value="SQL查询">SQL查询</option>
+                                <option value="线性方程组">线性方程组</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="explain-depth">讲解深度</label>
+                            <select id="explain-depth" class="form-control">
+                                <option value="基础">基础</option>
+                                <option value="中级">中级</option>
+                                <option value="高级">高级</option>
+                                <option value="专家级">专家级</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="explain-style">讲解风格</label>
+                            <select id="explain-style" class="form-control">
+                                <option value="通俗易懂">通俗易懂</option>
+                                <option value="学术严谨">学术严谨</option>
+                                <option value="案例驱动">案例驱动</option>
+                                <option value="互动式">互动式</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-12">
+                            <label for="explain-additional">额外要求（可选）</label>
+                            <textarea id="explain-additional" class="form-control" rows="3" placeholder="请输入额外的讲解要求，例如：包含示例代码、添加练习题等..."></textarea>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-12 text-center">
+                            <button type="submit" class="btn btn-primary">生成讲解</button>
+                            <button type="button" class="btn btn-secondary ms-2" onclick="cancelTool('knowledge-explainer')">取消</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- 作业批改工具 -->
+            <div id="assignment-evaluator" class="form-section" style="display: none;">
+                <h3 class="form-section-title">AI作业批改</h3>
+                <form id="assignment-evaluator-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="evaluate-course">选择课程</label>
+                            <select id="evaluate-course" class="form-control">
+                                <option value="Python编程基础">Python编程基础</option>
+                                <option value="数据结构与算法">数据结构与算法</option>
+                                <option value="高等数学">高等数学</option>
+                                <option value="数据库系统">数据库系统</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="evaluate-assignment">选择作业</label>
+                            <select id="evaluate-assignment" class="form-control">
+                                <option value="作业1：函数定义与调用">作业1：函数定义与调用</option>
+                                <option value="作业2：条件语句与循环结构">作业2：条件语句与循环结构</option>
+                                <option value="作业3：面向对象编程">作业3：面向对象编程</option>
+                                <option value="作业4：数据库设计">作业4：数据库设计</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="evaluate-student">选择学生</label>
+                            <select id="evaluate-student" class="form-control">
+                                <option value="张三">张三</option>
+                                <option value="李四">李四</option>
+                                <option value="王五">王五</option>
+                                <option value="赵六">赵六</option>
+                                <option value="孙七">孙七</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="evaluate-criteria">批改标准</label>
+                            <select id="evaluate-criteria" class="form-control">
+                                <option value="default">默认标准</option>
+                                <option value="strict">严格标准</option>
+                                <option value="lenient">宽松标准</option>
+                                <option value="custom">自定义标准</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-12">
+                            <label for="evaluate-file">上传作业文件</label>
+                            <input type="file" id="evaluate-file" class="form-control" accept=".pdf,.doc,.docx,.txt,.py,.java">
+                            <small class="form-text text-muted">支持PDF、Word、TXT、Python、Java等格式</small>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-12">
+                            <label for="evaluate-additional">额外说明（可选）</label>
+                            <textarea id="evaluate-additional" class="form-control" rows="3" placeholder="请输入额外的批改要求或说明..."></textarea>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-12 text-center">
+                            <button type="submit" class="btn btn-primary">开始批改</button>
+                            <button type="button" class="btn btn-secondary ms-2" onclick="cancelTool('assignment-evaluator')">取消</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- 学情分析工具 -->
+            <div id="learning-analyzer" class="form-section" style="display: none;">
+                <h3 class="form-section-title">AI学情分析</h3>
+                <form id="learning-analyzer-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="analyze-course">选择课程</label>
+                            <select id="analyze-course" class="form-control">
+                                <option value="Python编程基础">Python编程基础</option>
+                                <option value="数据结构与算法">数据结构与算法</option>
+                                <option value="高等数学">高等数学</option>
+                                <option value="数据库系统">数据库系统</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="analyze-student">选择学生</label>
+                            <select id="analyze-student" class="form-control">
+                                <option value="80">张三 (ID: 80)</option>
+                                <option value="81">李四 (ID: 81)</option>
+                                <option value="82">王五 (ID: 82)</option>
+                                <option value="83">赵六 (ID: 83)</option>
+                                <option value="84">孙七 (ID: 84)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="analyze-dimension">分析维度</label>
+                            <select id="analyze-dimension" class="form-control" multiple>
+                                <option value="knowledge-mastery" selected>知识点掌握情况</option>
+                                <option value="learning-progress" selected>学习进度</option>
+                                <option value="performance-trend" selected>成绩趋势</option>
+                                <option value="weak-points" selected>薄弱环节</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="analyze-time-range">时间范围</label>
+                            <select id="analyze-time-range" class="form-control">
+                                <option value="last-week">最近一周</option>
+                                <option value="last-month" selected>最近一个月</option>
+                                <option value="last-quarter">最近三个月</option>
+                                <option value="this-semester">本学期</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-12 text-center">
+                            <button type="submit" class="btn btn-primary">开始分析</button>
+                            <button type="button" class="btn btn-secondary ms-2" onclick="cancelTool('learning-analyzer')">取消</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- 教学计划生成工具 -->
+            <div id="teaching-planner" class="form-section" style="display: none;">
+                <h3 class="form-section-title">AI教学计划生成</h3>
+                <form id="teaching-planner-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="plan-course-name">选择课程</label>
+                            <select id="plan-course-name" class="form-control">
+                                <option value="Python编程基础">Python编程基础</option>
+                                <option value="数据结构与算法">数据结构与算法</option>
+                                <option value="高等数学">高等数学</option>
+                                <option value="数据库系统">数据库系统</option>
+                                <option value="线性代数">线性代数</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="plan-duration">计划时长（周）</label>
+                            <input type="number" id="plan-duration" class="form-control" value="16" min="4" max="24">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="plan-start-date">开始日期</label>
+                            <input type="date" id="plan-start-date" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="plan-end-date">结束日期</label>
+                            <input type="date" id="plan-end-date" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-12">
+                            <label for="plan-knowledge-points">包含知识点</label>
+                            <select id="plan-knowledge-points" class="form-control" multiple>
+                                <option value="函数定义与调用">函数定义与调用</option>
+                                <option value="条件语句">条件语句</option>
+                                <option value="循环结构">循环结构</option>
+                                <option value="列表与字典">列表与字典</option>
+                                <option value="面向对象编程">面向对象编程</option>
+                                <option value="数据库设计">数据库设计</option>
+                                <option value="SQL查询">SQL查询</option>
+                                <option value="线性方程组">线性方程组</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-12">
+                            <label for="plan-additional">额外要求</label>
+                            <textarea id="plan-additional" class="form-control" rows="3" placeholder="请输入额外的教学计划要求..."></textarea>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-12 text-center">
+                            <button type="submit" class="btn btn-primary">生成教学计划</button>
+                            <button type="button" class="btn btn-secondary ms-2" onclick="cancelTool('teaching-planner')">取消</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- 结果展示区 -->
+        <div id="result-container" class="content-container" style="display: none;">
+            <div class="result-section">
+                <h3 class="result-section-title">生成结果</h3>
+                <div class="result-header">
+                    <div class="result-stats">
+                        <span id="result-count">0</span> 个结果
+                    </div>
+                    <div class="result-actions">
+                        <button class="btn btn-secondary btn-sm" onclick="exportResults()"><i class="fa fa-download"></i> 导出</button>
+                        <button class="btn btn-danger btn-sm" onclick="clearResults()"><i class="fa fa-trash"></i> 清空</button>
+                        <button class="btn btn-primary btn-sm" onclick="backToTools()"><i class="fa fa-arrow-left"></i> 返回工具列表</button>
+                    </div>
+                </div>
+                <div id="result-content" class="result-content">
+                    <!-- 生成的结果将显示在这里 -->
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- 加载状态 -->
+    <div id="loading-container" class="loading-container" style="display: none;">
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+            <p class="mt-3">AI正在处理，请稍候...</p>
+        </div>
+    </div>
+    
+    <!-- 消息提示 -->
+    <div id="message-container" class="position-fixed bottom-0 end-0 p-3 z-50" style="display: none;">
+        <div id="message-alert" class="alert alert-success alert-dismissible fade show" role="alert">
+            <strong id="message-title">成功！</strong>
+            <span id="message-text">操作已完成</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 页面功能脚本 -->
+    <script>
+        // 通用函数：为教师端加载右上角用户下拉菜单，并执行组件内脚本
+        async function loadUserDropdownForTeacher(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            try {
+                const resp = await fetch('components/user-dropdown.html');
+                if (!resp.ok) {
+                    console.error('加载用户下拉组件失败:', resp.status, resp.statusText);
+                    return;
+                }
+
+                const html = await resp.text();
+                container.innerHTML = html;
+
+                // 手动执行组件中的内联脚本，确保 UserDropdown 类可用
+                const scripts = container.querySelectorAll('script');
+                scripts.forEach(oldScript => {
+                    const script = document.createElement('script');
+                    if (oldScript.src) {
+                        script.src = oldScript.src;
+                    } else {
+                        script.textContent = oldScript.textContent;
+                    }
+                    document.body.appendChild(script);
+                    oldScript.remove();
+                });
+
+                if (typeof UserDropdown !== 'undefined') {
+                    new UserDropdown(containerId, 'teacher');
+                } else {
+                    console.error('UserDropdown 组件未定义，可能脚本未正确加载');
+                }
+            } catch (e) {
+                console.error('加载用户下拉组件异常:', e);
+            }
+        }
+
+        // 初始化侧边栏切换 & 顶部用户下拉
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 登录检查：无教师登录信息则跳转
+            const user = sessionStorage.getItem('user');
+            if (!user) {
+                window.location.href = 'teacher-login.html';
+                return;
+            }
+
+            const toggleBtn = document.querySelector('.toggle-btn');
+            const sidebar = document.querySelector('.sidebar');
+            const mainContent = document.querySelector('.main-content');
+            
+            if (toggleBtn && sidebar && mainContent) {
+                toggleBtn.addEventListener('click', function() {
+                    sidebar.classList.toggle('collapsed');
+                    mainContent.classList.toggle('collapsed');
+                });
+            }
+            
+            // 初始化知识深度滑块
+            const depthSlider = document.getElementById('knowledge-depth');
+            const depthLabel = document.getElementById('depth-label');
+            if (depthSlider && depthLabel) {
+                depthSlider.addEventListener('input', function() {
+                    const depth = parseInt(this.value);
+                    let depthText = '';
+                    switch(depth) {
+                        case 1: depthText = '1 (入门级)'; break;
+                        case 2: depthText = '2 (基础级)'; break;
+                        case 3: depthText = '3 (中等深度)'; break;
+                        case 4: depthText = '4 (进阶)'; break;
+                        case 5: depthText = '5 (专家级)'; break;
+                    }
+                    depthLabel.textContent = depthText;
+                });
+            }
+
+            // 加载右上角用户下拉菜单（教师端紫色主题）
+            await loadUserDropdownForTeacher('userDropdownContainer');
+            
+            // 绑定表单提交事件
+            bindFormSubmissions();
+        });
+        
+        // 绑定所有表单的提交事件
+        function bindFormSubmissions() {
+            // 题目生成表单
+            const questionForm = document.getElementById('question-generator-form');
+            if (questionForm) {
+                questionForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    generateQuestions();
+                });
+            }
+            
+            // 试卷生成表单
+            const examForm = document.getElementById('exam-generator-form');
+            if (examForm) {
+                examForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    generateExam();
+                });
+            }
+            
+            // 知识点讲解表单
+            const knowledgeForm = document.getElementById('knowledge-explainer-form');
+            if (knowledgeForm) {
+                knowledgeForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    generateKnowledgeExplain();
+                });
+            }
+            
+            // 作业批改表单
+            const assignmentForm = document.getElementById('assignment-evaluator-form');
+            if (assignmentForm) {
+                assignmentForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    evaluateAssignment();
+                });
+            }
+            
+            // 学情分析表单
+            const learningForm = document.getElementById('learning-analyzer-form');
+            if (learningForm) {
+                learningForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    analyzeLearning();
+                });
+            }
+            
+            // 教学计划生成表单
+            const teachingForm = document.getElementById('teaching-planner-form');
+            if (teachingForm) {
+                teachingForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    generateTeachingPlan();
+                });
+            }
+        }
+        
+        // 激活指定工具
+        function activateTool(toolId) {
+            // 隐藏所有工具表单
+            const allTools = document.querySelectorAll('.form-section');
+            allTools.forEach(tool => {
+                tool.style.display = 'none';
+            });
+            
+            // 隐藏工具列表
+            const toolsGrid = document.querySelector('.ai-tools-grid');
+            if (toolsGrid) {
+                toolsGrid.style.display = 'none';
+            }
+            
+            // 显示指定工具表单
+            const selectedTool = document.getElementById(toolId);
+            if (selectedTool) {
+                selectedTool.style.display = 'block';
+            }
+        }
+        
+        // 取消工具使用
+        function cancelTool(toolId) {
+            // 隐藏指定工具表单
+            const selectedTool = document.getElementById(toolId);
+            if (selectedTool) {
+                selectedTool.style.display = 'none';
+            }
+            
+            // 显示工具列表
+            const toolsGrid = document.querySelector('.ai-tools-grid');
+            if (toolsGrid) {
+                toolsGrid.style.display = 'grid';
+            }
+        }
+        
+        // 显示工具帮助
+        function showToolHelp(toolId) {
+            const helpMessages = {
+                'question-generator': 'AI题目生成工具可以根据您选择的课程、知识点、题目类型和难度生成高质量的题目。',
+                'exam-generator': 'AI试卷生成工具可以根据课程大纲和知识点自动生成完整的试卷，包括题目分布和分数设置。',
+                'knowledge-explainer': 'AI知识点讲解工具可以生成知识点的详细讲解和示例，帮助学生更好地理解和掌握。',
+                'assignment-evaluator': 'AI作业批改工具可以自动批改客观题和主观题，生成详细的评分报告和改进建议。',
+                'learning-analyzer': 'AI学情分析工具可以基于学生的学习数据，分析学习情况，生成个性化的学习建议。',
+                'teaching-planner': 'AI教学计划生成工具可以根据课程大纲和时间安排，自动生成详细的教学计划和进度安排。'
+            };
+            
+            showMessage(helpMessages[toolId] || '该工具的帮助信息暂未提供。', 'info');
+        }
+        
+        // 显示加载状态
+        function showLoading() {
+            document.querySelector('.content-container').style.display = 'none';
+            document.getElementById('result-container').style.display = 'none';
+            document.getElementById('loading-container').style.display = 'flex';
+        }
+        
+        // 隐藏加载状态
+        function hideLoading() {
+            document.getElementById('loading-container').style.display = 'none';
+        }
+        
+        // 显示结果
+        function showResults(results) {
+            hideLoading();
+            
+            // 更新结果计数
+            document.getElementById('result-count').textContent = results.length;
+            
+            // 渲染结果内容
+            const resultContent = document.getElementById('result-content');
+            resultContent.innerHTML = '';
+            
+            if (results.length === 0) {
+                resultContent.innerHTML = '<p class="text-center text-muted">没有生成任何结果。</p>';
+            } else {
+                results.forEach((result, index) => {
+                    const resultElement = createResultElement(result, index + 1);
+                    resultContent.appendChild(resultElement);
+                });
+            }
+            
+            // 显示结果容器
+            document.getElementById('result-container').style.display = 'block';
+        }
+        
+        // 创建结果元素
+        function createResultElement(result, index) {
+            const div = document.createElement('div');
+            div.className = 'question-card';
+
+            const difficultyLabel = {
+                easy: '简单',
+                medium: '中等',
+                hard: '困难',
+                expert: '专家级'
+            };
+
+            if (result.type === 'question') {
+                const options = result.options || [];
+                const correct = result.correctAnswers || [];
+                const difficulty = difficultyLabel[result.difficulty] || result.difficulty || '未标注';
+
+                div.innerHTML = `
+                    <div class="question-header">
+                        <div>
+                            <span class="question-number">${index}.</span>
+                            <span class="question-type">${result.questionType || '题目'}</span>
+                        </div>
+                        <span class="question-difficulty difficulty-${result.difficulty || 'easy'}">${difficulty}</span>
+                    </div>
+                    <div class="question-content">${result.content}</div>
+                `;
+
+                if (options.length > 0) {
+                    const optionContainer = document.createElement('div');
+                    optionContainer.className = 'question-options';
+                    options.forEach((option, optIndex) => {
+                        const isCorrect = correct.includes(optIndex);
+                        const optionDiv = document.createElement('div');
+                        optionDiv.className = `question-option ${isCorrect ? 'text-success' : ''}`;
+                        optionDiv.innerHTML = `
+                            <input type="radio" name="question-${index}" disabled>
+                            ${String.fromCharCode(65 + optIndex)}. ${option}
+                            ${isCorrect ? '<i class="fa fa-check text-success"></i>' : ''}
+                        `;
+                        optionContainer.appendChild(optionDiv);
+                    });
+                    div.appendChild(optionContainer);
+                }
+
+                if (result.knowledgePoints && result.knowledgePoints.length > 0) {
+                    const tags = document.createElement('div');
+                    tags.className = 'knowledge-tags';
+                    result.knowledgePoints.forEach(tag => {
+                        const span = document.createElement('span');
+                        span.className = 'knowledge-tag';
+                        span.textContent = tag;
+                        tags.appendChild(span);
+                    });
+                    div.appendChild(tags);
+                }
+
+                if (result.answer || result.explanation) {
+                    const answerBlock = document.createElement('div');
+                    answerBlock.className = 'mt-3';
+                    answerBlock.innerHTML = `
+                        ${result.answer ? `<h6><strong>答案：</strong>${result.answer}</h6>` : ''}
+                        ${result.explanation ? `<h6><strong>解析：</strong>${result.explanation}</h6>` : ''}
+                    `;
+                    div.appendChild(answerBlock);
+                }
+            } else if (result.type === 'knowledge') {
+                div.innerHTML = `
+                    <div class="question-header">
+                        <div>
+                            <span class="question-number">${index}.</span>
+                            <span class="question-type">知识点讲解</span>
+                        </div>
+                        <span class="question-difficulty difficulty-${result.depth || 'medium'}">${result.depth || ''}</span>
+                    </div>
+                    <div class="question-content">
+                        <h5>${result.title}</h5>
+                        <p>${result.content}</p>
+                    </div>
+                `;
+
+                if (result.examples && result.examples.length > 0) {
+                    const exampleWrap = document.createElement('div');
+                    exampleWrap.className = 'mt-3';
+                    exampleWrap.innerHTML = '<h6><strong>示例：</strong></h6>';
+                    result.examples.forEach(example => {
+                        const exDiv = document.createElement('div');
+                        exDiv.className = 'bg-light p-2 mt-2 rounded';
+                        exDiv.textContent = example;
+                        exampleWrap.appendChild(exDiv);
+                    });
+                    div.appendChild(exampleWrap);
+                }
+
+                if (result.exercises && result.exercises.length > 0) {
+                    const practice = document.createElement('div');
+                    practice.className = 'mt-3';
+                    practice.innerHTML = '<h6><strong>巩固练习：</strong></h6>';
+                    const list = document.createElement('ul');
+                    list.className = 'mb-0';
+                    result.exercises.forEach(item => {
+                        const li = document.createElement('li');
+                        li.textContent = item;
+                        list.appendChild(li);
+                    });
+                    practice.appendChild(list);
+                    div.appendChild(practice);
+                }
+            } else if (result.type === 'exam-section') {
+                div.innerHTML = `
+                    <div class="question-header">
+                        <div>
+                            <span class="question-number">${index}.</span>
+                            <span class="question-type">试卷结构</span>
+                        </div>
+                    </div>
+                    <div class="question-content">
+                        <h5>${result.title || ''}</h5>
+                        <div>${result.content || ''}</div>
+                        ${result.distribution ? `<p class="mt-2 text-muted">${result.distribution}</p>` : ''}
+                    </div>
+                `;
+            } else if (result.type === 'evaluation') {
+                div.innerHTML = `
+                    <div class="question-header">
+                        <div>
+                            <span class="question-number">${index}.</span>
+                            <span class="question-type">批改报告</span>
+                        </div>
+                        ${result.score ? `<span class="question-difficulty difficulty-medium">得分：${result.score}</span>` : ''}
+                    </div>
+                    <div class="question-content">
+                        <h5>${result.title || ''}</h5>
+                        <div>${result.content || ''}</div>
+                        ${result.suggestions ? `<div class="mt-2 text-muted">${result.suggestions}</div>` : ''}
+                    </div>
+                `;
+            } else if (result.type === 'analysis') {
+                div.innerHTML = `
+                    <div class="question-header">
+                        <div>
+                            <span class="question-number">${index}.</span>
+                            <span class="question-type">学情分析</span>
+                        </div>
+                    </div>
+                    <div class="question-content">
+                        <h5>${result.title || ''}</h5>
+                        <div>${result.content || ''}</div>
+                        ${result.recommendations ? `<div class="mt-2"><strong>学习建议：</strong>${result.recommendations}</div>` : ''}
+                    </div>
+                `;
+            } else if (result.type === 'plan') {
+                div.innerHTML = `
+                    <div class="question-header">
+                        <div>
+                            <span class="question-number">${index}.</span>
+                            <span class="question-type">教学计划</span>
+                        </div>
+                        ${result.weeks ? `<span class="question-difficulty difficulty-medium">${result.weeks} 周</span>` : ''}
+                    </div>
+                    <div class="question-content">
+                        <h5>${result.title || ''}</h5>
+                        <div>${result.content || ''}</div>
+                        ${result.keyMilestones ? `<div class="mt-2"><strong>关键里程碑：</strong>${result.keyMilestones}</div>` : ''}
+                    </div>
+                `;
+            } else {
+                div.innerHTML = `
+                    <div class="question-header">
+                        <div>
+                            <span class="question-number">${index}.</span>
+                            <span class="question-type">${result.type}</span>
+                        </div>
+                    </div>
+                    <div class="question-content">${result.content}</div>
+                `;
+            }
+
+            return div;
+        }
+        
+        // 显示消息提示
+        function showMessage(message, type = 'success') {
+            const messageContainer = document.getElementById('message-container');
+            const messageAlert = document.getElementById('message-alert');
+            const messageText = document.getElementById('message-text');
+            
+            // 设置消息类型
+            messageAlert.className = `alert alert-${type} alert-dismissible fade show`;
+            messageText.textContent = message;
+            
+            // 显示消息
+            messageContainer.style.display = 'block';
+            
+            // 3秒后自动隐藏
+            setTimeout(() => {
+                messageContainer.style.display = 'none';
+            }, 3000);
+        }
+        
+        // 生成题目
+        function generateQuestions() {
+            showLoading();
+            
+            // 模拟AI生成过程
+            setTimeout(() => {
+                const mockResults = [
+                    {
+                        type: 'question',
+                        questionType: '选择题',
+                        difficulty: 'easy',
+                        content: '以下哪个是Python中定义函数的关键字？',
+                        options: ['func', 'function', 'def', 'define'],
+                        correctAnswers: [2],
+                        answer: 'C',
+                        explanation: 'Python中使用def关键字来定义函数。',
+                        knowledgePoints: ['函数定义与调用']
+                    },
+                    {
+                        type: 'question',
+                        questionType: '选择题',
+                        difficulty: 'medium',
+                        content: '以下哪个不是Python的内置数据类型？',
+                        options: ['list', 'tuple', 'string', 'array'],
+                        correctAnswers: [3],
+                        answer: 'D',
+                        explanation: 'array不是Python的内置数据类型，需要通过导入模块使用。',
+                        knowledgePoints: ['列表与字典', '数据类型']
+                    },
+                    {
+                        type: 'question',
+                        questionType: '填空题',
+                        difficulty: 'medium',
+                        content: '请写出 Python 中用于遍历可迭代对象的关键字：____。',
+                        answer: 'for',
+                        explanation: 'for 语句用于遍历序列或可迭代对象。',
+                        knowledgePoints: ['循环结构']
+                    },
+                    {
+                        type: 'question',
+                        questionType: '简答题',
+                        difficulty: 'hard',
+                        content: '简述 Python 列表和元组的差异，并给出使用场景。',
+                        answer: '列表可变、元组不可变；需要修改场景用列表，固定数据用元组。',
+                        explanation: '可变性影响存储开销与安全性，设计数据结构时需权衡。',
+                        knowledgePoints: ['列表与字典', '数据类型']
+                    },
+                    {
+                        type: 'question',
+                        questionType: '判断题',
+                        difficulty: 'easy',
+                        content: 'Python中，列表是可变数据类型。',
+                        options: ['正确', '错误'],
+                        correctAnswers: [0],
+                        answer: 'A',
+                        explanation: '列表是Python的可变数据类型，可以修改其元素。',
+                        knowledgePoints: ['列表与字典', '数据类型']
+                    }
+                ];
+                
+                showResults(mockResults);
+                showMessage('题目生成成功！', 'success');
+            }, 1500);
+        }
+        
+        // 生成试卷
+        function generateExam() {
+            showLoading();
+            
+            // 模拟AI生成过程
+            setTimeout(() => {
+                const mockResults = [
+                    {
+                        type: 'exam-section',
+                        title: 'Python编程基础测试卷',
+                        content: '<h5>一、选择题（10题，3分/题，共30分）</h5><p>覆盖变量、流程控制、函数。</p>',
+                        distribution: '难度分布：易 50%，中 40%，难 10%'
+                    },
+                    {
+                        type: 'question',
+                        questionType: '选择题',
+                        difficulty: 'easy',
+                        content: 'Python的创始人是谁？',
+                        options: ['Guido van Rossum', 'James Gosling', 'Bjarne Stroustrup', 'Dennis Ritchie'],
+                        correctAnswers: [0],
+                        answer: 'A',
+                        explanation: 'Python由Guido van Rossum创立。',
+                        knowledgePoints: ['Python概述']
+                    },
+                    {
+                        type: 'question',
+                        questionType: '填空题',
+                        difficulty: 'medium',
+                        content: '写出将字符串 s 转为整数的语句：____。',
+                        answer: 'int(s)',
+                        explanation: '使用内置函数 int 完成类型转换。',
+                        knowledgePoints: ['类型转换']
+                    },
+                    {
+                        type: 'exam-section',
+                        title: '二、简答题（2题，10分/题，共20分）',
+                        content: '<p>考察函数与异常处理。</p>'
+                    },
+                    {
+                        type: 'question',
+                        questionType: '简答题',
+                        difficulty: 'hard',
+                        content: '说明 try/except 的作用，并给出捕获 ValueError 的示例。',
+                        answer: '用于异常捕获与恢复；示例：try: int("a") except ValueError: pass',
+                        explanation: '异常处理保证程序健壮性。',
+                        knowledgePoints: ['异常处理']
+                    },
+                    {
+                        type: 'exam-section',
+                        title: '三、编程题（3题，20分/题，共60分）',
+                        content: '<p>综合考察迭代、数据结构与文件操作。</p>',
+                        distribution: '建议完成时间：每题 25 分钟'
+                    }
+                ];
+                
+                showResults(mockResults);
+                showMessage('试卷生成成功！', 'success');
+            }, 2000);
+        }
+        
+        // 生成知识点讲解
+        function generateKnowledgeExplain() {
+            showLoading();
+            
+            // 模拟AI生成过程
+            setTimeout(() => {
+                const mockResults = [
+                    {
+                        type: 'knowledge',
+                        title: '函数定义与调用',
+                        depth: 'medium',
+                        content: '函数用于封装可复用的逻辑，提升代码可读性与维护性。常见结构包含参数、返回值与文档字符串。',
+                        examples: [
+                            'def greet(name):\n    """打印问候语"""\n    print(f"Hello, {name}!")\n\ngreet("World")',
+                            'def add(a, b=0):\n    return a + b\n\nresult = add(3)\nprint(result)  # 3'
+                        ],
+                        exercises: [
+                            '编写一个函数，接收列表并返回去重后的新列表。',
+                            '实现带默认参数的函数，完成温度单位转换。'
+                        ]
+                    },
+                    {
+                        type: 'knowledge',
+                        title: '列表推导式',
+                        depth: 'medium',
+                        content: '列表推导式提供简洁的序列生成方式，适合过滤与映射场景，但需避免过度嵌套以保证可读性。',
+                        examples: [
+                            '[x * x for x in range(5)]  # [0, 1, 4, 9, 16]',
+                            '[x for x in data if x % 2 == 0]'
+                        ],
+                        exercises: [
+                            '使用列表推导式筛选出 1-100 中能被 3 整除的数字。',
+                            '将字符串列表转换为其长度列表。'
+                        ]
+                    }
+                ];
+                
+                showResults(mockResults);
+                showMessage('知识点讲解生成成功！', 'success');
+            }, 1800);
+        }
+        
+        // 作业批改
+        function evaluateAssignment() {
+            showLoading();
+            
+            // 模拟AI生成过程
+            setTimeout(() => {
+                const mockResults = [
+                    {
+                        type: 'evaluation',
+                        title: '作业批改报告 - 张三',
+                        score: '85分',
+                        content: '<p>作业：函数定义与调用</p><p>优点：代码结构清晰，命名规范。</p><p>扣分点：缺少异常处理，边界测试不足。</p>',
+                        suggestions: '补充 try/except 捕获用户输入异常，添加 3 个边界用例。'
+                    },
+                    {
+                        type: 'evaluation',
+                        title: '作业批改报告 - 李四',
+                        score: '92分',
+                        content: '<p>作业：条件语句与循环</p><p>优点：逻辑严谨，时间复杂度优良。</p><p>扣分点：注释略少。</p>',
+                        suggestions: '在关键循环前添加 1-2 行注释，标注循环目的与终止条件。'
+                    }
+                ];
+                
+                showResults(mockResults);
+                showMessage('作业批改完成！', 'success');
+            }, 2500);
+        }
+        
+        // 学情分析
+        function analyzeLearning() {
+            showLoading();
+            
+            // 模拟AI生成过程
+            setTimeout(() => {
+                const mockResults = [
+                    {
+                        type: 'analysis',
+                        title: '学习情况分析报告 - 张三',
+                        content: '<p>课程：Python编程基础</p><p>知识点掌握：函数 90%，循环 75%，面向对象 60%</p><p>成绩趋势：近四周提升 8 分</p>',
+                        recommendations: '强化面向对象编程，安排 2 次小测与 3 道编程练习。'
+                    },
+                    {
+                        type: 'analysis',
+                        title: '学习情况分析报告 - 李四',
+                        content: '<p>课程：数据结构与算法</p><p>知识点掌握：数组 95%，链表 80%，排序 70%</p><p>学习进度：按计划完成 85%</p>',
+                        recommendations: '增加排序算法练习，建议完成 5 道中等难度题。'
+                    }
+                ];
+                
+                showResults(mockResults);
+                showMessage('学情分析完成！', 'success');
+            }, 2200);
+        }
+        
+        // 生成教学计划
+        function generateTeachingPlan() {
+            showLoading();
+            
+            // 模拟AI生成过程
+            setTimeout(() => {
+                const mockResults = [
+                    {
+                        type: 'plan',
+                        title: 'Python编程基础教学计划',
+                        weeks: 8,
+                        content: '<h5>第1-2周：环境与语法</h5><p>安装、变量、基本数据类型。</p><h5>第3-4周：流程与函数</h5><p>条件、循环、函数与文档字符串。</p><h5>第5-6周：数据结构</h5><p>列表、字典、集合及常见操作。</p><h5>第7-8周：文件与异常</h5><p>文件读写、异常处理、综合项目。</p>',
+                        keyMilestones: '第4周小测；第8周课程项目提交'
+                    },
+                    {
+                        type: 'plan',
+                        title: '数据库系统教学计划',
+                        weeks: 6,
+                        content: '<h5>第1周：数据库基础</h5><p>关系模型、SQL 基础。</p><h5>第2-3周：查询与约束</h5><p>连接查询、约束与索引。</p><h5>第4-5周：事务与优化</h5><p>事务特性、执行计划与优化。</p><h5>第6周：课程项目</h5><p>设计并实现一个小型业务库。</p>',
+                        keyMilestones: '第3周 SQL 实训；第6周项目展示'
+                    }
+                ];
+                
+                showResults(mockResults);
+                showMessage('教学计划生成成功！', 'success');
+            }, 2000);
+        }
+        
+        // 导出结果
+        function exportResults() {
+            showMessage('导出功能正在开发中...', 'info');
+        }
+        
+        // 清空结果
+        function clearResults() {
+            document.getElementById('result-content').innerHTML = '<p class="text-center text-muted">没有生成任何结果。</p>';
+            document.getElementById('result-count').textContent = '0';
+            showMessage('结果已清空！', 'success');
+        }
+        
+        // 返回工具列表
+        function backToTools() {
+            // 隐藏结果容器
+            document.getElementById('result-container').style.display = 'none';
+            
+            // 显示工具列表
+            const toolsGrid = document.querySelector('.ai-tools-grid');
+            if (toolsGrid) {
+                toolsGrid.style.display = 'grid';
+            }
+            
+            // 隐藏所有工具表单
+            const allTools = document.querySelectorAll('.form-section');
+            allTools.forEach(tool => {
+                tool.style.display = 'none';
+            });
+            
+            // 显示主内容区
+            document.querySelector('.content-container').style.display = 'block';
+        }
+    </script>
+</body>
+</html>

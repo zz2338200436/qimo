@@ -1,0 +1,50 @@
+# ---------- Build output ----------
+target/
+build/
+out/
+*.jar
+*.war
+*.ear
+*.class
+
+# ---------- Logs ----------
+logs/
+*.log
+*.log.*.gz
+
+# ---------- IDE ----------
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.project
+.classpath
+.settings/
+.factorypath
+
+# ---------- Maven ----------
+.mvn/wrapper/maven-wrapper.jar
+!.mvn/wrapper/maven-wrapper.properties
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ---------- Env / secrets (belt-and-suspenders; already externalized) ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+
+# ---------- Kiro local scratch ----------
+.kiro/.cache/
+.kiro/**/.config.local*
+
+# ---------- Misc ----------
+verify-run.log
+hs_err_pid*.log

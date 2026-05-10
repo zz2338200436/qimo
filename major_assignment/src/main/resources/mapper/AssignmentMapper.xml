@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com._202510007517.major_assignment.mapper.AssignmentMapper">
+
+    <!-- 多表 JOIN（assignment_submissions 与 users）→ XML -->
+    <select id="getSubmissionsByAssignmentId" resultType="java.util.Map">
+        SELECT asub.id,
+               asub.student_id AS studentId,
+               u.name AS studentName,
+               asub.content AS content,
+               asub.submission_date AS submissionDate,
+               asub.is_late AS isLate,
+               asub.late_penalty AS latePenalty,
+               asub.score,
+               asub.teacher_comment AS teacherComment,
+               asub.graded
+        FROM assignment_submissions asub
+        JOIN users u ON asub.student_id = u.id
+        WHERE asub.assignment_id = #{assignmentId}
+    </select>
+
+    <!-- 单表 + UNION 子查询（CASE/WITH/UNION 规则）→ XML -->
+    <select id="countStudentsByCourseId" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT cs.student_id)
+        FROM class_students cs
+        WHERE cs.class_id IN (
+            SELECT cc.id FROM course_classes cc WHERE cc.course_id = #{courseId}
+            UNION
+            SELECT cc_c.class_id FROM class_courses cc_c WHERE cc_c.course_id = #{courseId}
+        )
+    </select>
+
+    <!-- 多层子查询 + UNION + 动态 if + 多表 JOIN → XML -->
+    <select id="countMissingSubmissionsByTeacher" resultType="java.lang.Integer">
+        SELECT IFNULL(SUM(expected_count - submitted_count), 0) AS missing_count
+        FROM (
+            SELECT a.id AS assignment_id,
+                   COUNT(DISTINCT cs.student_id) AS expected_count,
+                   COUNT(DISTINCT s.student_id) AS submitted_count
+            FROM assignments a
+            JOIN (
+                SELECT cc.id AS class_id, cc.course_id FROM course_classes cc
+                UNION
+                SELECT cc_c.class_id, cc_c.course_id FROM class_courses cc_c
+            ) AS all_classes ON a.course_id = all_classes.course_id
+            JOIN class_students cs ON all_classes.class_id = cs.class_id
+            LEFT JOIN assignment_submissions s
+                   ON s.assignment_id = a.id
+                  AND s.student_id = cs.student_id
+            WHERE a.teacher_id = #{teacherId}
+            <if test="courseId != null">
+                AND a.course_id = #{courseId}
+            </if>
+            <if test="classId != null">
+                AND all_classes.class_id = #{classId}
+            </if>
+            GROUP BY a.id
+        ) t
+    </select>
+
+    <!-- 多表 JOIN + 动态 if → XML -->
+    <select id="countExpectedStudentsForTeacher" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT cs.student_id)
+        FROM assignments a
+        LEFT JOIN assignment_classes ac ON ac.assignment_id = a.id
+        LEFT JOIN class_students cs ON cs.class_id = ac.class_id
+        WHERE a.teacher_id = #{teacherId}
+        <if test="courseId != null">AND a.course_id = #{courseId}</if>
+        <if test="classId != null">AND ac.class_id = #{classId}</if>
+    </select>
+
+    <!-- 子查询分组 + 动态 if + 多表 JOIN → XML -->
+    <select id="sumExpectedSubmissionsForTeacher" resultType="java.lang.Integer">
+        SELECT IFNULL(SUM(expected_students), 0) FROM (
+            SELECT a.id AS assignment_id, COUNT(DISTINCT cs.student_id) AS expected_students
+            FROM assignments a
+            LEFT JOIN assignment_classes ac ON ac.assignment_id = a.id
+            LEFT JOIN class_students cs ON cs.class_id = ac.class_id
+            WHERE a.teacher_id = #{teacherId}
+            <if test="courseId != null">AND a.course_id = #{courseId}</if>
+            <if test="classId != null">AND ac.class_id = #{classId}</if>
+            GROUP BY a.id
+        ) t
+    </select>
+
+    <!-- 多表 JOIN（assignments / assignment_classes / class_students）→ XML -->
+    <select id="getAssignmentsByStudentId" resultType="com._202510007517.major_assignment.entity.Assignment">
+        SELECT DISTINCT a.id, a.title, a.description,
+               a.course_id AS courseId,
+               a.due_date AS dueDate,
+               a.publish_date AS publishDate,
+               a.is_active AS isActive,
+               a.teacher_id AS teacherId,
+               a.max_score AS maxScore,
+               a.submission_count AS submissionCount,
+               a.graded_count AS gradedCount,
+               a.status
+        FROM assignments a
+        JOIN assignment_classes ac ON a.id = ac.assignment_id
+        JOIN class_students cs ON ac.class_id = cs.class_id
+        WHERE cs.student_id = #{studentId}
+    </select>
+
+    <!-- INSERT ... SELECT，含多表 UNION 子查询 → XML -->
+    <insert id="insertAssignmentClassesForCourseAndTeacher">
+        INSERT INTO assignment_classes (assignment_id, class_id)
+        SELECT DISTINCT #{assignmentId}, class_id FROM (
+            SELECT cc.id AS class_id FROM course_classes cc
+            WHERE cc.course_id = #{courseId} AND cc.teacher_id = #{teacherId}
+            UNION
+            SELECT cc_c.class_id AS class_id FROM class_courses cc_c
+            WHERE cc_c.course_id = #{courseId} AND cc_c.teacher_id = #{teacherId}
+        ) AS all_classes
+    </insert>
+
+</mapper>

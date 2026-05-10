@@ -1,0 +1,345 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com._202510007517.major_assignment.mapper.CourseMapper">
+
+    <!-- 带搜索条件的课程查询（动态 WHERE）→ XML -->
+    <select id="findByTeacherIdWithSearch" resultType="com._202510007517.major_assignment.entity.Course">
+        SELECT id, course_name, course_code, description, credit, course_category,
+               total_hours, teacher_id, course_status
+        FROM courses
+        WHERE teacher_id = #{teacherId}
+        <if test="name != null and name != ''">AND course_name LIKE CONCAT('%', #{name}, '%')</if>
+        <if test="courseCode != null and courseCode != ''">AND course_code = #{courseCode}</if>
+        <if test="category != null and category != ''">AND course_category = #{category}</if>
+        <if test="status != null and status != ''">AND course_status = #{status}</if>
+    </select>
+
+    <!-- 按课程 ID 统计学生数：UNION 子查询 → XML -->
+    <select id="getStudentCountByCourseId" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT cs.student_id)
+        FROM class_students cs
+        WHERE cs.class_id IN (
+            SELECT cc.id FROM course_classes cc WHERE cc.course_id = #{courseId}
+            UNION
+            SELECT cc_c.class_id FROM class_courses cc_c WHERE cc_c.course_id = #{courseId}
+        )
+    </select>
+
+    <!-- 批量获取多个课程的学生数量：foreach + UNION 子查询 → XML -->
+    <select id="batchGetStudentCountByCourseIds" resultType="java.util.Map">
+        SELECT c.id as courseId,
+               COALESCE((SELECT COUNT(DISTINCT cs.student_id) FROM class_students cs
+                         WHERE cs.class_id IN (
+                             SELECT cc.id FROM course_classes cc WHERE cc.course_id = c.id
+                             UNION
+                             SELECT cc_c.class_id FROM class_courses cc_c WHERE cc_c.course_id = c.id
+                         )), 0) as studentCount
+        FROM courses c
+        WHERE c.id IN
+        <foreach item="id" collection="courseIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <!-- 课程平均分：UNION ALL 子查询 → XML -->
+    <select id="getCourseAverageScore" resultType="java.lang.Double">
+        SELECT AVG(score) FROM (
+            SELECT asub.score
+            FROM assignment_submissions asub
+            WHERE asub.assignment_id IN (SELECT id FROM assignments WHERE course_id = #{courseId})
+              AND CAST(asub.graded AS UNSIGNED) = 1
+              AND asub.score IS NOT NULL AND asub.score &gt; 0
+            UNION ALL
+            SELECT es.score
+            FROM exam_submissions es
+            WHERE es.exam_id IN (SELECT id FROM exams WHERE course_id = #{courseId})
+              AND CAST(es.graded AS UNSIGNED) = 1
+              AND es.score IS NOT NULL AND es.score &gt; 0
+        ) AS all_scores
+    </select>
+
+    <!-- 课程所有分数：UNION ALL 子查询 → XML -->
+    <select id="getCourseScores" resultType="java.lang.Double">
+        SELECT score
+        FROM assignment_submissions asub
+        WHERE asub.assignment_id IN (SELECT id FROM assignments WHERE course_id = #{courseId})
+          AND CAST(asub.graded AS UNSIGNED) = 1
+          AND asub.score IS NOT NULL AND asub.score &gt; 0
+        UNION ALL
+        SELECT score
+        FROM exam_submissions es
+        WHERE es.exam_id IN (SELECT id FROM exams WHERE course_id = #{courseId})
+          AND CAST(es.graded AS UNSIGNED) = 1
+          AND es.score IS NOT NULL AND es.score &gt; 0
+    </select>
+
+    <!-- 按课程 ID 获取学生 ID：UNION 子查询 → XML -->
+    <select id="getStudentIdsByCourseId" resultType="java.lang.Long">
+        SELECT DISTINCT cs.student_id
+        FROM class_students cs
+        WHERE cs.class_id IN (
+            SELECT cc.id FROM course_classes cc WHERE cc.course_id = #{courseId}
+            UNION
+            SELECT cc_c.class_id FROM class_courses cc_c WHERE cc_c.course_id = #{courseId}
+        )
+    </select>
+
+    <!-- 教师所有班级下的课程学生 ID：UNION 子查询 → XML -->
+    <select id="getStudentIdsByClassTeacherId" resultType="java.lang.Long">
+        SELECT DISTINCT cs.student_id
+        FROM class_students cs
+        WHERE cs.class_id IN (
+            SELECT cc.id FROM course_classes cc WHERE cc.teacher_id = #{teacherId}
+            UNION
+            SELECT cc_c.class_id FROM class_courses cc_c WHERE cc_c.teacher_id = #{teacherId}
+        )
+    </select>
+
+    <!-- 按课程 + 班级获取学生 ID：UNION 子查询 → XML -->
+    <select id="getStudentIdsByCourseIdAndClassId" resultType="java.lang.Long">
+        SELECT cs.student_id
+        FROM class_students cs
+        WHERE cs.class_id IN (
+            SELECT cc.id FROM course_classes cc WHERE cc.course_id = #{courseId} AND cc.id = #{classId}
+            UNION
+            SELECT cc_c.class_id FROM class_courses cc_c WHERE cc_c.course_id = #{courseId} AND cc_c.class_id = #{classId}
+        )
+    </select>
+
+    <!-- 按课程 + 班级统计学生数：UNION 子查询 → XML -->
+    <select id="getStudentCountByCourseIdAndClassId" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT cs.student_id)
+        FROM class_students cs
+        WHERE cs.class_id IN (
+            SELECT cc.id FROM course_classes cc WHERE cc.course_id = #{courseId} AND cc.id = #{classId}
+            UNION
+            SELECT cc_c.class_id FROM class_courses cc_c WHERE cc_c.course_id = #{courseId} AND cc_c.class_id = #{classId}
+        )
+    </select>
+
+    <!-- 按课程 + 班级获取平均分：多表 JOIN + UNION ALL → XML -->
+    <select id="getCourseAverageScoreByClassId" resultType="java.lang.Double">
+        SELECT AVG(score) FROM (
+            SELECT asub.score
+            FROM assignment_submissions asub
+            JOIN course_classes cc ON cc.course_id = (SELECT course_id FROM assignments WHERE id = asub.assignment_id)
+            JOIN class_students cs ON cc.id = cs.class_id
+            WHERE asub.assignment_id IN (SELECT id FROM assignments WHERE course_id = #{courseId})
+              AND cc.id = #{classId}
+              AND CAST(asub.graded AS UNSIGNED) = 1
+              AND asub.score IS NOT NULL AND asub.score &gt; 0
+            UNION ALL
+            SELECT es.score
+            FROM exam_submissions es
+            JOIN course_classes cc ON cc.course_id = (SELECT course_id FROM exams WHERE id = es.exam_id)
+            JOIN class_students cs ON cc.id = cs.class_id
+            WHERE es.exam_id IN (SELECT id FROM exams WHERE course_id = #{courseId})
+              AND cc.id = #{classId}
+              AND CAST(es.graded AS UNSIGNED) = 1
+              AND es.score IS NOT NULL AND es.score &gt; 0
+        ) AS scores
+    </select>
+
+    <!-- 按课程获取学生详情：多表 JOIN → XML -->
+    <select id="getStudentsByCourseId" resultType="java.util.Map">
+        SELECT DISTINCT u.id, u.username, u.name, u.email, u.phone, u.avatar,
+               cc.class_name as className
+        FROM users u
+        JOIN class_students cs ON u.id = cs.student_id
+        JOIN course_classes cc ON cs.class_id = cc.id
+        JOIN user_roles ur ON u.id = ur.user_id
+        WHERE cs.class_id IN (
+            SELECT cc2.id FROM course_classes cc2 WHERE cc2.course_id = #{courseId}
+            UNION
+            SELECT cc_c.class_id FROM class_courses cc_c WHERE cc_c.course_id = #{courseId}
+        )
+        AND ur.role_id = 3
+    </select>
+
+    <!-- 按教师获取班级列表：多表 JOIN + 动态 WHERE → XML -->
+    <select id="getClassesByTeacherId" resultType="java.util.Map">
+        SELECT DISTINCT cc.id, cc.class_name as className, cc.year, cc.capacity,
+               (SELECT COUNT(*) FROM class_students cs WHERE cs.class_id = cc.id) as studentCount,
+               c.id as courseId, c.course_name as courseName,
+               cc.teacher_id as teacherId, u.name as teacherName,
+               cc.major_id as majorId, m.major_name as majorName,
+               cc_c.class_time as classTime, cc_c.class_location as classLocation
+        FROM course_classes cc
+        LEFT JOIN class_courses cc_c ON cc.id = cc_c.class_id
+        LEFT JOIN courses c ON (cc_c.course_id = c.id OR (cc_c.course_id IS NULL AND cc.course_id = c.id))
+        LEFT JOIN users u ON (cc_c.teacher_id = u.id OR (cc_c.teacher_id IS NULL AND cc.teacher_id = u.id))
+        JOIN majors m ON cc.major_id = m.id
+        WHERE (c.teacher_id = #{teacherId} OR cc_c.teacher_id = #{teacherId} OR cc.teacher_id = #{teacherId})
+        <if test="className != null and className != ''">AND cc.class_name LIKE CONCAT('%', #{className}, '%')</if>
+        <if test="grade != null and grade != ''">AND cc.year = #{grade}</if>
+        <if test="majorName != null and majorName != ''">AND m.major_name = #{majorName}</if>
+        <if test="majorId != null">AND cc.major_id = #{majorId}</if>
+        <if test="teacherName != null and teacherName != ''">AND u.name LIKE CONCAT('%', #{teacherName}, '%')</if>
+        <if test="courseId != null">AND (c.id = #{courseId} OR cc_c.course_id = #{courseId})</if>
+        ORDER BY cc.id, c.id
+    </select>
+
+    <!-- 班级管理相关方法 -->
+    <insert id="createClass" parameterType="java.util.Map" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO course_classes (class_name, year, capacity, course_id, teacher_id, major_id, class_time, class_location)
+        VALUES (#{className}, #{year}, #{capacity}, #{courseId}, #{teacherId}, #{majorId}, #{classTime}, #{classLocation})
+    </insert>
+    
+    <update id="updateClass" parameterType="java.util.Map">
+        UPDATE course_classes
+        SET class_name = #{className},
+            year = #{year},
+            capacity = #{capacity},
+            major_id = #{majorId},
+            teacher_id = #{teacherId},
+            course_id = #{courseId}
+        WHERE id = #{id}
+    </update>
+    
+    <delete id="deleteClass" parameterType="java.lang.Long">
+        DELETE FROM course_classes WHERE id = #{classId}
+    </delete>
+    
+    <!-- 课程分配相关方法（支持通过class_courses表查询） -->
+    <select id="getClassAssignments" resultType="java.util.Map">
+        SELECT 
+            cc_c.id as assignmentId,
+            cc.id as classId,
+            c.id as courseId,
+            c.course_name as courseName,
+            cc.class_name as className,
+            u.name as teacherName,
+            c.semester,
+            cc_c.class_time as weeklyHours,
+            cc_c.class_location as classLocation
+        FROM 
+            course_classes cc
+        LEFT JOIN 
+            class_courses cc_c ON cc.id = cc_c.class_id
+        LEFT JOIN 
+            courses c ON (cc_c.course_id = c.id OR (cc_c.course_id IS NULL AND cc.course_id = c.id))
+        LEFT JOIN 
+            users u ON (cc_c.teacher_id = u.id OR (cc_c.teacher_id IS NULL AND cc.teacher_id = u.id))
+        WHERE 
+            (c.teacher_id = #{teacherId} OR cc_c.teacher_id = #{teacherId} OR cc.teacher_id = #{teacherId})
+            AND c.id IS NOT NULL
+            <if test="courseId != null">AND (c.id = #{courseId} OR cc_c.course_id = #{courseId})</if>
+            <if test="classId != null">AND cc.id = #{classId}</if>
+        ORDER BY cc.id DESC, c.id DESC
+    </select>
+    
+    <!-- 统计课程分配总数（用于分页） -->
+    <select id="countClassAssignments" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT cc_c.id)
+        FROM 
+            course_classes cc
+        LEFT JOIN 
+            class_courses cc_c ON cc.id = cc_c.class_id
+        LEFT JOIN 
+            courses c ON (cc_c.course_id = c.id OR (cc_c.course_id IS NULL AND cc.course_id = c.id))
+        WHERE 
+            (c.teacher_id = #{teacherId} OR cc_c.teacher_id = #{teacherId} OR cc.teacher_id = #{teacherId})
+            AND c.id IS NOT NULL
+            <if test="courseId != null">AND (c.id = #{courseId} OR cc_c.course_id = #{courseId})</if>
+            <if test="classId != null">AND cc.id = #{classId}</if>
+    </select>
+    
+    <!-- 检查指定班级ID是否已分配该课程 -->
+    <select id="checkCourseAssignmentByClassId" resultType="java.util.Map">
+        SELECT id, class_name, course_id, teacher_id
+        FROM course_classes
+        WHERE id = #{classId} AND course_id = #{courseId}
+        LIMIT 1
+    </select>
+    
+    <!-- 检查指定班级名称和课程ID的组合是否已存在 -->
+    <select id="checkCourseAssignmentByClassName" resultType="java.util.Map">
+        SELECT id, class_name, course_id, teacher_id
+        FROM course_classes
+        WHERE class_name = #{className} AND course_id = #{courseId}
+        LIMIT 1
+    </select>
+    
+    <!-- 检查班级是否已分配该课程（使用 class_courses 表） -->
+    <select id="checkClassCourseAssignment" resultType="java.util.Map">
+        SELECT id, class_id, course_id, teacher_id
+        FROM class_courses
+        WHERE class_id = #{classId} AND course_id = #{courseId}
+        LIMIT 1
+    </select>
+    
+    <!-- 更新现有班级的课程分配（更新course_id和teacher_id） -->
+    <update id="updateCourseAssignment" parameterType="java.util.Map">
+        UPDATE course_classes
+        SET course_id = #{courseId},
+            teacher_id = #{teacherId},
+            class_time = #{classTime},
+            class_location = #{classLocation}
+        WHERE id = #{classId}
+    </update>
+    
+    <!-- 为班级分配课程（使用 class_courses 中间表，不再创建新的 course_classes 记录） -->
+    <insert id="assignCourse" parameterType="java.util.Map">
+        INSERT INTO class_courses (class_id, course_id, teacher_id, class_time, class_location)
+        VALUES (#{classId}, #{courseId}, #{teacherId}, #{classTime}, #{classLocation})
+        <selectKey keyProperty="id" resultType="java.lang.Long" order="AFTER">
+            SELECT LAST_INSERT_ID()
+        </selectKey>
+    </insert>
+    
+    <!-- 取消课程分配：从 class_courses 表中删除关联 -->
+    <delete id="unassignClassCourse" parameterType="java.util.Map">
+        DELETE FROM class_courses 
+        WHERE class_id = #{classId} AND course_id = #{courseId}
+    </delete>
+    
+    <!-- 删除作业班级关联记录 -->
+    <delete id="deleteAssignmentClassesByClassId" parameterType="java.lang.Long">
+        DELETE FROM assignment_classes WHERE class_id = #{classId}
+    </delete>
+    
+    <!-- 删除学生班级关联记录 -->
+    <delete id="deleteClassStudentsByClassId" parameterType="java.lang.Long">
+        DELETE FROM class_students WHERE class_id = #{classId}
+    </delete>
+    
+    <!-- 删除考试班级关联记录 -->
+    <delete id="deleteExamClassesByClassId" parameterType="java.lang.Long">
+        DELETE FROM exam_classes WHERE class_id = #{classId}
+    </delete>
+    
+    <!-- 取消课程分配：从 class_courses 表中删除关联记录 -->
+    <delete id="unassignCourse" parameterType="java.lang.Long">
+        DELETE FROM class_courses WHERE id = #{assignmentId}
+    </delete>
+    
+    <!-- 获取班级的所有课程 -->
+    <select id="getCoursesByClassId" resultType="java.util.Map">
+        SELECT 
+            cc.id as classCourseId,
+            cc.class_id as classId,
+            cc.course_id as courseId,
+            c.course_name as courseName,
+            cc.teacher_id as teacherId,
+            u.name as teacherName,
+            cc.class_time as classTime,
+            cc.class_location as classLocation
+        FROM class_courses cc
+        JOIN courses c ON cc.course_id = c.id
+        LEFT JOIN users u ON cc.teacher_id = u.id
+        WHERE cc.class_id = #{classId}
+    </select>
+    
+    <!-- 学生班级关联方法实现 -->
+    <insert id="addStudentClass" parameterType="java.util.Map">
+        INSERT INTO class_students (student_id, class_id) VALUES (#{studentId}, #{classId})
+    </insert>
+    
+    <delete id="deleteStudentClass" parameterType="java.lang.Long">
+        DELETE FROM class_students WHERE student_id = #{studentId}
+    </delete>
+    
+    <select id="getStudentIdsByClassId" resultType="java.lang.Long">
+        SELECT student_id FROM class_students WHERE class_id = #{classId}
+    </select>
+</mapper>

@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能后台学习辅助系统 - 学生通知</title>
+    <!-- Bootstrap 5 CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome CDN -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- 全局样式文件 -->
+    <link href="styles.css" rel="stylesheet">
+    <!-- API服务文件 -->
+    <script src="api.js"></script>
+</head>
+<body>
+<!-- 侧边栏导航组件 -->
+<div id="sidebar-container"></div>
+<script>
+    $(function() {
+        $('#sidebar-container').load('components/sidebar-nav.html', function() {
+            highlightActiveNavItem();
+        });
+    });
+</script>
+
+<!-- 主内容区 -->
+<main class="main-content" id="mainContent">
+    <!-- 顶部导航栏 -->
+    <header class="top-navbar">
+        <div class="navbar-left">
+            <button class="toggle-btn" id="toggleSidebar" aria-label="切换侧边栏">
+                <i class="fas fa-bars"></i>
+            </button>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="student-dashboard.html">首页</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">通知中心</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="navbar-right">
+            <!-- 用户下拉菜单组件 -->
+            <div id="userDropdownContainer"></div>
+        </div>
+    </header>
+
+    <!-- 内容容器 -->
+    <div class="content-container">
+        <!-- 加载状态指示器 -->
+        <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+            <div class="loading-spinner"></div>
+            <p>数据加载中...</p>
+        </div>
+        
+        <!-- 通知管理 -->
+        <div class="notifications-section">
+            <div class="section-header">
+                <h3 class="section-title">通知中心</h3>
+                <div class="section-actions">
+                    <button class="btn btn-primary" onclick="markAllAsRead()">
+                        <i class="fas fa-check-double"></i> 全部已读
+                    </button>
+                    <button class="btn btn-secondary" onclick="deleteAllRead()">
+                        <i class="fas fa-trash"></i> 清空已读
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 通知过滤 -->
+            <div class="notification-filters">
+                <button class="filter-btn active" data-filter="all">全部</button>
+                <button class="filter-btn" data-filter="unread">未读</button>
+                <button class="filter-btn" data-filter="read">已读</button>
+                <button class="filter-btn" data-filter="system">系统通知</button>
+                <button class="filter-btn" data-filter="course">课程通知</button>
+                <button class="filter-btn" data-filter="assignment">作业通知</button>
+                <button class="filter-btn" data-filter="exam">考试通知</button>
+            </div>
+            
+            <!-- 通知列表 -->
+            <div class="notification-list" id="notificationList">
+                <!-- 通知项将通过JavaScript加载 -->
+            </div>
+            
+            <!-- 分页控件（与教师端统一样式） -->
+            <nav aria-label="通知分页">
+                <ul class="pagination" id="notificationPagination">
+                    <!-- 分页按钮将通过JavaScript加载 -->
+                </ul>
+            </nav>
+        </div>
+    </div>
+</main>
+
+<!-- 消息容器 -->
+<div id="messageContainer"></div>
+
+<!-- JavaScript代码 -->
+<script>
+    // 高亮当前导航项
+    function highlightActiveNavItem() {
+        // 获取当前页面URL
+        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+        
+        // 移除所有导航项的active类
+        document.querySelectorAll('.sidebar-nav a').forEach(link => {
+            link.classList.remove('active');
+        });
+        
+        // 高亮当前页面的导航项
+        const activeLink = document.querySelector(`.sidebar-nav a[href="${currentPage}"]`);
+        if (activeLink) {
+            activeLink.classList.add('active');
+        }
+    }
+    
+    // 侧边栏折叠/展开功能
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        
+        if (sidebar) {
+            sidebar.classList.toggle('collapsed');
+            
+            // 保存状态到localStorage
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            localStorage.setItem('sidebarCollapsed', isCollapsed);
+            
+            // 同时调整主内容区的margin-left
+            if (mainContent) {
+                if (isCollapsed) {
+                    mainContent.classList.add('collapsed');
+                } else {
+                    mainContent.classList.remove('collapsed');
+                }
+            }
+        }
+    }
+    
+    // 初始化侧边栏状态
+    function initializeSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        
+        // 从localStorage获取侧边栏状态
+        const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+        
+        if (sidebar && mainContent) {
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('collapsed');
+            } else {
+                sidebar.classList.remove('collapsed');
+                mainContent.classList.remove('collapsed');
+            }
+        }
+    }
+    
+    // 页面加载完成后执行
+    document.addEventListener('DOMContentLoaded', function() {
+        checkLoginStatus();
+        getNotifications();
+        
+        // 初始化侧边栏状态
+        setTimeout(initializeSidebar, 100); // 延迟执行，确保侧边栏已经加载
+        
+        // 侧边栏切换按钮事件监听
+        const toggleSidebarBtn = document.getElementById('toggleSidebar');
+        if (toggleSidebarBtn) {
+            toggleSidebarBtn.addEventListener('click', toggleSidebar);
+        }
+        
+        // 通知过滤按钮事件监听
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                // 移除所有过滤按钮的active类
+                filterBtns.forEach(b => b.classList.remove('active'));
+                // 为当前点击的按钮添加active类
+                this.classList.add('active');
+                // 获取过滤类型
+                const filterType = this.dataset.filter;
+                // 调用API获取过滤后的通知
+                getNotifications(1, 10, filterType);
+            });
+        });
+        
+        // 启动实时通知轮询
+        startNotificationPolling();
+    });
+    
+    // 通知轮询定时器
+    let notificationPollingTimer = null;
+    
+    // 启动通知轮询
+    function startNotificationPolling() {
+        // 每30秒检查一次新通知
+        const pollingInterval = 30000;
+        
+        // 清除之前的定时器
+        if (notificationPollingTimer) {
+            clearInterval(notificationPollingTimer);
+        }
+        
+        // 启动新的定时器
+        notificationPollingTimer = setInterval(async () => {
+            try {
+                // 初始化API服务
+                const apiService = new APIService();
+                const studentAPI = new StudentAPI(apiService);
+                
+                // 调用API获取最新未读通知数量
+                const response = await studentAPI.getUnreadNotificationCount();
+                
+                if (response && response.success) {
+                    const latestUnreadCount = response.data || 0;
+                    // 获取当前显示的未读数量
+                    const currentBadgeCount = parseInt(document.getElementById('notificationBadge').textContent) || 0;
+                    
+                    // 更新通知徽章
+                    updateNotificationBadge(latestUnreadCount);
+                    
+                    // 如果有新的未读通知，刷新通知列表
+                    if (latestUnreadCount > currentBadgeCount) {
+                        // 获取当前激活的过滤类型
+                        const activeFilter = document.querySelector('.filter-btn.active');
+                        const filterType = activeFilter ? activeFilter.dataset.filter : 'all';
+                        
+                        // 刷新通知列表
+                        getNotifications(1, 10, filterType);
+                        
+                        // 显示新通知提示
+                        showMessage(`您有 ${latestUnreadCount - currentBadgeCount} 条新通知`, 'info');
+                    }
+                }
+            } catch (error) {
+                console.error('检查新通知失败:', error);
+            }
+        }, pollingInterval);
+    }
+    
+    // 停止通知轮询
+    function stopNotificationPolling() {
+        if (notificationPollingTimer) {
+            clearInterval(notificationPollingTimer);
+            notificationPollingTimer = null;
+        }
+    }
+    
+    // 检查登录状态
+    function checkLoginStatus() {
+        // 从localStorage获取用户信息，没有则跳转到登录页
+        const user = sessionStorage.getItem('user');
+        if (!user) {
+            window.location.href = 'student-login.html';
+            return;
+        }
+
+        // 加载用户下拉菜单组件
+        $('#userDropdownContainer').load('components/user-dropdown.html', function(response, status, xhr) {
+            if (status == 'error') {
+                console.error('加载用户下拉组件失败:', xhr.status, xhr.statusText);
+            } else {
+                // 组件加载成功后初始化
+                if (typeof UserDropdown !== 'undefined') {
+                    new UserDropdown('userDropdownContainer');
+                }
+            }
+        });
+    }
+    
+    // 获取通知列表
+    async function getNotifications(page = 1, size = 10, filter = 'all') {
+        try {
+            // 显示加载状态
+            showLoading();
+            
+            // 初始化API服务
+            const apiService = new APIService();
+            const studentAPI = new StudentAPI(apiService);
+            
+            // 调用API获取通知
+            const response = await studentAPI.getNotifications(page, size, filter);
+            
+            if (!response || !response.success) {
+                throw new Error(response?.message || '获取通知列表失败');
+            }
+            
+            const notifications = response.data.notifications || [];
+            const totalNotifications = response.data.total || 0;
+            
+            // 更新通知列表
+            updateNotificationList(notifications);
+            
+            // 更新分页（与教师端统一的分页组件）
+            const totalPages = Math.max(1, Math.ceil(totalNotifications / size));
+            updateNotificationPagination(page, totalPages);
+            
+            // 获取并更新未读通知数量
+            updateUnreadNotificationCount();
+            
+            // 隐藏加载状态
+            hideLoading();
+        } catch (error) {
+            console.error('获取通知列表失败:', error);
+            showMessage('获取通知列表失败，请稍后重试', 'error');
+            // 隐藏加载状态
+            hideLoading();
+        }
+    }
+    
+    // 更新未读通知数量
+    async function updateUnreadNotificationCount() {
+        try {
+            // 初始化API服务
+            const apiService = new APIService();
+            const studentAPI = new StudentAPI(apiService);
+            
+            // 调用API获取未读通知数量
+            const response = await studentAPI.getUnreadNotificationCount();
+            
+            if (response && response.success) {
+                const unreadCount = response.data || 0;
+                updateNotificationBadge(unreadCount);
+            }
+        } catch (error) {
+            console.error('获取未读通知数量失败:', error);
+        }
+    }
+    
+    // 更新通知列表
+    function updateNotificationList(notifications) {
+        const notificationList = document.getElementById('notificationList');
+        
+        if (!notifications || notifications.length === 0) {
+            notificationList.innerHTML = `
+                <div class="no-notifications">
+                    <i class="fas fa-bell-slash"></i>
+                    <p>暂无通知</p>
+                </div>
+            `;
+            return;
+        }
+        
+        notificationList.innerHTML = '';
+        
+        notifications.forEach(notification => {
+            const notificationItem = document.createElement('div');
+            notificationItem.className = `notification-item ${notification.isRead ? 'read' : ''}`;
+            notificationItem.dataset.id = notification.id;
+            notificationItem.dataset.type = notification.type;
+            
+            // 根据通知类型设置不同的图标和颜色
+            let iconClass = '';
+            let iconColor = '';
+            
+            switch (notification.type) {
+                case 'system':
+                    iconClass = 'fas fa-bell';
+                    iconColor = '#3b82f6';
+                    break;
+                case 'course':
+                    iconClass = 'fas fa-book';
+                    iconColor = '#10b981';
+                    break;
+                case 'assignment':
+                    iconClass = 'fas fa-file-alt';
+                    iconColor = '#f59e0b';
+                    break;
+                case 'exam':
+                    iconClass = 'fas fa-chart-line';
+                    iconColor = '#8b5cf6';
+                    break;
+                default:
+                    iconClass = 'fas fa-info-circle';
+                    iconColor = '#64748b';
+            }
+            
+            notificationItem.innerHTML = `
+                <div class="notification-icon" style="background: ${iconColor}33; color: ${iconColor};">
+                    <i class="${iconClass}"></i>
+                </div>
+                <div class="notification-content">
+                    <div class="notification-header">
+                        <h4 class="notification-title">${notification.title}</h4>
+                        <span class="notification-time">${notification.createdAt}</span>
+                    </div>
+                    <p class="notification-text">${notification.content}</p>
+                    <div class="notification-actions">
+                        ${!notification.isRead ? `<button class="action-btn" onclick="markAsRead(${notification.id})">
+                            <i class="fas fa-check"></i> 标记已读
+                        </button>` : ''}
+                        <button class="action-btn delete-btn" onclick="deleteNotification(${notification.id})">
+                            <i class="fas fa-trash"></i> 删除
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            notificationList.appendChild(notificationItem);
+        });
+    }
+    
+    // 初始化通知分页点击事件（与教师端统一交互方式）
+    document.addEventListener('DOMContentLoaded', function() {
+        const pagination = document.getElementById('notificationPagination');
+        if (pagination) {
+            pagination.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = e.target.closest('.page-link');
+                if (!target) return;
+                
+                const pageType = target.getAttribute('data-page');
+                if (!pageType) return;
+                
+                const paginationEl = target.closest('.pagination');
+                if (!paginationEl) return;
+                
+                const totalPages = parseInt(paginationEl.dataset.totalPages || '1', 10);
+                const activeLink = paginationEl.querySelector('.page-link.active[data-page]');
+                const currentPage = activeLink ? parseInt(activeLink.getAttribute('data-page'), 10) : 1;
+                
+                let newPage = currentPage;
+                if (pageType === 'prev') {
+                    newPage = Math.max(1, currentPage - 1);
+                } else if (pageType === 'next') {
+                    newPage = Math.min(totalPages, currentPage + 1);
+                } else {
+                    newPage = parseInt(pageType, 10);
+                }
+                
+                if (!Number.isFinite(newPage) || newPage === currentPage) {
+                    return;
+                }
+                
+                // 使用当前筛选条件重新获取通知
+                const activeFilterBtn = document.querySelector('.filter-btn.active');
+                const filter = activeFilterBtn ? activeFilterBtn.dataset.filter || 'all' : 'all';
+                getNotifications(newPage, 10, filter);
+            });
+        }
+    });
+    
+    // 更新通知分页组件（以 teacher-student-dashboard 为标准）
+    function updateNotificationPagination(currentPage, totalPages) {
+        const pagination = document.getElementById('notificationPagination');
+        if (!pagination) return;
+        
+        // 清空现有分页
+        pagination.innerHTML = '';
+        
+        if (!totalPages || totalPages <= 1) {
+            return;
+        }
+        
+        // 记录总页数，供点击事件使用
+        pagination.dataset.totalPages = String(totalPages);
+        
+        // 上一页按钮
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `
+            <a class="page-link" data-page="prev" href="javascript:void(0);">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+        `;
+        pagination.appendChild(prevLi);
+        
+        // 计算需要显示的页码范围（智能分页）
+        let startPage = 1;
+        let endPage = totalPages;
+        
+        if (totalPages > 10) {
+            startPage = Math.max(1, currentPage - 4);
+            endPage = Math.min(totalPages, currentPage + 5);
+            
+            if (endPage - startPage + 1 < 10) {
+                if (startPage === 1) {
+                    endPage = Math.min(totalPages, startPage + 9);
+                } else if (endPage === totalPages) {
+                    startPage = Math.max(1, endPage - 9);
+                }
+            }
+        }
+        
+        // 首页和前置省略号
+        if (startPage > 1) {
+            const firstLi = document.createElement('li');
+            firstLi.className = 'page-item';
+            firstLi.innerHTML = `
+                <a class="page-link" data-page="1" href="javascript:void(0);">1</a>
+            `;
+            pagination.appendChild(firstLi);
+            
+            if (startPage > 2) {
+                const ellipsisLi = document.createElement('li');
+                ellipsisLi.className = 'page-item disabled';
+                ellipsisLi.innerHTML = `
+                    <span class="page-link">...</span>
+                `;
+                pagination.appendChild(ellipsisLi);
+            }
+        }
+        
+        // 中间页码
+        for (let i = startPage; i <= endPage; i++) {
+            const li = document.createElement('li');
+            li.className = 'page-item';
+            li.innerHTML = `
+                <a class="page-link ${i === currentPage ? 'active' : ''}" data-page="${i}" href="javascript:void(0);">${i}</a>
+            `;
+            pagination.appendChild(li);
+        }
+        
+        // 末页和后置省略号
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                const ellipsisLi = document.createElement('li');
+                ellipsisLi.className = 'page-item disabled';
+                ellipsisLi.innerHTML = `
+                    <span class="page-link">...</span>
+                `;
+                pagination.appendChild(ellipsisLi);
+            }
+            
+            const lastLi = document.createElement('li');
+            lastLi.className = 'page-item';
+            lastLi.innerHTML = `
+                <a class="page-link ${currentPage === totalPages ? 'active' : ''}" data-page="${totalPages}" href="javascript:void(0);">${totalPages}</a>
+            `;
+            pagination.appendChild(lastLi);
+        }
+        
+        // 下一页按钮
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `
+            <a class="page-link" data-page="next" href="javascript:void(0);">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        `;
+        pagination.appendChild(nextLi);
+    }
+    
+    // 过滤通知（已移至API调用，此函数保留兼容性）
+    function filterNotifications(filterType) {
+        // 已在DOMContentLoaded中修改为直接调用API获取过滤后的通知
+        console.log('过滤通知类型:', filterType);
+    }
+    
+    // 标记通知为已读
+    async function markAsRead(notificationId) {
+        try {
+            // 初始化API服务
+            const apiService = new APIService();
+            const studentAPI = new StudentAPI(apiService);
+            
+            // 调用API标记通知为已读
+            const response = await studentAPI.markNotificationAsRead(notificationId);
+            
+            if (!response || !response.success) {
+                throw new Error(response?.message || '标记通知为已读失败');
+            }
+            
+            // 找到对应的通知项
+            const notificationItem = document.querySelector(`.notification-item[data-id="${notificationId}"]`);
+            if (notificationItem) {
+                // 添加read类
+                notificationItem.classList.add('read');
+                // 移除标记已读按钮
+                const markAsReadBtn = notificationItem.querySelector('.action-btn:not(.delete-btn)');
+                if (markAsReadBtn) {
+                    markAsReadBtn.remove();
+                }
+                // 更新未读数量
+                updateUnreadCount();
+                // 显示成功消息
+                showMessage('通知已标记为已读', 'success');
+            }
+        } catch (error) {
+            console.error('标记通知为已读失败:', error);
+            showMessage('标记通知为已读失败，请稍后重试', 'error');
+        }
+    }
+    
+    // 标记所有通知为已读
+    async function markAllAsRead() {
+        try {
+            // 初始化API服务
+            const apiService = new APIService();
+            const studentAPI = new StudentAPI(apiService);
+            
+            // 调用API标记所有通知为已读
+            const response = await studentAPI.markAllNotificationsAsRead();
+            
+            if (!response || !response.success) {
+                throw new Error(response?.message || '标记所有通知为已读失败');
+            }
+            
+            // 找到所有未读通知
+            const unreadNotifications = document.querySelectorAll('.notification-item:not(.read)');
+            if (unreadNotifications.length === 0) {
+                showMessage('没有未读通知', 'info');
+                return;
+            }
+            
+            // 为所有未读通知添加read类
+            unreadNotifications.forEach(notification => {
+                notification.classList.add('read');
+                // 移除标记已读按钮
+                const markAsReadBtn = notification.querySelector('.action-btn:not(.delete-btn)');
+                if (markAsReadBtn) {
+                    markAsReadBtn.remove();
+                }
+            });
+            
+            // 更新未读数量
+            updateUnreadCount();
+            // 显示成功消息
+            showMessage('所有通知已标记为已读', 'success');
+        } catch (error) {
+            console.error('标记所有通知为已读失败:', error);
+            showMessage('标记所有通知为已读失败，请稍后重试', 'error');
+        }
+    }
+    
+    // 删除通知
+    async function deleteNotification(notificationId) {
+        try {
+            // 初始化API服务
+            const apiService = new APIService();
+            const studentAPI = new StudentAPI(apiService);
+            
+            // 调用API删除通知
+            const response = await studentAPI.deleteNotification(notificationId);
+            
+            if (!response || !response.success) {
+                throw new Error(response?.message || '删除通知失败');
+            }
+            
+            // 找到对应的通知项
+            const notificationItem = document.querySelector(`.notification-item[data-id="${notificationId}"]`);
+            if (notificationItem) {
+                // 添加删除动画
+                notificationItem.style.opacity = '0';
+                notificationItem.style.height = '0';
+                notificationItem.style.margin = '0';
+                notificationItem.style.padding = '0';
+                notificationItem.style.overflow = 'hidden';
+                
+                // 延迟移除元素
+                setTimeout(() => {
+                    notificationItem.remove();
+                    // 更新未读数量
+                    updateUnreadCount();
+                    // 检查是否还有通知
+                    const remainingNotifications = document.querySelectorAll('.notification-item');
+                    if (remainingNotifications.length === 0) {
+                        updateNotificationList([]);
+                    }
+                }, 300);
+                
+                // 显示成功消息
+                showMessage('通知已删除', 'success');
+            }
+        } catch (error) {
+            console.error('删除通知失败:', error);
+            showMessage('删除通知失败，请稍后重试', 'error');
+        }
+    }
+    
+    // 删除所有已读通知
+    async function deleteAllRead() {
+        try {
+            // 初始化API服务
+            const apiService = new APIService();
+            const studentAPI = new StudentAPI(apiService);
+            
+            // 调用API删除所有已读通知
+            const response = await studentAPI.deleteAllReadNotifications();
+            
+            if (!response || !response.success) {
+                throw new Error(response?.message || '清空已读通知失败');
+            }
+            
+            // 找到所有已读通知
+            const readNotifications = document.querySelectorAll('.notification-item.read');
+            if (readNotifications.length === 0) {
+                showMessage('没有已读通知可以删除', 'info');
+                return;
+            }
+            
+            // 为所有已读通知添加删除动画
+            readNotifications.forEach(notification => {
+                notification.style.opacity = '0';
+                notification.style.height = '0';
+                notification.style.margin = '0';
+                notification.style.padding = '0';
+                notification.style.overflow = 'hidden';
+                
+                // 延迟移除元素
+                setTimeout(() => {
+                    notification.remove();
+                    // 检查是否还有通知
+                    const remainingNotifications = document.querySelectorAll('.notification-item');
+                    if (remainingNotifications.length === 0) {
+                        updateNotificationList([]);
+                    }
+                }, 300);
+            });
+            
+            // 更新未读数量
+            updateUnreadCount();
+            // 显示成功消息
+            showMessage('已读通知已清空', 'success');
+        } catch (error) {
+            console.error('清空已读通知失败:', error);
+            showMessage('清空已读通知失败，请稍后重试', 'error');
+        }
+    }
+    
+    // 更新未读通知数量
+    function updateUnreadCount() {
+        // 计算未读通知数量
+        const unreadCount = document.querySelectorAll('.notification-item:not(.read)').length;
+        // 更新通知徽章
+        updateNotificationBadge(unreadCount);
+    }
+    
+    // 更新通知徽章
+    function updateNotificationBadge(count) {
+        const notificationBadge = document.getElementById('notificationBadge');
+        if (notificationBadge) {
+            notificationBadge.textContent = count;
+            // 如果数量为0，隐藏徽章
+            if (count === 0) {
+                notificationBadge.style.display = 'none';
+            } else {
+                notificationBadge.style.display = 'inline-block';
+            }
+        }
+    }
+    
+    // 显示加载状态
+    function showLoading() {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'flex';
+        }
+    }
+    
+    // 隐藏加载状态
+    function hideLoading() {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+        }
+    }
+    
+    // 显示消息
+    function showMessage(message, type = 'success') {
+        const messageContainer = document.getElementById('messageContainer');
+        if (!messageContainer) return;
+        
+        // 创建消息元素
+        const messageElement = document.createElement('div');
+        messageElement.className = `message message-${type}`;
+        messageElement.innerHTML = `
+            <span class="message-text">${message}</span>
+            <button class="message-close" onclick="this.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        
+        // 添加到消息容器
+        messageContainer.appendChild(messageElement);
+        
+        // 3秒后自动移除消息
+        setTimeout(() => {
+            if (messageElement.parentNode) {
+                messageElement.remove();
+            }
+        }, 3000);
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+{
+    "login": {
+        "student": {
+            "title": "Student Login",
+            "subtitle": "Intelligent Learning Assistant System"
+        },
+        "teacher": {
+            "title": "Teacher Login",
+            "subtitle": "Intelligent Learning Assistant System"
+        },
+        "form": {
+            "username": "Username",
+            "username_placeholder": "Enter your username",
+            "password": "Password",
+            "password_placeholder": "Enter your password",
+            "captcha": "Captcha",
+            "captcha_placeholder": "Enter captcha",
+            "remember_me": "Remember me",
+            "submit": "Login",
+            "submitting": "Logging in..."
+        },
+        "links": {
+            "forgot_password": "Forgot password?",
+            "contact_admin": "Contact Admin",
+            "no_account": "Don't have an account?",
+            "switch_to_teacher": "Are you a teacher?",
+            "switch_to_student": "Are you a student?",
+            "click_to_login": "Click to login"
+        },
+        "errors": {
+            "empty_fields": "Please fill in all required fields",
+            "invalid_credentials": "Login failed: Please check your username and password",
+            "not_student": "Login failed: You are not a student user",
+            "not_teacher": "Login failed: You are not a teacher user",
+            "no_user_info": "Login failed: Unable to get user information",
+            "no_role_info": "Login failed: Unable to get user role information",
+            "request_failed": "Request failed, please try again later"
+        },
+        "language": {
+            "zh_CN": "中文",
+            "en_US": "English",
+            "ja_JP": "日本語"
+        }
+    }
+}

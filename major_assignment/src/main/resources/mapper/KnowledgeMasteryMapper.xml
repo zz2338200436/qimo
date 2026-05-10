@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com._202510007517.major_assignment.mapper.KnowledgeMasteryMapper">
+
+    <!-- 按作业查询题目 + 知识点 + 学生得分：多表 LEFT JOIN → XML -->
+    <select id="findQuestionsByAssignment" resultType="java.util.Map">
+        SELECT q.id AS question_id,
+               q.knowledge_point_id,
+               q.score AS total_score,
+               COALESCE(sa.earned_score, 0) AS earned_score
+        FROM questions q
+        LEFT JOIN student_answers sa
+               ON q.id = sa.question_id
+              AND sa.assignment_submission_id = #{submissionId}
+        WHERE q.assignment_id = #{assignmentId}
+          AND q.knowledge_point_id IS NOT NULL
+    </select>
+
+    <!-- 按考试查询题目 + 知识点 + 学生得分：多表 LEFT JOIN → XML -->
+    <select id="findQuestionsByExam" resultType="java.util.Map">
+        SELECT q.id AS question_id,
+               q.knowledge_point_id,
+               q.score AS total_score,
+               COALESCE(sa.earned_score, 0) AS earned_score
+        FROM questions q
+        LEFT JOIN student_answers sa
+               ON q.id = sa.question_id
+              AND sa.exam_submission_id = #{submissionId}
+        WHERE q.exam_id = #{examId}
+          AND q.knowledge_point_id IS NOT NULL
+    </select>
+
+    <!-- 获取作业关联的知识点：多表 JOIN → XML -->
+    <select id="getKnowledgePointsByAssignment" resultType="java.util.Map">
+        SELECT kp.id
+        FROM knowledge_points kp
+        JOIN assignment_knowledge_points akp ON kp.id = akp.knowledge_point_id
+        WHERE akp.assignment_id = #{assignmentId}
+    </select>
+
+    <!-- 获取考试关联的知识点：多表 JOIN → XML -->
+    <select id="getKnowledgePointsByExam" resultType="java.util.Map">
+        SELECT kp.id
+        FROM knowledge_points kp
+        JOIN exam_knowledge_points ekp ON kp.id = ekp.knowledge_point_id
+        WHERE ekp.exam_id = #{examId}
+    </select>
+
+</mapper>
