@@ -2,6 +2,7 @@ package com._202510007517.platform.analysis.repository;
 
 import com._202510007517.platform.analysis.api.dto.KnowledgeMasteryDTO;
 import com._202510007517.platform.analysis.api.dto.ScoreTrendDTO;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -27,6 +28,7 @@ public class JdbcAnalysisRepository implements AnalysisRepository {
     private final JdbcTemplate jdbcTemplate;
     private final Clock clock;
 
+    @Autowired
     public JdbcAnalysisRepository(JdbcTemplate jdbcTemplate) {
         this(jdbcTemplate, Clock.systemDefaultZone());
     }
