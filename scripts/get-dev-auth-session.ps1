@@ -1,4 +1,6 @@
 param(
+    [ValidateSet("student", "teacher")]
+    [string]$Role,
     [ValidateSet("student42", "teacher7")]
     [string]$Username = "student42",
     [string]$Password = "Teach1234",
@@ -10,6 +12,20 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+$UsernameByRole = @{
+    student = "student42"
+    teacher = "teacher7"
+}
+
+if ($PSBoundParameters.ContainsKey("Role")) {
+    $roleKey = $Role.ToLowerInvariant()
+    $usernameForRole = $UsernameByRole[$roleKey]
+    if ($PSBoundParameters.ContainsKey("Username") -and $Username -ne $usernameForRole) {
+        throw "Role '$Role' maps to username '$usernameForRole', but Username '$Username' was provided."
+    }
+    $Username = $usernameForRole
+}
 
 function Invoke-WithGatewayRetry {
     param(
@@ -156,7 +172,8 @@ if ($OutFile) {
     if ($outDir -and -not (Test-Path -LiteralPath $outDir)) {
         New-Item -ItemType Directory -Path $outDir | Out-Null
     }
-    Set-Content -LiteralPath $OutFile -Value $json -Encoding UTF8
+    $resolvedOutFile = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutFile)
+    [System.IO.File]::WriteAllText($resolvedOutFile, $json, [System.Text.UTF8Encoding]::new($false))
     Write-Host "Wrote dev auth session to $OutFile"
 }
 

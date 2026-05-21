@@ -6,7 +6,7 @@ const sessionFile = process.argv[2]
     ? path.resolve(process.argv[2])
     : path.resolve(__dirname, '../.runtime-logs/teacher-session-final-verify.json');
 
-const session = JSON.parse(fs.readFileSync(sessionFile, 'utf8'));
+const session = JSON.parse(fs.readFileSync(sessionFile, 'utf8').replace(/^\uFEFF/, ''));
 const sessionStorageState = session.sessionStorage || {};
 
 const checks = [
