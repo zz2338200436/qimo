@@ -1,9 +1,9 @@
 package com._202510007517.platform.analysis.service;
 
 import com._202510007517.platform.analysis.repository.EarlyWarningRepository;
-import com._202510007517.platform.analysis.web.dto.EarlyWarningDTO;
-import com._202510007517.platform.analysis.web.dto.EarlyWarningPageResult;
-import com._202510007517.platform.analysis.web.dto.WarningStatsDTO;
+import com._202510007517.platform.analysis.controller.dto.EarlyWarningDTO;
+import com._202510007517.platform.analysis.controller.dto.EarlyWarningPageResult;
+import com._202510007517.platform.analysis.controller.dto.WarningStatsDTO;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

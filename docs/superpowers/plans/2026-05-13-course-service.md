@@ -37,8 +37,8 @@
 ### Task 3: REST Controller and Schema
 
 **Files:**
-- Test: `course-service/src/test/java/com/_202510007517/platform/course/web/CourseControllerTest.java`
-- Create: `course-service/src/main/java/com/_202510007517/platform/course/web/CourseController.java`
+- Test: `course-service/src/test/java/com/_202510007517/platform/course/controller/CourseControllerTest.java`
+- Create: `course-service/src/main/java/com/_202510007517/platform/course/controller/CourseController.java`
 - Create: `course-service/src/main/resources/application.yml`
 - Create: `course-service/src/main/resources/db/migration/V1__init_course_schema.sql`
 

@@ -2,8 +2,8 @@ package com._202510007517.platform.assignment.contract;
 
 import com._202510007517.platform.assignment.api.dto.AssignmentDTO;
 import com._202510007517.platform.assignment.service.AssignmentApplicationService;
-import com._202510007517.platform.assignment.web.AssignmentInternalController;
-import com._202510007517.platform.assignment.web.StudentAssignmentController;
+import com._202510007517.platform.assignment.controller.AssignmentInternalController;
+import com._202510007517.platform.assignment.controller.StudentAssignmentController;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;

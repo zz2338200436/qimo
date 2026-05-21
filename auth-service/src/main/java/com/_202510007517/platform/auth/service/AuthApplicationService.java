@@ -2,8 +2,8 @@ package com._202510007517.platform.auth.service;
 
 import com._202510007517.platform.auth.domain.AuthCredential;
 import com._202510007517.platform.auth.repository.AuthCredentialRepository;
-import com._202510007517.platform.auth.web.dto.AuthUserDTO;
-import com._202510007517.platform.auth.web.dto.LoginResponseDTO;
+import com._202510007517.platform.auth.controller.dto.AuthUserDTO;
+import com._202510007517.platform.auth.controller.dto.LoginResponseDTO;
 import com._202510007517.platform.common.exception.BusinessException;
 import com._202510007517.platform.common.exception.ForbiddenException;
 import com._202510007517.platform.common.exception.RemoteClientException;

@@ -4,9 +4,9 @@ import com._202510007517.platform.course.api.dto.CourseDTO;
 import com._202510007517.platform.course.api.dto.MajorDTO;
 import com._202510007517.platform.course.api.dto.TeacherClassDTO;
 import com._202510007517.platform.course.service.CourseApplicationService;
-import com._202510007517.platform.course.web.CourseController;
-import com._202510007517.platform.course.web.CourseInternalController;
-import com._202510007517.platform.course.web.TeacherCourseAdminController;
+import com._202510007517.platform.course.controller.CourseController;
+import com._202510007517.platform.course.controller.CourseInternalController;
+import com._202510007517.platform.course.controller.TeacherCourseAdminController;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import org.junit.jupiter.api.BeforeEach;
 

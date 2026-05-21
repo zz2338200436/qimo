@@ -16,7 +16,7 @@ import com._202510007517.platform.notification.service.EarlyWarningRaisedNotific
 import com._202510007517.platform.notification.service.ExamFinishedNotificationHandler;
 import com._202510007517.platform.notification.service.NotificationCommandService;
 import com._202510007517.platform.notification.service.NotificationQueryService;
-import com._202510007517.platform.notification.web.NotificationController;
+import com._202510007517.platform.notification.controller.NotificationController;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;

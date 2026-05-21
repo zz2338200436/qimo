@@ -8,7 +8,7 @@ import com._202510007517.platform.analysis.repository.AnalysisTriggerJobReposito
 import com._202510007517.platform.analysis.repository.EarlyWarningRepository;
 import com._202510007517.platform.analysis.repository.KnowledgeMasteryRecord;
 import com._202510007517.platform.analysis.repository.ScoreTrendRecord;
-import com._202510007517.platform.analysis.web.dto.EarlyWarningDTO;
+import com._202510007517.platform.analysis.controller.dto.EarlyWarningDTO;
 import com._202510007517.platform.course.api.dto.CourseDTO;
 import com._202510007517.platform.course.api.feign.CourseFeignClient;
 import org.junit.jupiter.api.Test;

@@ -26,7 +26,7 @@
 
 **Files:**
 - Create: `D:\111\Distributed framework technology\JavaCode\majorassignment\notification-service\src\test\java\com\_202510007517\platform\notification\service\AssignmentSubmittedNotificationHandlerTest.java`
-- Create: `D:\111\Distributed framework technology\JavaCode\majorassignment\notification-service\src\test\java\com\_202510007517\platform\notification\web\NotificationControllerTest.java`
+- Create: `D:\111\Distributed framework technology\JavaCode\majorassignment\notification-service\src\test\java\com\_202510007517\platform\notification\controller\NotificationControllerTest.java`
 - Create: `D:\111\Distributed framework technology\JavaCode\majorassignment\notification-service\src\test\java\com\_202510007517\platform\notification\repository\JdbcNotificationRepositoryTest.java`
 
 - [ ] **Step 1: Write a failing handler test for one `AssignmentSubmittedEvent` creating one student notification**
@@ -70,7 +70,7 @@
 
 **Files:**
 - Create: `D:\111\Distributed framework technology\JavaCode\majorassignment\notification-service\src\main\java\com\_202510007517\platform\notification\service\NotificationQueryService.java`
-- Create: `D:\111\Distributed framework technology\JavaCode\majorassignment\notification-service\src\main\java\com\_202510007517\platform\notification\web\NotificationController.java`
+- Create: `D:\111\Distributed framework technology\JavaCode\majorassignment\notification-service\src\main\java\com\_202510007517\platform\notification\controller\NotificationController.java`
 
 - [ ] **Step 1: Implement query service methods for paged list, full list, and unread count**
 - [ ] **Step 2: Implement the three student endpoints using `ResponseResult`**

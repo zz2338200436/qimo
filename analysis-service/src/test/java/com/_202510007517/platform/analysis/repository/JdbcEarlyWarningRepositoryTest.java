@@ -1,6 +1,6 @@
 package com._202510007517.platform.analysis.repository;
 
-import com._202510007517.platform.analysis.web.dto.EarlyWarningDTO;
+import com._202510007517.platform.analysis.controller.dto.EarlyWarningDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;

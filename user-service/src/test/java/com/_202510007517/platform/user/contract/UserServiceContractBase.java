@@ -6,8 +6,8 @@ import com._202510007517.platform.user.api.dto.UpdateUserProfileDTO;
 import com._202510007517.platform.user.api.dto.UserProfileDTO;
 import com._202510007517.platform.user.api.dto.UserRolesDTO;
 import com._202510007517.platform.user.service.UserApplicationService;
-import com._202510007517.platform.user.web.UserController;
-import com._202510007517.platform.user.web.UserInternalController;
+import com._202510007517.platform.user.controller.UserController;
+import com._202510007517.platform.user.controller.UserInternalController;
 import io.restassured.module.mockmvc.RestAssuredMockMvc;
 import org.junit.jupiter.api.BeforeEach;
 
