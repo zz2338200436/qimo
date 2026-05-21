@@ -1,5 +1,6 @@
 package com._202510007517.platform.analysis.web;
 
+import com._202510007517.platform.common.exception.ResourceNotFoundException;
 import com._202510007517.platform.analysis.service.AnalysisQueryService;
 import com._202510007517.platform.common.web.CommonTraceConstants;
 import com._202510007517.platform.common.web.ResponseResult;
@@ -92,6 +93,11 @@ public class StudentAnalysisCompatibilityController {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         return ResponseResult.failure(ex.getMessage(), 400);
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseResult<Void> handleResourceNotFound(ResourceNotFoundException ex) {
+        return ResponseResult.failure(ex.getMessage(), ex.getCode());
     }
 
     private static Long resolveStudentId(String userIdHeader) {

@@ -8,6 +8,7 @@ import com._202510007517.platform.analysis.service.EarlyWarningCompatibilityServ
 import com._202510007517.platform.analysis.web.dto.EarlyWarningDTO;
 import com._202510007517.platform.analysis.web.dto.EarlyWarningPageResult;
 import com._202510007517.platform.analysis.web.dto.WarningStatsDTO;
+import com._202510007517.platform.common.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -468,6 +469,24 @@ class AnalysisQueryControllerTest {
                 .andExpect(jsonPath("$.data.courseId").value(2));
 
         verify(service).getStudentKnowledgePointDetail(42L, 31L);
+    }
+
+    @Test
+    void getStudentKnowledgePointDetailNotFoundKeepsLegacyEnvelope() throws Exception {
+        AnalysisQueryService service = mock(AnalysisQueryService.class);
+        when(service.getStudentKnowledgePointDetail(42L, 999999L))
+                .thenThrow(new ResourceNotFoundException("知识点不存在"));
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new StudentAnalysisCompatibilityController(service))
+                .build();
+
+        mockMvc.perform(get("/api/student/knowledge-points/{knowledgePointId}", 999999L)
+                        .header("X-User-Id", "42"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value(404))
+                .andExpect(jsonPath("$.message").value("知识点不存在"));
+
+        verify(service).getStudentKnowledgePointDetail(42L, 999999L);
     }
 
     @Test
