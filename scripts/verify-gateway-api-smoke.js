@@ -70,6 +70,35 @@ async function requestJson(method, url, token, body, extraHeaders) {
   return { response, json, text };
 }
 
+async function requestJsonAllowStatus(method, url, token, body, expectedStatuses, extraHeaders) {
+  const headers = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+  }
+  Object.assign(headers, extraHeaders || {});
+  const response = await fetch(url, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+  const text = await response.text();
+  let json = null;
+  if (text) {
+    try {
+      json = JSON.parse(text);
+    } catch (error) {
+      throw new Error(`${method} ${url} returned non-JSON body: ${text.slice(0, 200)}`);
+    }
+  }
+  if (!expectedStatuses.includes(response.status)) {
+    throw new Error(`${method} ${url} expected ${expectedStatuses.join('/')} but got ${response.status}: ${text.slice(0, 300)}`);
+  }
+  return { response, json, text };
+}
+
 async function requestBinary(url, token) {
   const response = await fetch(url, {
     headers: {
@@ -122,7 +151,8 @@ async function run() {
     assignmentId: null,
     examId: null,
     warningId: null,
-    notificationId: null
+    notificationId: null,
+    batchNotificationIds: []
   };
 
   const results = [];
@@ -163,6 +193,11 @@ async function run() {
     if (created.notificationId) {
       await attempt(`delete notification ${created.notificationId}`, async () => {
         await requestJson('DELETE', `${baseUrl}/api/notifications/${created.notificationId}`, studentToken);
+      });
+    }
+    for (const notificationId of created.batchNotificationIds) {
+      await attempt(`delete batch notification ${notificationId}`, async () => {
+        await requestJson('DELETE', `${baseUrl}/api/notifications/${notificationId}`, studentToken);
       });
     }
     if (created.assignmentId) {
@@ -215,6 +250,23 @@ async function run() {
       assert(json.data.username === 'student42', 'student username mismatch', json.data);
     });
 
+    await step('auth compatibility negative paths', async () => {
+      const [teacherSwitchRes, studentSwitchRes, weakPasswordRes, invalidRefreshRes] = await Promise.all([
+        requestJsonAllowStatus('POST', `${baseUrl}/api/auth/switch-role`, teacherToken, { targetRole: 'STUDENT' }, [403]),
+        requestJsonAllowStatus('POST', `${baseUrl}/api/auth/switch-role`, studentToken, { targetRole: 'TEACHER' }, [403]),
+        requestJsonAllowStatus('POST', `${baseUrl}/api/student/change-password`, studentToken, {
+          currentPassword: 'wrong-password',
+          newPassword: 'short1',
+          confirmPassword: 'short1'
+        }, [200]),
+        requestJsonAllowStatus('POST', `${baseUrl}/api/auth/refresh`, null, { refreshToken: `invalid-${unique}` }, [401])
+      ]);
+      assert(teacherSwitchRes.json.success === false, 'teacher forbidden switch role should return failure payload');
+      assert(studentSwitchRes.json.success === false, 'student forbidden switch role should return failure payload');
+      assert(weakPasswordRes.json.success === false, 'weak student password change should return failure payload');
+      assert(invalidRefreshRes.json.success === false, 'invalid refresh should return failure payload');
+    });
+
     await step('teacher base reads', async () => {
       const [teacherCoursesRes, teacherClassesRes, teacherMajorsRes, teacherAssignmentsRes, teacherSubmissionsRes, teacherExamsRes] = await Promise.all([
         requestJson('GET', `${baseUrl}/api/teacher/courses?page=1&size=10`, teacherToken),
@@ -255,7 +307,7 @@ async function run() {
     });
 
     await step('system and user compatibility reads', async () => {
-      const [semestersRes, teacherCoursesRes, studentCoursesRes, rangesRes, profileRes, notifSettingsRes, privacyRes, exportDataRes, usersMeRes, studentClassRes, publicCaptchaRes] = await Promise.all([
+      const [semestersRes, teacherCoursesRes, studentCoursesRes, rangesRes, profileRes, notifSettingsRes, privacyRes, exportDataRes, usersMeRes, userByIdRes, studentClassRes, publicCaptchaRes, authCaptchaRes] = await Promise.all([
         requestJson('GET', `${baseUrl}/api/system/semesters`, teacherToken),
         requestJson('GET', `${baseUrl}/api/system/teacher/courses`, teacherToken),
         requestJson('GET', `${baseUrl}/api/system/student/courses`, studentToken),
@@ -265,8 +317,10 @@ async function run() {
         requestJson('GET', `${baseUrl}/api/student/privacy-settings`, studentToken),
         requestJson('GET', `${baseUrl}/api/student/export-data`, studentToken),
         requestJson('GET', `${baseUrl}/api/users/me`, studentToken),
+        requestJson('GET', `${baseUrl}/api/users/42`, studentToken),
         requestJson('GET', `${baseUrl}/api/students/42/class`, teacherToken),
-        requestBinary(`${baseUrl}/api/public/captcha`, teacherToken)
+        requestBinary(`${baseUrl}/api/public/captcha`, teacherToken),
+        requestBinary(`${baseUrl}/api/auth/captcha`, teacherToken)
       ]);
       assert(Array.isArray(semestersRes.json.data), 'semesters should be an array');
       assert(Array.isArray(teacherCoursesRes.json.data), 'system teacher courses should be an array');
@@ -277,12 +331,14 @@ async function run() {
       assert(typeof privacyRes.json.data === 'object', 'privacy settings should be an object');
       assert(typeof exportDataRes.json.data === 'object', 'export data should be an object');
       assert(usersMeRes.json.data.username === 'student42', 'users/me should resolve current student', usersMeRes.json.data);
+      assert(userByIdRes.json.data.username === 'student42', 'users/{id} should resolve student42', userByIdRes.json.data);
       assert(typeof studentClassRes.json.data === 'string', 'student class name should be string');
       assert(publicCaptchaRes.response.headers.get('x-captcha-key'), 'public captcha should include X-Captcha-Key');
+      assert(authCaptchaRes.response.headers.get('x-captcha-key'), 'auth captcha should include X-Captcha-Key');
     });
 
     await step('analysis and dashboard reads', async () => {
-      const [teacherDashboardRes, teacherSummaryRes, scoreTrendRes, warningStatsRes, warningListRes, pendingWarningsRes, studentStatsRes, studentStudyTimeRes, studentKnowledgeRes, studentWarningsRes, studentPerformanceRes] = await Promise.all([
+      const [teacherDashboardRes, teacherSummaryRes, scoreTrendRes, warningStatsRes, warningListRes, pendingWarningsRes, studentStatsRes, studentStudyTimeRes, studentKnowledgeRes, studentWarningsRes, studentPerformanceRes, studentPerformanceByIdRes, teacherAnalysisCourseCompatRes] = await Promise.all([
         requestJson('GET', `${baseUrl}/api/teacher/dashboard`, teacherToken),
         requestJson('GET', `${baseUrl}/api/teacher/learning-summary`, teacherToken),
         requestJson('GET', `${baseUrl}/api/teacher/score-trend`, teacherToken),
@@ -293,7 +349,9 @@ async function run() {
         requestJson('GET', `${baseUrl}/api/student/study-time-distribution`, studentToken),
         requestJson('GET', `${baseUrl}/api/student/knowledge-points`, studentToken),
         requestJson('GET', `${baseUrl}/api/student/early-warnings`, studentToken),
-        requestJson('GET', `${baseUrl}/api/dashboard/student-performance`, studentToken)
+        requestJson('GET', `${baseUrl}/api/dashboard/student-performance`, studentToken),
+        requestJson('GET', `${baseUrl}/api/dashboard/student-performance/42`, teacherToken),
+        requestJson('GET', `${baseUrl}/api/knowledge-points/analysis/teacher/course?courseId=2`, teacherToken)
       ]);
       assert(typeof teacherDashboardRes.json.data === 'object', 'teacher dashboard should be object');
       assert(typeof teacherSummaryRes.json.data === 'object', 'teacher learning summary should be object');
@@ -307,6 +365,8 @@ async function run() {
       assert(Array.isArray(studentKnowledgePoints), 'student knowledge points should be array');
       assert(Array.isArray(studentWarningsRes.json.data), 'student warnings should be array');
       assert(studentPerformanceRes.json.success === false && studentPerformanceRes.json.unsupported === true, 'student performance compatibility endpoint should return 501 compatibility payload', studentPerformanceRes.json);
+      assert(studentPerformanceByIdRes.json.success === false && studentPerformanceByIdRes.json.unsupported === true, 'student performance by id compatibility endpoint should return 501 compatibility payload', studentPerformanceByIdRes.json);
+      assert(teacherAnalysisCourseCompatRes.json.success === true, 'teacher knowledge point analysis course compatibility endpoint should succeed');
     });
 
     await step('teacher knowledge point reads', async () => {
@@ -344,6 +404,38 @@ async function run() {
         const kpDetailRes = await requestJson('GET', `${baseUrl}/api/student/knowledge-points/${studentKnowledgePoints[0].id}`, studentToken);
         assert(kpDetailRes.json.success === true, 'student knowledge point detail should succeed');
       }
+
+      const missingKpRes = await requestJsonAllowStatus('GET', `${baseUrl}/api/student/knowledge-points/999999`, studentToken, undefined, [200]);
+      assert(missingKpRes.json.success === false && missingKpRes.json.code === 404, 'missing student knowledge point should return legacy 404 envelope', missingKpRes.json);
+    });
+
+    await step('gateway browser error endpoints', async () => {
+      const errorPayload = {
+        errorType: 'RuntimeError',
+        errorMessage: `gateway smoke browser error ${unique}`,
+        errorStack: 'Error: smoke',
+        pageUrl: '/teacher/dashboard.html',
+        lineNumber: 12,
+        columnNumber: 34,
+        fileUrl: '/assets/smoke.js',
+        userAgent: 'gateway-api-smoke',
+        status: 500
+      };
+      const reportRes = await requestJson('POST', `${baseUrl}/api/errors/browser`, teacherToken, errorPayload);
+      const errorId = reportRes.json.data;
+      assert(Number.isInteger(errorId), 'browser error report should return numeric id', reportRes.json);
+
+      const batchRes = await requestJson('POST', `${baseUrl}/api/errors/browser/batch`, teacherToken, [
+        { ...errorPayload, errorMessage: `gateway smoke browser batch A ${unique}`, status: 400 },
+        { ...errorPayload, errorMessage: `gateway smoke browser batch B ${unique}`, status: 404 }
+      ]);
+      assert(batchRes.json.data === 2, 'browser error batch report should return saved count', batchRes.json);
+
+      const listRes = await requestJson('GET', `${baseUrl}/api/errors/browser?page=1&size=5&errorType=RuntimeError`, teacherToken);
+      assert(Array.isArray(listRes.json.data.content), 'browser error list should return page content');
+
+      const detailRes = await requestJson('GET', `${baseUrl}/api/errors/browser/${errorId}`, teacherToken);
+      assert(detailRes.json.data.id === errorId, 'browser error detail should return created id', detailRes.json.data);
     });
 
     await step('notifications read-write flow', async () => {
@@ -376,6 +468,27 @@ async function run() {
       const markedRes = await requestJson('GET', `${baseUrl}/api/notifications/student/all`, studentToken);
       const createdNotification = markedRes.json.data.find(item => item.id === created.notificationId);
       assert(createdNotification && createdNotification.read === true, 'notification should become read after mark-all', createdNotification);
+
+      const batchRes = await requestJson('POST', `${baseUrl}/api/notifications/teacher/send-batch`, teacherToken, [
+        {
+          type: 'course',
+          title: `批量通知A-${unique}`,
+          content: '接口烟测批量通知 A',
+          studentId: 42,
+          relatedId: 2,
+          isRead: false
+        },
+        {
+          type: 'assignment',
+          title: `批量通知B-${unique}`,
+          content: '接口烟测批量通知 B',
+          studentId: 42,
+          relatedId: 2,
+          isRead: false
+        }
+      ]);
+      created.batchNotificationIds = (batchRes.json.data || []).map(item => item.id).filter(Boolean);
+      assert(created.batchNotificationIds.length === 2, 'batch notification should return two ids', batchRes.json.data);
     });
 
     await step('student profile writes', async () => {
@@ -407,13 +520,18 @@ async function run() {
       const userMeRes = await requestJson('GET', `${baseUrl}/api/users/me`, studentToken);
       const me = userMeRes.json.data;
       const userUpdateRes = await requestJson('PUT', `${baseUrl}/api/users/me`, studentToken, {
-        username: me.username,
         name: me.name,
         email: me.email,
-        phone: me.phone,
-        avatar: me.avatar
+        phone: me.phone
       });
       assert(userUpdateRes.json.success === true, 'users/me update should succeed');
+
+      const userByIdUpdateRes = await requestJson('PUT', `${baseUrl}/api/users/42`, teacherToken, {
+        name: me.name,
+        email: me.email,
+        phone: me.phone
+      });
+      assert(userByIdUpdateRes.json.success === true, 'users/{id} update should succeed');
     });
 
     await step('teacher write flow: course and class', async () => {
@@ -495,7 +613,25 @@ async function run() {
       const classStudentsRes = await requestJson('GET', `${baseUrl}/api/teacher/classes/${created.classId}/students`, teacherToken);
       assert(Array.isArray(classStudentsRes.json.data), 'class students should be array even when empty');
 
-      await requestJson('DELETE', `${baseUrl}/api/teacher/course-assignments/${createdAssignmentRow.id || createdAssignmentRow.assignmentId}`, teacherToken);
+      const courseStudentsRes = await requestJson('GET', `${baseUrl}/api/teacher/courses/${created.courseId}/students`, teacherToken);
+      assert(Array.isArray(courseStudentsRes.json.data), 'course students should be array even when empty');
+
+      await requestJson('DELETE', `${baseUrl}/api/teacher/class-courses/unassign?classId=${created.classId}&courseId=${created.courseId}`, teacherToken);
+
+      const reassignmentRes = await requestJson('POST', `${baseUrl}/api/teacher/course-assignments`, teacherToken, {
+        classId: created.classId,
+        courseId: created.courseId,
+        classTime: '周三 14:00-16:00',
+        classLocation: 'A103'
+      });
+      assert(reassignmentRes.json.success === true, 'course reassignment should succeed after class-course unassign');
+
+      const reassignmentListRes = await requestJson('GET', `${baseUrl}/api/teacher/course-assignments?page=1&size=20&courseId=${created.courseId}`, teacherToken);
+      const reassignmentRows = reassignmentListRes.json.data.content || [];
+      const reassignedRow = reassignmentRows.find(item => item.courseId === created.courseId && item.classId === created.classId);
+      assert(reassignedRow, 'course reassignment should be queryable', reassignmentRows);
+
+      await requestJson('DELETE', `${baseUrl}/api/teacher/course-assignments/${reassignedRow.id || reassignedRow.assignmentId}`, teacherToken);
 
       const classNameCheckRes = await requestJson('GET', `${baseUrl}/api/teacher/check-class-name?className=${encodeURIComponent(`Class-${unique}-Updated`)}`, teacherToken);
       assert(typeof classNameCheckRes.json.data.exists === 'boolean', 'class name check should return exists boolean');
@@ -586,6 +722,9 @@ async function run() {
 
       const studentAssignmentDetailRes = await requestJson('GET', `${baseUrl}/api/student/assignments/${created.assignmentId}`, studentToken);
       assert(studentAssignmentDetailRes.json.data.submission, 'student assignment detail should expose submission after submit', studentAssignmentDetailRes.json.data);
+
+      const teacherAssignmentSubmissionCompatRes = await requestJson('GET', `${baseUrl}/api/teacher/assignments/submissions/${submission.id}`, teacherToken);
+      assert(teacherAssignmentSubmissionCompatRes.json.success === true, 'teacher assignment submission compatibility detail should succeed');
     });
 
     await step('teacher write flow: exam and grading', async () => {
@@ -721,16 +860,20 @@ async function run() {
       created.warningId = warningCreateRes.json.data.id;
       assert(created.warningId, 'warning create should return id', warningCreateRes.json.data);
 
-      const [warningDetailRes, courseWarningsRes, warningExportRes, triggerRes, triggerCompatRes] = await Promise.all([
+      const [warningDetailRes, courseWarningsRes, warningExportRes, warningTriggerRes, knowledgeTriggerRes, triggerRes, triggerCompatRes] = await Promise.all([
         requestJson('GET', `${baseUrl}/api/early-warnings/teacher/detail/${created.warningId}`, teacherToken),
         requestJson('GET', `${baseUrl}/api/teacher/early-warnings/course/2?warningType=LOW_SCORE&warningLevel=HIGH&isResolved=false`, teacherToken),
         retry(() => requestBinary(`${baseUrl}/api/early-warnings/teacher/export`, teacherToken), 3, 1200),
+        requestJson('POST', `${baseUrl}/api/teacher/analysis/warnings/trigger`, teacherToken),
+        requestJson('POST', `${baseUrl}/api/teacher/analysis/knowledge-points/trigger`, teacherToken),
         requestJson('POST', `${baseUrl}/api/teacher/knowledge-points/analyze/student/42/course/2`, teacherToken),
         requestJson('POST', `${baseUrl}/api/teacher/analysis/student/42/course/2/trigger`, teacherToken)
       ]);
       assert(warningDetailRes.json.success === true, 'warning detail should succeed');
       assert(Array.isArray(courseWarningsRes.json.data), 'course warnings should be array');
       assert(warningExportRes.response.headers.get('content-type')?.includes('spreadsheetml'), 'warning export should return xlsx content');
+      assert(warningTriggerRes.json.success === true, 'warning analysis trigger should succeed');
+      assert(knowledgeTriggerRes.json.success === true, 'knowledge point analysis trigger should succeed');
       assert(triggerRes.json.success === true, 'knowledge point analyze trigger should succeed');
       assert(triggerCompatRes.json.success === true, 'compatibility trigger should succeed');
 
