@@ -46,24 +46,33 @@ node .\scripts\verify-gateway-api-smoke.js
 | AI | Generate questions, generate exam, learning suggestions |
 | Gateway edge | Browser error report, batch report, list, detail |
 
-## Not Auto-Run In Shared Dev Data
+## Isolated Side-Effect Coverage
 
-These endpoints exist and should be tested only in an isolated database or with throwaway users because they mutate shared demo credentials or bulk user data.
+These endpoints are intentionally kept out of the shared-account smoke run, but are automated with an isolated fixture user and isolated exam/notification data:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\seed-isolated-side-effect-smoke.ps1
+node .\scripts\verify-gateway-isolated-side-effects.js
+```
 
 | Endpoint | Reason |
 | --- | --- |
-| `POST /api/auth/change-password` | Changes the active account password and revokes the current token |
-| `POST /api/student/change-password` success path | Changes `student42` password and revokes the token |
-| `POST /api/auth/logout` success path | Revokes the access token used by the smoke run |
-| `POST /api/auth/refresh` success path | Consumes the refresh token, which can make later checks flaky in the same run |
-| `POST /api/auth/switch-role` success path | Requires a multi-role seed user; current smoke accounts are single-role |
-| `DELETE /api/notifications/delete-all-read` | Bulk-deletes all read notifications for the demo student, not just smoke-created data |
-| `DELETE /api/teacher/exams/submissions/{submissionId}` | Deletes a submission record that may be needed for grading/history checks |
-| `PUT /api/teacher/exams/submissions/{submissionId}` | Direct submission edit path is lower priority than the supported grading path and should use isolated exam data |
+| `POST /api/auth/change-password` | Verifies password change, old access-token revocation, and password restoration for `isolated_api_smoke` |
+| `POST /api/student/change-password` success path | Verifies the legacy compatibility success envelope and restores the isolated password |
+| `POST /api/auth/logout` success path | Verifies access-token revocation and refresh-token deletion |
+| `POST /api/auth/refresh` success path | Verifies refresh success and one-time-use rejection of the old refresh token |
+| `POST /api/auth/switch-role` success path | Uses the isolated multi-role user to switch `TEACHER -> STUDENT -> TEACHER` and verify old token revocation |
+| `DELETE /api/notifications/delete-all-read` | Creates isolated notifications, marks them read, bulk-deletes only isolated read data, and verifies removal |
+| `PUT /api/teacher/exams/submissions/{submissionId}` | Updates the isolated exam submission directly and verifies persisted score/comment |
+| `DELETE /api/teacher/exams/submissions/{submissionId}` | Deletes the isolated exam submission and verifies it is no longer readable |
+
+## Remaining Manual/Out-Of-Scope Items
+
+No public `/api/**` controller mapping is intentionally left untested solely because it is high-side-effect. `/internal/**` service-to-service endpoints remain outside gateway smoke scope.
 
 ## Verification Policy
 
 - Runtime smoke scripts may create data only when they can clean it up in `finally`.
 - Shared account credentials (`student42`, `teacher7`) must not be permanently changed by automated smoke tests.
 - Compatibility endpoints that deliberately return failure envelopes are counted as covered when the expected status/body contract is asserted.
-- Endpoint claims should be backed by either `verify-gateway-api-smoke.js`, targeted Maven controller tests, or an explicit entry in the isolated-test table above.
+- Endpoint claims should be backed by `verify-gateway-api-smoke.js`, `verify-gateway-isolated-side-effects.js`, targeted Maven controller tests, or an explicit entry in the manual/out-of-scope section above.
