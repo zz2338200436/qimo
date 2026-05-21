@@ -1,7 +1,6 @@
 package com._202510007517.platform.notification.contract;
 
 import com._202510007517.platform.common.event.idempotency.IdempotentEventHandler;
-import com._202510007517.platform.common.event.idempotency.JdbcProcessedEventRepository;
 import com._202510007517.platform.events.EventAggregate;
 import com._202510007517.platform.events.assignment.AssignmentSubmittedEvent;
 import com._202510007517.platform.events.assignment.AssignmentSubmittedPayload;
@@ -9,7 +8,7 @@ import com._202510007517.platform.events.exam.ExamFinishedEvent;
 import com._202510007517.platform.events.exam.ExamFinishedPayload;
 import com._202510007517.platform.events.warning.EarlyWarningRaisedEvent;
 import com._202510007517.platform.events.warning.EarlyWarningRaisedPayload;
-import com._202510007517.platform.notification.repository.JdbcNotificationRepository;
+import com._202510007517.platform.notification.NotificationServiceApplication;
 import com._202510007517.platform.notification.repository.NotificationRepository;
 import com._202510007517.platform.notification.service.AssignmentSubmittedNotificationHandler;
 import com._202510007517.platform.notification.service.EarlyWarningRaisedNotificationHandler;
@@ -19,15 +18,17 @@ import com._202510007517.platform.notification.service.NotificationQueryService;
 import com._202510007517.platform.notification.controller.NotificationController;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import javax.sql.DataSource;
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -37,27 +38,52 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@SpringBootTest(
+        classes = NotificationServiceApplication.class,
+        webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 class NotificationContractIntegrationTest {
 
+    private static final String DATABASE_NAME = "notification-contract-" + UUID.randomUUID();
+
+    @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
+
+    @Autowired
+    private IdempotentEventHandler idempotentEventHandler;
+
     private MockMvc mockMvc;
     private AssignmentSubmittedNotificationHandler assignmentSubmittedHandler;
     private ExamFinishedNotificationHandler examFinishedHandler;
     private EarlyWarningRaisedNotificationHandler earlyWarningRaisedHandler;
 
+    @DynamicPropertySource
+    static void registerProperties(DynamicPropertyRegistry registry) {
+        registry.add("eureka.client.enabled", () -> "false");
+        registry.add("spring.cloud.discovery.enabled", () -> "false");
+        registry.add("spring.cloud.stream.bindings.assignmentSubmittedConsumer-in-0.consumer.auto-startup", () -> "false");
+        registry.add("spring.cloud.stream.bindings.assignmentGradedConsumer-in-0.consumer.auto-startup", () -> "false");
+        registry.add("spring.cloud.stream.bindings.examFinishedConsumer-in-0.consumer.auto-startup", () -> "false");
+        registry.add("spring.cloud.stream.bindings.earlyWarningRaisedConsumer-in-0.consumer.auto-startup", () -> "false");
+        registry.add("spring.cloud.stream.bindings.assignmentSubmittedConsumer-in-0.destination", () -> "disabled.assignment");
+        registry.add("spring.cloud.stream.bindings.assignmentGradedConsumer-in-0.destination", () -> "disabled.assignment.graded");
+        registry.add("spring.cloud.stream.bindings.examFinishedConsumer-in-0.destination", () -> "disabled.exam");
+        registry.add("spring.cloud.stream.bindings.earlyWarningRaisedConsumer-in-0.destination", () -> "disabled.warning");
+        registry.add("spring.datasource.url", () ->
+                "jdbc:h2:mem:" + DATABASE_NAME + ";MODE=MySQL;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1");
+        registry.add("spring.datasource.username", () -> "sa");
+        registry.add("spring.datasource.password", () -> "");
+        registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");
+        registry.add("spring.flyway.enabled", () -> "false");
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");
+    }
+
     @BeforeEach
     void setUp() {
-        DataSource dataSource = new DriverManagerDataSource(
-                "jdbc:h2:mem:notification-contract;MODE=MySQL;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1",
-                "sa",
-                "");
-        jdbcTemplate = new JdbcTemplate(dataSource);
         recreateSchema();
 
-        NotificationRepository notificationRepository = new JdbcNotificationRepository(
-                new NamedParameterJdbcTemplate(dataSource));
-        IdempotentEventHandler idempotentEventHandler = new IdempotentEventHandler(
-                new JdbcProcessedEventRepository(jdbcTemplate));
         NotificationController controller = new NotificationController(
                 new NotificationQueryService(notificationRepository),
                 new NotificationCommandService(notificationRepository));
@@ -268,34 +294,6 @@ class NotificationContractIntegrationTest {
         assertThat(warning.get("related_id")).isEqualTo(7001L);
     }
 
-    private void recreateSchema() {
-        jdbcTemplate.execute("DROP TABLE IF EXISTS processed_event");
-        jdbcTemplate.execute("DROP TABLE IF EXISTS notifications");
-        jdbcTemplate.execute("""
-                CREATE TABLE notifications (
-                    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                    student_id BIGINT NOT NULL,
-                    teacher_id BIGINT NULL,
-                    type VARCHAR(50) NOT NULL,
-                    title VARCHAR(200) NOT NULL,
-                    content TEXT NOT NULL,
-                    related_id BIGINT NULL,
-                    is_read BOOLEAN NOT NULL DEFAULT FALSE,
-                    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
-                )
-                """);
-        jdbcTemplate.execute("""
-                CREATE TABLE processed_event (
-                    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                    event_id VARCHAR(100) NOT NULL,
-                    event_type VARCHAR(100) NOT NULL,
-                    consumer_name VARCHAR(100) NOT NULL,
-                    processed_at TIMESTAMP(6) NOT NULL,
-                    CONSTRAINT uk_processed_event_event_consumer UNIQUE (event_id, consumer_name)
-                )
-                """);
-    }
-
     private Long insertNotification(Long studentId,
                                     Long teacherId,
                                     String type,
@@ -323,5 +321,33 @@ class NotificationContractIntegrationTest {
     private long count(String sql, Object... args) {
         Long value = jdbcTemplate.queryForObject(sql, Long.class, args);
         return value == null ? 0 : value;
+    }
+
+    private void recreateSchema() {
+        jdbcTemplate.execute("DROP TABLE IF EXISTS processed_event");
+        jdbcTemplate.execute("DROP TABLE IF EXISTS notifications");
+        jdbcTemplate.execute("""
+                CREATE TABLE notifications (
+                    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    student_id BIGINT NOT NULL,
+                    teacher_id BIGINT NULL,
+                    type VARCHAR(50) NOT NULL,
+                    title VARCHAR(200) NOT NULL,
+                    content TEXT NOT NULL,
+                    related_id BIGINT NULL,
+                    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+                    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE processed_event (
+                    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    event_id VARCHAR(100) NOT NULL,
+                    event_type VARCHAR(100) NOT NULL,
+                    consumer_name VARCHAR(100) NOT NULL,
+                    processed_at TIMESTAMP(6) NOT NULL,
+                    CONSTRAINT uk_processed_event_event_consumer UNIQUE (event_id, consumer_name)
+                )
+                """);
     }
 }
