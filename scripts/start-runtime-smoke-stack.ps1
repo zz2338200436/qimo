@@ -110,6 +110,8 @@ Start-JarService -Name 'registry-smoke' -JarRelativePath 'registry-server\target
 Start-JarService -Name 'user-smoke' -JarRelativePath 'user-service\target\user-service-0.1.0-SNAPSHOT.jar' -Port 8082 -WaitSeconds 8
 Start-JarService -Name 'auth-smoke' -JarRelativePath 'auth-service\target\auth-service-0.1.0-SNAPSHOT.jar' -Port 8081 -WaitSeconds 8
 Start-JarService -Name 'course-smoke' -JarRelativePath 'course-service\target\course-service-0.1.0-SNAPSHOT.jar' -Port 8083 -WaitSeconds 8
+Start-JarService -Name 'assignment-smoke' -JarRelativePath 'assignment-service\target\assignment-service-0.1.0-SNAPSHOT.jar' -Port 8084 -WaitSeconds 8
+Start-JarService -Name 'analysis-smoke' -JarRelativePath 'analysis-service\target\analysis-service-0.1.0-SNAPSHOT.jar' -Port 8086 -WaitSeconds 10
 Start-JarService -Name 'notification-smoke' -JarRelativePath 'notification-service\target\notification-service-0.1.0-SNAPSHOT.jar' -Port 8087 -WaitSeconds 8
 
 $examEnv = @{}
@@ -117,6 +119,7 @@ if ($EnableExamRelay) {
     $examEnv['PLATFORM_OUTBOX_RELAY_ENABLED'] = 'true'
 }
 Start-JarService -Name 'exam-smoke' -JarRelativePath 'exam-service\target\exam-service-0.1.0-SNAPSHOT.jar' -Port 8085 -WaitSeconds 8 -EnvironmentVariables $examEnv
+Start-JarService -Name 'ai-smoke' -JarRelativePath 'ai-service\target\ai-service-0.1.0-SNAPSHOT.jar' -Port 8088 -WaitSeconds 8
 Start-JarService -Name 'gateway-smoke' -JarRelativePath 'gateway\target\gateway-0.1.0-SNAPSHOT.jar' -Port 8080 -WaitSeconds 10
 
-powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check-local-service-ports.ps1')
+powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check-local-service-ports.ps1') -Ports @(5500, 8080, 8081, 8082, 8083, 8084, 8085, 8086, 8087, 8088, 8761)

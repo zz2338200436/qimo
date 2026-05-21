@@ -985,10 +985,6 @@
             return /403|401|500|Forbidden|权限不足|未授权|服务器内部错误|暂不可用/.test(message);
         }
 
-        function isLegacySessionUnavailable() {
-            return !!sessionStorage.getItem('token') && !document.cookie.includes('JSESSIONID');
-        }
-        
         // 生成预警数据 - 支持分页
         async function generateWarnings(page = 1, filters = {}) {
             try {
@@ -2840,27 +2836,6 @@
             // 加载右上角用户下拉菜单（教师端紫色主题）
             await loadUserDropdownForTeacher('userDropdownContainer');
 
-            if (isLegacySessionUnavailable()) {
-                document.querySelector('.stats-cards').innerHTML = `
-                    <div class="stat-card"><div class="stat-card-header"><h4 class="stat-card-title">总预警数</h4></div><div class="stat-card-body"><p class="stat-card-value">0</p></div></div>
-                    <div class="stat-card"><div class="stat-card-header"><h4 class="stat-card-title">未处理预警</h4></div><div class="stat-card-body"><p class="stat-card-value">0</p></div></div>
-                    <div class="stat-card"><div class="stat-card-header"><h4 class="stat-card-title">处理中预警</h4></div><div class="stat-card-body"><p class="stat-card-value">0</p></div></div>
-                    <div class="stat-card"><div class="stat-card-header"><h4 class="stat-card-title">已解决预警</h4></div><div class="stat-card-body"><p class="stat-card-value">0</p></div></div>
-                `;
-                const warningList = document.querySelector('.warning-list');
-                if (warningList) {
-                    warningList.innerHTML = '<div class="text-center py-4 text-muted">当前本地联调环境未接入预警服务，已显示空结果</div>';
-                }
-                const chartsSection = document.querySelector('.charts-section');
-                if (chartsSection) {
-                    chartsSection.innerHTML = `
-                        <div class="chart-card"><div class="chart-card-header"><h4 class="chart-card-title">预警类型分布</h4></div><div class="chart-card-body d-flex align-items-center justify-content-center text-muted" style="min-height: 320px;">暂无图表数据</div></div>
-                        <div class="chart-card"><div class="chart-card-header"><h4 class="chart-card-title">预警趋势</h4></div><div class="chart-card-body d-flex align-items-center justify-content-center text-muted" style="min-height: 320px;">暂无图表数据</div></div>
-                    `;
-                }
-                return;
-            }
-            
             // 加载班级、课程和学生数据
             await loadClasses();
             await loadCourses();

@@ -11,6 +11,40 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+function Invoke-WithGatewayRetry {
+    param(
+        [scriptblock]$Operation,
+        [int]$MaxAttempts = 5,
+        [int]$DelaySeconds = 2
+    )
+
+    $attempt = 0
+    while ($true) {
+        $attempt++
+        try {
+            return & $Operation
+        } catch {
+            $response = $_.Exception.Response
+            $statusCode = $null
+            if ($response) {
+                try {
+                    $statusCode = [int]$response.StatusCode
+                } catch {
+                    $statusCode = $null
+                }
+            }
+
+            $shouldRetry = $attempt -lt $MaxAttempts -and $statusCode -eq 503
+            if (-not $shouldRetry) {
+                throw
+            }
+
+            Write-Host "Gateway returned 503, retrying in $DelaySeconds second(s)... (attempt $attempt/$MaxAttempts)"
+            Start-Sleep -Seconds $DelaySeconds
+        }
+    }
+}
+
 function Get-RedisCaptchaCode {
     param(
         [string]$ContainerName,
@@ -57,12 +91,14 @@ function New-SessionSnapshot {
 }
 
 Write-Host "Requesting captcha from $BaseUrl/api/auth/captcha ..."
-$webSession = $null
-$captchaResponse = Invoke-WebRequest `
-    -UseBasicParsing `
-    -Uri "$BaseUrl/api/auth/captcha?timestamp=$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())" `
-    -Method GET `
-    -SessionVariable webSession
+$webSession = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
+$captchaResponse = Invoke-WithGatewayRetry {
+    Invoke-WebRequest `
+        -UseBasicParsing `
+        -Uri "$BaseUrl/api/auth/captcha?timestamp=$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())" `
+        -Method GET `
+        -WebSession $webSession
+}
 
 $captchaKey = [string]$captchaResponse.Headers["X-Captcha-Key"]
 if ([string]::IsNullOrWhiteSpace($captchaKey)) {
@@ -80,13 +116,15 @@ $loginBody = @{
     captchaKey = $captchaKey
 } | ConvertTo-Json -Compress
 
-$loginResponse = Invoke-RestMethod `
-    -UseBasicParsing `
-    -Uri "$BaseUrl/api/auth/login" `
-    -Method POST `
-    -ContentType "application/json" `
-    -Body $loginBody `
-    -WebSession $webSession
+$loginResponse = Invoke-WithGatewayRetry {
+    Invoke-RestMethod `
+        -UseBasicParsing `
+        -Uri "$BaseUrl/api/auth/login" `
+        -Method POST `
+        -ContentType "application/json" `
+        -Body $loginBody `
+        -WebSession $webSession
+}
 
 if (-not $loginResponse.success -or -not $loginResponse.data) {
     throw "Login failed: $($loginResponse | ConvertTo-Json -Compress -Depth 10)"

@@ -884,10 +884,6 @@
             return /401|403|未授权|权限不足|Forbidden/.test(message);
         }
 
-        function isLegacySessionUnavailable() {
-            return !!sessionStorage.getItem('token') && !document.cookie.includes('JSESSIONID');
-        }
-        
         // 学生详情模态框HTML
         const studentDetailModalHTML = `
             <div class="modal fade" id="studentDetailModal" tabindex="-1" aria-labelledby="studentDetailModalLabel" aria-hidden="true">
@@ -2367,22 +2363,6 @@
             // 加载右上角用户下拉菜单（教师端紫色主题）
             await loadUserDropdownForTeacher('userDropdownContainer');
 
-            if (isLegacySessionUnavailable()) {
-                const studentCountEl = document.getElementById('studentCount');
-                const avgScoreEl = document.getElementById('avgScore');
-                const completionRateEl = document.getElementById('completionRate');
-                const warningCountEl = document.getElementById('warningCount');
-                if (studentCountEl) studentCountEl.textContent = 0;
-                if (avgScoreEl) avgScoreEl.textContent = '0.0';
-                if (completionRateEl) completionRateEl.textContent = '0%';
-                if (warningCountEl) warningCountEl.textContent = 0;
-                const tbody = document.getElementById('studentTableBody');
-                if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan=\"9\" class=\"text-center text-muted\">当前本地联调环境未接入该分析页面所需服务，已显示空结果</td></tr>';
-                }
-                return;
-            }
-            
             // 初始化班级和课程列表
             await initFilterOptions();
             

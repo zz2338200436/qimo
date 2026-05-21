@@ -2,7 +2,7 @@ package com._202510007517.platform.gateway.web;
 
 import com._202510007517.platform.common.web.CommonTraceConstants;
 import com._202510007517.platform.common.web.ResponseResult;
-import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -11,7 +11,9 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ServerWebExchange;
 
+import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
 
@@ -29,8 +31,8 @@ public class BrowserErrorEdgeController {
     public ResponseResult<Long> reportBrowserError(
             @RequestBody BrowserErrorEdgeStore.BrowserErrorPayload payload,
             @RequestHeader(value = CommonTraceConstants.USER_ID_HEADER, required = false) String userIdHeader,
-            HttpServletRequest request) {
-        enrichPayload(payload, userIdHeader, request);
+            ServerWebExchange exchange) {
+        enrichPayload(payload, userIdHeader, exchange);
         return ResponseResult.success(store.save(payload), "错误日志上报成功", 200);
     }
 
@@ -38,8 +40,8 @@ public class BrowserErrorEdgeController {
     public ResponseResult<Integer> batchReportBrowserErrors(
             @RequestBody List<BrowserErrorEdgeStore.BrowserErrorPayload> payloads,
             @RequestHeader(value = CommonTraceConstants.USER_ID_HEADER, required = false) String userIdHeader,
-            HttpServletRequest request) {
-        payloads.forEach(payload -> enrichPayload(payload, userIdHeader, request));
+            ServerWebExchange exchange) {
+        payloads.forEach(payload -> enrichPayload(payload, userIdHeader, exchange));
         return ResponseResult.success(store.batchSave(payloads), "错误日志批量上报成功", 200);
     }
 
@@ -70,24 +72,29 @@ public class BrowserErrorEdgeController {
 
     private static void enrichPayload(BrowserErrorEdgeStore.BrowserErrorPayload payload,
                                       String userIdHeader,
-                                      HttpServletRequest request) {
-        payload.setClientIp(resolveClientIp(request));
-        payload.setSessionId(request.getSession(true).getId());
+                                      ServerWebExchange exchange) {
+        payload.setClientIp(resolveClientIp(exchange.getRequest()));
+        payload.setSessionId(exchange.getRequest().getId());
         if (userIdHeader != null && !userIdHeader.isBlank()) {
             payload.setUserId(Long.valueOf(userIdHeader));
         }
     }
 
-    private static String resolveClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
+    private static String resolveClientIp(ServerHttpRequest request) {
+        String ip = request.getHeaders().getFirst("X-Forwarded-For");
         if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("Proxy-Client-IP");
+            ip = request.getHeaders().getFirst("Proxy-Client-IP");
         }
         if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("WL-Proxy-Client-IP");
+            ip = request.getHeaders().getFirst("WL-Proxy-Client-IP");
         }
         if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
+            InetSocketAddress remoteAddress = request.getRemoteAddress();
+            if (remoteAddress != null && remoteAddress.getAddress() != null) {
+                ip = remoteAddress.getAddress().getHostAddress();
+            } else if (remoteAddress != null) {
+                ip = remoteAddress.getHostString();
+            }
         }
         return ip;
     }

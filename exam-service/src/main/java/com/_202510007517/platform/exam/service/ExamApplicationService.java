@@ -220,6 +220,7 @@ public class ExamApplicationService {
         return List.copyOf(ids);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public ExamRecord createTeacherExam(Long teacherId, TeacherExamUpsertRequestDTO request) {
         validateTeacherCourseOwnership(teacherId, request.getCourseId());
         ExamRecord draft = toExamRecord(teacherId, request);
@@ -229,6 +230,7 @@ public class ExamApplicationService {
         return created;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public ExamRecord updateTeacherExam(Long teacherId, Long examId, TeacherExamUpsertRequestDTO request) {
         ExamRecord existing = examRepository.findExam(examId)
                 .orElseThrow(() -> new IllegalArgumentException("考试不存在"));
@@ -244,6 +246,7 @@ public class ExamApplicationService {
         return examRepository.findExam(examId).orElseThrow();
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public void deleteTeacherExam(Long teacherId, Long examId) {
         ExamRecord existing = examRepository.findExam(examId)
                 .orElseThrow(() -> new IllegalArgumentException("考试不存在"));
@@ -303,6 +306,7 @@ public class ExamApplicationService {
         return submission;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public ExamSubmissionRecord updateTeacherExamSubmission(Long teacherId,
                                                             Long submissionId,
                                                             ExamSubmissionRecord request) {
@@ -331,6 +335,7 @@ public class ExamApplicationService {
         return examRepository.findSubmissionById(submissionId).orElseThrow();
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public void deleteTeacherExamSubmission(Long teacherId, Long submissionId) {
         ExamSubmissionRecord submission = examRepository.findSubmissionById(submissionId)
                 .orElseThrow(() -> new IllegalArgumentException("考试提交记录不存在"));

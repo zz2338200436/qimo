@@ -2796,11 +2796,6 @@
                 return;
             }
 
-            if (typeof isLegacySessionUnavailable === 'function' && isLegacySessionUnavailable()) {
-                selectElement.innerHTML = '<option value="" disabled>当前 JWT 微服务环境暂未提供知识点接口</option>';
-                return;
-            }
-            
             try {
                 console.log('加载课程知识点，课程ID:', courseId);
                 const response = await fetch(`/api/teacher/knowledge-points/course/${courseId}`, {

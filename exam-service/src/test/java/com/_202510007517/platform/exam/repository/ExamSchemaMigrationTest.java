@@ -25,4 +25,19 @@ class ExamSchemaMigrationTest {
                 .contains("knowledge_point_id")
                 .contains("sort_order");
     }
+
+    @Test
+    void v21MigrationBackfillsQuestionAndKnowledgePointTablesForBaselinedDatabases() throws Exception {
+        ClassPathResource migration = new ClassPathResource(
+                "db/migration/V21__backfill_exam_questions_and_knowledge_points.sql");
+
+        assertThat(migration.exists()).isTrue();
+        String sql = new String(migration.getInputStream().readAllBytes(), StandardCharsets.UTF_8)
+                .toLowerCase(Locale.ROOT);
+
+        assertThat(sql)
+                .contains("create table if not exists exam_knowledge_points")
+                .contains("create table if not exists exam_questions")
+                .contains("idx_exam_questions_exam_order");
+    }
 }
