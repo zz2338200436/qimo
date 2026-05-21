@@ -19,7 +19,7 @@ The current Spring Cloud side exposes 135 unique public `/api/**` controller map
 | AI | `ai-service` |
 | Gateway edge | `gateway` browser error endpoints |
 
-`/internal/**` endpoints are intentionally excluded from gateway smoke coverage because they are service-to-service Feign/internal maintenance APIs.
+`/internal/**` endpoints are intentionally excluded from gateway smoke coverage because they are service-to-service Feign/internal maintenance APIs. They are covered by targeted controller contract tests instead.
 
 ## Automated Runtime Coverage
 
@@ -66,9 +66,26 @@ node .\scripts\verify-gateway-isolated-side-effects.js
 | `PUT /api/teacher/exams/submissions/{submissionId}` | Updates the isolated exam submission directly and verifies persisted score/comment |
 | `DELETE /api/teacher/exams/submissions/{submissionId}` | Deletes the isolated exam submission and verifies it is no longer readable |
 
+## Internal API Contract Coverage
+
+Internal service-to-service endpoints are verified with focused MockMvc/WebMvc controller tests rather than gateway runtime smoke tests:
+
+```powershell
+mvn --% -pl assignment-service,auth-service,course-service,exam-service,user-service -am -Dtest=AssignmentInternalControllerTest,AssignmentInternalOutboxControllerTest,AuthInternalControllerTest,CourseInternalControllerTest,ExamInternalControllerTest,UserInternalControllerTest -Dsurefire.failIfNoSpecifiedTests=false test
+```
+
+| Module | Internal endpoints covered |
+| --- | --- |
+| `assignment-service` | Assignment detail, course assignment list, knowledge point IDs, student assignment list/detail/submissions/scores, submission create |
+| `assignment-service` outbox | Outbox status and relay trigger |
+| `auth-service` | Context lookup, token introspection success/failure, revoke by user, change password by user |
+| `course-service` | Course list/detail/create/update/delete, course students, student class IDs, teacher classes CRUD, course assignments CRUD, class-course unassign, majors |
+| `exam-service` | Teacher exam detail and exam knowledge point IDs |
+| `user-service` | Profile get/update, username lookup, roles, roles detail, student profile get/update, batch lookup by IDs |
+
 ## Remaining Manual/Out-Of-Scope Items
 
-No public `/api/**` controller mapping is intentionally left untested solely because it is high-side-effect. `/internal/**` service-to-service endpoints remain outside gateway smoke scope.
+No public `/api/**` controller mapping is intentionally left untested solely because it is high-side-effect. `/internal/**` service-to-service endpoints remain outside gateway smoke scope by design and are covered by the internal API contract tests above.
 
 ## Verification Policy
 
