@@ -26,7 +26,8 @@ public class ExamSubmissionServiceImpl implements ExamSubmissionService {
     
     @Override
     public ExamSubmission submitExam(Long examId, Long studentId, Integer timeTaken, Map<String, String> answers) {
-        ExamSubmission submission = new ExamSubmission();
+        ExamSubmission existingSubmission = submissionMapper.findByExamAndStudent(examId, studentId);
+        ExamSubmission submission = existingSubmission != null ? existingSubmission : new ExamSubmission();
         submission.setExamId(examId);
         submission.setStudentId(studentId);
         submission.setSubmissionDate(new Date());
@@ -47,7 +48,12 @@ public class ExamSubmissionServiceImpl implements ExamSubmissionService {
             }
         }
         
-        int result = submissionMapper.insertSubmission(submission);
+        int result;
+        if (existingSubmission != null) {
+            result = submissionMapper.fullUpdateSubmission(submission);
+        } else {
+            result = submissionMapper.insertSubmission(submission);
+        }
         
         if (result > 0) {
             return submission;

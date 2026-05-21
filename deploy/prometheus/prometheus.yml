@@ -1,0 +1,48 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - alerts/platform-alerts.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - prometheus:9090
+
+  - job_name: qimo-services
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - host.docker.internal:8761
+        labels:
+          service: registry-server
+          env: dev
+      - targets:
+          - host.docker.internal:8080
+        labels:
+          service: gateway
+          env: dev
+      - targets:
+          - host.docker.internal:8081
+        labels:
+          service: auth-service
+          env: dev
+      - targets:
+          - host.docker.internal:8082
+        labels:
+          service: user-service
+          env: dev
+
+  - job_name: loki
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - loki:3100
+
+  - job_name: tempo
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - tempo:3200

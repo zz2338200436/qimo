@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能后台学习辅助系统 - 我的课程</title>
+    <!-- Bootstrap 5 CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome CDN -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- ECharts CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <!-- 全局样式文件 -->
+    <link href="styles.css" rel="stylesheet">
+    <!-- API服务文件 -->
+    <script src="api.js"></script>
+</head>
+<body>
+<!-- 侧边栏导航组件 -->
+<div id="sidebar-container"></div>
+<script>
+    $(function() {
+        $('#sidebar-container').load('components/sidebar-nav.html', function() {
+            highlightActiveNavItem();
+        });
+    });
+</script>
+
+<!-- 主内容区 -->
+<main class="main-content" id="mainContent">
+    <!-- 顶部导航栏 -->
+    <header class="top-navbar">
+        <div class="navbar-left">
+            <button class="toggle-btn" id="toggleSidebar" aria-label="切换侧边栏">
+                <i class="fas fa-bars"></i>
+            </button>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="student-dashboard.html">首页</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">我的课程</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="navbar-right">
+            <!-- 用户下拉菜单组件 -->
+            <div id="userDropdownContainer"></div>
+        </div>
+    </header>
+
+    <!-- 内容容器 -->
+    <div class="content-container">
+        <!-- 加载状态指示器 -->
+        <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+            <div class="loading-spinner"></div>
+            <p>数据加载中...</p>
+        </div>
+        
+        <!-- 页面标题和搜索 -->
+        <div class="page-header">
+            <h1 class="page-title">我的课程</h1>
+            <div class="search-bar">
+                <input type="text" id="courseSearch" placeholder="搜索课程名称或教师" class="search-input">
+                <button id="searchBtn" class="search-btn">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- 筛选条件 -->
+        <div class="filter-section">
+            <div class="filter-item">
+                <label for="courseCategory">课程类别</label>
+                <select id="courseCategory" class="filter-select">
+                    <option value="">全部类别</option>
+                    <option value="公共课">公共课</option>
+                    <option value="专业课">专业课</option>
+                    <option value="选修课">选修课</option>
+                    <option value="必修">必修</option>
+                </select>
+            </div>
+            <div class="filter-item">
+                <label for="courseStatus">课程状态</label>
+                <select id="courseStatus" class="filter-select">
+                    <option value="">全部状态</option>
+                    <option value="进行中">进行中</option>
+                    <option value="已结束">已结束</option>
+                    <option value="未开始">未开始</option>
+                </select>
+            </div>
+            <div class="filter-item">
+                <button id="resetFilter" class="reset-btn">
+                    <i class="fas fa-refresh"></i> 重置筛选
+                </button>
+            </div>
+        </div>
+        
+        <!-- 课程列表 -->
+        <div class="courses-section">
+            <h2 class="section-title">课程列表</h2>
+            <div class="courses-grid" id="coursesGrid">
+                <!-- 课程卡片将通过JavaScript动态生成 -->
+            </div>
+        </div>
+        
+        <!-- 分页（与教师端统一样式） -->
+        <nav aria-label="课程分页" class="pagination-container">
+            <ul class="pagination" id="coursePagination">
+                <!-- 分页按钮将通过JavaScript动态生成 -->
+            </ul>
+        </nav>
+    </div>
+</main>
+
+<!-- 消息容器 -->
+<div id="messageContainer"></div>
+
+<!-- JavaScript代码 -->
+<script>
+    // 高亮当前导航项
+    function highlightActiveNavItem() {
+        // 获取当前页面URL
+        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+        
+        // 移除所有导航项的active类
+        document.querySelectorAll('.menu-item').forEach(link => {
+            link.classList.remove('active');
+        });
+        
+        // 高亮当前页面的导航项
+        const activeLink = document.querySelector(`.menu-item[href="${currentPage}"]`);
+        if (activeLink) {
+            activeLink.classList.add('active');
+        }
+    }
+    
+    // 侧边栏折叠/展开功能
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        
+        if (sidebar) {
+            sidebar.classList.toggle('collapsed');
+            
+            // 保存状态到localStorage
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            localStorage.setItem('sidebarCollapsed', isCollapsed);
+            
+            // 同时调整主内容区的margin-left
+            if (mainContent) {
+                if (isCollapsed) {
+                    mainContent.classList.add('collapsed');
+                } else {
+                    mainContent.classList.remove('collapsed');
+                }
+            }
+        }
+    }
+    
+    // 初始化侧边栏状态
+    function initializeSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        
+        // 从localStorage获取侧边栏状态
+        const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+        
+        if (sidebar && mainContent) {
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('collapsed');
+            } else {
+                sidebar.classList.remove('collapsed');
+                mainContent.classList.remove('collapsed');
+            }
+        }
+    }
+    
+    // 页面加载完成后执行
+    document.addEventListener('DOMContentLoaded', function() {
+        checkLoginStatus();
+        if (window.isJwtOnlyStudentSession && window.isJwtOnlyStudentSession()) {
+            showMessage('检测到当前为 JWT 微服务登录环境，课程列表将直接使用已接通的学生课程接口。', 'success');
+        }
+        
+        // 初始化侧边栏状态
+        setTimeout(initializeSidebar, 100); // 延迟执行，确保侧边栏已经加载
+        
+        // 侧边栏切换按钮事件监听
+        const toggleSidebarBtn = document.getElementById('toggleSidebar');
+        if (toggleSidebarBtn) {
+            toggleSidebarBtn.addEventListener('click', toggleSidebar);
+        }
+        
+        // 初始化课程列表
+        loadCourses();
+        
+        // 搜索和筛选事件监听
+        // 注意：不要直接把 loadCourses 作为事件回调，否则事件对象会被当作 page 参数传给后端
+        document.getElementById('searchBtn').addEventListener('click', function () {
+            loadCourses();
+        });
+        document.getElementById('courseSearch').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loadCourses();
+            }
+        });
+        document.getElementById('courseCategory').addEventListener('change', function () {
+            loadCourses();
+        });
+        document.getElementById('courseStatus').addEventListener('change', function () {
+            loadCourses();
+        });
+        document.getElementById('resetFilter').addEventListener('click', resetFilters);
+    });
+
+    // 检查登录状态
+    function checkLoginStatus() {
+        const sessionContext = window.getStudentSessionContext ? window.getStudentSessionContext() : null;
+        const user = sessionStorage.getItem('user');
+        if (!user && !(sessionContext && sessionContext.canRender)) {
+            window.location.href = 'student-login.html';
+            return;
+        }
+
+        // 加载用户下拉菜单组件
+        $('#userDropdownContainer').load('components/user-dropdown.html', function(response, status, xhr) {
+            if (status == 'error') {
+                console.error('加载用户下拉组件失败:', xhr.status, xhr.statusText);
+            } else {
+                // 组件加载成功后初始化
+                if (typeof UserDropdown !== 'undefined') {
+                    new UserDropdown('userDropdownContainer');
+                }
+            }
+        });
+    }
+    
+    // 重置筛选条件
+    function resetFilters() {
+        document.getElementById('courseSearch').value = '';
+        document.getElementById('courseCategory').value = '';
+        document.getElementById('courseStatus').value = '';
+        loadCourses();
+    }
+    
+    // 加载课程列表（优化版：添加骨架屏）
+    async function loadCourses(page = 1, size = 8) {
+        const coursesGrid = document.getElementById('coursesGrid');
+        if (!coursesGrid) return;
+        
+        try {
+            showLoading();
+            
+            // 显示骨架屏
+            coursesGrid.innerHTML = '';
+            const skeletonFragment = createSkeletonCards(size);
+            coursesGrid.appendChild(skeletonFragment);
+            
+            const sessionContext = window.getStudentSessionContext ? window.getStudentSessionContext() : null;
+            const userStr = sessionStorage.getItem('user');
+            if (!userStr && !(sessionContext && sessionContext.canRender)) {
+                throw new Error('用户未登录');
+            }
+            
+            // 初始化API服务
+            const apiService = new APIService();
+            const studentAPI = new StudentAPI(apiService);
+            
+            // 获取搜索和筛选条件
+            const searchQuery = document.getElementById('courseSearch').value.trim();
+            const category = document.getElementById('courseCategory').value;
+            const status = document.getElementById('courseStatus').value;
+            
+            // 构建查询参数
+            const params = {
+                page: page, // API使用1-based页码
+                size: size,
+                courseStatus: status || undefined,
+                courseCategory: category || undefined,
+                searchQuery: searchQuery || undefined
+            };
+            
+            // 调用API获取课程列表
+            const response = await studentAPI.getStudentCourses(params);
+            console.log('API响应:', response);
+            
+            if (response && response.success && response.data) {
+                const coursesData = response.data;
+                const courses = coursesData.content || coursesData || [];
+                const totalPages = coursesData.totalPages || 1;
+                
+                // 更新课程列表
+                updateCoursesList(courses);
+                
+                // 更新分页
+                updatePagination(page, totalPages);
+            } else {
+                // API调用失败，显示错误信息
+                updateCoursesList([]);
+                updatePagination(1, 1);
+                showMessage('获取课程列表失败', 'error');
+            }
+        } catch (error) {
+            console.error('加载课程列表失败:', error);
+            // 显示空课程列表和错误信息
+            updateCoursesList([]);
+            updatePagination(1, 1);
+            showMessage('加载课程列表失败: ' + error.message, 'error');
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    // 更新课程列表（优化版：使用DocumentFragment）
+    function updateCoursesList(courses) {
+        const coursesGrid = document.getElementById('coursesGrid');
+        if (!coursesGrid) return;
+        
+        // 清空现有内容
+        coursesGrid.innerHTML = '';
+        
+        if (courses.length === 0) {
+            const noCourses = document.createElement('div');
+            noCourses.className = 'no-courses';
+            noCourses.innerHTML = `
+                <i class="fas fa-search fa-3x" aria-hidden="true"></i>
+                <p>未找到匹配的课程</p>
+            `;
+            coursesGrid.appendChild(noCourses);
+            return;
+        }
+        
+        // 使用DocumentFragment批量添加，提升性能
+        const fragment = document.createDocumentFragment();
+        courses.forEach(course => {
+            const card = createCourseCard(course);
+            fragment.appendChild(card);
+        });
+        coursesGrid.appendChild(fragment);
+    }
+    
+    // ==================== 工具函数 ====================
+    
+    // XSS防护：转义HTML特殊字符
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // 截断文本
+    function truncateText(text, maxLength = 100) {
+        if (!text) return '暂无课程描述';
+        if (text.length <= maxLength) return escapeHtml(text);
+        return escapeHtml(text.substring(0, maxLength)) + '...';
+    }
+    
+    // 格式化日期（优化版：支持相对时间）
+    function formatDate(dateStr) {
+        if (!dateStr) return '暂无';
+        
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return '暂无';
+        
+        const now = new Date();
+        const diff = date - now;
+        const days = Math.floor(Math.abs(diff) / (1000 * 60 * 60 * 24));
+        const hours = Math.floor(Math.abs(diff) / (1000 * 60 * 60));
+        
+        // 相对时间显示
+        if (diff > 0) {
+            // 未来时间
+            if (days > 0) {
+                return `${days}天后开始`;
+            } else if (hours > 0) {
+                return `${hours}小时后开始`;
+            } else {
+                return '即将开始';
+            }
+        } else {
+            // 过去时间
+            if (days > 0) {
+                return `${days}天前`;
+            } else if (hours > 0) {
+                return `${hours}小时前`;
+            } else {
+                return '刚刚';
+            }
+        }
+    }
+    
+    // 格式化完整日期时间
+    function formatFullDate(dateStr) {
+        if (!dateStr) return '暂无';
+        
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return '暂无';
+        
+        return date.toLocaleDateString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+    
+    // 创建课程卡片元素（使用DocumentFragment优化）
+    function createCourseCard(course) {
+        const article = document.createElement('article');
+        article.className = 'course-card';
+        article.setAttribute('role', 'article');
+        article.setAttribute('aria-labelledby', `course-title-${course.id}`);
+        article.setAttribute('data-course-id', course.id);
+        
+        const description = course.description || '暂无课程描述';
+        const descriptionFull = escapeHtml(description);
+        const descriptionTruncated = truncateText(description, 100);
+        const needsExpand = description.length > 100;
+        
+        article.innerHTML = `
+            <div class="course-header">
+                <div class="course-info">
+                    <h3 class="course-name" id="course-title-${course.id}">${escapeHtml(course.courseName || '未命名课程')}</h3>
+                    <div class="course-meta">
+                        <span class="course-code">${escapeHtml(course.courseCode || '')}</span>
+                        <span class="course-teacher">
+                            <i class="fas fa-user"></i>
+                            ${escapeHtml(course.teacherName || '未知教师')}
+                        </span>
+                    </div>
+                </div>
+                <div class="course-status-badge" data-status="${escapeHtml(course.courseStatus || '')}" 
+                     aria-label="课程状态：${escapeHtml(course.courseStatus || '')}">
+                    ${escapeHtml(course.courseStatus || '')}
+                </div>
+            </div>
+            
+            <div class="course-description">
+                <p class="description-text ${needsExpand ? '' : 'no-expand'}" 
+                   data-full-text="${descriptionFull}"
+                   data-expanded="false">
+                    ${descriptionTruncated}
+                </p>
+                ${needsExpand ? `
+                    <button class="toggle-description-btn" aria-label="展开课程描述">
+                        <span class="expand-text">展开</span>
+                        <span class="collapse-text" style="display: none;">收起</span>
+                        <i class="fas fa-chevron-down expand-icon"></i>
+                        <i class="fas fa-chevron-up collapse-icon" style="display: none;"></i>
+                    </button>
+                ` : ''}
+            </div>
+            
+            <div class="course-details-collapsible">
+                <button class="toggle-details-btn" aria-expanded="false" aria-controls="details-${course.id}">
+                    <i class="fas fa-chevron-down"></i>
+                    <span>查看详情</span>
+                </button>
+                <div class="details-content" id="details-${course.id}" style="display: none;">
+                    <div class="course-details-grid">
+                        <div class="detail-item">
+                            <i class="fas fa-bookmark" aria-hidden="true"></i>
+                            <span>类别：<strong>${escapeHtml(course.courseCategory || '暂无')}</strong></span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-credit-card" aria-hidden="true"></i>
+                            <span>学分：<strong>${escapeHtml(course.credit || '0')}</strong></span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-clock" aria-hidden="true"></i>
+                            <span>总学时：<strong>${escapeHtml(course.totalHours || '0')}小时</strong></span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-calendar" aria-hidden="true"></i>
+                            <span>学期：<strong>${escapeHtml(course.semester || '暂无')}</strong></span>
+                        </div>
+                    </div>
+                    
+                    <div class="course-timeframe">
+                        <div class="timeframe-item">
+                            <span class="timeframe-label">
+                                <i class="fas fa-play-circle" aria-hidden="true"></i>
+                                开始时间：
+                            </span>
+                            <time class="timeframe-value" datetime="${course.startDate || ''}">
+                                ${formatFullDate(course.startDate)}
+                            </time>
+                            <span class="timeframe-relative">${formatDate(course.startDate)}</span>
+                        </div>
+                        <div class="timeframe-item">
+                            <span class="timeframe-label">
+                                <i class="fas fa-stop-circle" aria-hidden="true"></i>
+                                结束时间：
+                            </span>
+                            <time class="timeframe-value" datetime="${course.endDate || ''}">
+                                ${formatFullDate(course.endDate)}
+                            </time>
+                            <span class="timeframe-relative">${formatDate(course.endDate)}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="course-actions" role="group" aria-label="课程操作">
+                <button class="btn-primary" onclick="viewCourseDetail(${course.id})" 
+                        aria-label="查看课程 ${escapeHtml(course.courseName || '')} 的详情"
+                        type="button">
+                    <i class="fas fa-eye" aria-hidden="true"></i>
+                    <span>查看详情</span>
+                </button>
+                <button class="btn-secondary" onclick="continueLearning(${course.id})"
+                        aria-label="继续学习课程 ${escapeHtml(course.courseName || '')}"
+                        type="button">
+                    <i class="fas fa-play-circle" aria-hidden="true"></i>
+                    <span>继续学习</span>
+                </button>
+            </div>
+        `;
+        
+        // 绑定描述展开/收起事件
+        if (needsExpand) {
+            const toggleBtn = article.querySelector('.toggle-description-btn');
+            const descText = article.querySelector('.description-text');
+            const expandText = article.querySelector('.expand-text');
+            const collapseText = article.querySelector('.collapse-text');
+            const expandIcon = article.querySelector('.expand-icon');
+            const collapseIcon = article.querySelector('.collapse-icon');
+            
+            toggleBtn.addEventListener('click', function() {
+                const isExpanded = descText.getAttribute('data-expanded') === 'true';
+                
+                if (isExpanded) {
+                    descText.textContent = descriptionTruncated;
+                    descText.setAttribute('data-expanded', 'false');
+                    descText.classList.remove('expanded');
+                    expandText.style.display = 'inline';
+                    collapseText.style.display = 'none';
+                    expandIcon.style.display = 'inline-block';
+                    collapseIcon.style.display = 'none';
+                } else {
+                    descText.textContent = descriptionFull;
+                    descText.setAttribute('data-expanded', 'true');
+                    descText.classList.add('expanded');
+                    expandText.style.display = 'none';
+                    collapseText.style.display = 'inline';
+                    expandIcon.style.display = 'none';
+                    collapseIcon.style.display = 'inline-block';
+                }
+            });
+        }
+        
+        // 绑定详情展开/收起事件
+        const toggleDetailsBtn = article.querySelector('.toggle-details-btn');
+        const detailsContent = article.querySelector('.details-content');
+        const toggleIcon = toggleDetailsBtn.querySelector('i');
+        
+        toggleDetailsBtn.addEventListener('click', function() {
+            const isExpanded = toggleDetailsBtn.getAttribute('aria-expanded') === 'true';
+            
+            if (isExpanded) {
+                detailsContent.style.display = 'none';
+                toggleDetailsBtn.setAttribute('aria-expanded', 'false');
+                toggleIcon.classList.remove('fa-chevron-up');
+                toggleIcon.classList.add('fa-chevron-down');
+                toggleDetailsBtn.querySelector('span').textContent = '查看详情';
+            } else {
+                detailsContent.style.display = 'block';
+                toggleDetailsBtn.setAttribute('aria-expanded', 'true');
+                toggleIcon.classList.remove('fa-chevron-down');
+                toggleIcon.classList.add('fa-chevron-up');
+                toggleDetailsBtn.querySelector('span').textContent = '收起详情';
+            }
+        });
+        
+        return article;
+    }
+    
+    // 创建骨架屏
+    function createSkeletonCards(count = 8) {
+        const fragment = document.createDocumentFragment();
+        
+        for (let i = 0; i < count; i++) {
+            const skeleton = document.createElement('div');
+            skeleton.className = 'course-card-skeleton';
+            skeleton.innerHTML = `
+                <div class="skeleton-header">
+                    <div class="skeleton-line" style="width: 60%; height: 20px; margin-bottom: 12px;"></div>
+                    <div class="skeleton-line" style="width: 40%; height: 16px;"></div>
+                </div>
+                <div class="skeleton-body">
+                    <div class="skeleton-line" style="width: 100%; height: 16px; margin-bottom: 8px;"></div>
+                    <div class="skeleton-line" style="width: 90%; height: 16px; margin-bottom: 8px;"></div>
+                    <div class="skeleton-line" style="width: 70%; height: 16px;"></div>
+                </div>
+                <div class="skeleton-footer">
+                    <div class="skeleton-line" style="width: 30%; height: 40px; margin-top: 20px;"></div>
+                </div>
+            `;
+            fragment.appendChild(skeleton);
+        }
+        
+        return fragment;
+    }
+    
+    // 查看课程详情
+    async function viewCourseDetail(courseId) {
+        try {
+            const apiService = new APIService();
+            const studentAPI = new StudentAPI(apiService);
+            
+            const response = await studentAPI.getCourseDetail(courseId);
+            
+            if (response && response.success && response.data) {
+                // 这里可以显示课程详情弹窗或跳转到详情页
+                console.log('课程详情:', response.data);
+                showMessage('获取课程详情成功', 'success');
+                // 例如：显示一个模态框展示详情
+                showCourseDetailModal(response.data);
+            } else {
+                showMessage('获取课程详情失败', 'error');
+            }
+        } catch (error) {
+            console.error('获取课程详情失败:', error);
+            showMessage('获取课程详情失败', 'error');
+        }
+    }
+    
+    // 继续学习
+    function continueLearning(courseId) {
+        // 跳转到课程学习页面或开始学习
+        console.log('继续学习课程:', courseId);
+        showMessage('进入课程学习页面', 'info');
+        // 这里可以添加跳转到学习页面的逻辑
+    }
+    
+    // 显示课程详情模态框
+    function showCourseDetailModal(course) {
+        // 创建并显示模态框
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>${course.courseName}</h3>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="detail-section">
+                        <h4>基本信息</h4>
+                        <p><strong>课程代码：</strong>${course.courseCode}</p>
+                        <p><strong>教师：</strong>${course.teacherName}</p>
+                        <p><strong>学分：</strong>${course.credit}</p>
+                        <p><strong>类别：</strong>${course.courseCategory}</p>
+                        <p><strong>总学时：</strong>${course.totalHours}小时</p>
+                        <p><strong>学期：</strong>${course.semester}</p>
+                        <p><strong>状态：</strong>${course.courseStatus}</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>课程描述</h4>
+                        <p>${course.description}</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>时间安排</h4>
+                        <p><strong>开始时间：</strong>${formatDate(course.startDate)}</p>
+                        <p><strong>结束时间：</strong>${formatDate(course.endDate)}</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="this.closest('.modal-overlay').remove()">关闭</button>
+                    <button class="btn-primary" onclick="continueLearning(${course.id}); this.closest('.modal-overlay').remove()">继续学习</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    // 初始化分页点击事件（与教师端分页交互保持一致）
+    document.addEventListener('DOMContentLoaded', function() {
+        const pagination = document.getElementById('coursePagination');
+        if (pagination) {
+            pagination.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = e.target.closest('.page-link');
+                if (!target) return;
+                
+                const pageType = target.getAttribute('data-page');
+                if (!pageType) return;
+                
+                const paginationEl = target.closest('.pagination');
+                if (!paginationEl) return;
+                
+                const totalPages = parseInt(paginationEl.dataset.totalPages || '1', 10);
+                const activeLink = paginationEl.querySelector('.page-link.active[data-page]');
+                const currentPage = activeLink ? parseInt(activeLink.getAttribute('data-page'), 10) : 1;
+                
+                let newPage = currentPage;
+                if (pageType === 'prev') {
+                    newPage = Math.max(1, currentPage - 1);
+                } else if (pageType === 'next') {
+                    newPage = Math.min(totalPages, currentPage + 1);
+                } else {
+                    newPage = parseInt(pageType, 10);
+                }
+                
+                if (!Number.isFinite(newPage) || newPage === currentPage) {
+                    return;
+                }
+                
+                loadCourses(newPage);
+            });
+        }
+    });
+    
+    // 更新分页（以 teacher-student-dashboard 为标准的结构和交互）
+    function updatePagination(currentPage, totalPages) {
+        const pagination = document.getElementById('coursePagination');
+        if (!pagination) return;
+        
+        // 无需分页时清空并返回
+        pagination.innerHTML = '';
+        if (!totalPages || totalPages <= 1) {
+            return;
+        }
+        
+        // 记录总页数，供点击事件使用
+        pagination.dataset.totalPages = String(totalPages);
+        
+        // 上一页按钮
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `
+            <a class="page-link" data-page="prev" href="javascript:void(0);">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+        `;
+        pagination.appendChild(prevLi);
+        
+        // 计算需要显示的页码范围（参考 teacher-student-dashboard 的智能分页）
+        let startPage = 1;
+        let endPage = totalPages;
+        
+        if (totalPages > 10) {
+            startPage = Math.max(1, currentPage - 4);
+            endPage = Math.min(totalPages, currentPage + 5);
+            
+            if (endPage - startPage + 1 < 10) {
+                if (startPage === 1) {
+                    endPage = Math.min(totalPages, startPage + 9);
+                } else if (endPage === totalPages) {
+                    startPage = Math.max(1, endPage - 9);
+                }
+            }
+        }
+        
+        // 首页和前置省略号
+        if (startPage > 1) {
+            const firstLi = document.createElement('li');
+            firstLi.className = 'page-item';
+            firstLi.innerHTML = `
+                <a class="page-link" data-page="1" href="javascript:void(0);">1</a>
+            `;
+            pagination.appendChild(firstLi);
+            
+            if (startPage > 2) {
+                const ellipsisLi = document.createElement('li');
+                ellipsisLi.className = 'page-item disabled';
+                ellipsisLi.innerHTML = `
+                    <span class="page-link">...</span>
+                `;
+                pagination.appendChild(ellipsisLi);
+            }
+        }
+        
+        // 中间页码
+        for (let i = startPage; i <= endPage; i++) {
+            const li = document.createElement('li');
+            li.className = 'page-item';
+            li.innerHTML = `
+                <a class="page-link ${i === currentPage ? 'active' : ''}" data-page="${i}" href="javascript:void(0);">${i}</a>
+            `;
+            pagination.appendChild(li);
+        }
+        
+        // 末页和后置省略号
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                const ellipsisLi = document.createElement('li');
+                ellipsisLi.className = 'page-item disabled';
+                ellipsisLi.innerHTML = `
+                    <span class="page-link">...</span>
+                `;
+                pagination.appendChild(ellipsisLi);
+            }
+            
+            const lastLi = document.createElement('li');
+            lastLi.className = 'page-item';
+            lastLi.innerHTML = `
+                <a class="page-link ${currentPage === totalPages ? 'active' : ''}" data-page="${totalPages}" href="javascript:void(0);">${totalPages}</a>
+            `;
+            pagination.appendChild(lastLi);
+        }
+        
+        // 下一页按钮
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `
+            <a class="page-link" data-page="next" href="javascript:void(0);">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        `;
+        pagination.appendChild(nextLi);
+    }
+    
+    // 显示加载状态
+    function showLoading() {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'flex';
+        }
+    }
+    
+    // 隐藏加载状态
+    function hideLoading() {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+        }
+    }
+    
+    // 显示消息
+    function showMessage(text, type = 'success') {
+        const messageContainer = document.getElementById('messageContainer');
+        
+        const message = document.createElement('div');
+        message.className = `message message-${type}`;
+        message.innerHTML = `
+            <span class="message-text">${text}</span>
+            <button class="message-close" onclick="this.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        
+        messageContainer.appendChild(message);
+        
+        // 3秒后自动移除
+        setTimeout(() => {
+            if (message.parentNode) {
+                message.remove();
+            }
+        }, 3000);
+    }
+</script>
+</body>
+</html>

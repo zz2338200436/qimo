@@ -1,0 +1,6 @@
+apiVersion: v2
+name: platform-infra
+description: Infrastructure chart for Eureka, Prometheus, Loki, Tempo, RabbitMQ and shared data stores.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

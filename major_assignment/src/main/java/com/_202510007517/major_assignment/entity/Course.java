@@ -28,7 +28,6 @@ public class Course {
     @Max(value = 200, message = "总学时不能大于200")
     private Integer totalHours;
     
-    @NotNull(message = "教师ID不能为空")
     private Long teacherId;
     
     private String courseCategory;

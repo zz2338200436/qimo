@@ -25,6 +25,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -232,6 +233,21 @@ public class GlobalExceptionHandler {
             logger.warn("方法不支持: {}", ex.getMessage());
             return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
                     .body(ResponseResult.failure(ErrorMessages.METHOD_NOT_ALLOWED, 405));
+        } finally {
+            cleanupMdc();
+        }
+    }
+
+    /** 404：未匹配到任何处理器。 */
+    @ExceptionHandler(NoHandlerFoundException.class)
+    public ResponseEntity<ResponseResult<Object>> handleNoHandlerFoundException(NoHandlerFoundException ex,
+                                                                                HttpServletRequest request) {
+        try {
+            putMdc(request, ex);
+            String message = "No endpoint " + ex.getHttpMethod() + " " + ex.getRequestURL() + ".";
+            logger.warn("未匹配到处理器: {}", message);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ResponseResult.failure(message, 404));
         } finally {
             cleanupMdc();
         }

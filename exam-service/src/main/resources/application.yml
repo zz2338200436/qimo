@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: exam-service
+  config:
+    import: optional:classpath:application-common.yml
+  datasource:
+    url: ${EXAM_DB_URL:${DB_URL:jdbc:mysql://localhost:3306/sc_exam?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}}
+    username: ${EXAM_DB_USERNAME:${DB_USERNAME:dev_user}}
+    password: ${EXAM_DB_PASSWORD:${DB_PASSWORD:dev_only_pwd}}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  flyway:
+    enabled: ${EXAM_FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+server:
+  port: 8085
+
+platform:
+  outbox:
+    relay:
+      binding-name: ${EXAM_OUTBOX_BINDING_NAME:exam.finished}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: ${EUREKA_PREFER_IP_ADDRESS:false}
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
+    ip-address: ${EUREKA_INSTANCE_IP:127.0.0.1}

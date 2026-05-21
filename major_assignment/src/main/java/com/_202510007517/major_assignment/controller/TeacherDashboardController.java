@@ -1,7 +1,9 @@
 package com._202510007517.major_assignment.controller;
 
+import com._202510007517.major_assignment.client.UserServiceProfileClient;
 import com._202510007517.major_assignment.entity.User;
 import com._202510007517.major_assignment.entity.AssignmentSubmission;
+import com._202510007517.major_assignment.entity.Course;
 import com._202510007517.major_assignment.entity.dto.ResponseResult;
 import com._202510007517.major_assignment.entity.dto.ScoreTrendDTO;
 import com._202510007517.major_assignment.entity.dto.StudentLearningSummaryDTO;
@@ -12,16 +14,20 @@ import com._202510007517.major_assignment.service.TeacherDashboardService;
 import com._202510007517.major_assignment.service.UserService;
 import com._202510007517.major_assignment.service.AssignmentSubmissionService;
 import com._202510007517.major_assignment.service.CourseService;
+import com._202510007517.platform.user.api.dto.StudentProfileDTO;
+import com._202510007517.platform.user.api.dto.UpdateStudentProfileDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpSession;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/teacher")
@@ -43,6 +49,9 @@ public class TeacherDashboardController extends BaseController {
     
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private UserServiceProfileClient userServiceProfileClient;
     
     @Autowired
     private AssignmentSubmissionService assignmentSubmissionService;
@@ -225,6 +234,15 @@ public class TeacherDashboardController extends BaseController {
         }
         
         try {
+            Long teacherId = getCurrentUserId(session);
+            classData.put("teacherId", teacherId);
+
+            Long courseId = parseNullableLong(classData.get("courseId"));
+            if (courseId != null && !teacherOwnsCourse(teacherId, courseId)) {
+                return ResponseResult.failure("无权关联其他教师的课程", 403);
+            }
+            classData.put("courseId", courseId);
+
             // 实现创建班级逻辑
             courseMapper.createClass(classData);
             
@@ -242,29 +260,31 @@ public class TeacherDashboardController extends BaseController {
         }
         
         try {
+            Long teacherId = getCurrentUserId(session);
+            if (!teacherCanAccessClass(teacherId, classId)) {
+                return ResponseResult.failure("无权操作该班级", 403);
+            }
+
             // 添加classId到更新数据中
             classData.put("id", classId);
+            classData.put("teacherId", teacherId);
             
             // 确保所有数字字段都是正确的类型
-            if (classData.containsKey("year")) {
+            if (classData.containsKey("year") && classData.get("year") != null) {
                 classData.put("year", Integer.parseInt(classData.get("year").toString()));
             }
-            if (classData.containsKey("capacity")) {
+            if (classData.containsKey("capacity") && classData.get("capacity") != null) {
                 classData.put("capacity", Integer.parseInt(classData.get("capacity").toString()));
             }
-            if (classData.containsKey("majorId")) {
+            if (classData.containsKey("majorId") && classData.get("majorId") != null) {
                 classData.put("majorId", Long.parseLong(classData.get("majorId").toString()));
             }
-            if (classData.containsKey("teacherId")) {
-                classData.put("teacherId", Long.parseLong(classData.get("teacherId").toString()));
-            }
             if (classData.containsKey("courseId")) {
-                Object courseIdValue = classData.get("courseId");
-                if (courseIdValue != null && !"-".equals(courseIdValue) && !"".equals(courseIdValue)) {
-                    classData.put("courseId", Long.parseLong(courseIdValue.toString()));
-                } else {
-                    classData.put("courseId", null);
+                Long courseId = parseNullableLong(classData.get("courseId"));
+                if (courseId != null && !teacherOwnsCourse(teacherId, courseId)) {
+                    return ResponseResult.failure("无权关联其他教师的课程", 403);
                 }
+                classData.put("courseId", courseId);
             }
             
             // 实现更新班级逻辑
@@ -284,6 +304,10 @@ public class TeacherDashboardController extends BaseController {
         }
         
         try {
+            Long teacherId = getCurrentUserId(session);
+            if (!teacherCanAccessClass(teacherId, classId)) {
+                return ResponseResult.failure("无权操作该班级", 403);
+            }
             // 通过 Service 层删除班级，会自动处理外键约束
             courseService.deleteClass(classId);
             return ResponseResult.success(null, "班级删除成功", 204);
@@ -300,6 +324,10 @@ public class TeacherDashboardController extends BaseController {
         }
         
         try {
+            Long teacherId = getCurrentUserId(session);
+            if (!teacherCanAccessClass(teacherId, classId)) {
+                return ResponseResult.failure("无权查看该班级", 403);
+            }
             // 实现获取单个班级详情逻辑
             Map<String, Object> cls = courseMapper.getClassById(classId);
             
@@ -319,6 +347,11 @@ public class TeacherDashboardController extends BaseController {
         if (!isLoggedIn(session)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
+
+        Long teacherId = getCurrentUserId(session);
+        if (!teacherCanAccessClass(teacherId, classId)) {
+            return ResponseResult.failure("无权查看该班级学生", 403);
+        }
         
         List<Map<String, Object>> students = studentMapper.getStudentsByClassId(classId);
         
@@ -332,26 +365,23 @@ public class TeacherDashboardController extends BaseController {
         }
 
         try {
-            // 获取学生基本信息
-            User student = userService.findById(studentId);
-            if (student == null) {
-                return ResponseResult.failure("学生不存在", 404);
+            Long teacherId = getCurrentUserId(session);
+            if (!teacherCanAccessStudent(teacherId, studentId)) {
+                return ResponseResult.failure("无权查看该学生", 403);
             }
 
-            // 构建完整的学生信息
-            Map<String, Object> studentInfo = new HashMap<>();
-            studentInfo.put("studentId", student.getId());
-            studentInfo.put("realName", student.getName());
-            // 从数据库查询学生所在班级名称，避免前端总是显示“未知班级”
-            String className = userService.getStudentClassName(studentId);
-            if (className == null || className.trim().isEmpty()) {
-                className = "未知班级";
+            Map<String, Object> studentInfo = userServiceProfileClient.getStudentProfile(studentId)
+                    .map(this::toStudentInfo)
+                    .orElseGet(() -> buildLegacyStudentInfo(studentId));
+            if (studentInfo == null) {
+                return ResponseResult.failure("学生不存在", 404);
             }
-            studentInfo.put("className", className);
             
             // 尝试获取学生学习表现数据
             Map<String, Object> performanceData = studentMapper.getStudentPerformance(studentId);
-            studentInfo.putAll(performanceData);
+            if (performanceData != null) {
+                studentInfo.putAll(performanceData);
+            }
             
             return ResponseResult.success(studentInfo, "获取学生详情成功", 200);
         } catch (Exception e) {
@@ -441,10 +471,24 @@ public class TeacherDashboardController extends BaseController {
         }
         
         try {
+            Long currentTeacherId = getCurrentUserId(session);
             // 关联已有班级模式（仅支持此模式）
-            Long classId = Long.parseLong(assignData.get("classId").toString());
-            Long courseId = Long.parseLong(assignData.get("courseId").toString());
-            Long teacherId = Long.parseLong(assignData.get("teacherId").toString());
+            Object classIdObj = assignData.get("classId");
+            Object courseIdObj = assignData.get("courseId");
+
+            if (classIdObj == null || courseIdObj == null) {
+                return ResponseResult.failure("缺少必要参数：classId, courseId", 400);
+            }
+
+            Long classId = Long.parseLong(classIdObj.toString());
+            Long courseId = Long.parseLong(courseIdObj.toString());
+
+            if (!teacherCanAccessClass(currentTeacherId, classId)) {
+                return ResponseResult.failure("无权操作该班级", 403);
+            }
+            if (!teacherOwnsCourse(currentTeacherId, courseId)) {
+                return ResponseResult.failure("无权分配其他教师的课程", 403);
+            }
             
             // 查询已有班级的详细信息
             Map<String, Object> existingClass = courseMapper.getClassById(classId);
@@ -464,9 +508,11 @@ public class TeacherDashboardController extends BaseController {
                 Map<String, Object> assignDataMap = new java.util.HashMap<>();
                 assignDataMap.put("classId", classId);  // 使用现有的班级ID
                 assignDataMap.put("courseId", courseId);
-                assignDataMap.put("teacherId", teacherId);
-                assignDataMap.put("classTime", assignData.getOrDefault("classTime", ""));
-                assignDataMap.put("classLocation", assignData.getOrDefault("classLocation", ""));
+                assignDataMap.put("teacherId", currentTeacherId);
+                Object classTimeObj = assignData.get("classTime");
+                Object classLocationObj = assignData.get("classLocation");
+                assignDataMap.put("classTime", classTimeObj != null ? classTimeObj.toString() : "");
+                assignDataMap.put("classLocation", classLocationObj != null ? classLocationObj.toString() : "");
                 
                 // 在 class_courses 表中添加关联记录
                 courseMapper.assignCourse(assignDataMap);
@@ -487,6 +533,11 @@ public class TeacherDashboardController extends BaseController {
         }
         
         try {
+            Long teacherId = getCurrentUserId(session);
+            Integer managedCount = courseMapper.countManagedAssignments(teacherId, assignmentId);
+            if (managedCount == null || managedCount <= 0) {
+                return ResponseResult.failure("无权取消该课程分配", 403);
+            }
             // 实现取消课程分配逻辑（通过Service层，会自动处理关联记录的删除）
             courseService.unassignCourse(assignmentId);
             
@@ -507,6 +558,13 @@ public class TeacherDashboardController extends BaseController {
         }
         
         try {
+            Long teacherId = getCurrentUserId(session);
+            if (!teacherCanAccessClass(teacherId, classId)) {
+                return ResponseResult.failure("无权操作该班级", 403);
+            }
+            if (!teacherOwnsCourse(teacherId, courseId)) {
+                return ResponseResult.failure("无权取消其他教师的课程分配", 403);
+            }
             // 通过classId和courseId取消课程分配
             Map<String, Object> params = new java.util.HashMap<>();
             params.put("classId", classId);
@@ -527,15 +585,14 @@ public class TeacherDashboardController extends BaseController {
         }
         
         try {
-            // 更新学生基本信息
-            User student = userService.findById(studentId);
-            if (student == null) {
-                return ResponseResult.failure("学生不存在", 404);
+            Long teacherId = getCurrentUserId(session);
+            if (!teacherCanAccessStudent(teacherId, studentId)) {
+                return ResponseResult.failure("无权修改该学生", 403);
             }
-            
-            // 更新学生信息
-            if (studentData.containsKey("realName")) {
-                student.setName((String) studentData.get("realName"));
+
+            Object updatedStudent = updateStudentProfileThroughUserService(studentId, studentData);
+            if (updatedStudent == null) {
+                return ResponseResult.failure("学生不存在", 404);
             }
             
             // 如果有班级ID，更新学生的班级信息
@@ -546,6 +603,9 @@ public class TeacherDashboardController extends BaseController {
                     if (!"all".equals(classIdStr) && !classIdStr.isEmpty()) {
                         try {
                             Long classId = Long.parseLong(classIdStr);
+                            if (!teacherCanAccessClass(teacherId, classId)) {
+                                return ResponseResult.failure("无权将学生移动到该班级", 403);
+                            }
                             
                             // 检查学生是否已经在其他班级
                             List<Map<String, Object>> existingClasses = courseMapper.getClassesByStudentId(studentId);
@@ -596,20 +656,17 @@ public class TeacherDashboardController extends BaseController {
                 }
             }
             
-            // 保存更新
-            userService.update(student);
-            
             // 更新学生学习表现数据
             if (studentData.containsKey("averageScore") || studentData.containsKey("pendingAssignments") || studentData.containsKey("overallProgress")) {
-                Double averageScore = studentData.containsKey("averageScore") ? Double.parseDouble(studentData.get("averageScore").toString()) : null;
-                Integer pendingAssignments = studentData.containsKey("pendingAssignments") ? Integer.parseInt(studentData.get("pendingAssignments").toString()) : null;
-                Integer overallProgress = studentData.containsKey("overallProgress") ? Integer.parseInt(studentData.get("overallProgress").toString()) : null;
+                Double averageScore = studentData.containsKey("averageScore") && studentData.get("averageScore") != null ? Double.parseDouble(studentData.get("averageScore").toString()) : null;
+                Integer pendingAssignments = studentData.containsKey("pendingAssignments") && studentData.get("pendingAssignments") != null ? Integer.parseInt(studentData.get("pendingAssignments").toString()) : null;
+                Integer overallProgress = studentData.containsKey("overallProgress") && studentData.get("overallProgress") != null ? Integer.parseInt(studentData.get("overallProgress").toString()) : null;
                 
                 // 调用StudentMapper的updateStudentPerformance方法来更新学生学习表现数据
                 studentMapper.updateStudentPerformance(studentId, averageScore, pendingAssignments, overallProgress);
             }
             
-            return ResponseResult.success(student, "学生信息更新成功", 200);
+            return ResponseResult.success(updatedStudent, "学生信息更新成功", 200);
         } catch (Exception e) {
             logger.error("更新学生信息失败", e);
             return ResponseResult.failure("服务器内部错误", 500);
@@ -680,5 +737,104 @@ public class TeacherDashboardController extends BaseController {
             logger.error("作业批改失败", e);
             return ResponseResult.failure("作业批改失败: " + e.getMessage(), 500);
         }
+    }
+
+    private boolean teacherCanAccessClass(Long teacherId, Long classId) {
+        Integer count = courseMapper.countManagedClasses(teacherId, classId);
+        return count != null && count > 0;
+    }
+
+    private boolean teacherCanAccessStudent(Long teacherId, Long studentId) {
+        List<Long> studentIds = courseMapper.getStudentIdsByClassTeacherId(teacherId);
+        if (studentIds == null || studentIds.isEmpty()) {
+            return false;
+        }
+        Set<Long> visibleStudentIds = new HashSet<>(studentIds);
+        return visibleStudentIds.contains(studentId);
+    }
+
+    private Map<String, Object> toStudentInfo(StudentProfileDTO profile) {
+        Map<String, Object> studentInfo = new HashMap<>();
+        studentInfo.put("studentId", profile.getStudentId());
+        studentInfo.put("realName", profile.getRealName());
+        studentInfo.put("username", profile.getUsername());
+        studentInfo.put("email", profile.getEmail());
+        studentInfo.put("phone", profile.getPhone());
+        studentInfo.put("avatar", profile.getAvatar());
+        studentInfo.put("roles", profile.getRoles());
+        studentInfo.put("className", normalizeClassName(profile.getClassName()));
+        return studentInfo;
+    }
+
+    private Map<String, Object> buildLegacyStudentInfo(Long studentId) {
+        User student = userService.findById(studentId);
+        if (student == null) {
+            return null;
+        }
+        Map<String, Object> studentInfo = new HashMap<>();
+        studentInfo.put("studentId", student.getId());
+        studentInfo.put("realName", student.getName());
+        studentInfo.put("className", normalizeClassName(userService.getStudentClassName(studentId)));
+        return studentInfo;
+    }
+
+    private Object updateStudentProfileThroughUserService(Long studentId, Map<String, Object> studentData) {
+        UpdateStudentProfileDTO request = buildStudentProfileUpdate(studentData);
+        if (hasStudentProfileUpdate(request)) {
+            return userServiceProfileClient.updateStudentProfile(studentId, request)
+                    .map(profile -> (Object) profile)
+                    .orElse(null);
+        }
+        return userServiceProfileClient.getStudentProfile(studentId)
+                .map(profile -> (Object) profile)
+                .orElseGet(() -> userService.findById(studentId));
+    }
+
+    private UpdateStudentProfileDTO buildStudentProfileUpdate(Map<String, Object> studentData) {
+        UpdateStudentProfileDTO request = new UpdateStudentProfileDTO();
+        if (studentData.containsKey("realName")) {
+            request.setRealName(toNullableString(studentData.get("realName")));
+        }
+        if (studentData.containsKey("email")) {
+            request.setEmail(toNullableString(studentData.get("email")));
+        }
+        if (studentData.containsKey("phone")) {
+            request.setPhone(toNullableString(studentData.get("phone")));
+        }
+        if (studentData.containsKey("avatar")) {
+            request.setAvatar(toNullableString(studentData.get("avatar")));
+        }
+        return request;
+    }
+
+    private boolean hasStudentProfileUpdate(UpdateStudentProfileDTO request) {
+        return request.getRealName() != null
+                || request.getEmail() != null
+                || request.getPhone() != null
+                || request.getAvatar() != null;
+    }
+
+    private String toNullableString(Object value) {
+        return value != null ? value.toString() : null;
+    }
+
+    private String normalizeClassName(String className) {
+        return className == null || className.trim().isEmpty() ? "未知班级" : className;
+    }
+
+    private boolean teacherOwnsCourse(Long teacherId, Long courseId) {
+        Course course = courseService.findById(courseId);
+        return course != null && teacherId.equals(course.getTeacherId());
+    }
+
+    private Long parseNullableLong(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String stringValue = value.toString().trim();
+        if (stringValue.isEmpty() || "-".equals(stringValue) || "all".equalsIgnoreCase(stringValue)) {
+            return null;
+        }
+        return Long.parseLong(stringValue);
     }
 }

@@ -1,10 +1,12 @@
 package com._202510007517.major_assignment.controller;
 
+import com._202510007517.major_assignment.constants.RoleConstants;
 import com._202510007517.major_assignment.entity.dto.ResponseResult;
+import com._202510007517.major_assignment.mapper.CourseMapper;
 import com._202510007517.major_assignment.utils.LogUtil;
 import org.slf4j.Logger;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +36,12 @@ public class AIController extends BaseController {
 
     /** 日志记录器，用于记录AI相关操作的日志信息 */
     private static final Logger logger = LogUtil.getLogger(AIController.class);
+
+    private final CourseMapper courseMapper;
+
+    public AIController(CourseMapper courseMapper) {
+        this.courseMapper = courseMapper;
+    }
 
     /**
      * AI智能生成题目接口
@@ -80,21 +88,30 @@ public class AIController extends BaseController {
      *         </ul>
      */
     @PostMapping("/generate-questions")
-    public ResponseResult<Map<String, Object>> generateQuestions(@RequestBody Map<String, Object> request, HttpSession session) {
+    public ResponseResult<Map<String, Object>> generateQuestions(@RequestBody Map<String, Object> request,
+                                                                 HttpServletRequest requestContext) {
         // 记录请求日志，便于问题追踪和审计
-        LogUtil.logRequest(logger, "POST", "/api/ai/generate-questions", request, getCurrentUserId(session));
+        LogUtil.logRequest(logger, "POST", "/api/ai/generate-questions", request, getCurrentUserId(requestContext));
         
         // 验证用户登录状态，未登录则拒绝访问
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权使用AI生成题目", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权使用AI生成题目", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         try {
-            // 解析请求参数
-            String topic = request.get("topic").toString();           // 题目主题
-            Integer count = Integer.valueOf(request.get("count").toString());  // 生成数量
-            String difficulty = request.get("difficulty").toString(); // 难度级别
+            // 解析请求参数（空值检查）
+            Object topicObj = request.get("topic");
+            Object countObj = request.get("count");
+            Object difficultyObj = request.get("difficulty");
+
+            if (topicObj == null || countObj == null || difficultyObj == null) {
+                return ResponseResult.failure("缺少必要参数：topic, count, difficulty", 400);
+            }
+
+            String topic = topicObj.toString();           // 题目主题
+            Integer count = Integer.valueOf(countObj.toString());  // 生成数量
+            String difficulty = difficultyObj.toString(); // 难度级别
             
             // 模拟AI生成题目（实际项目中可替换为真实AI接口调用）
             // TODO: 接入真实AI模型，如OpenAI GPT、百度文心一言等
@@ -118,7 +135,7 @@ public class AIController extends BaseController {
             result.put("questions", questions);
             
             // 记录响应日志
-            LogUtil.logResponse(logger, "POST", "/api/ai/generate-questions", 200, result, getCurrentUserId(session));
+            LogUtil.logResponse(logger, "POST", "/api/ai/generate-questions", 200, result, getCurrentUserId(requestContext));
             return ResponseResult.success(result, "生成题目成功", 200);
         } catch (Exception e) {
             // 记录错误日志并返回失败响应
@@ -129,20 +146,30 @@ public class AIController extends BaseController {
     
     // 使用AI生成试卷
     @PostMapping("/generate-exam")
-    public ResponseResult<Map<String, Object>> generateExam(@RequestBody Map<String, Object> request, HttpSession session) {
-        LogUtil.logRequest(logger, "POST", "/api/ai/generate-exam", request, getCurrentUserId(session));
+    public ResponseResult<Map<String, Object>> generateExam(@RequestBody Map<String, Object> request,
+                                                            HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "POST", "/api/ai/generate-exam", request, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权使用AI生成试卷", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权使用AI生成试卷", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         try {
             // 这里是AI生成试卷的逻辑，目前返回模拟数据
-            String courseName = request.get("courseName").toString();
-            Integer totalScore = Integer.valueOf(request.get("totalScore").toString());
-            Integer duration = Integer.valueOf(request.get("duration").toString());
-            String difficulty = request.get("difficulty").toString();
+            Object courseNameObj = request.get("courseName");
+            Object totalScoreObj = request.get("totalScore");
+            Object durationObj = request.get("duration");
+            Object difficultyObj = request.get("difficulty");
+
+            if (courseNameObj == null || totalScoreObj == null || durationObj == null || difficultyObj == null) {
+                return ResponseResult.failure("缺少必要参数：courseName, totalScore, duration, difficulty", 400);
+            }
+
+            String courseName = courseNameObj.toString();
+            Integer totalScore = Integer.valueOf(totalScoreObj.toString());
+            Integer duration = Integer.valueOf(durationObj.toString());
+            String difficulty = difficultyObj.toString();
             
             // 模拟生成试卷
             List<Map<String, Object>> questions = new ArrayList<>();
@@ -189,7 +216,7 @@ public class AIController extends BaseController {
             exam.put("difficulty", difficulty);
             exam.put("questions", questions);
             
-            LogUtil.logResponse(logger, "POST", "/api/ai/generate-exam", 200, exam, getCurrentUserId(session));
+            LogUtil.logResponse(logger, "POST", "/api/ai/generate-exam", 200, exam, getCurrentUserId(requestContext));
             return ResponseResult.success(exam, "生成试卷成功", 200);
         } catch (Exception e) {
             LogUtil.logError(logger, "生成试卷失败", e);
@@ -199,17 +226,39 @@ public class AIController extends BaseController {
     
     // AI学习建议
     @PostMapping("/learning-suggestions")
-    public ResponseResult<Map<String, Object>> getLearningSuggestions(@RequestBody Map<String, Object> request, HttpSession session) {
-        LogUtil.logRequest(logger, "POST", "/api/ai/learning-suggestions", request, getCurrentUserId(session));
+    public ResponseResult<Map<String, Object>> getLearningSuggestions(@RequestBody Map<String, Object> request,
+                                                                      HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "POST", "/api/ai/learning-suggestions", request, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权使用AI学习建议", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权使用AI学习建议", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         try {
-            // 这里是AI学习建议的逻辑，目前返回模拟数据
-            Long studentId = Long.valueOf(request.get("studentId").toString());
+            Long currentUserId = getCurrentUserId(requestContext);
+            List<String> currentRoles = getCurrentRoles(requestContext);
+            Long studentId;
+
+            if (currentRoles.contains(RoleConstants.STUDENT)) {
+                studentId = currentUserId;
+            } else {
+                Object studentIdObj = request.get("studentId");
+                if (studentIdObj == null) {
+                    return ResponseResult.failure("缺少必要参数：studentId", 400);
+                }
+                studentId = Long.valueOf(studentIdObj.toString());
+            }
+
+            if (currentRoles.contains(RoleConstants.TEACHER)) {
+                List<Long> visibleStudentIds = courseMapper.getStudentIdsByClassTeacherId(currentUserId);
+                if (visibleStudentIds == null || !visibleStudentIds.contains(studentId)) {
+                    return ResponseResult.failure("无权查看该学生的学习建议", 403);
+                }
+            } else if (!currentRoles.contains(RoleConstants.STUDENT)
+                    && !currentRoles.contains(RoleConstants.ADMIN)) {
+                return ResponseResult.failure("当前角色无权使用该功能", 403);
+            }
             
             // 模拟生成学习建议
             List<String> suggestions = new ArrayList<>();
@@ -221,7 +270,7 @@ public class AIController extends BaseController {
             result.put("studentId", studentId);
             result.put("suggestions", suggestions);
             
-            LogUtil.logResponse(logger, "POST", "/api/ai/learning-suggestions", 200, result, getCurrentUserId(session));
+            LogUtil.logResponse(logger, "POST", "/api/ai/learning-suggestions", 200, result, getCurrentUserId(requestContext));
             return ResponseResult.success(result, "获取学习建议成功", 200);
         } catch (Exception e) {
             LogUtil.logError(logger, "获取学习建议失败", e);

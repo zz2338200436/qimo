@@ -44,6 +44,35 @@ Desktop.ini
 # ---------- Kiro local scratch ----------
 .kiro/.cache/
 .kiro/**/.config.local*
+.kiro/settings/
+.kiro/skills/
+.kiro/steering/
+
+# ---------- Runtime / smoke-test scratch ----------
+.runtime-logs/
+data/
+*.pid
+tmp*
+captcha*.png
+*.png
+*.jpg
+*.jpeg
+*.bin
+dump.rdb
+cookies.txt
+test-cookies*.txt
+
+# ---------- Node dependencies ----------
+node_modules/
+
+# ---------- Generated tool/cache files ----------
+__pycache__/
+*.pyc
+gateway-deps*.txt
+gateway-security-deps*.txt
+notification-deps*.txt
+*-effective-pom
+*-effective-pom.xml
 
 # ---------- Misc ----------
 verify-run.log

@@ -39,7 +39,7 @@ public class CourseServiceImpl implements CourseService {
     
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.COURSES, key = "'teacher_' + #teacherId")
+    @Cacheable(value = CacheConstants.COURSES, key = "'teacher_' + #teacherId", unless = "#result == null")
     public List<Course> findByTeacherId(Long teacherId) {
         List<Course> courses = courseMapper.findByTeacherId(teacherId);
         // 使用批量查询优化N+1问题
@@ -65,7 +65,7 @@ public class CourseServiceImpl implements CourseService {
     
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.COURSES, key = "'all'")
+    @Cacheable(value = CacheConstants.COURSES, key = "'all'", unless = "#result == null")
     public List<Course> getAllCourses() {
         List<Course> courses = courseMapper.getAllCourses();
         // 使用批量查询优化N+1问题
@@ -170,7 +170,7 @@ public class CourseServiceImpl implements CourseService {
     
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.COURSES, key = "#id")
+    @Cacheable(value = CacheConstants.COURSES, key = "#id", unless = "#result == null")
     public Course findById(Long id) {
         Course course = courseMapper.findById(id);
         if (course != null) {
@@ -189,7 +189,8 @@ public class CourseServiceImpl implements CourseService {
     public String getTeacherNameByCourseId(Long courseId) {
         Course course = courseMapper.findById(courseId);
         if (course != null && course.getTeacherId() != null) {
-            return userMapper.findById(course.getTeacherId()).getName();
+            var teacher = userMapper.findById(course.getTeacherId());
+            return teacher != null ? teacher.getName() : "未知教师";
         }
         return "未知教师";
     }

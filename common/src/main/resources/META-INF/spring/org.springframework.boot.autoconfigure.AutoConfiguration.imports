@@ -1,0 +1,2 @@
+com._202510007517.platform.common.autoconfigure.CommonAutoConfiguration
+com._202510007517.platform.common.autoconfigure.OutboxAutoConfiguration

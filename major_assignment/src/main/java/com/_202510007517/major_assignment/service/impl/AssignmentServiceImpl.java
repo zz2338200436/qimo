@@ -46,21 +46,21 @@ public class AssignmentServiceImpl implements AssignmentService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.ASSIGNMENTS, key = "'all'")
+    @Cacheable(value = CacheConstants.ASSIGNMENTS, key = "'all'", unless = "#result == null")
     public List<Assignment> getAllAssignments() {
         return assignmentMapper.getAllAssignments();
     }
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.ASSIGNMENTS, key = "#id")
+    @Cacheable(value = CacheConstants.ASSIGNMENTS, key = "#id", unless = "#result == null")
     public Assignment getAssignmentById(Long id) {
         return assignmentMapper.getAssignmentById(id);
     }
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.ASSIGNMENTS, key = "'course_' + #courseId")
+    @Cacheable(value = CacheConstants.ASSIGNMENTS, key = "'course_' + #courseId", unless = "#result == null")
     public List<Assignment> getAssignmentsByCourseId(Long courseId) {
         return assignmentMapper.getAssignmentsByCourseId(courseId);
     }

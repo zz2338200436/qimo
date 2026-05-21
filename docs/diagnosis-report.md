@@ -153,7 +153,7 @@
 - **描述**：`MajorAssignmentApplication#corsConfigurer` 以 `@Bean WebMvcConfigurer` 形式直接把 `allowedOrigins("http://localhost:8080")` 写死在 `main` 入口类中，未外置到配置中心 / 环境变量，也没有开发 / 测试 / 生产多 Origin 支持；一旦需要调整白名单须重新打包，且与未来 Gateway 统一 CORS 策略冲突。
 - **证据**：`major_assignment/src/main/java/com/_202510007517/major_assignment/MajorAssignmentApplication.java:L22-L33`（`@Bean corsConfigurer`，`registry.addMapping("/api/**").allowedOrigins("http://localhost:8080")` 字面量硬编码）。
 - **影响等级**：中
-- **建议阶段**：微服务化前置（阶段 2） —— 通过网关 + Nacos 热下发接管 CORS；过渡期在单体可先改为 `${CORS_ALLOWED_ORIGINS}` 环境变量（对应 `tasks.md` 任务 14.5、17.3）。
+- **建议阶段**：微服务化前置（阶段 2） —— 通过 Gateway 统一接管 CORS，并将白名单外置到 `application.yml` / 环境变量；过渡期在单体可先改为 `${CORS_ALLOWED_ORIGINS}` 环境变量（对应 `tasks.md` 任务 14.5、17.3）。
 - **验证手段**：属性测试 **P18 CORS 白名单行为与配置一致**（`design.md §Correctness Properties` P18）—— Origin ∈ L 放行 / ∉ L 拒绝 / 热更新 TTL 内生效；静态检查：`MajorAssignmentApplication.java` 不得再出现 `allowedOrigins("http://...")` 字面量。
 
 #### D-11 前端静态资源打包进单体 jar，部署耦合（发现来源：结构扫描）
@@ -197,7 +197,7 @@
 | 5 | D-07 / D-10 切面重复读 + MDC/JSON 日志缺位 | 阶段 1 | 任务 5.1~5.5 | 贯通全链路排错能力 | Logback 回退至文本 pattern（配置项切换） |
 | 6 | D-08 Mapper XML 规范 | 阶段 1 | 任务 7、7.1、7.2 | 统一 SQL 审计与慢查询治理 | 每 Mapper 迁移独立 PR，可按 Mapper 维度回滚 |
 | 7 | D-09 Cookie 安全属性 | 阶段 1 | 任务 3、3.1 | 降低会话劫持风险 | `prod` 启用 `Secure=true`，dev 可暂保留 `false` |
-| 8 | D-02 硬编码 CORS | 阶段 2 | 任务 14.5、17.3 | 由 Gateway + Nacos 热下发接管 | 过渡期保留 `${CORS_ALLOWED_ORIGINS}` 环境变量开关 |
+| 8 | D-02 硬编码 CORS | 阶段 2 | 任务 14.5、17.3 | 由 Gateway + 外置配置统一接管 | 过渡期保留 `${CORS_ALLOWED_ORIGINS}` 环境变量开关 |
 | 9 | D-11 前端资源耦合部署 | 阶段 2 | 任务 17.1~17.4 | 前后端独立发布，解耦 Release 节奏 | 保留 1 个迭代 `spring.web.resources.add-mappings=true` 兜底 |
 | 10 | D-05 AI 占位数据 | 阶段 3 | AI_Service 剥离任务组 | 接入真实 AI 能力 | 剥离前以 `ResponseResult(501, ...)` 降级 |
 

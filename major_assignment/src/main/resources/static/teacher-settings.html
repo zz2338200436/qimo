@@ -331,8 +331,8 @@
                     </div>
                     <div class="form-group">
                         <label for="newPassword">新密码</label>
-                        <input type="password" id="newPassword" required minlength="6">
-                        <small class="form-hint">密码长度不能少于6位</small>
+                        <input type="password" id="newPassword" required minlength="8">
+                        <small class="form-hint">密码长度至少8位，且需包含字母和数字</small>
                     </div>
                     <div class="form-group">
                         <label for="confirmPassword">确认新密码</label>
@@ -383,7 +383,7 @@
     <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- API服务 -->
-    <script src="api.js"></script>
+    <script src="api.js?v=20260517-1"></script>
     <script>
         // 全局变量存储原始用户信息
         let originalProfileData = {
@@ -434,7 +434,8 @@
         document.addEventListener('DOMContentLoaded', async function() {
             // 检查是否登录
             const user = sessionStorage.getItem('user');
-            if (!user) {
+            const token = sessionStorage.getItem('token');
+            if (!user || !token) {
                 window.location.href = 'teacher-login.html';
                 return;
             }
@@ -447,13 +448,26 @@
             // 绑定表单验证
             bindFormValidation();
         });
+
+        function getCurrentTeacherUser() {
+            try {
+                return JSON.parse(sessionStorage.getItem('user') || '{}');
+            } catch (error) {
+                return {};
+            }
+        }
         
         // 加载用户信息
         async function loadUserProfile() {
             try {
                 const apiService = new APIService();
-                const authAPI = new AuthAPI(apiService);
-                const userInfo = await authAPI.getCurrentUser();
+                const currentUser = getCurrentTeacherUser();
+                const teacherUserId = currentUser.id || (window.getCurrentUserId ? window.getCurrentUserId() : null);
+                if (!teacherUserId) {
+                    throw new Error('未找到当前教师身份，请重新登录后重试');
+                }
+
+                const userInfo = await apiService.get(`/api/users/${teacherUserId}`);
                 
                 if (userInfo.success && userInfo.data) {
                     const userData = userInfo.data;
@@ -525,7 +539,14 @@
                 
                 // 调用API更新个人信息
                 const apiService = new APIService();
-                const response = await apiService.put('/api/auth/me', {
+                const currentUser = getCurrentTeacherUser();
+                const teacherUserId = currentUser.id || (window.getCurrentUserId ? window.getCurrentUserId() : null);
+                if (!teacherUserId) {
+                    showMessage('未找到当前教师身份，请重新登录后重试', 'error');
+                    return;
+                }
+
+                const response = await apiService.put(`/api/users/${teacherUserId}`, {
                     name: name,
                     email: email,
                     phone: phone
@@ -574,8 +595,13 @@
                     return;
                 }
                 
-                if (newPassword.length < 6) {
-                    showMessage('新密码长度不能少于6位', 'error');
+                if (newPassword.length < 8) {
+                    showMessage('新密码长度至少8位', 'error');
+                    return;
+                }
+
+                if (!/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+                    showMessage('新密码必须同时包含字母和数字', 'error');
                     return;
                 }
                 
@@ -586,15 +612,21 @@
                 
                 // 调用API更新密码
                 const apiService = new APIService();
-                const response = await apiService.put('/api/auth/change-password', {
+                const response = await apiService.post('/api/auth/change-password', {
                     currentPassword: currentPassword,
                     newPassword: newPassword
                 });
                 
                 if (response.success) {
-                    showMessage('密码更新成功', 'success');
+                    showMessage('密码更新成功，请重新登录', 'success');
                     // 重置密码表单
                     resetPasswordForm();
+                    setTimeout(() => {
+                        if (window.clearAuthSession) {
+                            window.clearAuthSession();
+                        }
+                        window.location.href = 'teacher-login.html';
+                    }, 1200);
                 } else {
                     showMessage(response.message || '更新失败', 'error');
                 }
@@ -616,6 +648,8 @@
         // 保存通知设置
         async function saveNotificationSettings() {
             try {
+                showMessage('当前 JWT 微服务环境暂未接通教师通知设置持久化接口。', 'info');
+                return;
                 // 获取通知设置
                 const settings = {
                     emailNotifications: document.getElementById('emailNotifications').checked,
@@ -647,7 +681,12 @@
                 messageContainer.innerHTML = '';
                 
                 // 创建消息元素
-                const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+                const alertClassMap = {
+                    success: 'alert-success',
+                    info: 'alert-info',
+                    error: 'alert-danger'
+                };
+                const alertClass = alertClassMap[type] || alertClassMap.error;
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `alert ${alertClass} alert-dismissible fade show`;
                 messageDiv.role = 'alert';

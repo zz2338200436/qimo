@@ -1,6 +1,7 @@
 package com._202510007517.major_assignment.controller;
 
 import com._202510007517.major_assignment.annotation.RequireLogin;
+import com._202510007517.major_assignment.client.UserServiceProfileClient;
 import com._202510007517.major_assignment.constants.ErrorMessages;
 import com._202510007517.major_assignment.constants.SuccessMessages;
 import com._202510007517.major_assignment.entity.Assignment;
@@ -13,6 +14,7 @@ import com._202510007517.major_assignment.entity.dto.ResponseResult;
 import com._202510007517.major_assignment.exception.ResourceNotFoundException;
 import com._202510007517.major_assignment.exception.UnauthorizedException;
 import com._202510007517.major_assignment.service.*;
+import com._202510007517.platform.user.api.dto.UserProfileDTO;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.slf4j.Logger;
@@ -36,6 +38,9 @@ public class StudentController extends BaseController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private UserServiceProfileClient userServiceProfileClient;
     
     @Autowired
     private StudentService studentService;
@@ -126,12 +131,7 @@ public class StudentController extends BaseController {
             result.put("courseName", course.getCourseName());
         }
         
-        // 获取教师名称
-        User teacher = userService.findById(assignment.getTeacherId());
-        if (teacher != null) {
-            result.put("teacherId", teacher.getId());
-            result.put("teacherName", teacher.getName());
-        }
+        enrichTeacherInfo(result, assignment.getTeacherId());
         
         // 获取学生的提交信息
         AssignmentSubmission submission = assignmentSubmissionService.getSubmissionByAssignmentAndStudent(assignmentId, userId);
@@ -198,12 +198,7 @@ public class StudentController extends BaseController {
             result.put("courseName", course.getCourseName());
         }
         
-        // 获取教师名称
-        User teacher = userService.findById(exam.getTeacherId());
-        if (teacher != null) {
-            result.put("teacherId", teacher.getId());
-            result.put("teacherName", teacher.getName());
-        }
+        enrichTeacherInfo(result, exam.getTeacherId());
         
         // 获取学生的提交信息
         ExamSubmission submission = examSubmissionService.getSubmissionByExamAndStudent(examId, userId);
@@ -215,6 +210,7 @@ public class StudentController extends BaseController {
             submissionMap.put("score", submission.getScore());
             submissionMap.put("teacherComment", submission.getTeacherComment());
             submissionMap.put("graded", submission.getGraded());
+            submissionMap.put("content", submission.getContent());
             result.put("submission", submissionMap);
         }
         
@@ -535,5 +531,22 @@ public class StudentController extends BaseController {
         Long studentId = getCurrentUserId(session);
         Map<String, Object> data = studentService.exportStudentData(studentId);
         return ResponseResult.success(data, SuccessMessages.EXPORT_DATA_SUCCESS, 200);
+    }
+
+    private void enrichTeacherInfo(Map<String, Object> result, Long teacherId) {
+        if (teacherId == null) {
+            return;
+        }
+        UserProfileDTO teacherProfile = userServiceProfileClient.getUserProfile(teacherId).orElse(null);
+        if (teacherProfile != null) {
+            result.put("teacherId", teacherProfile.getId());
+            result.put("teacherName", teacherProfile.getName());
+            return;
+        }
+        User teacher = userService.findById(teacherId);
+        if (teacher != null) {
+            result.put("teacherId", teacher.getId());
+            result.put("teacherName", teacher.getName());
+        }
     }
 }

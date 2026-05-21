@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: legacy-adapter
+  config:
+    import: optional:classpath:application-common.yml
+  datasource:
+    url: ${LEGACY_DB_URL:${DB_URL:jdbc:mysql://localhost:3306/major_assignment?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}}
+    username: ${LEGACY_DB_USERNAME:${DB_USERNAME:root}}
+    password: ${LEGACY_DB_PASSWORD:${DB_PASSWORD:root}}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+server:
+  port: 8091
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: ${EUREKA_PREFER_IP_ADDRESS:false}
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
+    ip-address: ${EUREKA_INSTANCE_IP:127.0.0.1}

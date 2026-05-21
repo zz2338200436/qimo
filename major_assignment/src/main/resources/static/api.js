@@ -13,6 +13,119 @@ function getCsrfToken() {
     return match ? decodeURIComponent(match[1]) : null;
 }
 
+function getCurrentUserId() {
+    if (typeof window === 'undefined' || !window.sessionStorage) {
+        return null;
+    }
+    const storedUserId = window.sessionStorage.getItem('userId');
+    if (storedUserId) {
+        return storedUserId;
+    }
+    const rawUser = window.sessionStorage.getItem('user');
+    if (!rawUser) {
+        return null;
+    }
+    try {
+        const user = JSON.parse(rawUser);
+        return user && user.id != null ? String(user.id) : null;
+    } catch (error) {
+        return null;
+    }
+}
+
+function clearAuthSession() {
+    if (typeof window === 'undefined' || !window.sessionStorage) {
+        return;
+    }
+    window.sessionStorage.removeItem('user');
+    window.sessionStorage.removeItem('token');
+    window.sessionStorage.removeItem('refreshToken');
+    window.sessionStorage.removeItem('userId');
+    window.sessionStorage.removeItem('activeRole');
+    window.sessionStorage.removeItem('role');
+}
+
+function getRoleContext() {
+    if (typeof window === 'undefined' || !window.location) {
+        return null;
+    }
+    const path = (window.location.pathname || '').toLowerCase();
+    const fileName = path.split('/').pop() || '';
+    if (fileName.startsWith('teacher-') || path.includes('/teacher/')) {
+        return 'TEACHER';
+    }
+    if (fileName.startsWith('student-') || path.includes('/student/')) {
+        return 'STUDENT';
+    }
+    if (fileName.startsWith('admin-') || path.includes('/admin/')) {
+        return 'ADMIN';
+    }
+    return null;
+}
+
+// 全局 fetch CSRF 补丁
+// --------------------------------------------------------------
+// 后端 SecurityConfig 对 /api/**（除 /api/auth、/api/public）全部启用 CSRF 校验。
+// 项目里散落在各个页面的裸 fetch 不经过 APIService，不会自动附 X-XSRF-TOKEN，
+// 导致所有 POST/PUT/DELETE/PATCH 收到 403。
+//
+// 这里一次性劫持 window.fetch：对同源（或显式指向后端 host）的非 GET/HEAD 请求，
+// 从 XSRF-TOKEN cookie 读值并追加 X-XSRF-TOKEN 头（若调用方已显式设置则不覆盖）。
+// 这样所有页面无需改动即可通过 CSRF 校验。
+// --------------------------------------------------------------
+(function patchFetchForCsrf() {
+    if (typeof window === 'undefined' || !window.fetch || window.__csrfFetchPatched) {
+        return;
+    }
+    const originalFetch = window.fetch.bind(window);
+
+    function isSameBackend(url) {
+        try {
+            if (!url) return true;
+            if (typeof url !== 'string') {
+                url = url.url || String(url);
+            }
+            if (url.startsWith('/')) return true;
+            const u = new URL(url, window.location.href);
+            return u.host === window.location.host || u.origin === API_BASE_URL;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function needsCsrf(method) {
+        const m = (method || 'GET').toUpperCase();
+        return m !== 'GET' && m !== 'HEAD' && m !== 'OPTIONS' && m !== 'TRACE';
+    }
+
+    window.fetch = function patchedFetch(input, init) {
+        try {
+            const url = typeof input === 'string' ? input : (input && input.url);
+            const method = (init && init.method) || (input && input.method) || 'GET';
+
+            if (isSameBackend(url)) {
+                const roleContext = getRoleContext();
+                const token = needsCsrf(method) ? getCsrfToken() : null;
+                if (token || roleContext) {
+                    const headers = new Headers((init && init.headers) || (input && input.headers) || undefined);
+                    if (token && !headers.has('X-XSRF-TOKEN')) {
+                        headers.set('X-XSRF-TOKEN', token);
+                    }
+                    if (roleContext && !headers.has('X-Role-Context')) {
+                        headers.set('X-Role-Context', roleContext);
+                    }
+                    init = Object.assign({}, init, { headers });
+                }
+            }
+        } catch (e) {
+            // 不影响主流程
+            console.warn('[csrf-patch] failed to attach token:', e);
+        }
+        return originalFetch(input, init);
+    };
+    window.__csrfFetchPatched = true;
+})();
+
 // API服务类
 class APIService {
     constructor() {
@@ -24,12 +137,16 @@ class APIService {
             // 后端使用基于Session的认证，不需要Token
             console.log('API请求URL:', url);
             const csrfToken = getCsrfToken();
+            const roleContext = getRoleContext();
             const headers = {
                 ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
                 ...options.headers
             };
             if (csrfToken && !headers['X-XSRF-TOKEN']) {
                 headers['X-XSRF-TOKEN'] = csrfToken;
+            }
+            if (roleContext && !headers['X-Role-Context']) {
+                headers['X-Role-Context'] = roleContext;
             }
             
             const response = await fetch(`${this.baseUrl}${url}`, {
@@ -176,7 +293,7 @@ class APIService {
                 fileUrl: error.fileUrl || error.filename || '',
                 userAgent: navigator.userAgent
             };
-            return this.post('/errors/browser', errorData);
+            return this.post('/api/errors/browser', errorData);
         } catch (reportError) {
             console.error('上报错误失败:', reportError);
             return null;
@@ -2205,6 +2322,8 @@ window.apiService = apiService;
 window.authAPI = authAPI;
 window.teacherAPI = teacherAPI;
 window.studentAPI = studentAPI;
+window.getCurrentUserId = getCurrentUserId;
+window.clearAuthSession = clearAuthSession;
 
 async function deleteAssignment(assignmentId) {
     if (confirm('确定要删除这个作业吗？删除后无法恢复！')) {

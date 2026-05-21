@@ -1,0 +1,2872 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能后台学习辅助系统 - 作业与考试发布</title>
+    <!-- Bootstrap 5 CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #334155;
+            min-height: 100vh;
+        }
+        
+        /* 侧边栏样式 */
+        .sidebar {
+            width: 280px;
+            height: 100vh;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            overflow-y: auto;
+            transition: width 0.3s ease;
+        }
+        
+        .sidebar.collapsed {
+            width: 80px;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .sidebar-logo i {
+            font-size: 28px;
+        }
+        
+        .sidebar-logo span {
+            font-size: 18px;
+            font-weight: 700;
+        }
+        
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+        
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+            font-size: 16px;
+            line-height: 1;
+        }
+        
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-left-color: white;
+        }
+        
+        .menu-item.active {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            border-left-color: white;
+        }
+        
+        .menu-item i {
+            width: 30px;
+            margin-right: 10px;
+            text-align: center;
+            font-size: 1.2rem;
+        }
+        
+        /* 主内容区 */
+        .main-content {
+            margin-left: 280px;
+            transition: margin-left 0.3s ease;
+        }
+        
+        .main-content.collapsed {
+            margin-left: 80px;
+        }
+        
+        /* 顶部导航栏 */
+        .top-navbar {
+            background: white;
+            border-bottom: none;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .navbar-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .toggle-btn {
+            background: #f1f5f9;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            color: #475569;
+        }
+        
+        .breadcrumb {
+            margin: 0;
+            background: none;
+            font-size: 14px;
+        }
+        
+        .breadcrumb-item.active {
+            color: #64748b;
+        }
+        
+        .navbar-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .notification-btn {
+            position: relative;
+            background: none;
+            border: none;
+            color: #475569;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .user-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .user-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #334155;
+        }
+        
+        .user-role {
+            font-size: 12px;
+            color: #64748b;
+        }
+        
+        .page-title {
+            margin: 0 20px;
+            font-size: 1.5rem;
+            color: #495057;
+        }
+        
+        /* 内容容器 */
+        .content-container {
+            padding: 20px;
+        }
+        
+        /* 页面标题 */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .page-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0;
+        }
+        
+        /* 按钮样式 */
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+        }
+        
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+        }
+        
+        /* 标签页样式 */
+        .tabs {
+            background: white;
+            border-radius: 16px;
+            padding: 0;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .tabs-nav {
+            display: flex;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        .tab-item {
+            flex: 1;
+            padding: 16px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            background: none;
+            font-size: 14px;
+            font-weight: 600;
+            color: #64748b;
+            border-radius: 16px 16px 0 0;
+        }
+        
+        .tab-item:hover {
+            background: #f8fafc;
+            color: #334155;
+        }
+        
+        .tab-item.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .tab-content {
+            padding: 24px;
+        }
+        
+        /* 搜索和筛选区域 */
+        .search-filter {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        
+        .search-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .search-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 8px;
+        }
+        
+        .search-group input,
+        .search-group select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .search-group input:focus,
+        .search-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        /* 表格样式 */
+        .data-table {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .table {
+            margin: 0;
+            width: 100%;
+        }
+        
+        .table th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #334155;
+            padding: 16px;
+            text-align: left;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .table td {
+            padding: 16px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #475569;
+        }
+        
+        .table tbody tr:hover {
+            background: #f8fafc;
+        }
+        
+        /* 操作按钮组 */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        /* 标签样式 */
+        .badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .badge-primary {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+        }
+        
+        .badge-success {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+        
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+        
+        .badge-danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+        
+        /* 卡片样式 */
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0;
+        }
+        
+        .card-meta {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 16px;
+        }
+        
+        .card-content {
+            color: #475569;
+            margin-bottom: 16px;
+        }
+        
+        /* 模态框样式 */
+        .modal-content {
+            border-radius: 16px;
+            border: none;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .modal-header {
+            border-bottom: 1px solid #f1f5f9;
+            padding: 24px;
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .modal-body {
+            padding: 24px;
+        }
+        
+        .modal-footer {
+            border-top: 1px solid #f1f5f9;
+            padding: 24px;
+        }
+        
+        /* 表单样式 */
+        .form-group {
+            margin-bottom: 24px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 8px;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea,
+        .form-group input[type="file"] {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .form-group input[type="file"] {
+            padding: 12px;
+            cursor: pointer;
+        }
+        
+        /* 时间选择器样式 */
+        .input-group {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .input-group input {
+            flex: 1;
+        }
+        
+        /* 分页样式 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 24px;
+            gap: 8px;
+        }
+        
+        .page-link {
+            padding: 10px 16px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            color: #64748b;
+            transition: all 0.3s ease;
+        }
+        
+        .page-link:hover {
+            background: #f8fafc;
+            color: #667eea;
+            border-color: #667eea;
+        }
+        
+        .page-link.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+        
+        /* 统计卡片 */
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .stat-icon-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .stat-icon-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+        
+        .stat-icon-warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+        
+        .stat-icon-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+        
+        .stat-info {
+            flex: 1;
+        }
+        
+        .stat-number {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #64748b;
+            margin: 0;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 80px;
+            }
+            
+            .main-content {
+                margin-left: 80px;
+            }
+            
+            .sidebar-logo span {
+                display: none;
+            }
+            
+            .menu-item span {
+                display: none;
+            }
+            
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+            
+            .search-filter {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-group {
+                min-width: 100%;
+            }
+            
+            .table {
+                font-size: 12px;
+            }
+            
+            .table th,
+            .table td {
+                padding: 10px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                gap: 4px;
+            }
+            
+            .btn-sm {
+                padding: 4px 8px;
+                font-size: 11px;
+            }
+            
+            .stats-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+        /* 加载状态样式 */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: none;
+            border: 1px solid #fecaca;
+        }
+        
+        .success-message {
+            background: #d1fae5;
+            color: #059669;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: none;
+            border: 1px solid #a7f3d0;
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边栏导航组件 -->
+    <div id="sidebar-container"></div>
+    <script>
+        // 加载侧边栏组件
+        fetch('components/teacher-sidebar-nav.html')
+            .then(response => response.text())
+            .then(data => {
+                document.getElementById('sidebar-container').innerHTML = data;
+                // 确保侧边栏组件完全加载后初始化
+                setTimeout(() => {
+                    if (window.initSidebar) {
+                        window.initSidebar();
+                    } else {
+                        // 尝试直接调用，可能脚本已经内联执行
+                        initSidebar();
+                    }
+                }, 100);
+            })
+            .catch(error => console.error('加载侧边栏组件失败:', error));
+    </script>
+    
+    <!-- 消息提示容器 -->
+    <div id="messageContainer" style="position: fixed; top: 20px; right: 20px; z-index: 2000; width: 350px;"></div>
+
+    <!-- 主内容区 -->
+    <main class="main-content" id="mainContent">
+        <!-- 顶部导航栏 -->
+        <nav class="top-navbar">
+            <div class="navbar-left">
+                <button class="toggle-btn" id="toggleBtn">
+                    <i class="fa fa-bars"></i>
+                </button>
+                <h1 class="page-title">作业与考试发布</h1>
+            </div>
+            
+            <div class="navbar-right">
+                <!-- 用户下拉菜单组件（教师端紫色主题） -->
+                <div id="userDropdownContainer"></div>
+            </div>
+        </nav>
+        
+        <!-- 内容容器 -->
+        <div class="content-container">
+            <!-- 页面标题 -->
+            <div class="page-header">
+                <h1 class="page-title">作业与考试发布</h1>
+                <div class="btn-group">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAssignmentModal">
+                        <i class="fa fa-plus"></i> 发布作业
+                    </button>
+                    <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#addExamModal">
+                        <i class="fa fa-plus"></i> 发布考试
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 统计卡片 -->
+            <div class="stats-cards">
+                <div class="stat-card">
+                    <div class="stat-icon stat-icon-primary">
+                        <i class="fa fa-file-text"></i>
+                    </div>
+                    <div class="stat-info">
+                        <p class="stat-number" data-stat="pendingAssignments">0</p>
+                        <p class="stat-label">待批改作业</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon stat-icon-success">
+                        <i class="fa fa-pencil-square-o"></i>
+                    </div>
+                    <div class="stat-info">
+                        <p class="stat-number" data-stat="pendingExams">0</p>
+                        <p class="stat-label">待发布考试</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon stat-icon-warning">
+                        <i class="fa fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <p class="stat-number" data-stat="missingSubmissions">0</p>
+                        <p class="stat-label">未交作业学生</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon stat-icon-danger">
+                        <i class="fa fa-calendar-times-o"></i>
+                    </div>
+                    <div class="stat-info">
+                        <p class="stat-number" data-stat="upcomingDeadlines">0</p>
+                        <p class="stat-label">即将截止</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 标签页 -->
+            <div class="tabs">
+                <div class="tabs-nav">
+                    <button class="tab-item active" data-tab="assignments">作业管理</button>
+                    <button class="tab-item" data-tab="exams">考试管理</button>
+                    <button class="tab-item" data-tab="submissions">提交记录</button>
+                </div>
+                
+                <!-- 作业管理内容 -->
+                <div class="tab-content" id="assignments-content">
+                    <!-- 搜索和筛选 -->
+                    <div class="search-filter">
+                        <div class="search-group">
+                            <label for="assignment-search">作业名称</label>
+                            <input type="text" id="assignment-search" placeholder="请输入作业名称">
+                        </div>
+                        <div class="search-group">
+                            <label for="assignment-course">所属课程</label>
+                            <select id="assignment-course">
+                                <option value="">全部课程</option>
+                                <option value="CS101">Python编程基础</option>
+                                <option value="CS102">数据结构与算法</option>
+                                <option value="MA201">高等数学</option>
+                                <option value="DB301">数据库系统</option>
+                            </select>
+                        </div>
+                        <div class="search-group">
+                            <label for="assignment-status">作业状态</label>
+                            <select id="assignment-status">
+                                <option value="">全部状态</option>
+                                <option value="pending">待提交</option>
+                                <option value="submitted">已提交</option>
+                                <option value="graded">已批改</option>
+                                <option value="closed">已截止</option>
+                            </select>
+                        </div>
+                        <div class="search-group" style="flex: none;">
+                            <button class="btn btn-primary" style="width: 100%;">
+                                <i class="fa fa-search"></i> 搜索
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 作业列表 -->
+                    <div class="data-table">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>作业名称</th>
+                                    <th>所属课程</th>
+                                    <th>发布时间</th>
+                                    <th>截止时间</th>
+                                    <th>提交人数</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="assignments-table-body">
+                                <!-- 作业列表将通过JavaScript动态生成 -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- 分页 -->
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination" id="assignments-pagination">
+                            <!-- 分页内容将通过JavaScript动态生成 -->
+                        </ul>
+                    </nav>
+                </div>
+                
+                <!-- 考试管理内容 -->
+                <div class="tab-content" id="exams-content" style="display: none;">
+                    <!-- 搜索和筛选 -->
+                    <div class="search-filter">
+                        <div class="search-group">
+                            <label for="exam-search">考试名称</label>
+                            <input type="text" id="exam-search" placeholder="请输入考试名称">
+                        </div>
+                        <div class="search-group">
+                            <label for="exam-course-search">所属课程</label>
+                            <select id="exam-course-search">
+                                <option value="">全部课程</option>
+                                <option value="CS101">Python编程基础</option>
+                                <option value="CS102">数据结构与算法</option>
+                                <option value="MA201">高等数学</option>
+                                <option value="DB301">数据库系统</option>
+                            </select>
+                        </div>
+                        <div class="search-group">
+                            <label for="exam-status">考试状态</label>
+                            <select id="exam-status">
+                                <option value="">全部状态</option>
+                                <option value="upcoming">即将开始</option>
+                                <option value="ongoing">进行中</option>
+                                <option value="completed">已结束</option>
+                                <option value="graded">已评分</option>
+                            </select>
+                        </div>
+                        <div class="search-group" style="flex: none;">
+                            <button class="btn btn-primary" style="width: 100%;">
+                                <i class="fa fa-search"></i> 搜索
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 考试列表 -->
+                    <div class="data-table">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>考试名称</th>
+                                    <th>所属课程</th>
+                                    <th>考试时间</th>
+                                    <th>考试时长</th>
+                                    <th>参加人数</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="exams-table-body">
+                                <!-- 考试列表将通过JavaScript动态生成 -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- 分页 -->
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination" id="exams-pagination">
+                            <!-- 分页内容将通过JavaScript动态生成 -->
+                        </ul>
+                    </nav>
+                </div>
+                
+                <!-- 提交记录内容 -->
+                <div class="tab-content" id="submissions-content" style="display: none;">
+                    <!-- 搜索和筛选 -->
+                    <div class="search-filter">
+                        <div class="search-group">
+                            <label for="submission-student">学生姓名</label>
+                            <select id="submission-student">
+                                <option value="">全部学生</option>
+                                <!-- 学生选项将通过JavaScript动态生成 -->
+                            </select>
+                        </div>
+                        <div class="search-group">
+                            <label for="submission-assignment">作业/考试</label>
+                            <select id="submission-assignment">
+                                <option value="">全部作业/考试</option>
+                                <option value="assignment1">Python基础作业1</option>
+                                <option value="assignment2">数据结构实验报告</option>
+                                <option value="exam1">数据结构与算法单元测试</option>
+                            </select>
+                        </div>
+                        <div class="search-group">
+                            <label for="submission-status">提交状态</label>
+                            <select id="submission-status">
+                                <option value="">全部状态</option>
+                                <option value="submitted">已提交</option>
+                                <option value="graded">已批改</option>
+                                <option value="late">迟交</option>
+                                <option value="missing">未提交</option>
+                            </select>
+                        </div>
+                        <div class="search-group" style="flex: none;">
+                            <button class="btn btn-primary" style="width: 100%;">
+                                <i class="fa fa-search"></i> 搜索
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 提交记录列表 -->
+                    <div class="data-table">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>学生姓名</th>
+                                    <th>学号</th>
+                                    <th>作业/考试名称</th>
+                                    <th>提交时间</th>
+                                    <th>状态</th>
+                                    <th>成绩</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="submissions-table-body">
+                                <!-- 提交记录将通过JavaScript动态生成 -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- 分页 -->
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination" id="submissions-pagination">
+                            <!-- 分页内容将通过JavaScript动态生成 -->
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- 发布作业模态框 -->
+    <div class="modal fade" id="addAssignmentModal" tabindex="-1" aria-labelledby="addAssignmentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addAssignmentModalLabel">发布作业</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addAssignmentForm">
+                        <div class="form-group">
+                            <label for="assignment-title">作业标题</label>
+                            <input type="text" id="assignment-title" name="assignmentTitle" placeholder="请输入作业标题" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="add-assignment-course">所属课程</label>
+                            <select id="add-assignment-course" name="assignmentCourse" required>
+                                <option value="">请选择所属课程</option>
+                                <!-- 课程列表将通过JavaScript动态加载 -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="assignment-description">作业描述</label>
+                            <textarea id="assignment-description" name="assignmentDescription" placeholder="请输入作业描述" rows="5" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="assignment-files">上传附件</label>
+                            <input type="file" id="assignment-files" name="assignmentFiles" multiple>
+                        </div>
+                        <div class="form-group">
+                            <label for="assignment-time">提交时间</label>
+                            <div class="input-group">
+                                <input type="datetime-local" id="assignment-start" name="assignmentStart" required>
+                                <input type="datetime-local" id="assignment-end" name="assignmentEnd" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="assignment-class">发布班级</label>
+                            <select id="assignment-class" name="assignmentClass" multiple size="4">
+                                <option value="class1">计算机科学与技术1班</option>
+                                <option value="class2">软件工程2班</option>
+                                <option value="class3">数据科学1班</option>
+                                <option value="class4">人工智能1班</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="assignment-score">满分</label>
+                            <input type="number" id="assignment-score" name="assignmentScore" min="1" max="100" value="100" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="assignment-knowledge-points">关联知识点</label>
+                            <select id="assignment-knowledge-points" name="assignmentKnowledgePoints" multiple size="4">
+                                <!-- 知识点列表将通过JavaScript动态加载 -->
+                            </select>
+                            <small class="text-muted">按住Ctrl键可多选，选择课程后自动加载该课程的知识点</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="submitAddAssignment()">发布作业</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 编辑作业模态框 -->
+    <div class="modal fade" id="editAssignmentModal" tabindex="-1" aria-labelledby="editAssignmentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editAssignmentModalLabel">编辑作业</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editAssignmentForm">
+                        <input type="hidden" id="edit-assignment-id" name="assignmentId">
+                        <div class="form-group">
+                            <label for="edit-assignment-title">作业标题</label>
+                            <input type="text" id="edit-assignment-title" name="assignmentTitle" value="Python基础作业1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-assignment-course">所属课程</label>
+                            <select id="edit-assignment-course" name="assignmentCourse" required>
+                                <option value="CS101" selected>Python编程基础</option>
+                                <option value="CS102">数据结构与算法</option>
+                                <option value="MA201">高等数学</option>
+                                <option value="DB301">数据库系统</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-assignment-description">作业描述</label>
+                            <textarea id="edit-assignment-description" name="assignmentDescription" rows="5" required>请完成Python基础作业1，包括以下内容：
+1. 变量和数据类型
+2. 条件语句和循环
+3. 函数定义和调用
+4. 列表和字典的使用
+
+要求：代码整洁，有适当注释，运行结果正确。</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-assignment-files">已上传附件</label>
+                            <div class="card">
+                                <div class="card-body">
+                                    <p><i class="fa fa-file"></i> Python基础作业1.docx <button class="btn btn-sm btn-danger" style="float: right;"><i class="fa fa-trash"></i></button></p>
+                                </div>
+                            </div>
+                            <input type="file" id="edit-assignment-files" name="assignmentFiles" multiple style="margin-top: 10px;">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-assignment-time">提交时间</label>
+                            <div class="input-group">
+                                <input type="datetime-local" id="edit-assignment-start" name="assignmentStart" value="2024-05-15T08:00" required>
+                                <input type="datetime-local" id="edit-assignment-end" name="assignmentEnd" value="2024-05-22T23:59" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-assignment-class">发布班级</label>
+                            <select id="edit-assignment-class" name="assignmentClass" multiple size="4">
+                                <option value="class1" selected>计算机科学与技术1班</option>
+                                <option value="class2" selected>软件工程2班</option>
+                                <option value="class3">数据科学1班</option>
+                                <option value="class4">人工智能1班</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-assignment-score">满分</label>
+                            <input type="number" id="edit-assignment-score" name="assignmentScore" min="1" max="100" value="100" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="submitEditAssignment()">保存修改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 查看作业模态框 -->
+    <div class="modal fade" id="viewAssignmentModal" tabindex="-1" aria-labelledby="viewAssignmentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewAssignmentModalLabel">Python基础作业1</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title">作业信息</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>所属课程：</strong>Python编程基础</p>
+                                    <p><strong>发布时间：</strong>2024-05-15 08:00</p>
+                                    <p><strong>截止时间：</strong>2024-05-22 23:59</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>满分：</strong>100分</p>
+                                    <p><strong>提交人数：</strong>38/45</p>
+                                    <p><strong>发布班级：</strong>计算机科学与技术1班、软件工程2班</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title">作业描述</h6>
+                            <p>请完成Python基础作业1，包括以下内容：</p>
+                            <ol>
+                                <li>变量和数据类型</li>
+                                <li>条件语句和循环</li>
+                                <li>函数定义和调用</li>
+                                <li>列表和字典的使用</li>
+                            </ol>
+                            <p>要求：代码整洁，有适当注释，运行结果正确。</p>
+                        </div>
+                    </div>
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title">附件</h6>
+                            <p><i class="fa fa-file"></i> <a href="#">Python基础作业1.docx</a></p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">提交统计</h6>
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <p class="stat-number">38</p>
+                                    <p class="stat-label">已提交</p>
+                                </div>
+                                <div class="col-md-3">
+                                    <p class="stat-number">7</p>
+                                    <p class="stat-label">未提交</p>
+                                </div>
+                                <div class="col-md-3">
+                                    <p class="stat-number">24</p>
+                                    <p class="stat-label">已批改</p>
+                                </div>
+                                <div class="col-md-3">
+                                    <p class="stat-number">14</p>
+                                    <p class="stat-label">待批改</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-success">查看提交列表</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 发布考试模态框 -->
+    <div class="modal fade" id="addExamModal" tabindex="-1" aria-labelledby="addExamModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addExamModalLabel">发布考试</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addExamForm" novalidate>
+                        <div class="form-group">
+                            <label for="exam-title">考试标题 *</label>
+                            <input type="text" id="exam-title" name="examTitle" placeholder="请输入考试标题">
+                        </div>
+                        <div class="form-group">
+                            <label for="exam-course">所属课程 *</label>
+                            <select id="exam-course" name="examCourse">
+                                <option value="">请选择所属课程</option>
+                                <!-- 课程列表将通过JavaScript动态加载 -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="exam-description">考试说明 *</label>
+                            <textarea id="exam-description" name="examDescription" placeholder="请输入考试说明" rows="5"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="exam-time">考试时间 *</label>
+                            <div class="input-group">
+                                <input type="datetime-local" id="exam-start" name="examStart">
+                                <input type="number" id="exam-duration" name="examDuration" min="1" max="300" placeholder="考试时长(分钟)">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="exam-class">考试班级</label>
+                            <select id="exam-class" name="examClass" multiple size="4">
+                                <option value="class1">计算机科学与技术1班</option>
+                                <option value="class2">软件工程2班</option>
+                                <option value="class3">数据科学1班</option>
+                                <option value="class4">人工智能1班</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="exam-score">满分</label>
+                            <input type="number" id="exam-score" name="examScore" min="1" max="100" value="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="exam-knowledge-points">关联知识点</label>
+                            <select id="exam-knowledge-points" name="examKnowledgePoints" multiple size="4">
+                                <!-- 知识点列表将通过JavaScript动态加载 -->
+                            </select>
+                            <small class="text-muted">按住Ctrl键可多选，选择课程后自动加载该课程的知识点</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="exam-type">考试类型</label>
+                            <select id="exam-type" name="examType">
+                                <option value="">请选择考试类型</option>
+                                <option value="quiz">小测验</option>
+                                <option value="midterm">期中考试</option>
+                                <option value="final">期末考试</option>
+                                <option value="practical">实践考试</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="exam-papers">上传试卷</label>
+                            <input type="file" id="exam-papers" name="examPapers" multiple>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="submitAddExam()">发布考试</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 编辑考试模态框 -->
+    <div class="modal fade" id="editExamModal" tabindex="-1" aria-labelledby="editExamModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editExamModalLabel">编辑考试</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editExamForm">
+                        <input type="hidden" id="edit-exam-id" name="examId">
+                        <div class="form-group">
+                            <label for="edit-exam-title">考试标题</label>
+                            <input type="text" id="edit-exam-title" name="examTitle" value="数据结构与算法单元测试" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-exam-course">所属课程</label>
+                            <select id="edit-exam-course" name="examCourse" required>
+                                <option value="CS101">Python编程基础</option>
+                                <option value="CS102" selected>数据结构与算法</option>
+                                <option value="MA201">高等数学</option>
+                                <option value="DB301">数据库系统</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-exam-description">考试说明</label>
+                            <textarea id="edit-exam-description" name="examDescription" rows="5" required>本考试为数据结构与算法单元测试，包括选择题、填空题和编程题，考试时间为90分钟。
+
+考试要求：
+1. 考生需在规定时间内完成所有题目
+2. 保持考场安静，不得作弊
+3. 考试结束后立即提交试卷</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-exam-time">考试时间</label>
+                            <div class="input-group">
+                                <input type="datetime-local" id="edit-exam-start" name="examStart" value="2024-05-25T14:30" required>
+                                <input type="number" id="edit-exam-duration" name="examDuration" min="1" max="300" value="90" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-exam-class">考试班级</label>
+                            <select id="edit-exam-class" name="examClass" multiple size="4" required>
+                                <option value="class1" selected>计算机科学与技术1班</option>
+                                <option value="class2" selected>软件工程2班</option>
+                                <option value="class3">数据科学1班</option>
+                                <option value="class4">人工智能1班</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-exam-score">满分</label>
+                            <input type="number" id="edit-exam-score" name="examScore" min="1" max="100" value="100" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-exam-papers">已上传试卷</label>
+                            <div class="card">
+                                <div class="card-body">
+                                    <p><i class="fa fa-file"></i> 数据结构与算法单元测试.docx <button class="btn btn-sm btn-danger" style="float: right;"><i class="fa fa-trash"></i></button></p>
+                                </div>
+                            </div>
+                            <input type="file" id="edit-exam-papers" name="examPapers" multiple style="margin-top: 10px;">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="submitEditExam()">保存修改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 查看考试模态框 -->
+    <div class="modal fade" id="viewExamModal" tabindex="-1" aria-labelledby="viewExamModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewExamModalLabel">考试详情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="viewExamBody">
+                    <!-- 考试详情将通过JavaScript动态生成 -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-success" id="view-exam-submissions-btn">查看提交列表</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 批改作业模态框 -->
+    <div class="modal fade" id="gradeAssignmentModal" tabindex="-1" aria-labelledby="gradeAssignmentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="gradeAssignmentModalLabel">批改作业</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="grade-assignment-loading" style="text-align: center; padding: 20px; display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                        <p style="margin-top: 10px;">正在加载提交记录...</p>
+                    </div>
+                    <div id="grade-assignment-error" style="display: none; text-align: center; padding: 20px; color: #dc3545;">
+                        <i class="fa fa-exclamation-circle" style="font-size: 24px; margin-bottom: 10px;"></i>
+                        <p id="grade-assignment-error-message"></p>
+                    </div>
+                    <div id="grade-assignment-content" style="display: none;">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>学生姓名</th>
+                                        <th>提交时间</th>
+                                        <th>提交内容</th>
+                                        <th>状态</th>
+                                        <th>得分</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="grade-assignment-table-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 批改单个提交模态框 -->
+    <div class="modal fade" id="gradeSubmissionModal" tabindex="-1" aria-labelledby="gradeSubmissionModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="gradeSubmissionModalLabel">批改提交</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="gradeSubmissionForm">
+                        <input type="hidden" id="grade-submission-id" name="submissionId">
+                        <div class="form-group">
+                            <label for="grade-submission-content">提交内容</label>
+                            <textarea id="grade-submission-content" class="form-control" rows="8" readonly style="resize: vertical; overflow-y: auto;"></textarea>
+                            <small class="form-text text-muted">此内容为学生提交的作业内容，仅供查看</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="grade-score">得分 *</label>
+                            <input type="number" id="grade-score" name="score" class="form-control" min="0" max="100" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="grade-comment">教师评语</label>
+                            <textarea id="grade-comment" name="teacherComment" class="form-control" rows="3" maxlength="500"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="submitGradeSubmission()">提交批改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 评分考试模态框 -->
+    <div class="modal fade" id="gradeExamModal" tabindex="-1" aria-labelledby="gradeExamModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="gradeExamModalLabel">评分考试</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="grade-exam-loading" style="text-align: center; padding: 20px; display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                        <p style="margin-top: 10px;">正在加载提交记录...</p>
+                    </div>
+                    <div id="grade-exam-error" style="display: none; text-align: center; padding: 20px; color: #dc3545;">
+                        <i class="fa fa-exclamation-circle" style="font-size: 24px; margin-bottom: 10px;"></i>
+                        <p id="grade-exam-error-message"></p>
+                    </div>
+                    <div id="grade-exam-content" style="display: none;">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>学生姓名</th>
+                                        <th>提交时间</th>
+                                        <th>提交内容</th>
+                                        <th>用时（分钟）</th>
+                                        <th>状态</th>
+                                        <th>得分</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="grade-exam-table-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 评分单个提交模态框 -->
+    <div class="modal fade" id="gradeExamSubmissionModal" tabindex="-1" aria-labelledby="gradeExamSubmissionModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="gradeExamSubmissionModalLabel">评分提交</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="gradeExamSubmissionForm">
+                        <input type="hidden" id="grade-exam-submission-id" name="submissionId">
+                        <div class="form-group">
+                            <label for="grade-exam-submission-content">提交内容</label>
+                            <textarea id="grade-exam-submission-content" class="form-control" rows="8" readonly style="resize: vertical; overflow-y: auto;"></textarea>
+                            <small class="form-text text-muted">此内容为学生提交的考试答案，仅供查看</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="grade-exam-score">得分 *</label>
+                            <input type="number" id="grade-exam-score" name="score" class="form-control" min="0" max="100" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="grade-exam-comment">教师评语</label>
+                            <textarea id="grade-exam-comment" name="teacherComment" class="form-control" rows="3" maxlength="500"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="submitGradeExamSubmission()">提交评分</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 加载状态和消息容器 -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+    <div id="messageContainer"></div>
+    
+    <!-- 引入外部API脚本 -->
+    <script src="api.js?v=20260516-2"></script>
+    
+    <script>
+        const assignmentPageState = {
+            activeTab: 'assignments',
+            examsLoaded: false,
+            studentDropdownLoaded: false
+        };
+
+        const submissionItemCache = {
+            assignments: [],
+            exams: [],
+            assignmentsLoaded: false,
+            examsLoaded: false
+        };
+
+        // 通用函数：为教师端加载右上角用户下拉菜单，并执行组件内脚本
+        async function loadUserDropdownForTeacher(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            try {
+                const resp = await fetch('components/user-dropdown.html?v=20260516-2');
+                if (!resp.ok) {
+                    console.error('加载用户下拉组件失败:', resp.status, resp.statusText);
+                    return;
+                }
+
+                const html = await resp.text();
+                container.innerHTML = html;
+
+                // 手动执行组件中的内联脚本，确保 UserDropdown 类可用
+                const scripts = container.querySelectorAll('script');
+                scripts.forEach(oldScript => {
+                    const script = document.createElement('script');
+                    if (oldScript.src) {
+                        script.src = oldScript.src;
+                    } else {
+                        script.textContent = oldScript.textContent;
+                    }
+                    document.body.appendChild(script);
+                    oldScript.remove();
+                });
+
+                if (typeof UserDropdown !== 'undefined') {
+                    new UserDropdown(containerId, 'teacher');
+                } else {
+                    console.error('UserDropdown 组件未定义，可能脚本未正确加载');
+                }
+            } catch (e) {
+                console.error('加载用户下拉组件异常:', e);
+            }
+        }
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 先检查教师是否已登录
+            const user = sessionStorage.getItem('user');
+            if (!user) {
+                window.location.href = 'teacher-login.html?v=20260516-2';
+                return;
+            }
+
+            // 加载右上角用户下拉菜单（教师端紫色主题）
+            await loadUserDropdownForTeacher('userDropdownContainer');
+
+            // 显示加载状态
+            showLoading();
+            try {
+            // 直接使用模拟数据填充所有课程下拉菜单并更新courseMap
+            const mockCourses = [
+                { courseCode: 'CS101', courseName: 'Python编程基础' },
+                { courseCode: 'CS102', courseName: '数据结构与算法' },
+                { courseCode: 'MA201', courseName: '高等数学' },
+                { courseCode: 'DB301', courseName: '数据库系统' },
+                { courseCode: 'AI401', courseName: '人工智能导论' },
+                { courseCode: 'WEB501', courseName: 'Web前端开发' },
+                { courseCode: 'ML501', courseName: '机器学习基础' },
+                { courseCode: 'DL601', courseName: '深度学习进阶' }
+            ];
+            
+            // 先填充所有可见的课程下拉菜单和更新courseMap，确保初始加载时有数据
+            populateAllCourseDropdowns(mockCourses);
+            
+            // 更新courseMap（来自api.js）用于课程ID映射
+            if (typeof courseMap !== 'undefined') {
+                // 初始化courseMap，避免显示"未知课程"
+                courseMap.clear();
+                mockCourses.forEach(course => {
+                    const courseId = course.courseCode;
+                    const courseName = course.courseName;
+                    courseMap.set(courseId, courseName);
+                });
+            }
+            
+            // 初始化搜索功能
+            initSearchFunctions();
+            activateTab('assignments');
+            
+            // 加载初始数据：默认只先拉作业链，避免把考试 tab 和提交记录链绑在一起
+            await loadAssignments();
+            
+            // 最后异步加载最新的课程数据，更新下拉菜单和courseMap
+            // 这样可以确保初始加载时有数据，避免显示"未知课程"
+            await loadCourses().then(() => {
+                console.log('课程数据异步更新完成');
+            }).catch(error => {
+                console.error('异步加载课程数据失败:', error);
+            });
+            } finally {
+                // 隐藏加载状态
+                hideLoading();
+            }
+        });
+        
+        // 填充学生下拉菜单
+        async function populateStudentDropdown() {
+            try {
+                const studentSelect = document.getElementById('submission-student');
+                if (!studentSelect) return;
+                
+                // 显示加载状态
+                studentSelect.innerHTML = '<option value="">加载中学生数据...</option>';
+                
+                // 从API获取学生列表
+                const apiService = new APIService();
+                const teacherAPI = new TeacherAPI(apiService);
+                const response = await teacherAPI.getStudents();
+                
+                let students = [];
+                if (response && response.success) {
+                    // 处理分页数据
+                    if (response.data && response.data.content) {
+                        students = response.data.content;
+                    } else if (Array.isArray(response.data)) {
+                        students = response.data;
+                    }
+                }
+                
+                // 保留第一个选项（全部学生）
+                const allStudentsOption = document.createElement('option');
+                allStudentsOption.value = '';
+                allStudentsOption.textContent = '全部学生';
+                
+                // 清空并重新填充选项
+                studentSelect.innerHTML = '';
+                studentSelect.appendChild(allStudentsOption);
+                
+                // 添加学生选项
+                students.forEach(student => {
+                    const option = document.createElement('option');
+                    option.value = student.id || student.studentId;
+                    option.textContent = `${student.name || student.studentName} (${student.studentId || student.id})`;
+                    studentSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('填充学生下拉菜单失败:', error);
+                const studentSelect = document.getElementById('submission-student');
+                if (studentSelect) {
+                    studentSelect.innerHTML = '<option value="">获取学生数据失败</option>';
+                }
+            }
+        }
+        
+        function activateTab(tabId) {
+            assignmentPageState.activeTab = tabId;
+
+            document.querySelectorAll('.tab-item').forEach(tab => {
+                tab.classList.toggle('active', tab.getAttribute('data-tab') === tabId);
+            });
+
+            ['assignments', 'exams', 'submissions'].forEach(contentTabId => {
+                const content = document.getElementById(`${contentTabId}-content`);
+                if (content) {
+                    content.style.display = contentTabId === tabId ? '' : 'none';
+                }
+            });
+        }
+
+        async function switchTeacherAssignmentsTab(tabId) {
+            activateTab(tabId);
+
+            if (tabId === 'assignments') {
+                await loadAssignments();
+                return;
+            }
+
+            if (tabId === 'exams') {
+                await loadExams();
+                assignmentPageState.examsLoaded = true;
+                return;
+            }
+
+            if (tabId === 'submissions') {
+                if (!assignmentPageState.studentDropdownLoaded) {
+                    await populateStudentDropdown();
+                    assignmentPageState.studentDropdownLoaded = true;
+                }
+                await populateAssignmentExamDropdown({ includeExams: true });
+                await loadSubmissions();
+            }
+        }
+
+        // 填充提交记录筛选中的作业/考试下拉菜单
+        async function populateAssignmentExamDropdown(options = {}) {
+            const { includeExams = false, force = false } = options;
+            try {
+                const assignmentSelect = document.getElementById('submission-assignment');
+                if (!assignmentSelect) return;
+                
+                // 显示加载状态
+                assignmentSelect.innerHTML = '<option value="">加载中作业/考试数据...</option>';
+                
+                // 从API获取作业和考试列表
+                const apiService = new APIService();
+                const teacherAPI = new TeacherAPI(apiService);
+                
+                if (force || !submissionItemCache.assignmentsLoaded) {
+                    const assignmentsResponse = await teacherAPI.getAssignments({ page: 1, size: 100 });
+                    let assignments = [];
+                    if (assignmentsResponse && assignmentsResponse.success) {
+                        if (assignmentsResponse.data && assignmentsResponse.data.content) {
+                            assignments = assignmentsResponse.data.content;
+                        } else if (Array.isArray(assignmentsResponse.data)) {
+                            assignments = assignmentsResponse.data;
+                        }
+                    }
+                    submissionItemCache.assignments = assignments;
+                    submissionItemCache.assignmentsLoaded = true;
+                }
+                
+                if (includeExams && (force || !submissionItemCache.examsLoaded)) {
+                    const examsResponse = await teacherAPI.getExams({ page: 1, size: 100 });
+                    let exams = [];
+                    if (examsResponse && examsResponse.success) {
+                        if (examsResponse.data && examsResponse.data.content) {
+                            exams = examsResponse.data.content;
+                        } else if (Array.isArray(examsResponse.data)) {
+                            exams = examsResponse.data;
+                        }
+                    }
+                    submissionItemCache.exams = exams;
+                    submissionItemCache.examsLoaded = true;
+                }
+                
+                // 默认只展示作业；只有点过考试 tab 后才合并考试项
+                const allItems = [
+                    ...submissionItemCache.assignments.map(item => ({ 
+                        id: item.id, 
+                        title: item.title, 
+                        type: 'assignment' 
+                    })),
+                    ...(includeExams ? submissionItemCache.exams.map(item => ({ 
+                        id: item.id, 
+                        title: item.title, 
+                        type: 'exam' 
+                    })) : [])
+                ];
+                
+                // 按标题排序
+                allItems.sort((a, b) => a.title.localeCompare(b.title));
+                
+                // 保留第一个选项（全部作业/考试）
+                const allOption = document.createElement('option');
+                allOption.value = '';
+                allOption.textContent = '全部作业/考试';
+                
+                // 清空并重新填充选项
+                assignmentSelect.innerHTML = '';
+                assignmentSelect.appendChild(allOption);
+                
+                // 添加选项
+                allItems.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.id;
+                    option.textContent = `${item.title} (${item.type === 'assignment' ? '作业' : '考试'})`;
+                    assignmentSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('填充作业/考试下拉菜单失败:', error);
+                const assignmentSelect = document.getElementById('submission-assignment');
+                if (assignmentSelect) {
+                    assignmentSelect.innerHTML = '<option value="">获取作业/考试数据失败</option>';
+                }
+            }
+        }
+        
+
+        
+        // 初始化搜索功能
+        function initSearchFunctions() {
+            // 作业搜索
+            const assignmentSearchBtn = document.querySelector('#assignments-content .search-filter .btn-primary');
+            if (assignmentSearchBtn) {
+                assignmentSearchBtn.addEventListener('click', async () => {
+                    showLoading();
+                    try {
+                        const keyword = document.getElementById('assignment-search').value;
+                        const courseId = document.getElementById('assignment-course').value;
+                        const status = document.getElementById('assignment-status').value;
+                        
+                        // 只添加非空的搜索条件
+                        const params = {};
+                        if (keyword.trim() !== '') params.keyword = keyword;
+                        if (courseId !== '') params.courseId = courseId;
+                        if (status !== '') params.status = status;
+                        
+                        await loadAssignments(1, params);
+                    } finally {
+                        hideLoading();
+                    }
+                });
+            }
+            
+            // 考试搜索
+            const examSearchBtn = document.querySelector('#exams-content .search-filter .btn-primary');
+            if (examSearchBtn) {
+                examSearchBtn.addEventListener('click', async () => {
+                    showLoading();
+                    try {
+                        const keyword = document.getElementById('exam-search').value;
+                        const courseId = document.getElementById('exam-course-search').value;
+                        const status = document.getElementById('exam-status').value;
+                        
+                        // 只添加非空的搜索条件
+                        const params = {};
+                        if (keyword.trim() !== '') params.keyword = keyword;
+                        if (courseId !== '') params.courseId = courseId;
+                        if (status !== '') params.status = status;
+                        
+                        await loadExams(1, params);
+                    } finally {
+                        hideLoading();
+                    }
+                });
+            }
+            
+            // 提交记录搜索
+            const submissionSearchBtn = document.querySelector('#submissions-content .search-filter .btn-primary');
+            if (submissionSearchBtn) {
+                submissionSearchBtn.addEventListener('click', async () => {
+                    showLoading();
+                    try {
+                        const studentId = document.getElementById('submission-student').value;
+                        const assignmentId = document.getElementById('submission-assignment').value;
+                        const status = document.getElementById('submission-status').value;
+                        
+                        // 只添加非空的搜索条件
+                        const params = {};
+                        if (studentId.trim() !== '') params.studentId = studentId;
+                        if (assignmentId !== '') params.assignmentId = assignmentId;
+                        if (status !== '') params.status = status;
+                        
+                        await loadSubmissions(1, params);
+                    } finally {
+                        hideLoading();
+                    }
+                });
+            }
+
+            const tabItems = document.querySelectorAll('.tab-item');
+            tabItems.forEach(item => {
+                item.addEventListener('click', async () => {
+                    const tabId = item.getAttribute('data-tab');
+                    await switchTeacherAssignmentsTab(tabId);
+                });
+            });
+        }
+        
+        // 查看作业
+        async function viewAssignment(assignmentId) {
+            console.log('查看作业:', assignmentId);
+            try {
+                showLoading();
+                const apiService = new APIService();
+                const teacherAPI = new TeacherAPI(apiService);
+                
+                const response = await teacherAPI.getAssignmentById(assignmentId);
+                if (response.success) {
+                    const assignment = response.data;
+                    const viewExamBody = document.getElementById('viewExamBody');
+                    if (viewExamBody) {
+                        viewExamBody.innerHTML = `
+                            <div class="exam-detail">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <strong>作业标题:</strong> ${assignment.title}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>课程:</strong> ${courseMap.get(assignment.courseId) || '未知课程'}
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <strong>发布日期:</strong> ${formatDateTime(assignment.publishDate)}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>截止日期:</strong> ${formatDateTime(assignment.dueDate)}
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <strong>状态:</strong> ${assignment.isActive ? '激活' : '已关闭'}
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>作业描述:</strong>
+                                    <div class="mt-2">${assignment.description}</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    const modal = new bootstrap.Modal(document.getElementById('viewExamModal'));
+                    modal.show();
+                } else {
+                    showMessage('获取作业详情失败', 'error');
+                }
+            } catch (error) {
+                console.error('查看作业失败:', error);
+                showMessage('查看作业失败', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 编辑作业
+        async function editAssignment(assignmentId) {
+            console.log('编辑作业:', assignmentId);
+            try {
+                showLoading();
+                const apiService = new APIService();
+                const teacherAPI = new TeacherAPI(apiService);
+                
+                const response = await teacherAPI.getAssignmentById(assignmentId);
+                if (response && response.success) {
+                    const assignment = response.data;
+                    
+                    // 填充表单数据
+                    document.getElementById('edit-assignment-id').value = assignment.id || '';
+                    document.getElementById('edit-assignment-title').value = assignment.title || '';
+                    document.getElementById('edit-assignment-course').value = assignment.courseId || '';
+                    document.getElementById('edit-assignment-description').value = assignment.description || '';
+                    
+                    // 填充日期时间字段
+                    if (assignment.publishDate) {
+                        document.getElementById('edit-assignment-start').value = formatDateTimeLocal(assignment.publishDate);
+                    }
+                    if (assignment.dueDate) {
+                        document.getElementById('edit-assignment-end').value = formatDateTimeLocal(assignment.dueDate);
+                    }
+                    
+                    // 填充状态字段（如果存在）
+                    const statusField = document.getElementById('edit-assignment-status');
+                    if (statusField) {
+                        statusField.value = assignment.isActive ? 'active' : 'inactive';
+                    }
+                    
+                    // 填充满分字段（如果存在）
+                    const scoreField = document.getElementById('edit-assignment-score');
+                    if (scoreField && assignment.maxScore) {
+                        scoreField.value = assignment.maxScore;
+                    }
+                    
+                    // 显示模态框
+                    const modal = new bootstrap.Modal(document.getElementById('editAssignmentModal'));
+                    modal.show();
+                } else {
+                    showMessage('获取作业详情失败: ' + (response?.message || '未知错误'), 'error');
+                }
+            } catch (error) {
+                console.error('编辑作业失败:', error);
+                showMessage('编辑作业失败: ' + error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 删除作业
+        async function deleteAssignment(assignmentId) {
+            if (!confirm('确定要删除这个作业吗？')) {
+                return;
+            }
+            
+            // 显示加载状态
+            showLoading();
+            
+            try {
+                // 使用封装好的API服务
+                const apiService = new APIService();
+                const teacherAPI = new TeacherAPI(apiService);
+                
+                // 调用API删除作业
+                const response = await teacherAPI.deleteAssignment(assignmentId);
+                
+                // 隐藏加载状态
+                hideLoading();
+                
+                // 检查响应 - 204 No Content 或 success=true 都表示成功
+                if (!response || (response.success === false)) {
+                    showMessage('删除作业失败：' + (response?.message || '未知错误'), 'error');
+                } else {
+                    showMessage('删除作业成功', 'success');
+                    // 重新加载作业列表
+                    await loadAssignments();
+                }
+            } catch (error) {
+                // 隐藏加载状态
+                hideLoading();
+                
+                console.error('删除作业失败:', error);
+                showMessage('删除作业失败：' + error.message, 'error');
+            }
+        }
+        
+        // 查看考试
+        async function viewExam(examId) {
+            console.log('查看考试:', examId);
+            try {
+                showLoading();
+                const apiService = new APIService();
+                const teacherAPI = new TeacherAPI(apiService);
+                
+                const response = await teacherAPI.getExamById(examId);
+                if (response.success) {
+                    const exam = response.data;
+                    const viewExamBody = document.getElementById('viewExamBody');
+                    if (viewExamBody) {
+                        viewExamBody.innerHTML = `
+                            <div class="exam-detail">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <strong>考试标题:</strong> ${exam.title}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>课程:</strong> ${courseMap.get(exam.courseId) || '未知课程'}
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <strong>开始时间:</strong> ${formatDateTime(exam.startTime)}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>结束时间:</strong> ${formatDateTime(exam.endTime)}
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <strong>考试时长:</strong> ${exam.duration} 分钟
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>状态:</strong> ${exam.isActive ? '激活' : '已关闭'}
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <strong>考试类型:</strong> ${exam.isOnline ? '线上考试' : '线下考试'}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>考试地点:</strong> ${exam.location || '线上'}
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>考试说明:</strong>
+                                    <div class="mt-2">${exam.description}</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    const viewExamSubmissionsButton = document.getElementById('view-exam-submissions-btn');
+                    if (viewExamSubmissionsButton) {
+                        viewExamSubmissionsButton.dataset.examId = String(examId);
+                    }
+                    const modal = new bootstrap.Modal(document.getElementById('viewExamModal'));
+                    modal.show();
+                } else {
+                    showMessage('获取考试详情失败', 'error');
+                }
+            } catch (error) {
+                console.error('查看考试失败:', error);
+                showMessage('查看考试失败', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 编辑考试
+        async function editExam(examId) {
+            console.log('编辑考试:', examId);
+            try {
+                showLoading();
+                const apiService = new APIService();
+                const teacherAPI = new TeacherAPI(apiService);
+                
+                const response = await teacherAPI.getExamById(examId);
+                if (response.success) {
+                    const exam = response.data;
+                    document.getElementById('edit-exam-id').value = exam.id;
+                    document.getElementById('edit-exam-title').value = exam.title;
+                    document.getElementById('edit-exam-course').value = exam.courseId;
+                    document.getElementById('edit-exam-description').value = exam.description;
+                    document.getElementById('edit-exam-start').value = formatDateTimeLocal(exam.startTime);
+                    document.getElementById('edit-exam-duration').value = exam.duration;
+                    
+                    const modal = new bootstrap.Modal(document.getElementById('editExamModal'));
+                    modal.show();
+                } else {
+                    showMessage('获取考试详情失败', 'error');
+                }
+            } catch (error) {
+                console.error('编辑考试失败:', error);
+                showMessage('编辑考试失败', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 日期时间格式化函数
+        function formatDateTime(dateTimeString) {
+            if (!dateTimeString) return '';
+            const date = new Date(dateTimeString);
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+        
+        // 日期时间本地格式化函数（用于输入框）
+        function formatDateTimeLocal(dateTimeString) {
+            if (!dateTimeString) return '';
+            const date = new Date(dateTimeString);
+            // 转换为YYYY-MM-DDTHH:MM格式
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+        
+        // 删除考试
+        async function deleteExam(examId) {
+            if (!confirm('确定要删除这个考试吗？')) {
+                return;
+            }
+            
+            // 显示加载状态
+            showLoading();
+            
+            try {
+                // 使用封装好的API服务
+                const apiService = new APIService();
+                const teacherAPI = new TeacherAPI(apiService);
+                
+                // 调用API删除考试
+                const response = await teacherAPI.deleteExam(examId);
+                
+                // 隐藏加载状态
+                hideLoading();
+                
+                // 检查响应
+                if (response && response.success) {
+                    showMessage('删除考试成功', 'success');
+                    // 重新加载考试列表
+                    await loadExams();
+                } else {
+                    showMessage('删除考试失败：' + (response.message || '未知错误'), 'error');
+                }
+            } catch (error) {
+                // 隐藏加载状态
+                hideLoading();
+                
+                console.error('删除考试失败:', error);
+                showMessage('删除考试失败：' + error.message, 'error');
+            }
+        }
+        
+        // 填充所有课程下拉菜单
+        function populateAllCourseDropdowns(courses) {
+            console.log('填充所有课程下拉菜单，课程数量:', courses.length);
+            
+            // 1. 处理作业搜索筛选
+            const assignmentSearchSelect = document.getElementById('assignment-course');
+            if (assignmentSearchSelect) {
+                populateCourseOptions(assignmentSearchSelect, courses);
+            }
+            
+            // 2. 处理考试搜索筛选
+            const examSearchSelect = document.getElementById('exam-course-search');
+            if (examSearchSelect) {
+                populateCourseOptions(examSearchSelect, courses);
+            }
+            
+            // 3. 处理发布作业模态框
+            const addAssignmentModal = document.getElementById('addAssignmentModal');
+            if (addAssignmentModal) {
+                const assignmentCourseSelect = addAssignmentModal.querySelector('#add-assignment-course');
+                if (assignmentCourseSelect) {
+                    populateCourseOptions(assignmentCourseSelect, courses);
+                }
+            }
+            
+            // 4. 处理编辑作业模态框
+            const editAssignmentModal = document.getElementById('editAssignmentModal');
+            if (editAssignmentModal) {
+                const editAssignmentCourseSelect = editAssignmentModal.querySelector('#edit-assignment-course');
+                if (editAssignmentCourseSelect) {
+                    populateCourseOptions(editAssignmentCourseSelect, courses);
+                }
+            }
+            
+            // 5. 处理发布考试模态框
+            const addExamModal = document.getElementById('addExamModal');
+            if (addExamModal) {
+                const examCourseSelect = addExamModal.querySelector('#exam-course');
+                if (examCourseSelect) {
+                    populateCourseOptions(examCourseSelect, courses);
+                }
+            }
+            
+            // 6. 处理编辑考试模态框
+            const editExamModal = document.getElementById('editExamModal');
+            if (editExamModal) {
+                const editExamCourseSelect = editExamModal.querySelector('#edit-exam-course');
+                if (editExamCourseSelect) {
+                    populateCourseOptions(editExamCourseSelect, courses);
+                }
+            }
+        }
+        
+        // 加载课程数据
+        async function loadCourses() {
+            try {
+                console.log('开始加载课程数据...');
+                
+                // 初始化API服务
+                const apiService = new APIService();
+                const teacherAPI = new TeacherAPI(apiService);
+                
+                // 获取课程列表
+                console.log('调用API获取课程列表...');
+                const response = await teacherAPI.getCourses();
+                console.log('API响应:', response);
+                
+                // 检查API响应格式
+                if (response && response.success) {
+                    // 检查是否有分页数据
+                    if (response.data && response.data.content) {
+                        // 从分页结果中获取课程列表
+                        const courseList = response.data.content;
+                        console.log('从API获取的课程列表:', courseList);
+                        
+                        // 填充所有课程下拉菜单
+                        populateAllCourseDropdowns(courseList);
+                
+                        // 更新courseMap（来自api.js）用于课程ID映射
+                        if (typeof courseMap !== 'undefined') {
+                            courseMap.clear();
+                            courseList.forEach(course => {
+                                const courseId = course.id || course.courseCode;
+                                const courseName = course.courseName;
+                                courseMap.set(courseId, courseName);
+                            });
+                        }
+                    } else if (response.data && Array.isArray(response.data)) {
+                        // 如果API返回的是直接的课程列表
+                        console.log('从API获取的课程列表(直接数组):', response.data);
+                        populateAllCourseDropdowns(response.data);
+                        
+                        // 更新courseMap（来自api.js）用于课程ID映射
+                        if (typeof courseMap !== 'undefined') {
+                            courseMap.clear();
+                            response.data.forEach(course => {
+                                const courseId = course.id;
+                                const courseName = course.courseName;
+                                courseMap.set(courseId, courseName);
+                            });
+                        }
+                    } else {
+                        console.log('API返回的数据格式不符合预期，使用模拟数据');
+                    }
+                } else {
+                    console.log('API调用失败，使用模拟数据');
+                }
+            } catch (error) {
+                console.error('加载课程数据失败:', error);
+                // 使用模拟数据作为备选
+                console.log('使用模拟数据填充课程列表...');
+            }
+        }
+        
+        // 辅助函数：填充下拉菜单选项
+        function populateCourseOptions(selectElement, courseList) {
+            // 保存当前选中值
+            const currentValue = selectElement.value;
+            
+            // 保存第一个选项（通常是"全部课程"或"请选择所属课程"）
+            const firstOption = selectElement.firstElementChild.cloneNode(true);
+            
+            // 清空现有选项
+            selectElement.innerHTML = '';
+            
+            // 添加第一个选项
+            selectElement.appendChild(firstOption);
+            
+            // 动态添加课程选项
+            courseList.forEach(course => {
+                const option = document.createElement('option');
+                option.value = course.id; // 始终使用课程ID作为选项值
+                option.textContent = course.courseName;
+                selectElement.appendChild(option);
+            });
+            
+            // 恢复之前的选中值
+            if (currentValue) {
+                selectElement.value = currentValue;
+            }
+        }
+        
+
+        
+        // 提交编辑作业
+        async function submitEditAssignment() {
+            try {
+                // 获取表单数据
+                const assignmentId = document.getElementById('edit-assignment-id').value;
+                const assignmentTitle = document.getElementById('edit-assignment-title').value;
+                const assignmentCourse = document.getElementById('edit-assignment-course').value;
+                const assignmentDescription = document.getElementById('edit-assignment-description').value;
+                const assignmentStart = document.getElementById('edit-assignment-start').value;
+                const assignmentEnd = document.getElementById('edit-assignment-end').value;
+                
+                // 验证表单数据
+                if (!assignmentId || !assignmentTitle || !assignmentCourse || !assignmentStart || !assignmentEnd) {
+                    showMessage('请填写完整的作业信息', 'error');
+                    return;
+                }
+                
+                // 验证日期
+                const publishDate = new Date(assignmentStart);
+                const dueDate = new Date(assignmentEnd);
+                
+                if (isNaN(publishDate.getTime()) || isNaN(dueDate.getTime())) {
+                    showMessage('日期格式不正确', 'error');
+                    return;
+                }
+                
+                if (dueDate <= publishDate) {
+                    showMessage('截止日期必须晚于发布时间', 'error');
+                    return;
+                }
+                
+                // 显示加载状态
+                showLoading();
+                
+                // 准备请求数据 - 使用后端API期望的字段名
+                // 日期需要转换为 ISO 字符串格式，Spring Boot 的 Jackson 会自动转换为 Date 对象
+                const assignmentData = {
+                    title: assignmentTitle,
+                    courseId: parseInt(assignmentCourse),
+                    description: assignmentDescription,
+                    publishDate: publishDate.toISOString(),
+                    dueDate: dueDate.toISOString(),
+                    isActive: true
+                };
+                
+                // 添加满分字段（如果存在）
+                const scoreField = document.getElementById('edit-assignment-score');
+                if (scoreField && scoreField.value) {
+                    assignmentData.maxScore = parseInt(scoreField.value);
+                }
+                
+                // 使用封装好的API服务
+                const apiService = new APIService();
+                const teacherAPI = new TeacherAPI(apiService);
+                
+                // 调用API更新作业
+                const response = await teacherAPI.updateAssignment(parseInt(assignmentId), assignmentData);
+                
+                // 隐藏加载状态
+                hideLoading();
+                
+                // 检查响应
+                if (response && (response.success || response.code === 200)) {
+                    showMessage('作业更新成功', 'success');
+                    // 关闭模态框
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('editAssignmentModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                    // 重新加载作业列表
+                    await loadAssignments();
+                } else {
+                    showMessage('作业更新失败：' + (response?.message || '未知错误'), 'error');
+                }
+            } catch (error) {
+                // 隐藏加载状态
+                hideLoading();
+                console.error('更新作业失败:', error);
+                showMessage('作业更新失败：' + error.message, 'error');
+            }
+        }
+        
+        // 提交编辑考试
+        async function submitEditExam() {
+            try {
+                // 获取表单数据
+                const examId = document.getElementById('edit-exam-id').value;
+                const examTitle = document.getElementById('edit-exam-title').value;
+                const examCourse = document.getElementById('edit-exam-course').value;
+                const examDescription = document.getElementById('edit-exam-description').value;
+                const examStart = document.getElementById('edit-exam-start').value;
+                const examDuration = document.getElementById('edit-exam-duration').value;
+                
+                // 验证表单数据
+                if (!examId || !examTitle || !examCourse || !examStart || !examDuration) {
+                    showMessage('请填写完整的考试信息', 'error');
+                    return;
+                }
+                
+                // 显示加载状态
+                showLoading();
+                
+                // 计算结束时间
+                const startDateTime = new Date(examStart);
+                const endDateTime = new Date(startDateTime.getTime() + parseInt(examDuration) * 60000);
+                
+                // 使用封装好的API服务
+                const apiService = new APIService();
+                const teacherAPI = new TeacherAPI(apiService);
+                
+                // 准备请求数据
+                const examData = {
+                    title: examTitle,
+                    courseId: parseInt(examCourse),
+                    description: examDescription,
+                    startTime: startDateTime.toISOString(),
+                    endTime: endDateTime.toISOString(),
+                    publishDate: new Date().toISOString(),
+                    duration: parseInt(examDuration),
+                    isActive: true,
+                    isOnline: true,
+                    location: ''
+                };
+                
+                // 调用API更新考试
+                const response = await teacherAPI.updateExam(parseInt(examId), examData);
+                
+                // 隐藏加载状态
+                hideLoading();
+                
+                // 检查响应
+                if (response && response.success) {
+                    showMessage('考试更新成功', 'success');
+                    // 关闭模态框
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('editExamModal'));
+                    modal.hide();
+                    // 重新加载考试列表
+                    await loadExams();
+                } else {
+                    showMessage('考试更新失败：' + (response.message || '未知错误'), 'error');
+                }
+            } catch (error) {
+                // 隐藏加载状态
+                hideLoading();
+                console.error('更新考试失败:', error);
+                showMessage('考试更新失败：' + error.message, 'error');
+            }
+        }
+        
+        // 发布考试
+        async function submitAddExam() {
+            try {
+                console.log('=== 开始执行 submitAddExam 函数 ===');
+                // 获取表单数据
+                const form = document.getElementById('addExamForm');
+                if (!form) {
+                    console.error('表单 addExamForm 未找到');
+                    return;
+                }
+                
+                const examTitle = document.getElementById('exam-title').value;
+                const examCourseElement = document.getElementById('exam-course');
+                const examDescription = document.getElementById('exam-description').value;
+                const examStart = document.getElementById('exam-start').value;
+                const examDuration = document.getElementById('exam-duration').value;
+                
+                // 获取课程选择器的值和选中的文本
+                const examCourse = examCourseElement.value;
+                const selectedOption = examCourseElement.options[examCourseElement.selectedIndex];
+                const selectedCourseText = selectedOption ? selectedOption.textContent : '无';
+                
+                console.log('表单字段值:', {
+                    examTitle: examTitle,
+                    examCourse: examCourse,
+                    selectedCourseText: selectedCourseText,
+                    examDescription: examDescription,
+                    examStart: examStart,
+                    examDuration: examDuration
+                });
+                
+                // 验证表单数据
+                if (!examTitle) {
+                    console.error('验证失败：考试标题为空');
+                    showMessage('请填写考试标题', 'error');
+                    return;
+                }
+                if (!examCourse || examCourse === '') {
+                    console.error('验证失败：所属课程为空');
+                    showMessage('请选择所属课程', 'error');
+                    return;
+                }
+                if (!examDescription) {
+                    console.error('验证失败：考试说明为空');
+                    showMessage('请填写考试说明', 'error');
+                    return;
+                }
+                if (!examStart) {
+                    console.error('验证失败：考试时间为空');
+                    showMessage('请选择考试时间', 'error');
+                    return;
+                }
+                if (!examDuration) {
+                    console.error('验证失败：考试时长为空');
+                    showMessage('请填写考试时长', 'error');
+                    return;
+                }
+                console.log('所有表单验证通过');
+                
+                // 显示加载状态
+                showLoading();
+                
+                // 计算结束时间
+                const startDateTime = new Date(examStart);
+                const endDateTime = new Date(startDateTime.getTime() + parseInt(examDuration) * 60000);
+                
+                // 使用封装好的API服务
+                const apiService = new APIService();
+                const teacherAPI = new TeacherAPI(apiService);
+                
+                // 准备请求数据
+                const examData = {
+                    title: examTitle,
+                    courseId: parseInt(examCourse), // 将课程ID转换为数字类型
+                    description: examDescription,
+                    startTime: startDateTime.toISOString(), // 转换为ISO格式字符串
+                    endTime: endDateTime.toISOString(), // 计算并添加结束时间
+                    publishDate: new Date().toISOString(), // 设置当前时间为发布日期
+                    duration: parseInt(examDuration),
+                    isActive: true,
+                    isOnline: true, // 默认为线上考试
+                    location: '' // 可选字段，设置为空字符串
+                };
+                
+                // 获取选中的知识点ID
+                const knowledgePointsSelect = document.getElementById('exam-knowledge-points');
+                if (knowledgePointsSelect) {
+                    const selectedKnowledgePoints = Array.from(knowledgePointsSelect.selectedOptions).map(opt => parseInt(opt.value));
+                    if (selectedKnowledgePoints.length > 0) {
+                        examData.knowledgePointIds = selectedKnowledgePoints;
+                        console.log('选中的知识点ID:', selectedKnowledgePoints);
+                    }
+                }
+                
+                // 调用API创建考试
+                await teacherAPI.createExam(examData);
+                
+                // 隐藏加载状态
+                hideLoading();
+                
+                // 显示成功消息
+                showMessage('考试发布成功', 'success');
+                
+                // 关闭模态框
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addExamModal'));
+                modal.hide();
+                
+                // 重置表单
+                form.reset();
+                
+                // 重新加载考试列表
+                if (typeof loadExams === 'function') {
+                    await loadExams();
+                } else {
+                    console.error('loadExams 函数未定义');
+                }
+            } catch (error) {
+                // 隐藏加载状态
+                hideLoading();
+                
+                console.error('发布考试失败:', error);
+                showMessage('考试发布失败：' + error.message, 'error');
+            }
+        }
+
+        // 加载课程列表到选择器
+        async function loadCourseOptions() {
+            try {
+                console.log('开始加载课程列表');
+                const apiService = new APIService();
+                const teacherAPI = new TeacherAPI(apiService);
+                
+                // 调用API获取课程列表
+                console.log('调用API获取课程列表');
+                const response = await teacherAPI.getCourses();
+                
+                console.log('课程列表API响应:', response);
+                
+                // 处理API响应
+                if (response) {
+                    if (response.success) {
+                        console.log('API响应成功');
+                        const pageResult = response.data || {};
+                        const courses = pageResult.content || [];
+                        console.log('课程列表数据:', courses);
+                        
+                        // 获取所有课程选择器
+                        const assignmentCourseSelect = document.getElementById('add-assignment-course');
+                        const examCourseSelects = document.querySelectorAll('#exam-course');
+                        const editExamCourseSelect = document.getElementById('edit-exam-course');
+                        const editAssignmentCourseSelect = document.getElementById('edit-assignment-course');
+                        
+                        console.log('作业课程选择器:', assignmentCourseSelect);
+                        console.log('考试课程选择器:', examCourseSelects);
+                        console.log('编辑考试课程选择器:', editExamCourseSelect);
+                        console.log('编辑作业课程选择器:', editAssignmentCourseSelect);
+                        
+                        // 定义处理单个选择器的函数
+                        function processSelector(selector) {
+                            if (selector) {
+                                // 清空现有选项
+                                selector.innerHTML = '<option value="">请选择所属课程</option>';
+                                // 添加课程选项
+                                courses.forEach(course => {
+                                    const option = document.createElement('option');
+                                    option.value = course.id; // 使用课程ID作为选项值，而不是课程代码
+                                    option.textContent = course.courseName || course.name;
+                                    selector.appendChild(option);
+                                });
+                            }
+                        }
+                        
+                        // 处理单个选择器
+                        processSelector(assignmentCourseSelect);
+                        processSelector(editExamCourseSelect);
+                        processSelector(editAssignmentCourseSelect);
+                        
+                        // 处理NodeList选择器
+                        if (examCourseSelects && examCourseSelects.length > 0) {
+                            examCourseSelects.forEach(selector => {
+                                processSelector(selector);
+                            });
+                        }
+                        
+                        console.log('课程列表加载完成，共添加' + courses.length + '门课程到所有选择器');
+                    } else {
+                        console.error('API响应失败:', response.message);
+                        showMessage('加载课程列表失败：' + response.message, 'error');
+                    }
+                } else {
+                    console.error('API未返回响应');
+                    showMessage('加载课程列表失败：服务器未返回响应', 'error');
+                }
+            } catch (error) {
+                console.error('加载课程列表失败:', error);
+                showMessage('加载课程列表失败：' + error.message, 'error');
+            }
+        }
+
+        // 加载课程的知识点列表
+        async function loadKnowledgePoints(courseId, selectElementId) {
+            const selectElement = document.getElementById(selectElementId);
+            if (!selectElement) {
+                console.error('知识点选择器未找到:', selectElementId);
+                return;
+            }
+            
+            // 清空现有选项
+            selectElement.innerHTML = '';
+            
+            if (!courseId) {
+                selectElement.innerHTML = '<option value="" disabled>请先选择课程</option>';
+                return;
+            }
+
+            if (typeof isLegacySessionUnavailable === 'function' && isLegacySessionUnavailable()) {
+                selectElement.innerHTML = '<option value="" disabled>当前 JWT 微服务环境暂未提供知识点接口</option>';
+                return;
+            }
+            
+            try {
+                console.log('加载课程知识点，课程ID:', courseId);
+                const response = await fetch(`/api/teacher/knowledge-points/course/${courseId}`, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        selectElement.innerHTML = '<option value="" disabled>当前环境暂未提供知识点接口</option>';
+                        return;
+                    }
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('知识点API响应:', result);
+                
+                if (result.success && result.data && result.data.length > 0) {
+                    result.data.forEach(kp => {
+                        const option = document.createElement('option');
+                        option.value = kp.id;
+                        option.textContent = `${kp.pointName} (${kp.difficulty || '未设置难度'})`;
+                        selectElement.appendChild(option);
+                    });
+                    console.log('加载了', result.data.length, '个知识点');
+                } else {
+                    selectElement.innerHTML = '<option value="" disabled>该课程暂无知识点</option>';
+                    console.log('该课程暂无知识点');
+                }
+            } catch (error) {
+                console.error('加载知识点失败:', error);
+                selectElement.innerHTML = '<option value="" disabled>加载知识点失败</option>';
+            }
+        }
+        
+        // 为课程选择器添加change事件，自动加载对应的知识点
+        document.addEventListener('DOMContentLoaded', function() {
+            // 作业课程选择器
+            const assignmentCourseSelect = document.getElementById('add-assignment-course');
+            if (assignmentCourseSelect) {
+                assignmentCourseSelect.addEventListener('change', function() {
+                    loadKnowledgePoints(this.value, 'assignment-knowledge-points');
+                });
+            }
+            
+            // 考试课程选择器
+            const examCourseSelect = document.getElementById('exam-course');
+            if (examCourseSelect) {
+                examCourseSelect.addEventListener('change', function() {
+                    loadKnowledgePoints(this.value, 'exam-knowledge-points');
+                });
+            }
+        });
+
+        // 为模态框添加显示事件监听器，确保每次打开模态框时课程列表都是最新的
+        const assignmentModal = document.getElementById('addAssignmentModal');
+        const examModal = document.getElementById('addExamModal');
+        
+        if (assignmentModal) {
+            assignmentModal.addEventListener('shown.bs.modal', loadCourseOptions);
+        }
+        
+        if (examModal) {
+            examModal.addEventListener('shown.bs.modal', loadCourseOptions);
+        }
+    </script>
+</body>
+</html>

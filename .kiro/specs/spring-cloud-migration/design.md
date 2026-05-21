@@ -1,7 +1,7 @@
 # 设计文档：Spring Cloud 微服务化改造与既有系统优化
 
-> 版本：v0.1  
-> 最后更新：2025-xx-xx  
+> 版本：v0.3  
+> 最后更新：2026-05-14  
 > 作者：架构组  
 > 对应需求：`.kiro/specs/spring-cloud-migration/requirements.md`（R1~R18）
 
@@ -12,9 +12,11 @@
 设计覆盖两条主线：
 
 1. **现状治理主线（对应 R1~R5、R14 部分）**：在不改变业务行为的前提下，先把单体内的鉴权、异常、日志、配置、数据访问与缓存规范好，为拆分做好"可抽离、可替换"的基础。
-2. **架构升级主线（对应 R6~R17）**：在现状治理达标后，按领域边界进行微服务拆分，搭建网关、注册中心、配置中心、服务治理、令牌鉴权、可观测性、容器化部署与迁移路径等平台能力。
+2. **架构升级主线（对应 R6~R17）**：在现状治理达标后，按领域边界进行微服务拆分，搭建网关、注册中心、服务治理、令牌鉴权、可观测性、容器化部署与迁移路径等平台能力；配置管理在当前阶段先由服务本地配置与环境变量承接。
 
 所有章节在涉及决策处显式标注来源需求编号（例如 `[满足 R6、R10]`），以满足 R18 对"需求到设计可溯源"的要求。
+
+本文档记录目标架构与过渡期设计决策，不逐项维护接口级实施状态、任务勾选进度或 Gateway 细粒度切流范围；这些执行细节统一以 `.kiro/specs/spring-cloud-migration/tasks.md` 为准。
 
 **设计原则**：
 
@@ -54,9 +56,9 @@ flowchart LR
             Notif[Notification_Service]
             AI[AI_Service]
         end
-        subgraph PlatformSvc["平台服务"]
-            Reg[Nacos Registry<br/>服务注册发现]
-            Cfg[Nacos Config<br/>配置中心]
+        subgraph PlatformSvc["平台组件"]
+            Reg[Eureka Server<br/>服务注册发现]
+            Cfg[Application Config / Env<br/>服务配置来源]
         end
     end
 
@@ -97,15 +99,15 @@ flowchart LR
     AI --- Reg
     GW --- Reg
 
-    Auth -.配置.-> Cfg
-    User -.配置.-> Cfg
-    Course -.配置.-> Cfg
-    Assign -.配置.-> Cfg
-    Exam -.配置.-> Cfg
-    Analysis -.配置.-> Cfg
-    Notif -.配置.-> Cfg
-    AI -.配置.-> Cfg
-    GW -.配置.-> Cfg
+    Auth -.读取配置.-> Cfg
+    User -.读取配置.-> Cfg
+    Course -.读取配置.-> Cfg
+    Assign -.读取配置.-> Cfg
+    Exam -.读取配置.-> Cfg
+    Analysis -.读取配置.-> Cfg
+    Notif -.读取配置.-> Cfg
+    AI -.读取配置.-> Cfg
+    GW -.读取配置.-> Cfg
 
     Auth --> MySQL
     User --> MySQL
@@ -136,21 +138,21 @@ flowchart LR
 
 ### 2. 微服务清单与职责边界 [满足 R6]
 
-采用"8 个业务服务 + 3 个平台服务"拆分方案（KnowledgePoint 并入 Analysis_Service，原因：其核心价值是"掌握度分析"，数据强依赖 Assignment/Exam 成绩，与 Analysis 共享聚合口径）。
+采用"8 个业务服务 + 2 个平台组件"拆分方案（KnowledgePoint 并入 Analysis_Service，原因：其核心价值是"掌握度分析"，数据强依赖 Assignment/Exam 成绩，与 Analysis 共享聚合口径）。
 
 | # | 服务 | 核心职责 | 主要对外 API 前缀 | 不做什么（反职责） |
 | - | ---- | -------- | ------------------ | ------------------ |
 | 1 | **Auth_Service** | 登录、登出、令牌颁发/刷新/吊销、多角色切换、验证码校验 | `/api/auth/**` | 不存用户业务属性（只存认证凭据与凭据衍生物） |
 | 2 | **User_Service** | 用户档案、角色分配、学生/教师画像 | `/api/users/**`、`/api/students/**`、`/api/teachers/**` | 不做鉴权、不颁发令牌 |
 | 3 | **Course_Service** | 课程、班级、选课关系 | `/api/courses/**` | 不处理作业/考试细节 |
-| 4 | **Assignment_Service** | 作业发布、提交、批改 | `/api/assignments/**` | 不做成绩聚合分析 |
+| 4 | **Assignment_Service** | 作业发布、提交、批改 | `/api/teacher/assignments/**`、`/api/teacher/submissions/**`、`/api/student/assignments/**` | 不做成绩聚合分析 |
 | 5 | **Exam_Service** | 考试、试卷、试题、考试提交、自动阅卷 | `/api/exams/**` | 不做跨考试的学情分析 |
 | 6 | **Analysis_Service** | 学情预警、知识点掌握度、成绩趋势、Dashboard 汇聚 | `/api/analysis/**`、`/api/knowledge-points/**`、`/api/early-warnings/**`、`/api/dashboard/**` | 不做在线业务写操作（只读 + 事件驱动） |
 | 7 | **Notification_Service** | 站内信、系统通知、订阅/广播 | `/api/notifications/**` | 不承载业务事实数据 |
 | 8 | **AI_Service** | 题目生成、试卷生成、学习建议、AI 模型代理 | `/api/ai/**` | 不写业务库（结果由业务服务落库） |
 | P1 | **Gateway** | 路由、鉴权、限流、CORS、TraceId 注入 | 对外唯一入口 | 不承载业务逻辑 |
-| P2 | **Nacos Registry** | 服务注册发现 | — | — |
-| P3 | **Nacos Config** | 动态配置下发、密钥与路由规则热更新 | — | — |
+| P2 | **Eureka Server** | 服务注册发现 | — | — |
+| P3 | **Application Config / Env** | 服务配置、密钥与路由规则来源 | — | 当前阶段不做独立配置中心，避免首轮拆分引入额外基础设施 |
 
 ### 3. 数据所有权矩阵 [满足 R6、R12]
 
@@ -160,8 +162,8 @@ flowchart LR
 | --- | --- | --- | --- |
 | `users`, `user_roles` | User_Service | `sc_user` | Auth_Service 只能通过 Feign 读取 |
 | `auth_credentials`（新）、`token_blacklist`（Redis） | Auth_Service | `sc_auth` | 从 `users` 剥离口令字段 |
-| `courses`, `classes`, `course_enrollment` | Course_Service | `sc_course` | |
-| `assignments`, `assignment_submissions` | Assignment_Service | `sc_assignment` | |
+| `courses`, `classes`, `course_enrollment`, `class_students` | Course_Service | `sc_course` | 过渡期为作业学生可见性提供班级关系来源 |
+| `assignments`, `assignment_submissions`, `assignment_classes` | Assignment_Service | `sc_assignment` | 当前教师端主写切流仍受跨库可见性约束 |
 | `exams`, `exam_questions`, `exam_submissions` | Exam_Service | `sc_exam` | |
 | `knowledge_points`, `kp_mastery`, `score_trends`, `early_warnings` | Analysis_Service | `sc_analysis` | 数据来源于事件 + 定时拉取 |
 | `notifications` | Notification_Service | `sc_notification` | |
@@ -206,20 +208,23 @@ sequenceDiagram
     participant MQ as RabbitMQ
     participant Redis as Redis
 
-    FE->>GW: POST /api/assignments/{id}/submit<br/>Authorization: Bearer <JWT>
+    FE->>GW: POST /api/student/assignments/{id}/submit<br/>Authorization: Bearer <JWT>
     GW->>GW: 解析 JWT, 校验 exp/签名
     GW->>Redis: 查黑名单 (JTI_BLACKLIST:{jti})
     Redis-->>GW: 不在黑名单
     GW->>Assign: 转发 + X-User-Id, X-Roles, X-Trace-Id
     Assign->>Assign: 校验角色(STUDENT), 业务校验
-    Assign->>Assign: 落库 + 本地消息表写入
-    Assign->>MQ: 发布 AssignmentSubmittedEvent
+    Assign->>Assign: 落库（sc_assignment）
     Assign-->>GW: ResponseResult(submitted)
     GW-->>FE: 200 OK
 
-    MQ-->>Notif: 消费 AssignmentSubmittedEvent
-    Notif->>Notif: 幂等检查(event.id)
-    Notif->>Notif: 生成站内信并落库
+    Note over Assign,MQ: 当前仓库已完成学生提交主链路切流；outbox + AssignmentSubmittedEvent 仍在待补齐阶段
+    opt 后续增强
+        Assign->>MQ: 发布 AssignmentSubmittedEvent
+        MQ-->>Notif: 消费 AssignmentSubmittedEvent
+        Notif->>Notif: 幂等检查(event.id)
+        Notif->>Notif: 生成站内信并落库
+    end
 ```
 
 #### 4.3 考试提交触发学情分析链路
@@ -260,10 +265,11 @@ sequenceDiagram
 
 | 能力点 | 候选 | **选定方案** | 选择理由 | 备选及何时切换 |
 | --- | --- | --- | --- | --- |
-| Registry + Config Center | Eureka+SCC / Nacos / Consul+Apollo | **Nacos 2.x** | 一站式同时提供注册发现与动态配置；国内生态成熟、文档齐全；路由规则/密钥热更新零成本 | 若团队已有 Consul 运维能力可切 Consul + Apollo；公司标准化 Kubernetes 时可评估 Spring Cloud Kubernetes |
+| Registry | Eureka / Nacos / Consul | **Eureka Server** | 与当前 Spring Cloud 2023.x 栈直接兼容，先收敛注册发现主链路，降低阶段 2 首轮改造复杂度 | 若后续切向 Kubernetes 原生服务发现，可评估 Spring Cloud Kubernetes |
+| Config Management | `application.yml` + Env / Spring Cloud Config / Nacos Config / Apollo | **`application.yml` + Env（阶段 2 过渡态）** | 当前先保证服务注册、网关、认证与用户服务剥离稳定，配置中心延后引入 | 若后续需要集中化动态配置，再补 Spring Cloud Config 或 Apollo |
 | API 网关 | Zuul / Spring Cloud Gateway | **Spring Cloud Gateway** | 官方推荐，基于 Reactor 非阻塞，性能更优；R7.2 强制要求 | — |
 | 同步 RPC | RestTemplate / WebClient / OpenFeign | **OpenFeign + Spring Cloud LoadBalancer** | 声明式接口，类型安全；与熔断器集成良好；R7.5 强制要求 | — |
-| 熔断限流 | Hystrix（已 EOL） / Resilience4j / Sentinel | **Spring Cloud Circuit Breaker + Resilience4j** | Spring 官方推荐替代；与 Micrometer 天然集成；纯 Java 无额外中间件 | 若选型切到 Alibaba 全家桶（Nacos + Sentinel + Seata），可无缝换成 Sentinel 以获得更强限流规则 |
+| 熔断限流 | Hystrix（已 EOL） / Resilience4j / Sentinel | **Spring Cloud Circuit Breaker + Resilience4j** | Spring 官方推荐替代；与 Micrometer 天然集成；纯 Java 无额外中间件 | 若后续治理需求升级，可切换到 Sentinel 获得更细粒度规则 |
 | 链路追踪 | Sleuth（已并入 Micrometer）/ SkyWalking / OpenTelemetry | **Micrometer Tracing + OpenTelemetry 导出至 Tempo/Zipkin** | Spring Boot 3.x 原生路径；云原生标准；可切换后端不改代码 | SkyWalking 作为备选（探针式接入，对代码侵入小） |
 | 日志聚合 | ELK / Loki | **Loki + Promtail + Grafana** | 与 Prometheus/Grafana 同生态，运维一体化；存储成本低 | ELK 作为备选，适合需要复杂全文检索场景 |
 | 指标 | Micrometer + Prometheus | **Micrometer + Prometheus + Grafana** | Spring Boot Actuator 原生集成，R13.3 覆盖面直接满足 | — |
@@ -279,30 +285,36 @@ sequenceDiagram
 | JDK | 17（LTS） |
 | Spring Boot | 3.5.3（与现状单体 `pom.xml` 一致） |
 | Spring Cloud | **2023.0.x**（BOM `2023.0.3+`，与 Spring Boot 3.5 兼容） |
-| Spring Cloud Alibaba | 2023.0.x（如使用 Nacos starter） |
+| Spring Cloud Netflix | 4.1.x（Eureka Client / Server） |
 | Micrometer | 1.13+ |
 | Resilience4j | 2.x |
-| Nacos Server | 2.3.x |
+| Eureka Server | 4.1.x |
 | Mybatis Spring Boot Starter | 3.0.4（沿用） |
 
 版本一致性由 `parent-pom` 的 BOM 统一管控（R7 不变量）；任何子模块不得自定义覆盖。
 
 ### 3. Gateway 路由与鉴权过滤器设计 [满足 R8、R9]
 
-#### 3.1 路由配置（部分示例，实际由 Nacos 下发）
+#### 3.1 路由配置（过渡期采用“窄路由切流 + legacy-route 兜底”，当前由 Gateway 本地配置承载）
 
-| 路由 ID | 路径前缀 | 目标服务 | 是否需要鉴权 | 限流策略 |
-| --- | --- | --- | --- | --- |
-| `auth-route` | `/api/auth/login`, `/api/auth/refresh`, `/api/auth/captcha` | `auth-service` | 否 | 登录 60 QPS（按 IP） |
-| `auth-secured` | `/api/auth/logout`, `/api/auth/me`, `/api/auth/switch-role` | `auth-service` | 是 | 常规 |
-| `user-route` | `/api/users/**` | `user-service` | 是 | 常规 |
-| `course-route` | `/api/courses/**` | `course-service` | 是 | 常规 |
-| `assignment-route` | `/api/assignments/**` | `assignment-service` | 是 | 核心（提交接口更宽松） |
-| `exam-route` | `/api/exams/**` | `exam-service` | 是 | 核心 |
-| `analysis-route` | `/api/analysis/**`, `/api/knowledge-points/**`, `/api/early-warnings/**`, `/api/dashboard/**` | `analysis-service` | 是 | 常规 |
-| `notification-route` | `/api/notifications/**` | `notification-service` | 是 | 常规 |
-| `ai-route` | `/api/ai/**` | `ai-service` | 是 | 按用户 QPS 限制 |
-| `legacy-route`（过渡期） | 其他未剥离前缀 | `legacy-monolith` | 是（沿用旧会话） | 常规 |
+| 路由 ID | HTTP 方法 | 路径前缀 / 模式 | 目标服务 | 是否需要鉴权 | 限流策略 |
+| --- | --- | --- | --- | --- | --- |
+| `auth-route` | `POST` | `/api/auth/login`, `/api/auth/refresh`, `/api/auth/captcha` | `auth-service` | 否 | 登录 60 QPS（按 IP） |
+| `auth-secured` | `POST`,`GET` | `/api/auth/logout`, `/api/auth/me`, `/api/auth/switch-role` | `auth-service` | 是 | 常规 |
+| `user-route` | `ALL` | `/api/users/**` | `user-service` | 是 | 常规 |
+| `course-route` | `ALL` | `/api/courses/**` | `course-service` | 是 | 常规 |
+| `assignment-teacher-read-route` | `GET` | `/api/teacher/assignments`, `/api/teacher/assignments/**` | `assignment-service` | 是 | 常规 |
+| `teacher-submission-route` | `GET`,`PUT` | `/api/teacher/submissions`, `/api/teacher/submissions/**` | `assignment-service` | 是 | 核心 |
+| `student-assignment-read-route` | `GET` | `/api/student/assignments`, `/api/student/assignments/**`, `/api/student/assignment-submissions` | `assignment-service` | 是 | 常规 |
+| `student-assignment-submit-route` | `POST` | `/api/student/assignments/*/submit` | `assignment-service` | 是 | 核心（提交接口更宽松） |
+| `exam-route` | `ALL` | `/api/exams/**` | `exam-service` | 是 | 核心 |
+| `analysis-route` | `ALL` | `/api/analysis/**`, `/api/knowledge-points/**`, `/api/early-warnings/**`, `/api/dashboard/**` | `analysis-service` | 是 | 常规 |
+| `notification-route` | `ALL` | `/api/notifications/**` | `notification-service` | 是 | 常规 |
+| `ai-route` | `ALL` | `/api/ai/**` | `ai-service` | 是 | 按用户 QPS 限制 |
+| `legacy-route`（过渡期） | 未切流的其他方法 / 路径 | `/api/**` 兜底，含教师端作业主写链路 | `legacy-monolith` | 是（沿用旧会话） | 常规 |
+
+- 当前教师端作业主写接口 `POST / PUT / DELETE /api/teacher/assignments/**` 故意保留在 `legacy-route`，避免 `major_assignment` 与 `sc_assignment` 间出现数据可见性分叉。
+- 细粒度路由开关与已切流范围以 `.kiro/specs/spring-cloud-migration/tasks.md` 为准。
 
 #### 3.2 过滤器链顺序
 
@@ -476,9 +488,9 @@ public class ResponseResult<T> {
 
 ```
 ┌────────────────────────────────────────────────┐
-│ Layer 3 (云原生)  Nacos Config (prod/test/dev) │  ← 阶段 2 之后
+│ Layer 3 (云原生)  Spring Cloud Config / Apollo │  ← 后续如需集中配置再引入
 ├────────────────────────────────────────────────┤
-│ Layer 2 (引导)    bootstrap.yml (仅含 Nacos 地址)│
+│ Layer 2 (服务级)  application-{env}.yml         │
 ├────────────────────────────────────────────────┤
 │ Layer 1 (本地/CI) 环境变量 ${DB_PASSWORD} 等     │  ← 阶段 1 立即执行
 └────────────────────────────────────────────────┘
@@ -681,7 +693,7 @@ CREATE TABLE processed_event (
 
 ### Property 11：服务名三元一致
 
-*For any* 业务微服务 `s ∈ Target_Platform`，其 `application.yml` 中的 `spring.application.name`、Nacos 注册记录中的服务名、Gateway 路由配置中的 `uri: lb://<name>` 三者必须相等。
+*For any* 业务微服务 `s ∈ Target_Platform`，其 `application.yml` 中的 `spring.application.name`、Eureka 注册记录中的服务名、Gateway 路由配置中的 `uri: lb://<name>` 三者必须相等。
 
 **Validates: R6.3**
 
@@ -723,7 +735,7 @@ CREATE TABLE processed_event (
 
 ### Property 18：CORS 白名单行为与配置一致
 
-*For all* 配置在 Config_Center 中的 `cors.allowedOrigins` 列表 `L` 与任意请求 `Origin` 头 `o`，Gateway 的 CORS 判定结果必须满足：当 `o ∈ L` 时返回正常响应并附带 `Access-Control-Allow-Origin: o`；当 `o ∉ L` 时拒绝预检或不回写允许头；且修改 `L` 后规则在热更新 TTL 内生效。
+*For all* 配置在 Gateway `application.yml` 或环境变量中的 `cors.allowedOrigins` 列表 `L` 与任意请求 `Origin` 头 `o`，Gateway 的 CORS 判定结果必须满足：当 `o ∈ L` 时返回正常响应并附带 `Access-Control-Allow-Origin: o`；当 `o ∉ L` 时拒绝预检或不回写允许头；且修改 `L` 后重启或重新加载配置后生效。
 
 **Validates: R8.6, R14.3**
 
@@ -787,9 +799,9 @@ CREATE TABLE processed_event (
 
 **Validates: R14 部署解耦**
 
-### Property 29：环境 Profile ↔ 配置命名空间映射
+### Property 29：环境 Profile ↔ 配置源映射
 
-*For any* 部署环境 `env ∈ {dev, test, prod}`，启动命令传入的 `spring.profiles.active=env` 时服务必须从 Nacos 命名空间 `env` 中拉取配置，不得跨命名空间读取；且 Spring Profile 与 Nacos 命名空间一一对应。
+*For any* 部署环境 `env ∈ {dev, test, prod}`，启动命令传入的 `spring.profiles.active=env` 时服务必须只读取对应的 `application-{env}.yml` 与环境变量组合，不得跨环境读取；且 Spring Profile 与配置源组合一一对应。
 
 **Validates: R15.5**
 
@@ -881,7 +893,7 @@ CREATE TABLE processed_event (
 | 静态与契约 | 结构/命名/依赖合规 | ArchUnit、gitleaks、OpenAPI 契约测试 |
 | 单元测试 | 纯逻辑、边界条件 | JUnit 5 + Mockito |
 | **属性测试（PBT）** | 正确性属性（§32 条） | **jqwik 1.9.x**（Java 原生、JUnit 5 友好） |
-| 集成测试 | 服务内路径联通、中间件契约 | Spring Boot Test + Testcontainers（MySQL / Redis / RabbitMQ / Nacos） |
+| 集成测试 | 服务内路径联通、中间件契约 | Spring Boot Test + Testcontainers（MySQL / Redis / RabbitMQ / Eureka） |
 | 契约测试 | 服务间 API 兼容 | Spring Cloud Contract |
 | 端到端 | 跨服务全链路 | REST Assured + docker-compose 栈 |
 | 性能 | 压测指标（R17.1） | k6 或 JMeter |
@@ -949,8 +961,8 @@ CREATE TABLE processed_event (
 
 | 验证点 | 手段 |
 | --- | --- |
-| R4.5（Nacos 配置拉取） | Testcontainers 启动 Nacos |
-| R11.2（Config_Center 热更新阈值） | Nacos 推配置 + 断言熔断器行为变化 |
+| R4.5（配置源拉取） | 不同 Profile 启动服务并断言配置加载 |
+| R11.2（限流/熔断阈值切换） | 覆盖不同配置组合并断言熔断器行为变化 |
 | R11.4（错误率告警） | 触发错误 + 查询 AlertManager 模拟器 |
 | R13.4~R13.6（日志聚合、TraceId 检索） | Loki + Tempo 容器 |
 | R15 可重复构建 | CI 双次构建镜像比对层校验和 |
@@ -964,7 +976,7 @@ CREATE TABLE processed_event (
 | R1.4、R1.5、R4.1、R4.3 | 文件存在 + grep |
 | R6.1（服务清单完整） | Maven 模块枚举 |
 | R6.5、R7.9（架构决策） | 评审记录 |
-| R8.1（Gateway 注册） | 启动后 Nacos 查询 |
+| R8.1（Gateway 注册） | 启动后查询 Eureka 注册表 |
 | R14.1（静态资源迁出） | CI jar 扫描（同 P28） |
 | R15.2、R15.3（交付物存在 + CI 阶段） | 文件存在 + YAML 断言 |
 | R16.3（30 分钟回滚） | 演练报告 |
@@ -1009,10 +1021,9 @@ HEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://localhost:8080/actuat
 ```yaml
 version: "3.9"
 services:
-  nacos:
-    image: nacos/nacos-server:v2.3.0
-    environment: { MODE: standalone }
-    ports: ["8848:8848"]
+  registry-server:
+    build: ./registry-server
+    ports: ["8761:8761"]
   mysql:
     image: mysql:8.0
     environment: { MYSQL_ROOT_PASSWORD: devroot }
@@ -1025,9 +1036,9 @@ services:
     ports: ["5672:5672", "15672:15672"]
   prometheus: { image: prom/prometheus, ports: ["9090:9090"] }
   grafana:    { image: grafana/grafana, ports: ["3000:3000"] }
-  gateway:    { build: ./gateway, depends_on: [nacos], ports: ["8080:8080"] }
-  auth:       { build: ./auth-service, depends_on: [nacos, mysql, redis] }
-  user:       { build: ./user-service, depends_on: [nacos, mysql] }
+  gateway:    { build: ./gateway, depends_on: [registry-server], ports: ["8080:8080"] }
+  auth:       { build: ./auth-service, depends_on: [registry-server, mysql, redis] }
+  user:       { build: ./user-service, depends_on: [registry-server, mysql] }
   # ...其余服务
 ```
 
@@ -1036,7 +1047,7 @@ services:
 ```
 deploy/
 ├── charts/
-│   ├── platform-infra/        # Nacos / Prometheus / Loki / Tempo / RabbitMQ
+│   ├── platform-infra/        # Eureka / Prometheus / Loki / Tempo / RabbitMQ
 │   └── {service}/             # 每服务一个 Chart
 │       ├── Chart.yaml
 │       ├── values.yaml        # 默认值
@@ -1092,7 +1103,7 @@ gantt
     配置外置(R4)           :a3, after a2, 5d
     数据访问规范(R5)       :a4, after a3, 5d
     section 阶段 2：平台搭建 + 首服务剥离
-    Nacos/Gateway 搭建      :b1, after a4, 7d
+    Eureka/Gateway 搭建     :b1, after a4, 7d
     Auth_Service 剥离       :b2, after b1, 14d
     User_Service 剥离       :b3, after b2, 10d
     section 阶段 3：全量剥离
@@ -1111,8 +1122,8 @@ gantt
 
 ### 3. 阶段 2「平台搭建 + 首服务剥离」（对应 R6~R9、R13）
 
-- **平台搭建**：Nacos（Registry + Config）、Gateway、Prometheus/Grafana/Loki/Tempo 栈。
-- **首剥离服务**：Auth_Service（依赖关系最薄，风险可控） → User_Service。
+- **平台搭建**：Eureka（Registry）、Gateway、Prometheus/Grafana/Loki/Tempo 栈。
+- **首剥离服务**：Auth_Service（依赖关系最薄，风险可控） → User_Service；当前 `Course_Service` 已具备独立承载能力，`Assignment_Service` 已进入窄路由切流 + 联调阶段。
 - **网关双路由机制**（R16.2）：
 
 ```mermaid
@@ -1120,30 +1131,35 @@ flowchart TD
     Client --> GW[Gateway]
     GW -->|/api/auth/** | Auth[Auth_Service<br/>已剥离]
     GW -->|/api/users/**| User[User_Service<br/>已剥离]
-    GW -->|其他前缀     | Legacy[Legacy Monolith]
+    GW -->|/api/courses/**| Course[Course_Service<br/>已剥离]
+    GW -->|Assignment 窄路由| Assign[Assignment_Service<br/>部分切流]
+    GW -->|其他前缀 / 教师作业主写| Legacy[Legacy Monolith]
 ```
 
-  - Gateway 路由表由 Nacos 下发；切换路由只需改配置。
+  - Gateway 路由表当前由本地配置承载；切换路由通过发布配置变更完成。
+  - Assignment 当前采用“按接口、按方法逐步切流”，而不是一次性启用单一 `assignment-route`。
   - `LegacyCookieAuthFilter` 在 `legacy-route` 生效；`JwtAuthenticationFilter` 在已剥离路由生效。
   - 双套凭证互斥由 Property 24 持续校验。
+  - Assignment 的接口级进度、已切流范围与残留边界以 `.kiro/specs/spring-cloud-migration/tasks.md` 为准。
 
 | 维度 | 内容 |
 | --- | --- |
-| 进入条件 | 阶段 1 全部验收通过 + Nacos/Gateway 预生产验证 |
-| 退出条件 | Auth/User 流量 100% 经新服务；P14~P24 全部通过；P30 在阶段 2 期间持续绿 |
-| 回滚策略 | 将 Nacos 中对应路由 `uri` 由 `lb://auth-service` 改回 `http://legacy-monolith`（5 分钟内）；所有新 JWT 吊销；恢复单体登录接口；RTO ≤ 30 分钟（R16.3） |
+| 进入条件 | 阶段 1 全部验收通过 + Eureka/Gateway 预生产验证 |
+| 退出条件 | Auth/User/Course 核心链路稳定；Assignment 窄路由联调通过并完成教师主写切流条件评估；P14~P24 全部通过；P30 在阶段 2 期间持续绿 |
+| 回滚策略 | 将 Gateway 中对应路由 `uri` 由 `lb://auth-service` 改回 `http://legacy-monolith`（5 分钟内）；所有新 JWT 吊销；恢复单体登录接口；RTO ≤ 30 分钟（R16.3） |
 
 ### 4. 阶段 3「全量剥离与旧单体下线」（对应 R10~R17）
 
 - 按依赖关系顺序：Course → Assignment → Exam → Analysis → Notification → AI。
 - 每个服务剥离过程复用阶段 2 的双路由模板。
 - Analysis_Service 的学情分析、早期预警由历史同步 + ExamFinished/AssignmentSubmitted 事件驱动双补齐。
+- 当前阶段 3 的首个进入点，是 `Assignment_Service` 在运行时联调完成后补齐 outbox 事件，并评估教师端作业主写链路的最终切换。
 
 | 维度 | 内容 |
 | --- | --- |
-| 进入条件 | 阶段 2 验收通过 + 事件驱动架构（RabbitMQ + outbox）双端联调通过 |
-| 退出条件 | 所有业务流量经微服务；旧单体 `major_assignment` 下线；`legacy-route` 从 Nacos 删除；Property 28（jar 无前端资源）在所有服务上绿 |
-| 回滚策略 | 每个子服务剥离独立回滚点；若多个服务同时回滚，走"版本化快照 + Nacos 历史配置回滚"（RTO 30 分钟） |
+| 进入条件 | 阶段 2 验收通过 + Assignment 运行时联调完成 + 事件驱动架构（RabbitMQ + outbox）双端联调通过 |
+| 退出条件 | 所有业务流量经微服务；旧单体 `major_assignment` 下线；`legacy-route` 从 Gateway 配置删除；Property 28（jar 无前端资源）在所有服务上绿 |
+| 回滚策略 | 每个子服务剥离独立回滚点；若多个服务同时回滚，走"版本化快照 + Gateway 路由配置回滚"（RTO 30 分钟） |
 
 ### 5. 接口契约与版本策略（R16.5）
 
@@ -1160,10 +1176,10 @@ flowchart TD
 | 维度 | 风险 | 缓解 |
 | --- | --- | --- |
 | 开发成本 | 模块数 ×10、接口契约维护负担 | 强制 `{service}-api` 模块 + Contract Tests；规范模板化 |
-| 运维成本 | 容器 / Nacos / 监控栈新增运维面 | 采用 Helm 模板 + 伞 Chart 一键部署；初期保留少实例（每服务 1 Pod） |
+| 运维成本 | 容器 / Eureka / 监控栈新增运维面 | 采用 Helm 模板 + 伞 Chart 一键部署；初期保留少实例（每服务 1 Pod） |
 | 调用延迟 | 跨服务 RPC 引入额外延迟 | 关键路径合并服务（R6.5 强一致聚合归并）；缓存 + Fallback 兜底 |
 | 事务一致性 | 不再有跨表本地事务 | 本地消息表 + 事件驱动（§Data Models §2）；设计上避免强跨服务事务 |
-| 学习曲线 | 团队需掌握 Spring Cloud / Nacos / MQ | 文档 `docs/*.md` 8 篇覆盖；阶段 2 开始前组织培训 |
+| 学习曲线 | 团队需掌握 Spring Cloud / Eureka / MQ | 文档 `docs/*.md` 8 篇覆盖；阶段 2 开始前组织培训 |
 
 ### 2. 单体 / 微服务并存期的兼容性风险
 

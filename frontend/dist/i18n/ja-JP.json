@@ -1,0 +1,45 @@
+{
+    "login": {
+        "student": {
+            "title": "学生ログイン",
+            "subtitle": "インテリジェント学習支援システム"
+        },
+        "teacher": {
+            "title": "教師ログイン",
+            "subtitle": "インテリジェント学習支援システム"
+        },
+        "form": {
+            "username": "ユーザー名",
+            "username_placeholder": "ユーザー名を入力してください",
+            "password": "パスワード",
+            "password_placeholder": "パスワードを入力してください",
+            "captcha": "認証コード",
+            "captcha_placeholder": "認証コードを入力してください",
+            "remember_me": "ログイン状態を保持",
+            "submit": "ログイン",
+            "submitting": "ログイン中..."
+        },
+        "links": {
+            "forgot_password": "パスワードをお忘れですか？",
+            "contact_admin": "管理者に連絡",
+            "no_account": "アカウントをお持ちでないですか？",
+            "switch_to_teacher": "教師の方はこちら",
+            "switch_to_student": "学生の方はこちら",
+            "click_to_login": "ログインはこちら"
+        },
+        "errors": {
+            "empty_fields": "すべての必須項目を入力してください",
+            "invalid_credentials": "ログイン失敗：ユーザー名またはパスワードを確認してください",
+            "not_student": "ログイン失敗：学生ユーザーではありません",
+            "not_teacher": "ログイン失敗：教師ユーザーではありません",
+            "no_user_info": "ログイン失敗：ユーザー情報を取得できません",
+            "no_role_info": "ログイン失敗：ユーザー権限情報を取得できません",
+            "request_failed": "リクエストに失敗しました。後でもう一度お試しください"
+        },
+        "language": {
+            "zh_CN": "中文",
+            "en_US": "English",
+            "ja_JP": "日本語"
+        }
+    }
+}

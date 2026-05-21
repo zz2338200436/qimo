@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -53,26 +54,93 @@ public class MultiRoleSessionManager {
      */
     public String getSessionCookieNameByPath(String requestPath) {
         // 管理员路径
-        if (requestPath.startsWith("/api/admin/")) {
+        if (isAdminPath(requestPath)) {
             return ADMIN_SESSION_COOKIE;
         }
         
         // 教师路径 - 包括所有教师相关的 API
-        if (requestPath.startsWith("/api/teacher/") || 
-            requestPath.contains("/teacher/") ||
-            requestPath.startsWith("/api/early-warnings/teacher") ||
-            requestPath.startsWith("/api/knowledge-points/analysis/teacher")) {
+        if (isTeacherPath(requestPath)) {
             return TEACHER_SESSION_COOKIE;
         }
         
         // 学生路径
-        if (requestPath.startsWith("/api/student/")) {
+        if (isStudentPath(requestPath)) {
             return STUDENT_SESSION_COOKIE;
         }
         
         // 对于其他 API 路径，尝试从所有可能的 Cookie 中查找
         // 默认返回学生 Cookie
         return STUDENT_SESSION_COOKIE;
+    }
+
+    /**
+     * 根据请求路径返回候选 Session Cookie 名称。
+     * <p>
+     * 角色明确的接口只允许对应角色 Cookie；角色中性的接口（如 /api/auth/me）
+     * 先尝试默认 Cookie，再兜底查找其它角色 Cookie，避免已登录用户在通用接口上丢失身份。
+     * </p>
+     */
+    public List<String> getSessionCookieNamesByPath(String requestPath) {
+        return getSessionCookieNamesByPath(requestPath, null);
+    }
+
+    /**
+     * 根据请求路径和角色上下文提示返回候选 Session Cookie 名称。
+     */
+    public List<String> getSessionCookieNamesByPath(String requestPath, String roleHint) {
+        String preferredCookieName = getSessionCookieNameByPath(requestPath);
+
+        if (isAdminPath(requestPath) || isTeacherPath(requestPath) || isStudentPath(requestPath)) {
+            return List.of(preferredCookieName);
+        }
+
+        List<String> cookieNames = new ArrayList<>();
+        addCookieName(cookieNames, getSessionCookieNameByRoleHint(roleHint));
+        addCookieName(cookieNames, preferredCookieName);
+        addCookieName(cookieNames, TEACHER_SESSION_COOKIE);
+        addCookieName(cookieNames, STUDENT_SESSION_COOKIE);
+        addCookieName(cookieNames, ADMIN_SESSION_COOKIE);
+        return cookieNames;
+    }
+
+    public String getSessionCookieNameByRoleHint(String roleHint) {
+        if (roleHint == null || roleHint.isBlank()) {
+            return null;
+        }
+
+        String normalizedRole = roleHint.trim().toUpperCase();
+        if ("TEACHER".equals(normalizedRole)) {
+            return TEACHER_SESSION_COOKIE;
+        }
+        if ("ADMIN".equals(normalizedRole) || "SUPER_ADMIN".equals(normalizedRole)) {
+            return ADMIN_SESSION_COOKIE;
+        }
+        if ("STUDENT".equals(normalizedRole)) {
+            return STUDENT_SESSION_COOKIE;
+        }
+        return null;
+    }
+
+    private boolean isAdminPath(String requestPath) {
+        return requestPath != null && requestPath.startsWith("/api/admin/");
+    }
+
+    private boolean isTeacherPath(String requestPath) {
+        return requestPath != null &&
+                (requestPath.startsWith("/api/teacher/") ||
+                 requestPath.contains("/teacher/") ||
+                 requestPath.startsWith("/api/early-warnings/teacher") ||
+                 requestPath.startsWith("/api/knowledge-points/analysis/teacher"));
+    }
+
+    private boolean isStudentPath(String requestPath) {
+        return requestPath != null && requestPath.startsWith("/api/student/");
+    }
+
+    private void addCookieName(List<String> cookieNames, String cookieName) {
+        if (cookieName != null && !cookieNames.contains(cookieName)) {
+            cookieNames.add(cookieName);
+        }
     }
     
     /**
@@ -189,4 +257,3 @@ public class MultiRoleSessionManager {
         }
     }
 }
-

@@ -5,7 +5,8 @@
     <!-- 带搜索条件的课程查询（动态 WHERE）→ XML -->
     <select id="findByTeacherIdWithSearch" resultType="com._202510007517.major_assignment.entity.Course">
         SELECT id, course_name, course_code, description, credit, course_category,
-               total_hours, teacher_id, course_status
+               total_hours, teacher_id, course_director, assessment_method,
+               course_status, semester, start_date, end_date, max_students
         FROM courses
         WHERE teacher_id = #{teacherId}
         <if test="name != null and name != ''">AND course_name LIKE CONCAT('%', #{name}, '%')</if>
@@ -195,6 +196,15 @@
             course_id = #{courseId}
         WHERE id = #{id}
     </update>
+
+    <select id="countManagedClasses" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT cc.id)
+        FROM course_classes cc
+        LEFT JOIN class_courses cc_c ON cc.id = cc_c.class_id
+        LEFT JOIN courses c ON (cc_c.course_id = c.id OR (cc_c.course_id IS NULL AND cc.course_id = c.id))
+        WHERE cc.id = #{classId}
+          AND (c.teacher_id = #{teacherId} OR cc_c.teacher_id = #{teacherId} OR cc.teacher_id = #{teacherId})
+    </select>
     
     <delete id="deleteClass" parameterType="java.lang.Long">
         DELETE FROM course_classes WHERE id = #{classId}
@@ -242,6 +252,15 @@
             AND c.id IS NOT NULL
             <if test="courseId != null">AND (c.id = #{courseId} OR cc_c.course_id = #{courseId})</if>
             <if test="classId != null">AND cc.id = #{classId}</if>
+    </select>
+
+    <select id="countManagedAssignments" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT cc_c.id)
+        FROM class_courses cc_c
+        JOIN course_classes cc ON cc.id = cc_c.class_id
+        JOIN courses c ON cc_c.course_id = c.id
+        WHERE cc_c.id = #{assignmentId}
+          AND (c.teacher_id = #{teacherId} OR cc_c.teacher_id = #{teacherId} OR cc.teacher_id = #{teacherId})
     </select>
     
     <!-- 检查指定班级ID是否已分配该课程 -->

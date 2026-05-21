@@ -20,6 +20,29 @@ public class KnowledgePointController extends BaseController {
     
     @Autowired
     private KnowledgePointService knowledgePointService;
+
+    /**
+     * 获取教师可见知识点列表。
+     * 兼容 teacher-knowledge 页的根列表读取：
+     * - 传 courseId 时返回该课程知识点
+     * - 不传时返回当前教师全部课程下的知识点
+     */
+    @GetMapping
+    public ResponseResult<List<Map<String, Object>>> getKnowledgePoints(
+            @RequestParam(required = false) Long courseId,
+            HttpSession session) {
+        Map<String, Object> requestParams = courseId != null ? Map.of("courseId", courseId) : null;
+        LogUtil.logRequest(logger, "GET", "/api/teacher/knowledge-points", requestParams, getCurrentUserId(session));
+
+        if (!isLoggedIn(session)) {
+            return ResponseResult.failure("未授权，请重新登录", 401);
+        }
+
+        List<Map<String, Object>> knowledgePoints = courseId != null
+                ? knowledgePointService.getKnowledgePointsByTeacherId(getCurrentUserId(session), courseId)
+                : knowledgePointService.getKnowledgePointsByTeacherId(getCurrentUserId(session));
+        return ResponseResult.success(knowledgePoints, "获取知识点列表成功", 200);
+    }
     
     /**
      * 创建知识点

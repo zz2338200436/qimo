@@ -20,6 +20,12 @@ public interface KnowledgePointService {
     
     // 根据课程ID获取知识点列表
     List<Map<String, Object>> getKnowledgePointsByCourseId(Long courseId);
+
+    // 获取教师可见的知识点列表
+    List<Map<String, Object>> getKnowledgePointsByTeacherId(Long teacherId);
+
+    // 获取教师在指定课程下可见的知识点列表
+    List<Map<String, Object>> getKnowledgePointsByTeacherId(Long teacherId, Long courseId);
     
     // 为作业设置知识点关联
     void setAssignmentKnowledgePoints(Long assignmentId, List<Long> knowledgePointIds);

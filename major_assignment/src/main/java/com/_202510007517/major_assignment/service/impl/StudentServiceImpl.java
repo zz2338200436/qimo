@@ -1,5 +1,7 @@
 package com._202510007517.major_assignment.service.impl;
 
+import com._202510007517.major_assignment.client.AuthServiceClient;
+import com._202510007517.major_assignment.client.UserServiceProfileClient;
 import com._202510007517.major_assignment.entity.Course;
 import com._202510007517.major_assignment.entity.User;
 import com._202510007517.major_assignment.entity.dto.StudentDashboardDTO;
@@ -9,8 +11,8 @@ import com._202510007517.major_assignment.service.StudentService;
 import com._202510007517.major_assignment.service.UserService;
 import com._202510007517.major_assignment.utils.PageUtils;
 import com._202510007517.major_assignment.utils.TypeUtils;
+import com._202510007517.platform.user.api.dto.UpdateUserProfileDTO;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,9 +33,12 @@ public class StudentServiceImpl implements StudentService {
     
     @Autowired
     private UserService userService;
-    
+
     @Autowired
-    private BCryptPasswordEncoder bCryptPasswordEncoder;
+    private UserServiceProfileClient userServiceProfileClient;
+
+    @Autowired
+    private AuthServiceClient authServiceClient;
 
     @Override
     @Transactional(readOnly = true)
@@ -483,12 +488,15 @@ public class StudentServiceImpl implements StudentService {
         // className在course_classes表的class_name字段
         // 这些信息通常由管理员或系统设置，学生不能直接修改
         
-        // 如果有任何更新，保存到数据库
-        if (hasUpdate) {
-            userService.update(user);
+        if (!hasUpdate) {
+            return false;
         }
-        
-        return hasUpdate;
+
+        UpdateUserProfileDTO request = new UpdateUserProfileDTO();
+        request.setName(user.getName());
+        request.setEmail(user.getEmail());
+        request.setPhone(user.getPhone());
+        return userServiceProfileClient.updateUserProfile(studentId, request).isPresent();
     }
 
     @Override
@@ -504,19 +512,7 @@ public class StudentServiceImpl implements StudentService {
             return false;
         }
 
-        // 获取当前用户
-        User user = userService.findById(studentId);
-        if (user == null) {
-            return false;
-        }
-
-        // 验证当前密码
-        if (!bCryptPasswordEncoder.matches(currentPassword, user.getPassword())) {
-            return false;
-        }
-
-        // 验证新密码不能与当前密码相同
-        if (bCryptPasswordEncoder.matches(newPassword, user.getPassword())) {
+        if (currentPassword.equals(newPassword)) {
             return false;
         }
 
@@ -535,10 +531,7 @@ public class StudentServiceImpl implements StudentService {
             return false;
         }
 
-        // 加密新密码并更新
-        user.setPassword(bCryptPasswordEncoder.encode(newPassword));
-        userService.update(user);
-        return true;
+        return authServiceClient.changePassword(studentId, currentPassword, newPassword);
     }
 
     @Override
@@ -585,16 +578,9 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean uploadAvatar(Long studentId, String avatarUrl) {
-        // 获取当前用户
-        User user = userService.findById(studentId);
-        if (user == null) {
-            return false;
-        }
-
-        // 更新头像URL
-        user.setAvatar(avatarUrl);
-        userService.update(user);
-        return true;
+        UpdateUserProfileDTO request = new UpdateUserProfileDTO();
+        request.setAvatar(avatarUrl);
+        return userServiceProfileClient.updateUserProfile(studentId, request).isPresent();
     }
 
     @Override

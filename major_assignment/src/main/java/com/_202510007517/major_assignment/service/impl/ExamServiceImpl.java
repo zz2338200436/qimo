@@ -39,21 +39,21 @@ public class ExamServiceImpl implements ExamService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.EXAMS, key = "'all'")
+    @Cacheable(value = CacheConstants.EXAMS, key = "'all'", unless = "#result == null")
     public List<Exam> getAllExams() {
         return examMapper.getAllExams();
     }
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.EXAMS, key = "#id")
+    @Cacheable(value = CacheConstants.EXAMS, key = "#id", unless = "#result == null")
     public Exam getExamById(Long id) {
         return examMapper.getExamById(id);
     }
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.EXAMS, key = "'course_' + #courseId")
+    @Cacheable(value = CacheConstants.EXAMS, key = "'course_' + #courseId", unless = "#result == null")
     public List<Exam> getExamsByCourseId(Long courseId) {
         return examMapper.getExamsByCourseId(courseId);
     }

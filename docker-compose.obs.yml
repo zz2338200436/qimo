@@ -1,0 +1,96 @@
+services:
+  prometheus:
+    image: prom/prometheus:v2.53.1
+    container_name: qimo-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/prometheus/alerts:/etc/prometheus/alerts:ro
+      - prometheus-data:/prometheus
+    networks:
+      - qimo-obs
+
+  grafana:
+    image: grafana/grafana:11.1.4
+    container_name: qimo-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./deploy/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./deploy/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    networks:
+      - qimo-obs
+
+  loki:
+    image: grafana/loki:3.1.1
+    container_name: qimo-loki
+    restart: unless-stopped
+    command:
+      - -config.file=/etc/loki/config.yml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./deploy/loki/loki-config.yml:/etc/loki/config.yml:ro
+      - loki-data:/loki
+    networks:
+      - qimo-obs
+
+  promtail:
+    image: grafana/promtail:3.1.1
+    container_name: qimo-promtail
+    restart: unless-stopped
+    command:
+      - -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./deploy/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - ./logs:/workspace-logs:ro
+      - promtail-data:/tmp
+    depends_on:
+      - loki
+    networks:
+      - qimo-obs
+
+  tempo:
+    image: grafana/tempo:2.5.0
+    container_name: qimo-tempo
+    restart: unless-stopped
+    command:
+      - -config.file=/etc/tempo/config.yml
+    ports:
+      - "3200:3200"
+      - "4318:4318"
+    volumes:
+      - ./deploy/tempo/tempo.yml:/etc/tempo/config.yml:ro
+      - tempo-data:/var/tempo
+    networks:
+      - qimo-obs
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  promtail-data:
+  tempo-data:
+
+networks:
+  qimo-obs:
+    driver: bridge

@@ -1,0 +1,297 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: qimo-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: major_assignment
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/mysql/db:/var/lib/mysql
+      - ./data/mysql/init:/docker-entrypoint-initdb.d
+    networks:
+      - qimo-platform
+
+  redis:
+    image: redis:7.4
+    container_name: qimo-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - qimo-platform
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: qimo-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - qimo-platform
+
+  prometheus:
+    image: prom/prometheus:v2.53.1
+    container_name: qimo-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/prometheus/alerts:/etc/prometheus/alerts:ro
+    networks:
+      - qimo-platform
+
+  grafana:
+    image: grafana/grafana:11.1.4
+    container_name: qimo-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./deploy/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./deploy/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - qimo-platform
+
+  registry-server:
+    build:
+      context: .
+      dockerfile: registry-server/Dockerfile
+    image: qimo/registry-server:dev
+    ports:
+      - "8761:8761"
+    environment:
+      EUREKA_HOST: registry-server
+    networks:
+      - qimo-platform
+
+  legacy-monolith:
+    build:
+      context: .
+      dockerfile: major_assignment/Dockerfile
+    image: qimo/major-assignment:dev
+    ports:
+      - "8090:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - qimo-platform
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    image: qimo/auth-service:dev
+    ports:
+      - "8081:8081"
+    environment:
+      EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      AUTH_DB_URL: jdbc:mysql://mysql:3306/sc_auth?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      AUTH_DB_USERNAME: dev_user
+      AUTH_DB_PASSWORD: dev_only_pwd
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - mysql
+      - redis
+      - registry-server
+    networks:
+      - qimo-platform
+
+  user-service:
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+    image: qimo/user-service:dev
+    ports:
+      - "8082:8082"
+    environment:
+      EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      USER_DB_URL: jdbc:mysql://mysql:3306/sc_user?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      USER_DB_USERNAME: dev_user
+      USER_DB_PASSWORD: dev_only_pwd
+    depends_on:
+      - mysql
+      - registry-server
+    networks:
+      - qimo-platform
+
+  course-service:
+    build:
+      context: .
+      dockerfile: course-service/Dockerfile
+    image: qimo/course-service:dev
+    ports:
+      - "8083:8083"
+    environment:
+      EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      COURSE_DB_URL: jdbc:mysql://mysql:3306/sc_course?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      COURSE_DB_USERNAME: dev_user
+      COURSE_DB_PASSWORD: dev_only_pwd
+    depends_on:
+      - mysql
+      - registry-server
+    networks:
+      - qimo-platform
+
+  assignment-service:
+    build:
+      context: .
+      dockerfile: assignment-service/Dockerfile
+    image: qimo/assignment-service:dev
+    ports:
+      - "8084:8084"
+    environment:
+      EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      ASSIGNMENT_DB_URL: jdbc:mysql://mysql:3306/sc_assignment?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      ASSIGNMENT_DB_USERNAME: dev_user
+      ASSIGNMENT_DB_PASSWORD: dev_only_pwd
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+    depends_on:
+      - mysql
+      - rabbitmq
+      - registry-server
+    networks:
+      - qimo-platform
+
+  exam-service:
+    build:
+      context: .
+      dockerfile: exam-service/Dockerfile
+    image: qimo/exam-service:dev
+    ports:
+      - "8085:8085"
+    environment:
+      EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      EXAM_DB_URL: jdbc:mysql://mysql:3306/sc_exam?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      EXAM_DB_USERNAME: dev_user
+      EXAM_DB_PASSWORD: dev_only_pwd
+    depends_on:
+      - mysql
+      - registry-server
+    networks:
+      - qimo-platform
+
+  analysis-service:
+    build:
+      context: .
+      dockerfile: analysis-service/Dockerfile
+    image: qimo/analysis-service:dev
+    ports:
+      - "8086:8086"
+    environment:
+      EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      ANALYSIS_DB_URL: jdbc:mysql://mysql:3306/sc_analysis?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      ANALYSIS_DB_USERNAME: dev_user
+      ANALYSIS_DB_PASSWORD: dev_only_pwd
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+    depends_on:
+      - mysql
+      - rabbitmq
+      - registry-server
+    networks:
+      - qimo-platform
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+    image: qimo/notification-service:dev
+    ports:
+      - "8087:8087"
+    environment:
+      EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      NOTIFICATION_DB_URL: jdbc:mysql://mysql:3306/sc_notification?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      NOTIFICATION_DB_USERNAME: dev_user
+      NOTIFICATION_DB_PASSWORD: dev_only_pwd
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+    depends_on:
+      - mysql
+      - rabbitmq
+      - registry-server
+    networks:
+      - qimo-platform
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: ai-service/Dockerfile
+    image: qimo/ai-service:dev
+    ports:
+      - "8088:8088"
+    environment:
+      EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      AI_DB_URL: jdbc:mysql://mysql:3306/sc_ai?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      AI_DB_USERNAME: dev_user
+      AI_DB_PASSWORD: dev_only_pwd
+    depends_on:
+      - mysql
+      - registry-server
+    networks:
+      - qimo-platform
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    image: qimo/gateway:dev
+    ports:
+      - "8080:8080"
+    environment:
+      EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      LEGACY_BASE_URL: http://legacy-monolith:8080
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      MANAGEMENT_OTLP_TRACING_EXPORT_ENABLED: "false"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318/v1/traces
+    depends_on:
+      - registry-server
+      - redis
+      - auth-service
+      - user-service
+      - course-service
+      - assignment-service
+      - exam-service
+      - analysis-service
+      - notification-service
+      - ai-service
+      - legacy-monolith
+    networks:
+      - qimo-platform
+
+networks:
+  qimo-platform:
+    driver: bridge

@@ -9,13 +9,15 @@
 
 改造目标是：在保留既有业务功能（学生/教师的登录、课程、作业、考试、知识点、学情预警、通知、AI 辅助、数据看板）可用的前提下，渐进式完成微服务拆分与平台化治理，并沉淀一套可供后续演进的完整文档。
 
+说明：本文档定义目标需求与验收口径，不逐项记录当前已经切换的接口、任务勾选进度或 Gateway 细粒度路由范围；这些实施状态以 `.kiro/specs/spring-cloud-migration/tasks.md` 为准。
+
 ## Glossary（术语表）
 
 - **System（本系统）**：当前的 `major_assignment` 单体应用，也是本次改造的输入。
-- **Target_Platform（目标平台）**：改造完成后的 Spring Cloud 微服务平台总称，包含网关、注册中心、配置中心与若干业务微服务。
+- **Target_Platform（目标平台）**：改造完成后的 Spring Cloud 微服务平台总称，包含网关、注册中心、配置管理方式（阶段 2 可由本地配置 + 环境变量承接）与若干业务微服务。
 - **Gateway（网关服务）**：基于 Spring Cloud Gateway 的统一入口服务，负责路由、鉴权、限流、CORS、日志。
 - **Registry（注册中心）**：服务注册与发现组件（候选：Nacos、Eureka、Consul）。
-- **Config_Center（配置中心）**：集中式配置管理组件（候选：Nacos Config、Spring Cloud Config、Apollo）。
+- **Config_Center（配置中心）**：集中式配置管理组件（候选：Nacos Config、Spring Cloud Config、Apollo）；在阶段 2 过渡期允许暂由服务本地配置与环境变量承接。
 - **Auth_Service（认证授权服务）**：提供用户登录、令牌颁发、令牌校验、角色查询的微服务。
 - **User_Service（用户服务）**：管理用户基础信息与角色关系的微服务。
 - **Course_Service（课程服务）**：管理课程、班级与选课关系的微服务。
@@ -24,7 +26,7 @@
 - **Analysis_Service（分析服务）**：负责成绩分析、知识点掌握度分析、学情早期预警的微服务。
 - **Notification_Service（通知服务）**：负责站内通知与消息推送的微服务。
 - **AI_Service（AI 辅助服务）**：负责题目生成、试卷生成、学习建议等 AI 能力的微服务。
-- **Monitoring_Stack（可观测性套件）**：由指标、日志聚合与链路追踪组件组成的可观测性系统（候选：Prometheus + Grafana + Loki/ELK + SkyWalking/Zipkin）。
+- **Monitoring_Stack（可观测性套件）**：由指标、日志聚合与链路追踪组件组成的可观测性系统（候选：Prometheus + Grafana + Loki/ELK + Tempo/Zipkin/SkyWalking）。
 - **Access_Token（访问令牌）**：用户登录后由 Auth_Service 颁发、在网关与下游服务间传递的身份凭证（候选：JWT）。
 - **Refresh_Token（刷新令牌）**：用于续期 Access_Token 的凭证。
 - **Legacy_Session（遗留会话机制）**：当前基于 `MultiRoleSessionManager` + 多 Cookie（`JSESSIONID_TEACHER` / `JSESSIONID_STUDENT` / `JSESSIONID_ADMIN`）+ Redis 的自研多角色会话方案。
@@ -140,7 +142,7 @@
 
 1. THE Target_Platform SHALL 至少包含以下业务微服务：Auth_Service、User_Service、Course_Service、Assignment_Service、Exam_Service、Analysis_Service、Notification_Service、AI_Service，以及平台级服务 Gateway、Registry、Config_Center。
 2. THE Target_Platform SHALL 为每个业务微服务定义独立的 Maven 子模块、独立的启动类、独立的端口与独立的 `application.yml`。
-3. THE Target_Platform SHALL 使每个微服务的 `spring.application.name` 与其在 Registry 中的注册名、在 Gateway 中的路由 ID 一致。
+3. THE Target_Platform SHALL 使每个微服务的 `spring.application.name` 与其在 Registry 中的注册名一致；Gateway 路由 ID 可以按业务链路拆分为多个细粒度路由，但这些路由必须稳定指向唯一的目标微服务。
 4. WHEN 领域内的实体或 Mapper 被迁移到对应微服务，THE Target_Platform SHALL 在原单体模块中移除该实体与 Mapper，不得保留重复定义。
 5. IF 两个微服务之间存在强一致性需求并且无法通过事件解耦，THEN THE Target_Platform SHALL 将涉及的聚合归并回同一个微服务，不得以分布式事务跨服务强绑定。
 6. WHERE 某个微服务承担报表或批处理职能（例如 Analysis_Service 的成绩分析），THE Target_Platform SHALL 允许该服务以异步或定时任务方式运行，与在线请求链路解耦。
@@ -148,7 +150,7 @@
 #### Correctness Properties
 
 - **Invariant（服务边界不变量）**：对任意业务实体 `E`，在 Target_Platform 的所有微服务源码中，`E` 的权威定义（含 Mapper 与数据库表映射）必须且仅存在于一个微服务内。
-- **Metamorphic（一致性映射）**：对任意业务功能点 `F`，其在单体中对应的 URL 前缀集合经网关路由映射后，必须对应到且仅对应到一个微服务。
+- **Metamorphic（一致性映射）**：对任意业务功能点 `F`，其在单体中对应的 URL、方法与角色组合经网关路由映射后，必须对应到且仅对应到一个目标微服务。
 
 ---
 
@@ -161,11 +163,11 @@
 1. THE Target_Platform SHALL 以 Spring Boot 3.x（≥ 3.5.3）作为每个微服务的基础框架，并锁定与之匹配的 Spring Cloud 版本（候选：2023.0.x / 2024.0.x）。
 2. THE Target_Platform SHALL 使用 Spring Cloud Gateway 作为统一网关，不使用 Zuul。
 3. THE Target_Platform SHALL 使用 Nacos 或 Eureka 中的一项作为 Registry，并在 `docs/architecture.md` 中说明选择理由与备选方案。
-4. THE Target_Platform SHALL 使用 Nacos Config、Spring Cloud Config 或 Apollo 中的一项作为 Config_Center。
+4. THE Target_Platform SHALL 在目标态使用 Nacos Config、Spring Cloud Config 或 Apollo 中的一项作为 Config_Center；在阶段 2 过渡期允许先使用 `application.yml` + 环境变量承接配置管理。
 5. THE Target_Platform SHALL 使用 Spring Cloud OpenFeign 作为同步 RPC 客户端，并搭配 Spring Cloud LoadBalancer 做客户端负载均衡。
 6. THE Target_Platform SHALL 使用 Resilience4j 或 Sentinel 中的一项作为熔断限流组件，并在所有跨服务的 Feign 调用上启用。
 7. THE Target_Platform SHALL 使用 Micrometer + Prometheus 采集指标，使用 SkyWalking 或 OpenTelemetry + Zipkin 采集链路，使用 ELK 或 Loki 聚合日志。
-8. WHERE 业务需要异步消息驱动，THE Target_Platform SHALL 使用 Spring Cloud Stream 封装底层 MQ（候选：RabbitMQ、RocketMQ、Kafka），应用代码不直接依赖具体 MQ 客户端。
+8. WHERE 业务需要异步消息驱动，THE Target_Platform SHALL 使用 Spring Cloud Stream 封装底层 MQ（候选：RabbitMQ、RocketMQ、Kafka），或提供与之等价的统一事件发布/消费抽象，应用代码不得在业务层散落对具体 MQ 客户端的直接依赖。
 9. IF 组件选型决策被修改，THEN THE Architecture_Document SHALL 更新对应章节并记录变更日期与决策者。
 
 #### Correctness Properties
@@ -181,11 +183,11 @@
 #### Acceptance Criteria
 
 1. THE Gateway SHALL 基于 Spring Cloud Gateway 实现，暴露 HTTP/HTTPS 端口并注册到 Registry。
-2. THE Gateway SHALL 按路径前缀将请求路由到对应微服务，路由配置通过 Config_Center 动态下发。
-3. THE Gateway SHALL 校验 Access_Token 的签名与有效期，校验通过后将 `userId`、`roles`、`requestId` 以约定的请求头透传到下游服务。
+2. THE Gateway SHALL 按路径前缀或更细粒度的“路径 + HTTP 方法”组合将请求路由到对应微服务；在迁移过渡期允许同时存在窄路由切流与 `legacy-route` 兜底。
+3. THE Gateway SHALL 校验 Access_Token 的签名与有效期，校验通过后将 `userId`、`roles`、`traceId` 以约定的请求头透传到下游服务。
 4. IF Access_Token 缺失或无效，THEN THE Gateway SHALL 对需要鉴权的路由返回 401，并在响应体中使用与 `ResponseResult` 一致的 JSON 结构。
 5. THE Gateway SHALL 对所有路由开启请求日志与链路追踪 TraceId，TraceId 由网关生成并透传到下游。
-6. THE Gateway SHALL 在跨域处理上统一配置 CORS，允许来源列表通过 Config_Center 热更新，移除单体阶段 `MajorAssignmentApplication` 中硬编码的 `localhost:8080` 配置。
+6. THE Gateway SHALL 在跨域处理上统一配置 CORS，允许来源列表通过 Config_Center 或网关本地配置热更新，移除单体阶段 `MajorAssignmentApplication` 中硬编码的 `localhost:8080` 配置。
 7. WHERE 某个路由启用了限流策略，THE Gateway SHALL 按“客户端 IP + 用户 ID + 路由 ID”作为限流键，触发限流时返回 429 与可读的错误文案。
 
 #### Correctness Properties
@@ -207,7 +209,7 @@
 4. IF 用户主动登出或管理员强制下线，THEN THE Auth_Service SHALL 将对应 Refresh_Token 与 `jti` 写入 Redis 黑名单，并使其在剩余有效期内均无法续期。
 5. THE Gateway 与下游服务 SHALL 仅信任由 Auth_Service 签名的 Access_Token，签名密钥通过 Config_Center 下发并支持热轮换。
 6. THE Target_Platform SHALL 在单体向微服务过渡期间，使 Legacy_Session 机制与 JWT 机制同时可用，但对同一用户不得同时签发两套凭证。
-7. WHERE 多角色（学生、教师、管理员）用户同时在同一浏览器下登录，THE Auth_Service SHALL 为每个角色独立签发 Access_Token，Token 存储与传输策略在 `docs/auth-design.md` 中明确说明。
+7. WHERE 多角色（学生、教师、管理员）用户同时在同一浏览器下登录，THE Auth_Service SHALL 明确并固定一种角色令牌策略，并在 `docs/auth-design.md` 中说明；该策略可以是“单 Token + activeRole + 切换接口”，也可以是“每角色独立 Token”，但在同一阶段不得两种策略并存。
 
 #### Correctness Properties
 
@@ -227,7 +229,7 @@
 2. WHEN Feign 客户端发起调用，THE Target_Platform SHALL 自动透传 TraceId、`userId`、`roles` 请求头，无需业务代码手工设置。
 3. IF 目标服务返回 4xx/5xx，THEN THE Target_Platform SHALL 由统一的 `ErrorDecoder` 将其转换为对应的业务异常（例如 `RemoteServiceException`），避免调用方直接感知 HTTP 状态码。
 4. THE Target_Platform SHALL 对所有 Feign 调用启用熔断、超时与重试策略，默认超时 3 秒、重试 0 次，具体值可通过 Config_Center 覆盖。
-5. WHERE 调用链路中存在异步事件（例如考试结束后触发学情分析），THE Target_Platform SHALL 通过 Spring Cloud Stream 发布领域事件，消费端保证至少一次消费与幂等处理。
+5. WHERE 调用链路中存在异步事件（例如考试结束后触发学情分析），THE Target_Platform SHALL 通过统一事件发布机制发布领域事件，消费端保证至少一次消费与幂等处理；在目标态优先采用 Spring Cloud Stream + MQ Binder，在过渡期允许先以本地消息表 / outbox 打底后再接入统一消息抽象。
 
 #### Correctness Properties
 
@@ -337,10 +339,11 @@
 3. IF 任一阶段验收失败，THEN THE Migration_Plan SHALL 允许通过“切回旧路由 + 停用新服务”的方式回滚，单次回滚的 RTO 目标不超过 30 分钟。
 4. THE Migration_Plan SHALL 为每个阶段定义进入条件、退出条件、负责人、验证用例清单、回滚步骤。
 5. WHERE 前端依赖的接口契约发生变更，THE Target_Platform SHALL 在至少一个发布周期内保持新旧版本并存，并通过请求头或路径前缀区分版本。
+6. WHERE 某个业务域处于迁移过渡期，THE Target_Platform SHALL 允许对同一微服务使用多条窄路由逐步切流，但尚未切流的方法或路径必须继续由 `legacy-route` 或等价旧路径兜底，对前端保持 URL 与核心 JSON 契约稳定。
 
 #### Correctness Properties
 
-- **Metamorphic（接口兼容性）**：对任意在阶段 2 未被剥离的接口 `I`，前端调用 `I` 经过 Gateway 后得到的响应必须与旧单体直接响应等价（状态码、JSON 字段、字段类型同构）。
+- **Metamorphic（接口兼容性）**：对任意在阶段 2 未被剥离或尚未切流的方法级接口 `I`，前端调用 `I` 经过 Gateway 后得到的响应必须与旧单体直接响应等价（状态码、JSON 字段、字段类型同构）。
 
 ---
 
@@ -392,3 +395,4 @@
 | 日期 | 变更人 | 变更内容 |
 | --- | --- | --- |
 | 初版 | - | 基于 `major_assignment` 当前代码库与用户诉求生成初稿 |
+| 2026-05-14 | Codex | 同步过渡期配置管理、Gateway 窄路由切流、traceId 命名与角色令牌策略口径，使需求文档与当前设计一致 |
