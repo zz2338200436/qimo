@@ -8,6 +8,8 @@ param(
     [string]$StdoutLog,
     [string]$StderrLog,
 
+    [string[]]$JvmArguments = @(),
+
     [hashtable]$EnvironmentVariables = @{}
 )
 
@@ -52,12 +54,14 @@ $jarDirLiteral = $jarDir.Replace("'", "''")
 $jarNameLiteral = $jarName.Replace("'", "''")
 $stdoutLiteral = $StdoutLog.Replace("'", "''")
 $stderrLiteral = $StderrLog.Replace("'", "''")
+$argumentList = $JvmArguments + @('-jar', $jarName)
+$argumentListLiteral = ($argumentList | ForEach-Object { "''{0}''" -f $_.Replace("'", "''") }) -join ', '
 
 $command += @(
     ('Set-Location -LiteralPath ''{0}''' -f $jarDirLiteral)
     ('$out = ''{0}''' -f $stdoutLiteral)
     ('$err = ''{0}''' -f $stderrLiteral)
-    ('$proc = Start-Process -FilePath ''{0}'' -ArgumentList @(''-jar'', ''{1}'') -WorkingDirectory (Get-Location).Path -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError $err -PassThru' -f $java.Replace("'", "''"), $jarNameLiteral)
+    ('$proc = Start-Process -FilePath ''{0}'' -ArgumentList @({1}) -WorkingDirectory (Get-Location).Path -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError $err -PassThru' -f $java.Replace("'", "''"), $argumentListLiteral)
     'Start-Sleep -Seconds 2'
     'if ($proc.HasExited) {'
     '  Write-Output ("EXITED:{0}" -f $proc.Id)'

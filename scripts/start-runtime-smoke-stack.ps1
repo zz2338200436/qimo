@@ -17,6 +17,13 @@ if ($pythonCommand) {
 }
 $runtimeLogs = Join-Path $repoRoot '.runtime-logs'
 $workspaceDependencies = Join-Path $repoRoot '.runtime-logs'
+$DefaultServiceJvmArguments = @(
+    '-Xms64m',
+    '-Xmx256m',
+    '-XX:MaxMetaspaceSize=160m',
+    '-XX:ReservedCodeCacheSize=64m',
+    '-XX:ActiveProcessorCount=2'
+)
 
 if (-not (Test-Path $runtimeLogs)) {
     New-Item -ItemType Directory -Path $runtimeLogs | Out-Null
@@ -41,6 +48,7 @@ function Start-JarService {
         [string]$JarRelativePath,
         [int]$Port,
         [int]$WaitSeconds = 8,
+        [string[]]$JvmArguments = $DefaultServiceJvmArguments,
         [hashtable]$EnvironmentVariables = @{}
     )
 
@@ -65,7 +73,8 @@ function Start-JarService {
         $value = $EnvironmentVariables[$key].Replace("'", "''")
         $commandParts += ('$env:{0} = ''{1}''' -f $key, $value)
     }
-    $commandParts += ('& ''{0}'' -jar ''{1}''' -f $java.Replace("'", "''"), $jarName.Replace("'", "''"))
+    $argumentListLiteral = (($JvmArguments + @('-jar', $jarName)) | ForEach-Object { "''{0}''" -f $_.Replace("'", "''") }) -join ' '
+    $commandParts += ('& ''{0}'' {1}' -f $java.Replace("'", "''"), $argumentListLiteral)
     $command = $commandParts -join '; '
 
     Start-Process -FilePath powershell `
