@@ -217,9 +217,9 @@
     - 当 `spring.profiles.active` 包含 `prod` 时，检测关键敏感字段为空则 `System.exit(1)` 并输出明确原因
     - _Requirements: 4.4_
 
-  - [ ]* 6.4 编写 Prod 快速失败示例测试
-    - 使用 `@ActiveProfiles("prod")` + 故意不提供 `DB_PASSWORD` 环境变量
-    - 断言 ApplicationContext 启动失败并包含预期错误文案
+  - [x]* 6.4 编写 Prod 快速失败示例测试
+    - 已补 `ProdConfigValidatorStartupFailureTest`：激活 `prod` 并故意缺失 `DB_PASSWORD`，断言启动阶段快速失败且日志包含缺失字段文案
+    - 已补 `ProdConfigValidatorTest`：覆盖非 prod 不退出、prod 缺配置退出、prod 配置齐全不退出
     - _Requirements: 4.4_
 
   - [x] 6.5 引入 gitleaks / detect-secrets 扫描
