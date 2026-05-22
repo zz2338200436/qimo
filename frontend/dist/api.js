@@ -1,5 +1,5 @@
 // API基础URL
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = '';
 
 // 存储课程数据，用于映射courseId到courseName
 let courseMap = new Map();
@@ -698,7 +698,11 @@ class StudentAPI {
     }
     
     getCourseProgress() {
-        return this.apiService.get('/api/student/course-progress');
+        return guardStudentCapability(
+            'dashboardPerformance',
+            () => this.apiService.get('/api/student/course-progress'),
+            '当前 JWT 微服务环境暂未提供课程进度接口，页面将改用已接通的数据源进行统计。'
+        );
     }
     
     getAssignments(params = {}) {
@@ -1179,7 +1183,7 @@ async function fetchAPI(url, options = {}) {
     showLoading();
     try {
         // 确保URL格式正确，移除重复的/api前缀
-        const apiUrl = `${API_BASE_URL}${url}`.replace(/\/api\/api/g, '/api');
+        const apiUrl = toBackendUrl(url).replace(/\/api\/api/g, '/api');
         console.log('3. API_BASE_URL:', API_BASE_URL);
         console.log('4. 完整请求URL:', apiUrl);
         
@@ -1269,7 +1273,7 @@ async function loadCourses() {
     console.log('=== 开始加载课程流程 ===');
     try {
         // 直接使用浏览器的fetch API发送请求，不使用封装的fetchAPI函数
-        const apiUrl = 'http://localhost:8080/api/teacher/courses';
+        const apiUrl = '/api/teacher/courses';
         console.log('1. API请求URL:', apiUrl);
         
         // 发送请求
@@ -1398,7 +1402,7 @@ async function loadClasses() {
         let classes = [];
         try {
             // 首先尝试使用teacher/classes接口
-            const apiUrl = 'http://localhost:8080/api/teacher/classes';
+            const apiUrl = '/api/teacher/classes';
             console.log('1. 调用班级API:', apiUrl);
             
             const response = await fetch(apiUrl, {
@@ -1428,7 +1432,7 @@ async function loadClasses() {
             // 如果teacher/classes接口失败，尝试使用其他接口
             try {
                 // 尝试从课程数据中获取班级信息
-                const apiUrl = 'http://localhost:8080/api/teacher/courses';
+                const apiUrl = '/api/teacher/courses';
                 const response = await fetch(apiUrl, {
                     method: 'GET',
                     credentials: 'include',
@@ -2189,7 +2193,7 @@ async function gradeAssignment(assignmentId) {
         document.getElementById('grade-assignment-content').style.display = 'none';
         
         // 调用API获取作业的所有提交记录
-        const response = await fetch(`http://localhost:8080/api/teacher/assignments/${assignmentId}/submissions`, {
+        const response = await fetch(`/api/teacher/assignments/${assignmentId}/submissions`, {
             credentials: 'include',
             headers: {
                 'Content-Type': 'application/json'
@@ -2266,7 +2270,7 @@ function renderAssignmentSubmissions(submissions) {
 async function openGradeSubmissionModal(submissionId) {
     try {
         // 获取提交详情
-        const response = await fetch(`http://localhost:8080/api/teacher/assignments/submissions/${submissionId}`, {
+        const response = await fetch(`/api/teacher/assignments/submissions/${submissionId}`, {
             credentials: 'include',
             headers: {
                 'Content-Type': 'application/json'
@@ -2318,7 +2322,7 @@ async function submitGradeSubmission() {
         }
         
         // 调用API批改作业 - 确保score是Number类型
-        const response = await fetch(`http://localhost:8080/api/teacher/assignments/grade/${submissionId}`, {
+        const response = await fetch(`/api/teacher/assignments/grade/${submissionId}`, {
             method: 'PUT',
             credentials: 'include',
             headers: {

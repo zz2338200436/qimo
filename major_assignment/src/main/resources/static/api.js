@@ -1,5 +1,5 @@
 // API基础URL
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = '';
 
 // 存储课程数据，用于映射courseId到courseName
 let courseMap = new Map();
@@ -11,6 +11,39 @@ function getCsrfToken() {
     }
     const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
     return match ? decodeURIComponent(match[1]) : null;
+}
+
+function getAccessToken() {
+    if (typeof window === 'undefined' || !window.sessionStorage) {
+        return null;
+    }
+    return window.sessionStorage.getItem('token');
+}
+
+function decodeJwtPayload(token) {
+    if (!token || typeof token !== 'string') {
+        return null;
+    }
+    const parts = token.split('.');
+    if (parts.length < 2) {
+        return null;
+    }
+    try {
+        const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+        return JSON.parse(atob(padded));
+    } catch (error) {
+        return null;
+    }
+}
+
+function isJwtLikelyExpired(token, thresholdSeconds = 30) {
+    const payload = decodeJwtPayload(token);
+    if (!payload || typeof payload.exp !== 'number') {
+        return false;
+    }
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    return payload.exp <= (nowSeconds + thresholdSeconds);
 }
 
 function getCurrentUserId() {
@@ -45,6 +78,84 @@ function clearAuthSession() {
     window.sessionStorage.removeItem('role');
 }
 
+function persistAuthSession(authData) {
+    if (!authData || typeof window === 'undefined' || !window.sessionStorage) {
+        return;
+    }
+
+    clearAuthSession();
+
+    const { accessToken, refreshToken, user } = authData;
+    if (accessToken) {
+        window.sessionStorage.setItem('token', accessToken);
+    }
+    if (refreshToken) {
+        window.sessionStorage.setItem('refreshToken', refreshToken);
+    }
+    if (user) {
+        window.sessionStorage.setItem('user', JSON.stringify(user));
+        if (user.id != null) {
+            window.sessionStorage.setItem('userId', String(user.id));
+        }
+
+        const resolvedRole = user.activeRole
+            || (Array.isArray(user.roles) && user.roles.length > 0 ? user.roles[0] : null);
+        if (resolvedRole) {
+            window.sessionStorage.setItem('activeRole', resolvedRole);
+            window.sessionStorage.setItem('role', resolvedRole);
+        }
+    }
+}
+
+let refreshPromise = null;
+
+async function tryRefreshAuthSession() {
+    if (typeof window === 'undefined' || !window.sessionStorage) {
+        return false;
+    }
+    const refreshToken = window.sessionStorage.getItem('refreshToken');
+    if (!refreshToken) {
+        return false;
+    }
+
+    if (!refreshPromise) {
+        refreshPromise = (async () => {
+            try {
+                const csrfToken = getCsrfToken();
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                if (csrfToken) {
+                    headers['X-XSRF-TOKEN'] = csrfToken;
+                }
+
+                const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers,
+                    body: JSON.stringify({ refreshToken })
+                });
+
+                const payload = await response.json().catch(() => null);
+                if (!response.ok || !payload?.success || !payload?.data) {
+                    clearAuthSession();
+                    return false;
+                }
+
+                persistAuthSession(payload.data);
+                return true;
+            } catch (error) {
+                clearAuthSession();
+                return false;
+            } finally {
+                refreshPromise = null;
+            }
+        })();
+    }
+
+    return refreshPromise;
+}
+
 function getRoleContext() {
     if (typeof window === 'undefined' || !window.location) {
         return null;
@@ -61,6 +172,166 @@ function getRoleContext() {
         return 'ADMIN';
     }
     return null;
+}
+
+function getCurrentPageName() {
+    if (typeof window === 'undefined' || !window.location) {
+        return '';
+    }
+    return (window.location.pathname.split('/').pop() || '').toLowerCase();
+}
+
+function shouldSilenceUnauthorizedLog(url) {
+    const currentPage = getCurrentPageName();
+    if (currentPage === 'teacher-knowledge.html') {
+        return url.startsWith('/api/teacher/knowledge-points') ||
+            url.startsWith('/api/knowledge-points/analysis/teacher/course');
+    }
+    return false;
+}
+
+function isLegacySessionUnavailable() {
+    if (typeof window === 'undefined' || !window.sessionStorage) {
+        return false;
+    }
+    const token = window.sessionStorage.getItem('token');
+    if (!token) {
+        return false;
+    }
+    const hasSessionCookie = typeof document !== 'undefined' && document.cookie.includes('JSESSIONID=');
+    return !hasSessionCookie;
+}
+
+function isJwtOnlyStudentSession() {
+    return getRoleContext() === 'STUDENT' && isLegacySessionUnavailable();
+}
+
+function getStudentSessionContext() {
+    const token = getAccessToken();
+    const userId = getCurrentUserId();
+    let user = null;
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+        const rawUser = window.sessionStorage.getItem('user');
+        if (rawUser) {
+            try {
+                user = JSON.parse(rawUser);
+            } catch (error) {
+                user = null;
+            }
+        }
+    }
+
+    return {
+        token,
+        userId,
+        user,
+        hasUser: !!user,
+        isJwtOnly: isJwtOnlyStudentSession(),
+        canRender: getRoleContext() === 'STUDENT' && !!token
+    };
+}
+
+const STUDENT_MICROSERVICE_CAPABILITIES = Object.freeze({
+    dashboardPerformance: false,
+    courses: true,
+    courseDetail: true,
+    assignments: true,
+    assignmentDetail: true,
+    assignmentSubmit: true,
+    exams: true,
+    examDetail: true,
+    examSubmit: true,
+    scores: true,
+    stats: true,
+    studyTimeDistribution: true,
+    knowledgePoints: true,
+    studentProfile: true,
+    studentProfileUpdate: true,
+    changePassword: true,
+    notificationSettings: true,
+    privacySettings: true,
+    exportData: true,
+    avatarUpload: false,
+    activities: false
+});
+
+function studentCapabilitySupported(capability) {
+    if (!capability) {
+        return true;
+    }
+    if (!isJwtOnlyStudentSession()) {
+        return true;
+    }
+    return STUDENT_MICROSERVICE_CAPABILITIES[capability] !== false;
+}
+
+function getStudentCapabilityMessage(capability, fallbackMessage) {
+    const capabilityMessages = {
+        dashboardPerformance: '当前 JWT 微服务环境暂未提供学生综合表现接口，页面将改用已接通的数据源进行统计。',
+        exams: '当前 JWT 微服务环境暂未提供考试列表接口，相关入口会以空态方式展示。',
+        examDetail: '当前 JWT 微服务环境暂未提供考试详情接口，请先使用已接通的作业与课程能力。',
+        examSubmit: '当前 JWT 微服务环境暂未提供考试提交接口，请先使用已接通的作业能力。',
+        activities: '当前 JWT 微服务环境暂未提供学生活动流接口，已仅展示可用数据。',
+        avatarUpload: '当前 JWT 微服务环境暂未提供头像上传接口，请先使用其它资料编辑项。'
+    };
+    return capabilityMessages[capability] || fallbackMessage || '当前环境暂未提供该学生功能。';
+}
+
+function buildUnsupportedStudentCapabilityResult(capability, fallbackMessage, code = 501) {
+    return {
+        success: false,
+        code,
+        unsupported: true,
+        capability,
+        message: getStudentCapabilityMessage(capability, fallbackMessage),
+        data: null
+    };
+}
+
+async function guardStudentCapability(capability, executor, fallbackMessage) {
+    if (!studentCapabilitySupported(capability)) {
+        return buildUnsupportedStudentCapabilityResult(capability, fallbackMessage);
+    }
+    return executor();
+}
+
+function toBackendUrl(url) {
+    if (!url) {
+        return url;
+    }
+    if (typeof url !== 'string') {
+        return url;
+    }
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+        return url;
+    }
+    if (url.startsWith('/api/')) {
+        return `${API_BASE_URL}${url}`;
+    }
+    return url;
+}
+
+function isAuthLoginRequest(url) {
+    try {
+        const normalizedUrl = new URL(toBackendUrl(url), typeof window !== 'undefined' ? window.location.href : API_BASE_URL);
+        return normalizedUrl.pathname === '/api/auth/login';
+    } catch (error) {
+        return false;
+    }
+}
+
+function shouldIncludeExamDataForTeacherStats(options = {}) {
+    if (typeof options.includeExams === 'boolean') {
+        return options.includeExams;
+    }
+    return false;
+}
+
+function shouldIncludeEarlyWarningsForTeacherStats(options = {}) {
+    if (typeof options.includeWarnings === 'boolean') {
+        return options.includeWarnings;
+    }
+    return false;
 }
 
 // 全局 fetch CSRF 补丁
@@ -384,7 +655,11 @@ class StudentAPI {
     }
     
     getCourseProgress() {
-        return this.apiService.get('/api/student/course-progress');
+        return guardStudentCapability(
+            'dashboardPerformance',
+            () => this.apiService.get('/api/student/course-progress'),
+            '当前 JWT 微服务环境暂未提供课程进度接口，页面将改用已接通的数据源进行统计。'
+        );
     }
     
     getAssignments(params = {}) {
@@ -396,15 +671,27 @@ class StudentAPI {
     }
     
     getExams(params = {}) {
-        return this.apiService.get('/api/student/exams', params);
+        return guardStudentCapability(
+            'exams',
+            () => this.apiService.get('/api/student/exams', params),
+            '当前 JWT 微服务环境暂未提供考试列表接口。'
+        );
     }
     
     getExamDetail(examId) {
-        return this.apiService.get(`/api/student/exams/${examId}`);
+        return guardStudentCapability(
+            'examDetail',
+            () => this.apiService.get(`/api/student/exams/${examId}`),
+            '当前 JWT 微服务环境暂未提供考试详情接口。'
+        );
     }
     
     getScores() {
-        return this.apiService.get('/api/student/scores');
+        return guardStudentCapability(
+            'scores',
+            () => this.apiService.get('/api/student/scores'),
+            '当前 JWT 微服务环境暂未提供成绩查询接口。'
+        );
     }
     
     getStudentStats() {
@@ -420,16 +707,28 @@ class StudentAPI {
     }
     
     getRecentActivities() {
-        return this.apiService.get('/api/student/activities');
+        return guardStudentCapability(
+            'activities',
+            () => this.apiService.get('/api/student/activities'),
+            '当前 JWT 微服务环境暂未提供学生活动流接口。'
+        );
     }
     
     getCurrentStudentPerformance() {
-        return this.apiService.get('/api/dashboard/student-performance');
+        return guardStudentCapability(
+            'dashboardPerformance',
+            () => this.apiService.get('/api/dashboard/student-performance'),
+            '当前 JWT 微服务环境暂未提供学生综合表现接口。'
+        );
     }
     
     // 获取学生的考试提交记录
     getExamSubmissions() {
-        return this.apiService.get('/api/student/exam-submissions');
+        return guardStudentCapability(
+            'examSubmit',
+            () => this.apiService.get('/api/student/exam-submissions'),
+            '当前 JWT 微服务环境暂未提供考试提交记录接口。'
+        );
     }
     
     // 获取学生的作业提交记录
@@ -445,16 +744,24 @@ class StudentAPI {
     
     // 提交考试（支持FormData，包含文件上传）
     submitExam(examId, formData) {
-        return this.apiService.request(`/api/student/exams/${examId}/submit`, {
-            method: 'POST',
-            body: formData,
-            headers: {}
-        });
+        return guardStudentCapability(
+            'examSubmit',
+            () => this.apiService.request(`/api/student/exams/${examId}/submit`, {
+                method: 'POST',
+                body: formData,
+                headers: {}
+            }),
+            '当前 JWT 微服务环境暂未提供考试提交接口。'
+        );
     }
     
     // 提交考试（JSON格式，兼容当前后端API）
     submitExamJson(examId, data) {
-        return this.apiService.post(`/api/student/exams/${examId}/submit`, data);
+        return guardStudentCapability(
+            'examSubmit',
+            () => this.apiService.post(`/api/student/exams/${examId}/submit`, data),
+            '当前 JWT 微服务环境暂未提供考试提交接口。'
+        );
     }
     
     // 通知相关API方法
@@ -533,11 +840,15 @@ class StudentAPI {
     
     // 上传学生头像
     uploadAvatar(formData) {
-        return this.apiService.request('/api/student/upload-avatar', {
-            method: 'POST',
-            body: formData,
-            headers: {}
-        });
+        return guardStudentCapability(
+            'avatarUpload',
+            () => this.apiService.request('/api/student/upload-avatar', {
+                method: 'POST',
+                body: formData,
+                headers: {}
+            }),
+            '当前 JWT 微服务环境暂未提供头像上传接口。'
+        );
     }
     
     // 导出学生数据
@@ -812,7 +1123,7 @@ async function fetchAPI(url, options = {}) {
     showLoading();
     try {
         // 确保URL格式正确，移除重复的/api前缀
-        const apiUrl = `${API_BASE_URL}${url}`.replace(/\/api\/api/g, '/api');
+        const apiUrl = toBackendUrl(url).replace(/\/api\/api/g, '/api');
         console.log('3. API_BASE_URL:', API_BASE_URL);
         console.log('4. 完整请求URL:', apiUrl);
         
@@ -901,7 +1212,7 @@ async function loadCourses() {
     console.log('=== 开始加载课程流程 ===');
     try {
         // 直接使用浏览器的fetch API发送请求，不使用封装的fetchAPI函数
-        const apiUrl = 'http://localhost:8080/api/teacher/courses';
+        const apiUrl = '/api/teacher/courses';
         console.log('1. API请求URL:', apiUrl);
         
         // 发送请求
@@ -1025,7 +1336,7 @@ async function loadClasses() {
         let classes = [];
         try {
             // 首先尝试使用teacher/classes接口
-            const apiUrl = 'http://localhost:8080/api/teacher/classes';
+            const apiUrl = '/api/teacher/classes';
             console.log('1. 调用班级API:', apiUrl);
             
             const response = await fetch(apiUrl, {
@@ -1054,7 +1365,7 @@ async function loadClasses() {
             // 如果teacher/classes接口失败，尝试使用其他接口
             try {
                 // 尝试从课程数据中获取班级信息
-                const apiUrl = 'http://localhost:8080/api/teacher/courses';
+                const apiUrl = '/api/teacher/courses';
                 const response = await fetch(apiUrl, {
                     method: 'GET',
                     credentials: 'include',
@@ -1814,7 +2125,7 @@ async function gradeAssignment(assignmentId) {
         document.getElementById('grade-assignment-content').style.display = 'none';
         
         // 调用API获取作业的所有提交记录
-        const response = await fetch(`http://localhost:8080/api/teacher/assignments/${assignmentId}/submissions`, {
+        const response = await fetch(`/api/teacher/assignments/${assignmentId}/submissions`, {
             credentials: 'include',
             headers: {
                 'Content-Type': 'application/json'
@@ -1891,7 +2202,7 @@ function renderAssignmentSubmissions(submissions) {
 async function openGradeSubmissionModal(submissionId) {
     try {
         // 获取提交详情
-        const response = await fetch(`http://localhost:8080/api/teacher/assignments/submissions/${submissionId}`, {
+        const response = await fetch(`/api/teacher/assignments/submissions/${submissionId}`, {
             credentials: 'include',
             headers: {
                 'Content-Type': 'application/json'
@@ -1943,7 +2254,7 @@ async function submitGradeSubmission() {
         }
         
         // 调用API批改作业 - 确保score是Number类型
-        const response = await fetch(`http://localhost:8080/api/teacher/assignments/grade/${submissionId}`, {
+        const response = await fetch(`/api/teacher/assignments/grade/${submissionId}`, {
             method: 'PUT',
             credentials: 'include',
             headers: {

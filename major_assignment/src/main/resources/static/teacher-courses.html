@@ -1266,7 +1266,7 @@
         async function loadGradeAndMajorData() {
             try {
                 // 调用API获取所有班级数据
-                const response = await fetch('http://localhost:8080/api/teacher/classes', {
+                const response = await fetch('/api/teacher/classes', {
                     credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1551,7 +1551,7 @@
             if (classTeacher) params.append('teacherName', classTeacher);
 
             // 调用API获取班级数据
-            fetch(`http://localhost:8080/api/teacher/classes?${params.toString()}`, {
+            fetch(`/api/teacher/classes?${params.toString()}`, {
                 credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1815,7 +1815,7 @@
             
             try {
                 // 调用API获取班级学生列表
-                const response = await fetch(`http://localhost:8080/api/teacher/classes/${currentViewedClassId}/students`, {
+                const response = await fetch(`/api/teacher/classes/${currentViewedClassId}/students`, {
                     credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1886,7 +1886,7 @@
                 showLoading(addBtn);
                 const csrfToken = getCsrfToken();
                 
-                const response = await fetch(`http://localhost:8080/api/teacher/students/${studentId}`, {
+                const response = await fetch(`/api/teacher/students/${studentId}`, {
                     method: 'PUT',
                     credentials: 'include',
                     headers: {
@@ -1943,7 +1943,7 @@
             try {
                 // 调用API删除班级
                 const csrfToken = getCsrfToken();
-                const response = await fetch(`http://localhost:8080/api/teacher/classes/${classId}`, {
+                const response = await fetch(`/api/teacher/classes/${classId}`, {
                     method: 'DELETE',
                     credentials: 'include',
                     headers: {
@@ -2011,7 +2011,7 @@
                 
                 // 调用API添加班级
                 const csrfToken = getCsrfToken();
-                const response = await fetch('http://localhost:8080/api/teacher/classes', {
+                const response = await fetch('/api/teacher/classes', {
                     method: 'POST',
                     credentials: 'include',
                     headers: {
@@ -2260,7 +2260,7 @@
                 
                 // 调用API更新班级
                 // 注意：确保API URL正确，使用/api/teacher/classes/:id格式
-                const apiUrl = `http://localhost:8080/api/teacher/classes/${classId}`;
+                    const apiUrl = `/api/teacher/classes/${classId}`;
                 console.log('调用API更新班级:', apiUrl);
                 console.log('请求数据:', classData);
                 
@@ -3437,7 +3437,7 @@
             
             isLoadingClasses = true;
             try {
-                const response = await fetch('http://localhost:8080/api/teacher/classes', {
+                const response = await fetch('/api/teacher/classes', {
                     credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json'
@@ -3924,7 +3924,7 @@
                     result = await teacherAPI.unassignCourse(assignmentId);
                 } else {
                     // 调用新的取消分配API（需要实现）
-                    result = await fetch(`http://localhost:8080/api/teacher/class-courses/unassign?classId=${classId}&courseId=${courseId}`, {
+                    result = await fetch(`/api/teacher/class-courses/unassign?classId=${classId}&courseId=${courseId}`, {
                         method: 'DELETE',
                         credentials: 'include',
                         headers: {
@@ -4349,7 +4349,7 @@
         // 检查班级名称是否存在
         async function checkClassNameExists(className, currentClassId = null) {
             try {
-                const response = await fetch(`http://localhost:8080/api/teacher/check-class-name?className=${encodeURIComponent(className)}${currentClassId ? `&classId=${currentClassId}` : ''}`, {
+                const response = await fetch(`/api/teacher/check-class-name?className=${encodeURIComponent(className)}${currentClassId ? `&classId=${currentClassId}` : ''}`, {
                     credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json'
@@ -4626,7 +4626,7 @@
                 console.log('2. API请求参数:', apiParams);
                 
                 // 直接使用fetch API调用后端接口，绕过teacherAPI封装，以便更好地调试
-                const apiUrl = 'http://localhost:8080/api/teacher/courses';
+                    const apiUrl = '/api/teacher/courses';
                 const fetchOptions = {
                     credentials: 'include',
                     headers: {
@@ -5080,7 +5080,7 @@
         async function editClass(classId) {
             try {
                 // 直接使用fetch API获取班级详情
-                const response = await fetch(`http://localhost:8080/api/teacher/classes/${classId}`, {
+                    const response = await fetch(`/api/teacher/classes/${classId}`, {
                     credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json'

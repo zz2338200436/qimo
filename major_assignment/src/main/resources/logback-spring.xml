@@ -15,7 +15,7 @@
 
     <!-- 启用 MaskingConverter 作为 %mask(...) 转换符 -->
     <conversionRule conversionWord="mask"
-                    converterClass="com._202510007517.major_assignment.logging.MaskingConverter"/>
+                    class="com._202510007517.major_assignment.logging.MaskingConverter"/>
 
     <!-- 允许通过 Spring 属性注入日志文件路径 -->
     <springProperty scope="context" name="LOG_FILE" source="logging.file.name"

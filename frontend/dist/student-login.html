@@ -118,7 +118,7 @@
                         <input type="text" id="captcha" name="captcha" data-i18n-placeholder="login.form.captcha_placeholder" placeholder="请输入验证码" maxlength="4">
                     </div>
                     <div class="captcha-image">
-                        <img id="captchaImage" src="http://localhost:8080/api/auth/captcha" alt="验证码">
+                        <img id="captchaImage" src="/api/auth/captcha" alt="验证码">
                     </div>
                 </div>
                 <div class="remember-me">
@@ -152,7 +152,7 @@
         async function refreshStudentCaptcha() {
             var captchaImage = document.getElementById('captchaImage');
             try {
-                var response = await fetch('http://localhost:8080/api/auth/captcha?timestamp=' + Date.now(), {
+                var response = await fetch('/api/auth/captcha?timestamp=' + Date.now(), {
                     credentials: 'include'
                 });
                 if (!response.ok) {

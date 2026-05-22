@@ -804,14 +804,14 @@
     
     <!-- 页面脚本 -->
     <script>
-        const TEACHER_DASHBOARD_API_BASE = 'http://localhost:8080/api';
+const TEACHER_DASHBOARD_API_BASE = '/api';
 
         function withTeacherApiBase(path) {
             if (!path || /^https?:\/\//i.test(path) || !path.startsWith('/')) {
                 return path;
             }
             if (path.startsWith('/api/')) {
-                return `http://localhost:8080${path}`;
+                return path;
             }
             return `${TEACHER_DASHBOARD_API_BASE}${path}`;
         }
