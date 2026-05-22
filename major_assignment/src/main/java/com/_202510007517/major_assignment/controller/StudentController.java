@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -62,7 +62,7 @@ public class StudentController extends BaseController {
 
     @GetMapping("/student/courses")
     @RequireLogin
-    public ResponseResult<Map<String, Object>> getStudentCourses(HttpSession session,
+    public ResponseResult<Map<String, Object>> getStudentCourses(HttpServletRequest requestContext,
                                                                @RequestParam(value = "page", defaultValue = "1") @Min(1) Integer page,
                                                                @RequestParam(value = "size", defaultValue = "10") @Min(1) @Max(100) Integer size,
                                                                @RequestParam(value = "sortBy", defaultValue = "id") String sortBy,
@@ -71,7 +71,7 @@ public class StudentController extends BaseController {
                                                                @RequestParam(value = "semester", required = false) String semester,
                                                                @RequestParam(value = "courseCategory", required = false) String courseCategory,
                                                                @RequestParam(value = "searchQuery", required = false) String searchQuery) {
-        Long currentUserId = getCurrentUserId(session);
+        Long currentUserId = getCurrentUserId(requestContext);
         
         // 调用服务层获取分页数据
         Map<String, Object> result = studentService.getStudentCoursesWithPagination(currentUserId, page, size, sortBy, order, courseStatus, semester, courseCategory, searchQuery);
@@ -80,7 +80,7 @@ public class StudentController extends BaseController {
     
     @GetMapping("/student/courses/{courseId}")
     @RequireLogin
-    public ResponseResult<Course> getCourseDetail(@PathVariable Long courseId, HttpSession session) {
+    public ResponseResult<Course> getCourseDetail(@PathVariable Long courseId, HttpServletRequest requestContext) {
         Course course = courseService.findById(courseId);
         if (course == null) {
             throw new ResourceNotFoundException(ErrorMessages.COURSE_NOT_FOUND);
@@ -90,7 +90,7 @@ public class StudentController extends BaseController {
     
     @GetMapping("/student/assignments")
     @RequireLogin
-    public ResponseResult<Map<String, Object>> getAssignments(HttpSession session,
+    public ResponseResult<Map<String, Object>> getAssignments(HttpServletRequest requestContext,
                                                             @RequestParam(value = "page", defaultValue = "1") @Min(1) Integer page,
                                                             @RequestParam(value = "size", defaultValue = "10") @Min(1) @Max(100) Integer size,
                                                             @RequestParam(value = "sortBy", defaultValue = "dueDate") String sortBy,
@@ -98,7 +98,7 @@ public class StudentController extends BaseController {
                                                             @RequestParam(value = "courseId", required = false) Long courseId,
                                                             @RequestParam(value = "submitted", required = false) Boolean submitted,
                                                             @RequestParam(value = "isActive", required = false) Boolean isActive) {
-        Long userId = getCurrentUserId(session);
+        Long userId = getCurrentUserId(requestContext);
         
         // 调用服务层获取分页数据
         Map<String, Object> result = assignmentService.getAssignmentsWithPagination(userId, page, size, sortBy, order, courseId, submitted, isActive);
@@ -107,8 +107,8 @@ public class StudentController extends BaseController {
     
     @GetMapping("/student/assignments/{assignmentId}")
     @RequireLogin
-    public ResponseResult<Map<String, Object>> getAssignmentDetail(@PathVariable Long assignmentId, HttpSession session) {
-        Long userId = getCurrentUserId(session);
+    public ResponseResult<Map<String, Object>> getAssignmentDetail(@PathVariable Long assignmentId, HttpServletRequest requestContext) {
+        Long userId = getCurrentUserId(requestContext);
         
         Assignment assignment = assignmentService.getAssignmentById(assignmentId);
         if (assignment == null) {
@@ -153,7 +153,7 @@ public class StudentController extends BaseController {
     
     @GetMapping("/student/exams")
     @RequireLogin
-    public ResponseResult<Map<String, Object>> getExams(HttpSession session,
+    public ResponseResult<Map<String, Object>> getExams(HttpServletRequest requestContext,
                                                       @RequestParam(value = "page", defaultValue = "1") @Min(1) Integer page,
                                                       @RequestParam(value = "size", defaultValue = "10") @Min(1) @Max(100) Integer size,
                                                       @RequestParam(value = "sortBy", defaultValue = "startTime") String sortBy,
@@ -161,7 +161,7 @@ public class StudentController extends BaseController {
                                                       @RequestParam(value = "courseId", required = false) Long courseId,
                                                       @RequestParam(value = "isActive", required = false) Boolean isActive,
                                                       @RequestParam(value = "submitted", required = false) Boolean submitted) {
-        Long userId = getCurrentUserId(session);
+        Long userId = getCurrentUserId(requestContext);
         
         // 调用服务层获取分页数据
         Map<String, Object> result = examService.getExamsWithPagination(userId, page, size, sortBy, order, courseId, isActive, submitted);
@@ -170,8 +170,8 @@ public class StudentController extends BaseController {
     
     @GetMapping("/student/exams/{examId}")
     @RequireLogin
-    public ResponseResult<Map<String, Object>> getExamDetail(@PathVariable Long examId, HttpSession session) {
-        Long userId = getCurrentUserId(session);
+    public ResponseResult<Map<String, Object>> getExamDetail(@PathVariable Long examId, HttpServletRequest requestContext) {
+        Long userId = getCurrentUserId(requestContext);
         
         Exam exam = examService.getExamById(examId);
         if (exam == null) {
@@ -219,9 +219,9 @@ public class StudentController extends BaseController {
     
     @PostMapping("/student/assignments/{assignmentId}/submit")
     @RequireLogin
-    public ResponseResult<Map<String, Object>> submitAssignment(@PathVariable Long assignmentId, @RequestBody Map<String, String> submission, HttpSession session) {
+    public ResponseResult<Map<String, Object>> submitAssignment(@PathVariable Long assignmentId, @RequestBody Map<String, String> submission, HttpServletRequest requestContext) {
         try {
-            Long userId = getCurrentUserId(session);
+            Long userId = getCurrentUserId(requestContext);
             String content = submission.get("content");
             
             // 验证提交内容
@@ -253,8 +253,8 @@ public class StudentController extends BaseController {
     
     @PostMapping("/student/exams/{examId}/submit")
     @RequireLogin
-    public ResponseResult<Map<String, Object>> submitExam(@PathVariable Long examId, @RequestBody Map<String, Object> submission, HttpSession session) {
-        Long userId = getCurrentUserId(session);
+    public ResponseResult<Map<String, Object>> submitExam(@PathVariable Long examId, @RequestBody Map<String, Object> submission, HttpServletRequest requestContext) {
+        Long userId = getCurrentUserId(requestContext);
         
         // 安全转换 timeTaken
         Integer timeTaken = 0;
@@ -294,8 +294,8 @@ public class StudentController extends BaseController {
             @RequestParam(value = "semester", required = false) String semester,
             @RequestParam(value = "courseId", required = false) Long courseId,
             @RequestParam(value = "timeRange", required = false) String timeRange,
-            HttpSession session) {
-        Long userId = getCurrentUserId(session);
+            HttpServletRequest requestContext) {
+        Long userId = getCurrentUserId(requestContext);
         Map<String, Object> stats = studentService.getLearningStats(userId, semester, courseId, timeRange);
         return ResponseResult.success(stats, SuccessMessages.GET_STATS_SUCCESS, 200);
     }
@@ -306,8 +306,8 @@ public class StudentController extends BaseController {
             @RequestParam(value = "semester", required = false) String semester,
             @RequestParam(value = "courseId", required = false) Long courseId,
             @RequestParam(value = "timeRange", required = false) String timeRange,
-            HttpSession session) {
-        Long userId = getCurrentUserId(session);
+            HttpServletRequest requestContext) {
+        Long userId = getCurrentUserId(requestContext);
         List<Map<String, Object>> knowledgePoints = studentService.getKnowledgePoints(userId, semester, courseId, timeRange);
         return ResponseResult.success(knowledgePoints, SuccessMessages.GET_KNOWLEDGE_POINTS_SUCCESS, 200);
     }
@@ -318,8 +318,8 @@ public class StudentController extends BaseController {
             @RequestParam(value = "semester", required = false) String semester,
             @RequestParam(value = "courseId", required = false) Long courseId,
             @RequestParam(value = "timeRange", required = false) String timeRange,
-            HttpSession session) {
-        Long userId = getCurrentUserId(session);
+            HttpServletRequest requestContext) {
+        Long userId = getCurrentUserId(requestContext);
         List<Map<String, Object>> scores = studentService.getScores(userId, semester, courseId, timeRange);
         return ResponseResult.success(scores, SuccessMessages.GET_SCORES_SUCCESS, 200);
     }
@@ -331,8 +331,8 @@ public class StudentController extends BaseController {
             @RequestParam(value = "semester", required = false) String semester,
             @RequestParam(value = "courseId", required = false) Long courseId,
             @RequestParam(value = "timeRange", required = false) String timeRange,
-            HttpSession session) {
-        Long userId = getCurrentUserId(session);
+            HttpServletRequest requestContext) {
+        Long userId = getCurrentUserId(requestContext);
         List<Map<String, Object>> studyTimeDistribution = studentService.getStudyTimeDistribution(userId, type, semester, courseId, timeRange);
 
         // 将数据库中的 study_time 字段转换为前端期望的 hours/label 字段
@@ -367,8 +367,8 @@ public class StudentController extends BaseController {
     
     @GetMapping("/student/knowledge-points/{knowledgePointId}")
     @RequireLogin
-    public ResponseResult<Map<String, Object>> getKnowledgePointDetail(@PathVariable Long knowledgePointId, HttpSession session) {
-        Long userId = getCurrentUserId(session);
+    public ResponseResult<Map<String, Object>> getKnowledgePointDetail(@PathVariable Long knowledgePointId, HttpServletRequest requestContext) {
+        Long userId = getCurrentUserId(requestContext);
         Map<String, Object> knowledgePointDetail = studentService.getKnowledgePointDetail(userId, knowledgePointId);
         if (knowledgePointDetail == null) {
             throw new ResourceNotFoundException(ErrorMessages.KNOWLEDGE_POINT_NOT_FOUND);
@@ -378,8 +378,8 @@ public class StudentController extends BaseController {
     
     @GetMapping("/student/early-warnings")
     @RequireLogin
-    public ResponseResult<List<Map<String, Object>>> getEarlyWarnings(HttpSession session) {
-        Long userId = getCurrentUserId(session);
+    public ResponseResult<List<Map<String, Object>>> getEarlyWarnings(HttpServletRequest requestContext) {
+        Long userId = getCurrentUserId(requestContext);
         List<Map<String, Object>> earlyWarnings = studentService.getEarlyWarnings(userId);
         return ResponseResult.success(earlyWarnings, SuccessMessages.GET_EARLY_WARNINGS_SUCCESS, 200);
     }
@@ -387,7 +387,7 @@ public class StudentController extends BaseController {
     // 获取学生班级名称
     @GetMapping("/students/{studentId}/class")
     @RequireLogin
-    public ResponseResult<String> getStudentClassName(@PathVariable Long studentId, HttpSession session) {
+    public ResponseResult<String> getStudentClassName(@PathVariable Long studentId, HttpServletRequest requestContext) {
         String className = userService.getStudentClassName(studentId);
         if (className == null || className.isEmpty()) {
             throw new ResourceNotFoundException(ErrorMessages.STUDENT_NOT_FOUND);
@@ -399,8 +399,8 @@ public class StudentController extends BaseController {
     
     @GetMapping("/student/profile")
     @RequireLogin
-    public ResponseResult<Map<String, Object>> getStudentProfile(HttpSession session) {
-        Long studentId = getCurrentUserId(session);
+    public ResponseResult<Map<String, Object>> getStudentProfile(HttpServletRequest requestContext) {
+        Long studentId = getCurrentUserId(requestContext);
         Map<String, Object> profile = studentService.getStudentProfile(studentId);
         if (profile == null) {
             throw new ResourceNotFoundException(ErrorMessages.USER_NOT_FOUND);
@@ -410,8 +410,8 @@ public class StudentController extends BaseController {
     
     @PutMapping("/student/profile")
     @RequireLogin
-    public ResponseResult<Boolean> updateStudentProfile(@RequestBody Map<String, Object> profileData, HttpSession session) {
-        Long studentId = getCurrentUserId(session);
+    public ResponseResult<Boolean> updateStudentProfile(@RequestBody Map<String, Object> profileData, HttpServletRequest requestContext) {
+        Long studentId = getCurrentUserId(requestContext);
         
         // 验证姓名不能为空
         if (profileData.containsKey("name")) {
@@ -441,8 +441,8 @@ public class StudentController extends BaseController {
     
     @PostMapping("/student/change-password")
     @RequireLogin
-    public ResponseResult<Boolean> changePassword(@RequestBody Map<String, String> passwordData, HttpSession session) {
-        Long studentId = getCurrentUserId(session);
+    public ResponseResult<Boolean> changePassword(@RequestBody Map<String, String> passwordData, HttpServletRequest requestContext) {
+        Long studentId = getCurrentUserId(requestContext);
         String currentPassword = passwordData.get("currentPassword");
         String newPassword = passwordData.get("newPassword");
         String confirmPassword = passwordData.get("confirmPassword");
@@ -474,16 +474,16 @@ public class StudentController extends BaseController {
     
     @GetMapping("/student/notification-settings")
     @RequireLogin
-    public ResponseResult<Map<String, Object>> getNotificationSettings(HttpSession session) {
-        Long studentId = getCurrentUserId(session);
+    public ResponseResult<Map<String, Object>> getNotificationSettings(HttpServletRequest requestContext) {
+        Long studentId = getCurrentUserId(requestContext);
         Map<String, Object> settings = studentService.getNotificationSettings(studentId);
         return ResponseResult.success(settings, SuccessMessages.NOTIFICATION_SETTINGS_SUCCESS, 200);
     }
     
     @PutMapping("/student/notification-settings")
     @RequireLogin
-    public ResponseResult<Boolean> updateNotificationSettings(@RequestBody Map<String, Object> settings, HttpSession session) {
-        Long studentId = getCurrentUserId(session);
+    public ResponseResult<Boolean> updateNotificationSettings(@RequestBody Map<String, Object> settings, HttpServletRequest requestContext) {
+        Long studentId = getCurrentUserId(requestContext);
         boolean result = studentService.updateNotificationSettings(studentId, settings);
         if (result) {
             return ResponseResult.success(true, SuccessMessages.NOTIFICATION_SETTINGS_SUCCESS, 200);
@@ -494,16 +494,16 @@ public class StudentController extends BaseController {
     
     @GetMapping("/student/privacy-settings")
     @RequireLogin
-    public ResponseResult<Map<String, Object>> getPrivacySettings(HttpSession session) {
-        Long studentId = getCurrentUserId(session);
+    public ResponseResult<Map<String, Object>> getPrivacySettings(HttpServletRequest requestContext) {
+        Long studentId = getCurrentUserId(requestContext);
         Map<String, Object> settings = studentService.getPrivacySettings(studentId);
         return ResponseResult.success(settings, SuccessMessages.PRIVACY_SETTINGS_SUCCESS, 200);
     }
     
     @PutMapping("/student/privacy-settings")
     @RequireLogin
-    public ResponseResult<Boolean> updatePrivacySettings(@RequestBody Map<String, Object> settings, HttpSession session) {
-        Long studentId = getCurrentUserId(session);
+    public ResponseResult<Boolean> updatePrivacySettings(@RequestBody Map<String, Object> settings, HttpServletRequest requestContext) {
+        Long studentId = getCurrentUserId(requestContext);
         boolean result = studentService.updatePrivacySettings(studentId, settings);
         if (result) {
             return ResponseResult.success(true, SuccessMessages.PRIVACY_SETTINGS_SUCCESS, 200);
@@ -514,8 +514,8 @@ public class StudentController extends BaseController {
     
     @PostMapping("/student/upload-avatar")
     @RequireLogin
-    public ResponseResult<Boolean> uploadAvatar(@RequestBody Map<String, String> avatarData, HttpSession session) {
-        Long studentId = getCurrentUserId(session);
+    public ResponseResult<Boolean> uploadAvatar(@RequestBody Map<String, String> avatarData, HttpServletRequest requestContext) {
+        Long studentId = getCurrentUserId(requestContext);
         String avatarUrl = avatarData.get("avatar");
         boolean result = studentService.uploadAvatar(studentId, avatarUrl);
         if (result) {
@@ -527,8 +527,8 @@ public class StudentController extends BaseController {
     
     @GetMapping("/student/export-data")
     @RequireLogin
-    public ResponseResult<Map<String, Object>> exportStudentData(HttpSession session) {
-        Long studentId = getCurrentUserId(session);
+    public ResponseResult<Map<String, Object>> exportStudentData(HttpServletRequest requestContext) {
+        Long studentId = getCurrentUserId(requestContext);
         Map<String, Object> data = studentService.exportStudentData(studentId);
         return ResponseResult.success(data, SuccessMessages.EXPORT_DATA_SUCCESS, 200);
     }
@@ -550,3 +550,4 @@ public class StudentController extends BaseController {
         }
     }
 }
+

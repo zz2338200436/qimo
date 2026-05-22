@@ -5,7 +5,7 @@ import com._202510007517.major_assignment.entity.dto.ResponseResult;
 import com._202510007517.major_assignment.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/users")
@@ -15,8 +15,8 @@ public class UserController extends BaseController {
     private UserService userService;
 
     @GetMapping("/{id}")
-    public ResponseResult<User> getUserById(@PathVariable Long id, HttpSession session) {
-        if (!isLoggedIn(session)) {
+    public ResponseResult<User> getUserById(@PathVariable Long id, HttpServletRequest requestContext) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
 
@@ -28,3 +28,4 @@ public class UserController extends BaseController {
         return ResponseResult.success(user);
     }
 }
+

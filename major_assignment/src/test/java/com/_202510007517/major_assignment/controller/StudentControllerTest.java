@@ -1,6 +1,7 @@
 package com._202510007517.major_assignment.controller;
 
 import com._202510007517.major_assignment.client.UserServiceProfileClient;
+import com._202510007517.major_assignment.config.MultiRoleSessionFilter;
 import com._202510007517.major_assignment.entity.Assignment;
 import com._202510007517.major_assignment.entity.Course;
 import com._202510007517.major_assignment.entity.Exam;
@@ -14,12 +15,12 @@ import com._202510007517.major_assignment.service.ExamSubmissionService;
 import com._202510007517.major_assignment.service.StudentService;
 import com._202510007517.major_assignment.service.UserService;
 import com._202510007517.platform.user.api.dto.UserProfileDTO;
-import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.Test;
-import org.springframework.mock.web.MockHttpSession;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -66,7 +67,7 @@ class StudentControllerTest {
         when(courseService.findById(5L)).thenReturn(course);
         when(userServiceProfileClient.getUserProfile(7L)).thenReturn(Optional.of(teacher));
 
-        ResponseResult<Map<String, Object>> response = controller.getAssignmentDetail(10L, loggedInSession(42L));
+        ResponseResult<Map<String, Object>> response = controller.getAssignmentDetail(10L, loggedInRequest(42L));
 
         assertThat(response.isSuccess()).isTrue();
         assertThat(response.getData()).containsEntry("teacherId", 7L);
@@ -112,7 +113,7 @@ class StudentControllerTest {
         when(courseService.findById(5L)).thenReturn(course);
         when(userServiceProfileClient.getUserProfile(8L)).thenReturn(Optional.of(teacher));
 
-        ResponseResult<Map<String, Object>> response = controller.getExamDetail(12L, loggedInSession(42L));
+        ResponseResult<Map<String, Object>> response = controller.getExamDetail(12L, loggedInRequest(42L));
 
         assertThat(response.isSuccess()).isTrue();
         assertThat(response.getData()).containsEntry("teacherId", 8L);
@@ -165,7 +166,7 @@ class StudentControllerTest {
         when(courseService.findById(5L)).thenReturn(course);
         when(examSubmissionService.getSubmissionByExamAndStudent(9001L, 42L)).thenReturn(submission);
 
-        ResponseResult<Map<String, Object>> response = controller.getExamDetail(9001L, loggedInSession(42L));
+        ResponseResult<Map<String, Object>> response = controller.getExamDetail(9001L, loggedInRequest(42L));
 
         assertThat(response.isSuccess()).isTrue();
         assertThat(response.getData()).containsKey("submission");
@@ -174,9 +175,11 @@ class StudentControllerTest {
         assertThat(submissionMap).containsEntry("content", "{\"content\":\"student exam answer\"}");
     }
 
-    private static HttpSession loggedInSession(Long userId) {
-        MockHttpSession session = new MockHttpSession();
-        session.setAttribute("userId", userId);
-        return session;
+    private static MockHttpServletRequest loggedInRequest(Long userId) {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setAttribute(
+                MultiRoleSessionFilter.CURRENT_USER_ATTR,
+                MultiRoleSessionFilter.AuthUser.of(userId, List.of("STUDENT")));
+        return request;
     }
 }

@@ -5,7 +5,7 @@ import com._202510007517.major_assignment.entity.dto.ResponseResult;
 import com._202510007517.major_assignment.service.KnowledgePointAnalysisService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/knowledge-points/analysis/teacher")
@@ -21,12 +21,12 @@ public class KnowledgePointAnalysisController extends BaseController {
             @RequestParam(required = false) Long classId,
             @RequestParam(required = false) String studentId,
             @RequestParam(required = false) String knowledgePointId,
-            HttpSession session) {
-        if (!isLoggedIn(session)) {
+            HttpServletRequest requestContext) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
-        Long teacherId = getCurrentUserId(session);
+        Long teacherId = getCurrentUserId(requestContext);
         
         KnowledgePointAnalysisDTO analysis;
         Long finalCourseId = null;

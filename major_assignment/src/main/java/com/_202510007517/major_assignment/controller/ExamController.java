@@ -17,7 +17,7 @@ import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -61,11 +61,11 @@ public class ExamController extends BaseController {
             @RequestParam(value = "courseId", required = false) String courseIdStr,
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "isOnline", required = false) Boolean isOnline,
-            HttpSession session) {
-        LogUtil.logRequest(logger, "GET", "/api/teacher/exams", null, getCurrentUserId(session));
+            HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "GET", "/api/teacher/exams", null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权访问考试列表", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权访问考试列表", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -77,19 +77,19 @@ public class ExamController extends BaseController {
                 courseId = Long.parseLong(courseIdStr);
             } catch (NumberFormatException e) {
                 // 如果转换失败，尝试将其作为课程代码处理
-                LogUtil.logDebug(logger, "尝试将课程代码 " + courseIdStr + " 转换为课程ID", getCurrentUserId(session));
+                LogUtil.logDebug(logger, "尝试将课程代码 " + courseIdStr + " 转换为课程ID", getCurrentUserId(requestContext));
                 // 获取当前教师的所有课程
-                List<Course> allCourses = courseService.findByTeacherId(getCurrentUserId(session));
+                List<Course> allCourses = courseService.findByTeacherId(getCurrentUserId(requestContext));
                 // 根据课程代码查找匹配的课程
                 for (Course course : allCourses) {
                     if (course.getCourseCode() != null && course.getCourseCode().equals(courseIdStr)) {
                         courseId = course.getId();
-                        LogUtil.logDebug(logger, "找到课程代码 " + courseIdStr + " 对应的课程ID: " + courseId, getCurrentUserId(session));
+                        LogUtil.logDebug(logger, "找到课程代码 " + courseIdStr + " 对应的课程ID: " + courseId, getCurrentUserId(requestContext));
                         break;
                     }
                 }
                 if (courseId == null) {
-                    LogUtil.logWarning(logger, "无效的课程ID或课程代码: " + courseIdStr, getCurrentUserId(session));
+                    LogUtil.logWarning(logger, "无效的课程ID或课程代码: " + courseIdStr, getCurrentUserId(requestContext));
                 }
             }
         }
@@ -104,7 +104,7 @@ public class ExamController extends BaseController {
         final Date now = new Date();
         
         // 获取当前教师ID
-        Long teacherId = getCurrentUserId(session);
+        Long teacherId = getCurrentUserId(requestContext);
         
         // 统计每个考试的提交数量和预期参与学生数
         Map<Long, Integer> submissionCountMap = new java.util.HashMap<>();
@@ -191,7 +191,7 @@ public class ExamController extends BaseController {
                                 return false;
                             default:
                                 // 未知状态，记录日志但不筛选
-                                LogUtil.logWarning(logger, "未知的考试状态: " + status, getCurrentUserId(session));
+                                LogUtil.logWarning(logger, "未知的考试状态: " + status, getCurrentUserId(requestContext));
                                 return true;
                         }
                     }
@@ -277,22 +277,22 @@ public class ExamController extends BaseController {
         result.put("numberOfElements", pagedExams.size());
         result.put("empty", pagedExams.isEmpty());
         
-        LogUtil.logResponse(logger, "GET", "/api/teacher/exams", 200, result, getCurrentUserId(session));
+        LogUtil.logResponse(logger, "GET", "/api/teacher/exams", 200, result, getCurrentUserId(requestContext));
         return ResponseResult.success(result, "获取考试列表成功", 200);
     }
     
     @PostMapping
-    public ResponseResult<Exam> createExam(@RequestBody Map<String, Object> requestBody, HttpSession session) {
-        LogUtil.logRequest(logger, "POST", "/api/teacher/exams", requestBody, getCurrentUserId(session));
+    public ResponseResult<Exam> createExam(@RequestBody Map<String, Object> requestBody, HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "POST", "/api/teacher/exams", requestBody, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权创建考试", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权创建考试", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         try {
             // 使用session中的teacherId覆盖前端传入的teacherId，确保安全
-            Long teacherId = getCurrentUserId(session);
+            Long teacherId = getCurrentUserId(requestContext);
             
             // 获取当前教师的所有课程，用于课程代码转换
             List<Course> allCourses = courseService.findByTeacherId(teacherId);
@@ -380,7 +380,7 @@ public class ExamController extends BaseController {
             
             // 保存考试
             examService.create(exam);
-            LogUtil.logOperation(logger, "创建考试", "考试标题: " + exam.getTitle(), getCurrentUserId(session), true);
+            LogUtil.logOperation(logger, "创建考试", "考试标题: " + exam.getTitle(), getCurrentUserId(requestContext), true);
             
             // 处理知识点关联
             @SuppressWarnings("unchecked")
@@ -422,7 +422,7 @@ public class ExamController extends BaseController {
                 // 发送通知失败不影响考试发布，继续执行
             }
             
-            LogUtil.logResponse(logger, "POST", "/api/teacher/exams", 201, exam, getCurrentUserId(session));
+            LogUtil.logResponse(logger, "POST", "/api/teacher/exams", 201, exam, getCurrentUserId(requestContext));
             return ResponseResult.created(exam);
         } catch (ParseException e) {
             LogUtil.logError(logger, "创建考试失败 - 日期格式错误", e);
@@ -434,17 +434,17 @@ public class ExamController extends BaseController {
     }
     
     @PutMapping("/{id}")
-    public ResponseResult<Exam> updateExam(@PathVariable Long id, @RequestBody Map<String, Object> requestBody, HttpSession session) {
-        LogUtil.logRequest(logger, "PUT", "/api/teacher/exams/" + id, requestBody, getCurrentUserId(session));
+    public ResponseResult<Exam> updateExam(@PathVariable Long id, @RequestBody Map<String, Object> requestBody, HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "PUT", "/api/teacher/exams/" + id, requestBody, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权更新考试", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权更新考试", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         try {
             // 获取当前教师的所有课程，用于课程代码转换
-            Long teacherId = getCurrentUserId(session);
+            Long teacherId = getCurrentUserId(requestContext);
             List<Course> allCourses = courseService.findByTeacherId(teacherId);
             
             // 处理课程ID，支持字符串课程代码
@@ -534,8 +534,8 @@ public class ExamController extends BaseController {
             
             // 保存更新
             examService.update(existingExam);
-            LogUtil.logOperation(logger, "更新考试", "考试ID: " + id + ", 考试标题: " + existingExam.getTitle(), getCurrentUserId(session), true);
-            LogUtil.logResponse(logger, "PUT", "/api/teacher/exams/" + id, 200, existingExam, getCurrentUserId(session));
+            LogUtil.logOperation(logger, "更新考试", "考试ID: " + id + ", 考试标题: " + existingExam.getTitle(), getCurrentUserId(requestContext), true);
+            LogUtil.logResponse(logger, "PUT", "/api/teacher/exams/" + id, 200, existingExam, getCurrentUserId(requestContext));
             return ResponseResult.success(existingExam);
         } catch (ParseException e) {
             LogUtil.logError(logger, "更新考试失败 - 日期格式错误", e);
@@ -547,18 +547,18 @@ public class ExamController extends BaseController {
     }
     
     @DeleteMapping("/{id}")
-    public ResponseResult<Void> deleteExam(@PathVariable Long id, HttpSession session) {
-        LogUtil.logRequest(logger, "DELETE", "/api/teacher/exams/" + id, null, getCurrentUserId(session));
+    public ResponseResult<Void> deleteExam(@PathVariable Long id, HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "DELETE", "/api/teacher/exams/" + id, null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权删除考试", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权删除考试", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         try {
             examService.delete(id);
-            LogUtil.logOperation(logger, "删除考试", "考试ID: " + id, getCurrentUserId(session), true);
-            LogUtil.logResponse(logger, "DELETE", "/api/teacher/exams/" + id, 204, null, getCurrentUserId(session));
+            LogUtil.logOperation(logger, "删除考试", "考试ID: " + id, getCurrentUserId(requestContext), true);
+            LogUtil.logResponse(logger, "DELETE", "/api/teacher/exams/" + id, 204, null, getCurrentUserId(requestContext));
             return ResponseResult.noContent();
         } catch (Exception e) {
             LogUtil.logError(logger, "删除考试失败，考试ID: " + id, e);
@@ -567,11 +567,11 @@ public class ExamController extends BaseController {
     }
     
     @GetMapping("/{id}")
-    public ResponseResult<Map<String, Object>> getExamById(@PathVariable Long id, HttpSession session) {
-        LogUtil.logRequest(logger, "GET", "/api/teacher/exams/" + id, null, getCurrentUserId(session));
+    public ResponseResult<Map<String, Object>> getExamById(@PathVariable Long id, HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "GET", "/api/teacher/exams/" + id, null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权访问考试详情", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权访问考试详情", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -580,18 +580,18 @@ public class ExamController extends BaseController {
             return ResponseResult.failure("考试不存在", 404);
         }
         
-        LogUtil.logResponse(logger, "GET", "/api/teacher/exams/" + id, 200, examDetails, getCurrentUserId(session));
+        LogUtil.logResponse(logger, "GET", "/api/teacher/exams/" + id, 200, examDetails, getCurrentUserId(requestContext));
         return ResponseResult.success(examDetails, "获取考试详情成功", 200);
     }
     
     @PutMapping("/grade/{submissionId}")
     public ResponseResult<ExamSubmission> gradeExam(@PathVariable Long submissionId, 
                                                  @RequestBody Map<String, Object> gradeRequest, 
-                                                 HttpSession session) {
-        LogUtil.logRequest(logger, "PUT", "/api/teacher/exams/grade/" + submissionId, gradeRequest, getCurrentUserId(session));
+                                                 HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "PUT", "/api/teacher/exams/grade/" + submissionId, gradeRequest, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权批改考试", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权批改考试", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -651,8 +651,8 @@ public class ExamController extends BaseController {
                     logger.warn("启动实时学情分析失败，但不影响批改操作", e);
                 }
                 
-                LogUtil.logOperation(logger, "批改考试", "提交ID: " + submissionId, getCurrentUserId(session), true);
-                LogUtil.logResponse(logger, "PUT", "/api/teacher/exams/grade/" + submissionId, 200, submission, getCurrentUserId(session));
+                LogUtil.logOperation(logger, "批改考试", "提交ID: " + submissionId, getCurrentUserId(requestContext), true);
+                LogUtil.logResponse(logger, "PUT", "/api/teacher/exams/grade/" + submissionId, 200, submission, getCurrentUserId(requestContext));
                 return ResponseResult.success(submission, "考试批改成功", 200);
             } else {
                 return ResponseResult.failure("批改失败，提交记录不存在", 404);
@@ -664,17 +664,17 @@ public class ExamController extends BaseController {
     }
     
     @GetMapping("/{examId}/submissions")
-    public ResponseResult<List<ExamSubmission>> getExamSubmissions(@PathVariable Long examId, HttpSession session) {
-        LogUtil.logRequest(logger, "GET", "/api/teacher/exams/" + examId + "/submissions", null, getCurrentUserId(session));
+    public ResponseResult<List<ExamSubmission>> getExamSubmissions(@PathVariable Long examId, HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "GET", "/api/teacher/exams/" + examId + "/submissions", null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权访问考试提交列表", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权访问考试提交列表", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         List<ExamSubmission> submissions = examSubmissionService.getSubmissionsByExamId(examId);
         
-        LogUtil.logResponse(logger, "GET", "/api/teacher/exams/" + examId + "/submissions", 200, submissions, getCurrentUserId(session));
+        LogUtil.logResponse(logger, "GET", "/api/teacher/exams/" + examId + "/submissions", 200, submissions, getCurrentUserId(requestContext));
         return ResponseResult.success(submissions, "获取考试提交列表成功", 200);
     }
     
@@ -689,11 +689,11 @@ public class ExamController extends BaseController {
             @RequestParam(value = "examId", required = false) Long examId,
             @RequestParam(value = "studentId", required = false) Long studentId,
             @RequestParam(value = "graded", required = false) Boolean graded,
-            HttpSession session) {
-        LogUtil.logRequest(logger, "GET", "/api/teacher/exams/submissions", null, getCurrentUserId(session));
+            HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "GET", "/api/teacher/exams/submissions", null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权访问考试提交记录", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权访问考试提交记录", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -708,16 +708,16 @@ public class ExamController extends BaseController {
         result.put("size", size);
         result.put("pages", (int) Math.ceil((double) total / size));
         
-        LogUtil.logResponse(logger, "GET", "/api/teacher/exams/submissions", 200, result, getCurrentUserId(session));
+        LogUtil.logResponse(logger, "GET", "/api/teacher/exams/submissions", 200, result, getCurrentUserId(requestContext));
         return ResponseResult.success(result, "获取考试提交记录成功", 200);
     }
     
     @GetMapping("/submissions/{submissionId}")
-    public ResponseResult<ExamSubmission> getSubmissionById(@PathVariable Long submissionId, HttpSession session) {
-        LogUtil.logRequest(logger, "GET", "/api/teacher/exams/submissions/" + submissionId, null, getCurrentUserId(session));
+    public ResponseResult<ExamSubmission> getSubmissionById(@PathVariable Long submissionId, HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "GET", "/api/teacher/exams/submissions/" + submissionId, null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权访问考试提交记录详情", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权访问考试提交记录详情", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -726,24 +726,24 @@ public class ExamController extends BaseController {
             return ResponseResult.failure("考试提交记录不存在", 404);
         }
         
-        LogUtil.logResponse(logger, "GET", "/api/teacher/exams/submissions/" + submissionId, 200, submission, getCurrentUserId(session));
+        LogUtil.logResponse(logger, "GET", "/api/teacher/exams/submissions/" + submissionId, 200, submission, getCurrentUserId(requestContext));
         return ResponseResult.success(submission, "获取考试提交记录详情成功", 200);
     }
     
     @PutMapping("/submissions/{submissionId}")
-    public ResponseResult<ExamSubmission> updateSubmission(@PathVariable Long submissionId, @RequestBody ExamSubmission submission, HttpSession session) {
-        LogUtil.logRequest(logger, "PUT", "/api/teacher/exams/submissions/" + submissionId, submission, getCurrentUserId(session));
+    public ResponseResult<ExamSubmission> updateSubmission(@PathVariable Long submissionId, @RequestBody ExamSubmission submission, HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "PUT", "/api/teacher/exams/submissions/" + submissionId, submission, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权更新考试提交记录", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权更新考试提交记录", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         submission.setId(submissionId);
         boolean success = examSubmissionService.updateSubmission(submission);
         if (success) {
-            LogUtil.logOperation(logger, "更新考试提交记录", "提交ID: " + submissionId, getCurrentUserId(session), true);
-            LogUtil.logResponse(logger, "PUT", "/api/teacher/exams/submissions/" + submissionId, 200, submission, getCurrentUserId(session));
+            LogUtil.logOperation(logger, "更新考试提交记录", "提交ID: " + submissionId, getCurrentUserId(requestContext), true);
+            LogUtil.logResponse(logger, "PUT", "/api/teacher/exams/submissions/" + submissionId, 200, submission, getCurrentUserId(requestContext));
             return ResponseResult.success(submission, "更新考试提交记录成功", 200);
         } else {
             return ResponseResult.failure("更新考试提交记录失败", 500);
@@ -751,18 +751,18 @@ public class ExamController extends BaseController {
     }
     
     @DeleteMapping("/submissions/{submissionId}")
-    public ResponseResult<Void> deleteSubmission(@PathVariable Long submissionId, HttpSession session) {
-        LogUtil.logRequest(logger, "DELETE", "/api/teacher/exams/submissions/" + submissionId, null, getCurrentUserId(session));
+    public ResponseResult<Void> deleteSubmission(@PathVariable Long submissionId, HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "DELETE", "/api/teacher/exams/submissions/" + submissionId, null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权删除考试提交记录", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权删除考试提交记录", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         boolean success = examSubmissionService.deleteSubmission(submissionId);
         if (success) {
-            LogUtil.logOperation(logger, "删除考试提交记录", "提交ID: " + submissionId, getCurrentUserId(session), true);
-            LogUtil.logResponse(logger, "DELETE", "/api/teacher/exams/submissions/" + submissionId, 204, null, getCurrentUserId(session));
+            LogUtil.logOperation(logger, "删除考试提交记录", "提交ID: " + submissionId, getCurrentUserId(requestContext), true);
+            LogUtil.logResponse(logger, "DELETE", "/api/teacher/exams/submissions/" + submissionId, 204, null, getCurrentUserId(requestContext));
             return ResponseResult.noContent();
         } else {
             return ResponseResult.failure("删除考试提交记录失败", 500);

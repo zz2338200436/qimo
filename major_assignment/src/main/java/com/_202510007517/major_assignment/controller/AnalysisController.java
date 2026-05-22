@@ -5,7 +5,7 @@ import com._202510007517.major_assignment.service.EarlyWarningAnalysisService;
 import com._202510007517.major_assignment.mapper.StudentMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 
@@ -27,8 +27,8 @@ public class AnalysisController extends BaseController {
      * 手动触发学情预警分析
      */
     @PostMapping("/warnings/trigger")
-    public ResponseResult<Void> triggerWarningAnalysis(HttpSession session) {
-        if (!isLoggedIn(session)) {
+    public ResponseResult<Void> triggerWarningAnalysis(HttpServletRequest requestContext) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -48,8 +48,8 @@ public class AnalysisController extends BaseController {
      * 手动触发知识点分析更新
      */
     @PostMapping("/knowledge-points/trigger")
-    public ResponseResult<Void> triggerKnowledgePointAnalysis(HttpSession session) {
-        if (!isLoggedIn(session)) {
+    public ResponseResult<Void> triggerKnowledgePointAnalysis(HttpServletRequest requestContext) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -71,8 +71,8 @@ public class AnalysisController extends BaseController {
     @PostMapping("/student/{studentId}/course/{courseId}/trigger")
     public ResponseResult<Void> triggerStudentAnalysis(@PathVariable Long studentId, 
                                                       @PathVariable Long courseId,
-                                                      HttpSession session) {
-        if (!isLoggedIn(session)) {
+                                                      HttpServletRequest requestContext) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -94,8 +94,8 @@ public class AnalysisController extends BaseController {
     @PostMapping("/class/{classId}/course/{courseId}/batch-trigger")
     public ResponseResult<Void> triggerClassAnalysis(@PathVariable Long classId,
                                                     @PathVariable Long courseId,
-                                                    HttpSession session) {
-        if (!isLoggedIn(session)) {
+                                                    HttpServletRequest requestContext) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         

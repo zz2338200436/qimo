@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
 import java.util.Map;
@@ -31,9 +31,9 @@ public class NotificationController extends BaseController {
             @RequestParam(defaultValue = "1") @Min(1) Integer page,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) Integer size,
             @RequestParam(defaultValue = "all") String filter,
-            HttpSession session) {
+            HttpServletRequest requestContext) {
         try {
-            Long studentId = getCurrentUserId(session);
+            Long studentId = getCurrentUserId(requestContext);
             Map<String, Object> result = notificationService.getNotificationsWithPagination(studentId, page, size, filter);
             return ResponseResult.success(result);
         } catch (Exception e) {
@@ -60,9 +60,9 @@ public class NotificationController extends BaseController {
 
     // 获取所有通知（不分页）
     @GetMapping("/student/all")
-    public ResponseResult getStudentAllNotifications(HttpSession session) {
+    public ResponseResult getStudentAllNotifications(HttpServletRequest requestContext) {
         try {
-            Long studentId = getCurrentUserId(session);
+            Long studentId = getCurrentUserId(requestContext);
             return ResponseResult.success(notificationService.getNotificationsByStudentId(studentId));
         } catch (Exception e) {
             logger.error("获取所有学生通知失败", e);
@@ -72,9 +72,9 @@ public class NotificationController extends BaseController {
 
     // 获取未读通知数量
     @GetMapping("/student/unread-count")
-    public ResponseResult<Integer> getUnreadNotificationCount(HttpSession session) {
+    public ResponseResult<Integer> getUnreadNotificationCount(HttpServletRequest requestContext) {
         try {
-            Long studentId = getCurrentUserId(session);
+            Long studentId = getCurrentUserId(requestContext);
             return ResponseResult.success(notificationService.getUnreadNotificationCountByStudentId(studentId));
         } catch (Exception e) {
             logger.error("获取未读通知数量失败", e);
@@ -84,7 +84,7 @@ public class NotificationController extends BaseController {
 
     // 标记通知为已读
     @PutMapping("/{id}/read")
-    public ResponseResult markAsRead(@PathVariable Long id, HttpSession session) {
+    public ResponseResult markAsRead(@PathVariable Long id, HttpServletRequest requestContext) {
         try {
             notificationService.markAsRead(id);
             return ResponseResult.success("通知已标记为已读");
@@ -96,9 +96,9 @@ public class NotificationController extends BaseController {
 
     // 标记所有通知为已读
     @PutMapping("/read-all")
-    public ResponseResult markAllAsRead(HttpSession session) {
+    public ResponseResult markAllAsRead(HttpServletRequest requestContext) {
         try {
-            Long studentId = getCurrentUserId(session);
+            Long studentId = getCurrentUserId(requestContext);
             notificationService.markAllAsRead(studentId);
             return ResponseResult.success("所有通知已标记为已读");
         } catch (Exception e) {
@@ -109,7 +109,7 @@ public class NotificationController extends BaseController {
 
     // 删除通知
     @DeleteMapping("/{id}")
-    public ResponseResult deleteNotification(@PathVariable Long id, HttpSession session) {
+    public ResponseResult deleteNotification(@PathVariable Long id, HttpServletRequest requestContext) {
         try {
             notificationService.delete(id);
             return ResponseResult.success("通知已删除");
@@ -121,9 +121,9 @@ public class NotificationController extends BaseController {
 
     // 删除所有已读通知
     @DeleteMapping("/delete-all-read")
-    public ResponseResult deleteAllRead(HttpSession session) {
+    public ResponseResult deleteAllRead(HttpServletRequest requestContext) {
         try {
-            Long studentId = getCurrentUserId(session);
+            Long studentId = getCurrentUserId(requestContext);
             notificationService.deleteAllRead(studentId);
             return ResponseResult.success("所有已读通知已删除");
         } catch (Exception e) {
@@ -134,9 +134,9 @@ public class NotificationController extends BaseController {
     
     // 老师发送通知
     @PostMapping("/teacher/send")
-    public ResponseResult sendNotification(@RequestBody Notification notification, HttpSession session) {
+    public ResponseResult sendNotification(@RequestBody Notification notification, HttpServletRequest requestContext) {
         try {
-            Long teacherId = getCurrentUserId(session);
+            Long teacherId = getCurrentUserId(requestContext);
             notification.setTeacherId(teacherId);
             notificationService.create(notification);
             return ResponseResult.success("通知发送成功");
@@ -148,9 +148,9 @@ public class NotificationController extends BaseController {
     
     // 老师批量发送通知
     @PostMapping("/teacher/send-batch")
-    public ResponseResult sendBatchNotification(@RequestBody List<Notification> notifications, HttpSession session) {
+    public ResponseResult sendBatchNotification(@RequestBody List<Notification> notifications, HttpServletRequest requestContext) {
         try {
-            Long teacherId = getCurrentUserId(session);
+            Long teacherId = getCurrentUserId(requestContext);
             notifications.forEach(notification -> {
                 notification.setTeacherId(teacherId);
             });

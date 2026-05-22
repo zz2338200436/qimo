@@ -1,10 +1,9 @@
 package com._202510007517.major_assignment.controller;
 
+import com._202510007517.major_assignment.config.MultiRoleSessionFilter;
 import com._202510007517.major_assignment.entity.KnowledgePoint;
 import com._202510007517.major_assignment.service.KnowledgePointService;
-import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.Test;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -26,7 +25,8 @@ class KnowledgePointControllerTest {
 
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
 
-        mockMvc.perform(get("/api/teacher/knowledge-points").session(loggedInSession(7L)))
+        mockMvc.perform(get("/api/teacher/knowledge-points")
+                        .requestAttr(MultiRoleSessionFilter.CURRENT_USER_ATTR, teacherUser(7L)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].id").value(9201))
@@ -45,7 +45,7 @@ class KnowledgePointControllerTest {
 
         mockMvc.perform(get("/api/teacher/knowledge-points")
                         .param("courseId", "99")
-                        .session(loggedInSession(7L)))
+                        .requestAttr(MultiRoleSessionFilter.CURRENT_USER_ATTR, teacherUser(7L)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.length()").value(0));
@@ -53,10 +53,8 @@ class KnowledgePointControllerTest {
         assertThat(service.teacherCourseScopeRequest).isEqualTo("7-99");
     }
 
-    private static MockHttpSession loggedInSession(Long userId) {
-        MockHttpSession session = new MockHttpSession();
-        session.setAttribute("userId", userId);
-        return session;
+    private static MultiRoleSessionFilter.AuthUser teacherUser(Long userId) {
+        return MultiRoleSessionFilter.AuthUser.of(userId, List.of("TEACHER"));
     }
 
     private static final class StubKnowledgePointService implements KnowledgePointService {

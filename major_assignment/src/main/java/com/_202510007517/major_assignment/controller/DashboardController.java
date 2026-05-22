@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import com._202510007517.major_assignment.entity.dto.StudentDashboardDTO;
 
@@ -34,15 +34,15 @@ public class DashboardController extends BaseController {
     
     // 获取当前学生的学习表现
     @GetMapping("/student-performance")
-    public ResponseResult<StudentDashboardDTO> getCurrentStudentPerformance(HttpSession session) {
+    public ResponseResult<StudentDashboardDTO> getCurrentStudentPerformance(HttpServletRequest requestContext) {
         logger.debug("获取当前学生学习表现请求");
         
-        if (!isLoggedIn(session)) {
+        if (!isLoggedIn(requestContext)) {
             logger.debug("用户未登录");
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
-        Long studentId = getCurrentUserId(session);
+        Long studentId = getCurrentUserId(requestContext);
         logger.debug("当前学生ID：{}", studentId);
         
         try {
@@ -57,10 +57,10 @@ public class DashboardController extends BaseController {
     
     // 获取指定学生的学习表现
     @GetMapping("/student-performance/{studentId}")
-    public ResponseResult<StudentDashboardDTO> getStudentPerformance(@PathVariable Long studentId, HttpSession session) {
+    public ResponseResult<StudentDashboardDTO> getStudentPerformance(@PathVariable Long studentId, HttpServletRequest requestContext) {
         logger.debug("获取学生学习表现请求：studentId={}", studentId);
         
-        if (!isLoggedIn(session)) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -83,3 +83,4 @@ public class DashboardController extends BaseController {
         return student != null;
     }
 }
+

@@ -8,7 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
 import java.util.Set;
@@ -33,7 +33,7 @@ public class SystemDataController extends BaseController {
      * @return 学期列表
      */
     @GetMapping("/semesters")
-    public ResponseResult<List<String>> getSemesters(HttpSession session) {
+    public ResponseResult<List<String>> getSemesters(HttpServletRequest requestContext) {
         // 从数据库获取所有课程，提取不同的学期值
         List<Course> courses = courseMapper.getAllCourses();
         Set<String> semesters = courses.stream()
@@ -51,13 +51,13 @@ public class SystemDataController extends BaseController {
      * @return 课程列表
      */
     @GetMapping("/student/courses")
-    public ResponseResult<List<Course>> getStudentCourses(HttpSession session) {
+    public ResponseResult<List<Course>> getStudentCourses(HttpServletRequest requestContext) {
         // 检查登录状态
-        if (!isLoggedIn(session)) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
-        Long studentId = getCurrentUserId(session);
+        Long studentId = getCurrentUserId(requestContext);
         // 从数据库获取学生的所有课程
         List<Course> courses = courseService.findStudentCourses(studentId);
         
@@ -70,13 +70,13 @@ public class SystemDataController extends BaseController {
      * @return 课程列表
      */
     @GetMapping("/teacher/courses")
-    public ResponseResult<List<Course>> getTeacherCourses(HttpSession session) {
+    public ResponseResult<List<Course>> getTeacherCourses(HttpServletRequest requestContext) {
         // 检查登录状态
-        if (!isLoggedIn(session)) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
-        Long teacherId = getCurrentUserId(session);
+        Long teacherId = getCurrentUserId(requestContext);
         // 从数据库获取教师的所有课程
         List<Course> courses = courseMapper.findByTeacherId(teacherId);
         
@@ -94,3 +94,4 @@ public class SystemDataController extends BaseController {
         return ResponseResult.success(timeRanges, "获取时间范围列表成功", 200);
     }
 }
+

@@ -20,7 +20,7 @@ import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -72,16 +72,16 @@ public class AssignmentController extends BaseController {
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "submitted", required = false) Boolean submitted,
             @RequestParam(value = "classId", required = false) Long classId,
-            HttpSession session) {
-        LogUtil.logRequest(logger, "GET", "/api/teacher/assignments", null, getCurrentUserId(session));
+            HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "GET", "/api/teacher/assignments", null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权访问作业列表", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权访问作业列表", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         // 获取当前用户ID，教师ID
-        Long teacherId = getCurrentUserId(session);
+        Long teacherId = getCurrentUserId(requestContext);
         
         // 根据前端传递的status参数计算对应的isActive值
         Boolean statusBasedIsActive = null;
@@ -112,19 +112,19 @@ public class AssignmentController extends BaseController {
                 courseId = Long.parseLong(courseIdStr);
             } catch (NumberFormatException e) {
                 // 如果转换失败，尝试将其作为课程代码处理
-                LogUtil.logDebug(logger, "尝试将课程代码 " + courseIdStr + " 转换为课程ID", getCurrentUserId(session));
+                LogUtil.logDebug(logger, "尝试将课程代码 " + courseIdStr + " 转换为课程ID", getCurrentUserId(requestContext));
                 // 获取当前教师的所有课程
-                List<Course> allCourses = courseService.findByTeacherId(getCurrentUserId(session));
+                List<Course> allCourses = courseService.findByTeacherId(getCurrentUserId(requestContext));
                 // 根据课程代码查找匹配的课程
                 for (Course course : allCourses) {
                     if (course.getCourseCode() != null && course.getCourseCode().equals(courseIdStr)) {
                         courseId = course.getId();
-                        LogUtil.logDebug(logger, "找到课程代码 " + courseIdStr + " 对应的课程ID: " + courseId, getCurrentUserId(session));
+                        LogUtil.logDebug(logger, "找到课程代码 " + courseIdStr + " 对应的课程ID: " + courseId, getCurrentUserId(requestContext));
                         break;
                     }
                 }
                 if (courseId == null) {
-                    LogUtil.logWarning(logger, "无效的课程ID或课程代码: " + courseIdStr, getCurrentUserId(session));
+                    LogUtil.logWarning(logger, "无效的课程ID或课程代码: " + courseIdStr, getCurrentUserId(requestContext));
                 }
             }
         }
@@ -135,7 +135,7 @@ public class AssignmentController extends BaseController {
         // 获取当前时间
         final Date now = new Date();
         
-        LogUtil.logDebug(logger, "开始作业筛选 - 教师ID: " + teacherId + ", 关键词: " + keyword + ", 课程ID: " + finalCourseId + ", 状态: " + status + ", 当前时间: " + now, getCurrentUserId(session));
+        LogUtil.logDebug(logger, "开始作业筛选 - 教师ID: " + teacherId + ", 关键词: " + keyword + ", 课程ID: " + finalCourseId + ", 状态: " + status + ", 当前时间: " + now, getCurrentUserId(requestContext));
         
         // 预计算每个作业的提交数量、已批改数量和状态
         // 优化：使用更高效的方式获取提交统计信息
@@ -238,7 +238,7 @@ public class AssignmentController extends BaseController {
                     if (status != null) {
                         // 直接使用预计算的状态进行筛选，无需再次查询数据库
                         String assignmentStatus = assignment.getStatus();
-                        LogUtil.logDebug(logger, "作业ID: " + assignment.getId() + ", 标题: " + assignment.getTitle() + ", 预计算状态: " + assignmentStatus + ", 筛选状态: " + status, getCurrentUserId(session));
+                        LogUtil.logDebug(logger, "作业ID: " + assignment.getId() + ", 标题: " + assignment.getTitle() + ", 预计算状态: " + assignmentStatus + ", 筛选状态: " + status, getCurrentUserId(requestContext));
                         
                         boolean result = true;
                         
@@ -247,7 +247,7 @@ public class AssignmentController extends BaseController {
                             result = false;
                         }
                         
-                        LogUtil.logDebug(logger, "作业ID: " + assignment.getId() + ", 状态: " + status + ", 筛选结果: " + result, getCurrentUserId(session));
+                        LogUtil.logDebug(logger, "作业ID: " + assignment.getId() + ", 状态: " + status + ", 筛选结果: " + result, getCurrentUserId(requestContext));
                         return result;
                     }
                     
@@ -271,7 +271,7 @@ public class AssignmentController extends BaseController {
                 })
                 .collect(java.util.stream.Collectors.toList());
         
-        LogUtil.logDebug(logger, "作业筛选完成 - 筛选后作业数: " + filteredAssignments.size(), getCurrentUserId(session));
+        LogUtil.logDebug(logger, "作业筛选完成 - 筛选后作业数: " + filteredAssignments.size(), getCurrentUserId(requestContext));
         
         // 计算总数
         int totalElements = filteredAssignments.size();
@@ -318,24 +318,24 @@ public class AssignmentController extends BaseController {
         result.put("numberOfElements", pagedAssignments.size());
         result.put("empty", pagedAssignments.isEmpty());
         
-        LogUtil.logResponse(logger, "GET", "/api/teacher/assignments", 200, result, getCurrentUserId(session));
+        LogUtil.logResponse(logger, "GET", "/api/teacher/assignments", 200, result, getCurrentUserId(requestContext));
         return ResponseResult.success(result, "获取作业列表成功", 200);
     }
     
     @PostMapping
     @CacheEvict(value = CacheConstants.ASSIGNMENTS, allEntries = true)
     @Transactional
-    public ResponseResult<Assignment> createAssignment(@RequestBody Map<String, Object> requestBody, HttpSession session) {
-        LogUtil.logRequest(logger, "POST", "/api/teacher/assignments", requestBody, getCurrentUserId(session));
+    public ResponseResult<Assignment> createAssignment(@RequestBody Map<String, Object> requestBody, HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "POST", "/api/teacher/assignments", requestBody, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权创建作业", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权创建作业", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         try {
             // 使用session中的teacherId覆盖前端传入的teacherId，确保安全
-            Long teacherId = getCurrentUserId(session);
+            Long teacherId = getCurrentUserId(requestContext);
             
             // 从请求体中提取作业信息
             Assignment assignment = new Assignment();
@@ -443,8 +443,8 @@ public class AssignmentController extends BaseController {
                 // 发送通知失败不影响作业发布，继续执行
             }
             
-            LogUtil.logOperation(logger, "创建作业", "作业标题: " + assignment.getTitle(), getCurrentUserId(session), true);
-            LogUtil.logResponse(logger, "POST", "/api/teacher/assignments", 201, assignment, getCurrentUserId(session));
+            LogUtil.logOperation(logger, "创建作业", "作业标题: " + assignment.getTitle(), getCurrentUserId(requestContext), true);
+            LogUtil.logResponse(logger, "POST", "/api/teacher/assignments", 201, assignment, getCurrentUserId(requestContext));
             return ResponseResult.created(assignment);
         } catch (Exception e) {
             LogUtil.logError(logger, "创建作业失败", e);
@@ -456,17 +456,17 @@ public class AssignmentController extends BaseController {
     
     @PutMapping("/{id}")
     @CacheEvict(value = CacheConstants.ASSIGNMENTS, allEntries = true)
-    public ResponseResult<Assignment> updateAssignment(@PathVariable Long id, @RequestBody Map<String, Object> requestBody, HttpSession session) {
-        LogUtil.logRequest(logger, "PUT", "/api/teacher/assignments/" + id, requestBody, getCurrentUserId(session));
+    public ResponseResult<Assignment> updateAssignment(@PathVariable Long id, @RequestBody Map<String, Object> requestBody, HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "PUT", "/api/teacher/assignments/" + id, requestBody, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权更新作业", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权更新作业", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         try {
             // 获取当前教师的所有课程，用于课程代码转换
-            Long teacherId = getCurrentUserId(session);
+            Long teacherId = getCurrentUserId(requestContext);
             List<Course> allCourses = courseService.findByTeacherId(teacherId);
             
             // 处理课程ID，支持字符串课程代码
@@ -583,8 +583,8 @@ public class AssignmentController extends BaseController {
             
             // 保存更新
             assignmentService.update(existingAssignment);
-            LogUtil.logOperation(logger, "更新作业", "作业ID: " + id + ", 作业标题: " + existingAssignment.getTitle(), getCurrentUserId(session), true);
-            LogUtil.logResponse(logger, "PUT", "/api/teacher/assignments/" + id, 200, existingAssignment, getCurrentUserId(session));
+            LogUtil.logOperation(logger, "更新作业", "作业ID: " + id + ", 作业标题: " + existingAssignment.getTitle(), getCurrentUserId(requestContext), true);
+            LogUtil.logResponse(logger, "PUT", "/api/teacher/assignments/" + id, 200, existingAssignment, getCurrentUserId(requestContext));
             return ResponseResult.success(existingAssignment);
         } catch (Exception e) {
             LogUtil.logError(logger, "更新作业失败，作业ID: " + id, e);
@@ -594,18 +594,18 @@ public class AssignmentController extends BaseController {
     
     @DeleteMapping("/{id}")
     @CacheEvict(value = CacheConstants.ASSIGNMENTS, allEntries = true)
-    public ResponseResult<Void> deleteAssignment(@PathVariable Long id, HttpSession session) {
-        LogUtil.logRequest(logger, "DELETE", "/api/teacher/assignments/" + id, null, getCurrentUserId(session));
+    public ResponseResult<Void> deleteAssignment(@PathVariable Long id, HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "DELETE", "/api/teacher/assignments/" + id, null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权删除作业", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权删除作业", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         try {
             assignmentService.delete(id);
-            LogUtil.logOperation(logger, "删除作业", "作业ID: " + id, getCurrentUserId(session), true);
-            LogUtil.logResponse(logger, "DELETE", "/api/teacher/assignments/" + id, 204, null, getCurrentUserId(session));
+            LogUtil.logOperation(logger, "删除作业", "作业ID: " + id, getCurrentUserId(requestContext), true);
+            LogUtil.logResponse(logger, "DELETE", "/api/teacher/assignments/" + id, 204, null, getCurrentUserId(requestContext));
             return ResponseResult.noContent();
         } catch (Exception e) {
             LogUtil.logError(logger, "删除作业失败，作业ID: " + id, e);
@@ -614,11 +614,11 @@ public class AssignmentController extends BaseController {
     }
     
     @GetMapping("/{id}")
-    public ResponseResult<Map<String, Object>> getAssignmentById(@PathVariable Long id, HttpSession session) {
-        LogUtil.logRequest(logger, "GET", "/api/teacher/assignments/" + id, null, getCurrentUserId(session));
+    public ResponseResult<Map<String, Object>> getAssignmentById(@PathVariable Long id, HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "GET", "/api/teacher/assignments/" + id, null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权访问作业详情", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权访问作业详情", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -627,7 +627,7 @@ public class AssignmentController extends BaseController {
             return ResponseResult.failure("作业不存在", 404);
         }
         
-        LogUtil.logResponse(logger, "GET", "/api/teacher/assignments/" + id, 200, assignmentDetails, getCurrentUserId(session));
+        LogUtil.logResponse(logger, "GET", "/api/teacher/assignments/" + id, 200, assignmentDetails, getCurrentUserId(requestContext));
         return ResponseResult.success(assignmentDetails, "获取作业详情成功", 200);
     }
     
@@ -635,11 +635,11 @@ public class AssignmentController extends BaseController {
     @CacheEvict(value = CacheConstants.ASSIGNMENTS, allEntries = true)
     public ResponseResult<Map<String, Object>> gradeAssignment(@PathVariable Long submissionId, 
                                                @RequestBody Map<String, Object> gradeRequest, 
-                                               HttpSession session) {
-        LogUtil.logRequest(logger, "PUT", "/api/teacher/assignments/grade/" + submissionId, gradeRequest, getCurrentUserId(session));
+                                               HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "PUT", "/api/teacher/assignments/grade/" + submissionId, gradeRequest, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权批改作业", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权批改作业", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -720,8 +720,8 @@ public class AssignmentController extends BaseController {
                     result.put("teacherComment", submission.getTeacherComment());
                     result.put("graded", submission.getGraded());
                     
-                    LogUtil.logOperation(logger, "批改作业", "提交ID: " + submissionId, getCurrentUserId(session), true);
-                    LogUtil.logResponse(logger, "PUT", "/api/teacher/assignments/grade/" + submissionId, 200, result, getCurrentUserId(session));
+                    LogUtil.logOperation(logger, "批改作业", "提交ID: " + submissionId, getCurrentUserId(requestContext), true);
+                    LogUtil.logResponse(logger, "PUT", "/api/teacher/assignments/grade/" + submissionId, 200, result, getCurrentUserId(requestContext));
                     return ResponseResult.success(result, "作业批改成功", 200);
                 }
                 return ResponseResult.failure("获取批改后的提交记录失败", 500);
@@ -745,11 +745,11 @@ public class AssignmentController extends BaseController {
             @RequestParam(value = "assignmentId", required = false) Long assignmentId,
             @RequestParam(value = "studentId", required = false) Long studentId,
             @RequestParam(value = "graded", required = false) Boolean graded,
-            HttpSession session) {
-        LogUtil.logRequest(logger, "GET", "/api/teacher/assignments/submissions", null, getCurrentUserId(session));
+            HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "GET", "/api/teacher/assignments/submissions", null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权访问作业提交记录", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权访问作业提交记录", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -790,16 +790,16 @@ public class AssignmentController extends BaseController {
         result.put("numberOfElements", submissions.size());
         result.put("empty", submissions.isEmpty());
         
-        LogUtil.logResponse(logger, "GET", "/api/teacher/assignments/submissions", 200, result, getCurrentUserId(session));
+        LogUtil.logResponse(logger, "GET", "/api/teacher/assignments/submissions", 200, result, getCurrentUserId(requestContext));
         return ResponseResult.success(result, "获取作业提交记录成功", 200);
     }
     
     @GetMapping("/submissions/{submissionId}")
-    public ResponseResult<AssignmentSubmission> getSubmissionById(@PathVariable Long submissionId, HttpSession session) {
-        LogUtil.logRequest(logger, "GET", "/api/teacher/assignments/submissions/" + submissionId, null, getCurrentUserId(session));
+    public ResponseResult<AssignmentSubmission> getSubmissionById(@PathVariable Long submissionId, HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "GET", "/api/teacher/assignments/submissions/" + submissionId, null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权访问作业提交记录详情", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权访问作业提交记录详情", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -808,38 +808,38 @@ public class AssignmentController extends BaseController {
             return ResponseResult.failure("作业提交记录不存在", 404);
         }
         
-        LogUtil.logResponse(logger, "GET", "/api/teacher/assignments/submissions/" + submissionId, 200, submission, getCurrentUserId(session));
+        LogUtil.logResponse(logger, "GET", "/api/teacher/assignments/submissions/" + submissionId, 200, submission, getCurrentUserId(requestContext));
         return ResponseResult.success(submission, "获取作业提交记录详情成功", 200);
     }
     
     @GetMapping("/{assignmentId}/submissions")
-    public ResponseResult<List<AssignmentSubmission>> getSubmissionsByAssignmentId(@PathVariable Long assignmentId, HttpSession session) {
-        LogUtil.logRequest(logger, "GET", "/api/teacher/assignments/" + assignmentId + "/submissions", null, getCurrentUserId(session));
+    public ResponseResult<List<AssignmentSubmission>> getSubmissionsByAssignmentId(@PathVariable Long assignmentId, HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "GET", "/api/teacher/assignments/" + assignmentId + "/submissions", null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权访问作业提交记录", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权访问作业提交记录", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         List<AssignmentSubmission> submissions = assignmentSubmissionService.getSubmissionsByAssignmentId(assignmentId);
-        LogUtil.logResponse(logger, "GET", "/api/teacher/assignments/" + assignmentId + "/submissions", 200, submissions, getCurrentUserId(session));
+        LogUtil.logResponse(logger, "GET", "/api/teacher/assignments/" + assignmentId + "/submissions", 200, submissions, getCurrentUserId(requestContext));
         return ResponseResult.success(submissions, "获取作业提交记录成功", 200);
     }
     
     @PutMapping("/submissions/{submissionId}")
-    public ResponseResult<AssignmentSubmission> updateSubmission(@PathVariable Long submissionId, @RequestBody AssignmentSubmission submission, HttpSession session) {
-        LogUtil.logRequest(logger, "PUT", "/api/teacher/assignments/submissions/" + submissionId, submission, getCurrentUserId(session));
+    public ResponseResult<AssignmentSubmission> updateSubmission(@PathVariable Long submissionId, @RequestBody AssignmentSubmission submission, HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "PUT", "/api/teacher/assignments/submissions/" + submissionId, submission, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权更新作业提交记录", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权更新作业提交记录", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         submission.setId(submissionId);
         boolean success = assignmentSubmissionService.updateSubmission(submission);
         if (success) {
-            LogUtil.logOperation(logger, "更新作业提交记录", "提交ID: " + submissionId, getCurrentUserId(session), true);
-            LogUtil.logResponse(logger, "PUT", "/api/teacher/assignments/submissions/" + submissionId, 200, submission, getCurrentUserId(session));
+            LogUtil.logOperation(logger, "更新作业提交记录", "提交ID: " + submissionId, getCurrentUserId(requestContext), true);
+            LogUtil.logResponse(logger, "PUT", "/api/teacher/assignments/submissions/" + submissionId, 200, submission, getCurrentUserId(requestContext));
             return ResponseResult.success(submission, "更新作业提交记录成功", 200);
         } else {
             return ResponseResult.failure("更新作业提交记录失败", 500);
@@ -847,22 +847,23 @@ public class AssignmentController extends BaseController {
     }
     
     @DeleteMapping("/submissions/{submissionId}")
-    public ResponseResult<Void> deleteSubmission(@PathVariable Long submissionId, HttpSession session) {
-        LogUtil.logRequest(logger, "DELETE", "/api/teacher/assignments/submissions/" + submissionId, null, getCurrentUserId(session));
+    public ResponseResult<Void> deleteSubmission(@PathVariable Long submissionId, HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "DELETE", "/api/teacher/assignments/submissions/" + submissionId, null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
-            LogUtil.logWarning(logger, "未授权删除作业提交记录", getCurrentUserId(session));
+        if (!isLoggedIn(requestContext)) {
+            LogUtil.logWarning(logger, "未授权删除作业提交记录", getCurrentUserId(requestContext));
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         boolean success = assignmentSubmissionService.deleteSubmission(submissionId);
         if (success) {
-            LogUtil.logOperation(logger, "删除作业提交记录", "提交ID: " + submissionId, getCurrentUserId(session), true);
-            LogUtil.logResponse(logger, "DELETE", "/api/teacher/assignments/submissions/" + submissionId, 204, null, getCurrentUserId(session));
+            LogUtil.logOperation(logger, "删除作业提交记录", "提交ID: " + submissionId, getCurrentUserId(requestContext), true);
+            LogUtil.logResponse(logger, "DELETE", "/api/teacher/assignments/submissions/" + submissionId, 204, null, getCurrentUserId(requestContext));
             return ResponseResult.noContent();
         } else {
             return ResponseResult.failure("删除作业提交记录失败", 500);
         }
     }
 }
+
 
