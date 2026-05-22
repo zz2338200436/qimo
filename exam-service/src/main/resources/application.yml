@@ -8,6 +8,10 @@ spring:
     username: ${EXAM_DB_USERNAME:${DB_USERNAME:dev_user}}
     password: ${EXAM_DB_PASSWORD:${DB_PASSWORD:dev_only_pwd}}
     driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
   flyway:
     enabled: ${EXAM_FLYWAY_ENABLED:true}
     locations: classpath:db/migration
