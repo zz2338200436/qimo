@@ -304,8 +304,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\seed-dev-auth-users.ps1
 
 本轮额外修复：
 
-- `JdbcAssignmentRepository` 行映射从直接强转 `Integer` 改为兼容 `Long` 数值，消除 MySQL/JDBC 返回 `Long` 时的 `ClassCastException`
-- `JdbcAssignmentRepository.updateAssignment(...)` 已补 `graded_count = :gradedCount` 持久化，避免批改后汇总未落库
+- 当时的 `assignment-service` 仓储曾修正数值映射兼容问题，避免 MySQL/JDBC 返回 `Long` 时出现 `ClassCastException`
+- 当时的 `assignment-service` 仓储曾补 `graded_count` 汇总持久化，避免批改后汇总未落库；当前该能力已迁移到 `JpaAssignmentRepository`
 
 ### 4.3 教师主写切流验证
 

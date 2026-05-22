@@ -155,9 +155,9 @@
 9. Analysis 域已启动最小事件消费切片：`analysis-service` 可消费 `AssignmentSubmittedEvent / ExamFinishedEvent`，并写入 `score_trends / kp_mastery` 基础表；真实运行时 smoke 已验证 `exam-service grade -> outbox relay -> RabbitMQ -> analysis-service` 链路可落库。
 10. Analysis 域已开放最小只读查询切片：`GET /api/teacher/score-trend`、`GET /api/teacher/knowledge-points/mastery/student/{studentId}/course/{courseId}` 与旧 URL 兼容的 `GET /api/knowledge-points/analysis/teacher/**` 可从 `analysis-service` 返回结构稳定的分析数据，并已通过 Gateway 路由配置测试。
 11. Analysis 域已补齐最小 EarlyWarning 事件切片：低分 `ExamFinishedEvent` 会写入 `EarlyWarningRaisedEvent` outbox，目标 binding 为 `early.warning.raised`，可衔接 Notification 域现有消费者；真实 smoke 已验证 `exam.finished -> analysis-service -> early.warning.raised -> notification-service` 可生成 warning 通知。
-12. Analysis 域已补可重复的本地 JDBC 集成测试：使用真实 `processed_event / score_trends / kp_mastery / outbox_event` 仓储组合验证低分 `ExamFinishedEvent` 会更新分析投影、生成预警 outbox，并对重复 `eventId` 幂等忽略。
+12. Analysis 域已补可重复的本地集成测试：使用真实 `processed_event / outbox_event` JDBC 事件基础设施与 `JpaAnalysisRepository` 组合验证低分 `ExamFinishedEvent` 会更新分析投影、生成预警 outbox，并对重复 `eventId` 幂等忽略。
 13. Analysis 域已补历史回填脚本：可从 `sc_exam` 与 `sc_assignment` 历史表回填 `sc_analysis.score_trends / kp_mastery`，并通过 H2 MySQL mode 测试验证脚本可重复执行。
-14. Notification 域已补契约集成测试：使用真实 JDBC 仓储、命令/查询服务、Controller 与事件 Handler 覆盖学生通知 HTTP 契约、教师发送/批量发送通知契约、分页 `totalPages` 兼容字段、事件落库契约与重复事件幂等。
+14. Notification 域已补契约集成测试：使用真实 JPA 通知仓储、命令/查询服务、Controller 与事件 Handler 覆盖学生通知 HTTP 契约、教师发送/批量发送通知契约、分页 `totalPages` 兼容字段、事件落库契约与重复事件幂等。
 15. Gateway 已新增统一 `notification-route -> lb://notification-service`，覆盖 `/api/notifications/**` 的 `GET/POST/PUT/DELETE`，并通过路由配置测试锁定其位于 `legacy-route` 前。
 16. Notification 域已补历史通知回填脚本：从旧单体 `major_assignment.notifications` 回填到 `sc_notification.notifications`，保留阅读状态、教师 ID、关联 ID 与创建时间，并通过 H2 MySQL mode 验证脚本可重复执行。
 17. Notification 域已完成真实运行时 smoke：`registry-server + notification-service + gateway` 下，使用测试 JWT 经 `gateway:8080 -> lb://notification-service` 覆盖创建、列表读取、未读数、标记已读与删除。

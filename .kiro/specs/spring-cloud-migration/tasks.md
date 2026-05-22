@@ -645,7 +645,7 @@
     - Mapper 从单体迁入 `user-service`
     - 单体模块删除相同实体 + Mapper（保留 legacy-adapter 读取通道）
     - 已通过 `user-service/src/main/resources/db/migration/V1__init_user_schema.sql` 建立 `users / roles / user_roles`
-    - 已通过 `JdbcUserRepository` 承接用户资料读写与角色读取；`UserTableOwnershipArchTest` 确认非 `user-service` 生产源码不再写 `users / user_roles`
+    - 已通过 `JpaUserRepository` 承接用户资料读写与角色读取；`UserTableOwnershipArchTest` 确认非 `user-service` 生产源码不再写 `users / user_roles`
     - _Requirements: 6.4, 12.1, 12.2_
 
   - [x] 16.3 迁移 `UserController` / `StudentController` / `TeacherDashboardController` 相关接口
@@ -853,7 +853,7 @@
 
   - [x] 21.2 迁移 `courses / classes / course_enrollment` 到 `sc_course`
     - Flyway `V1__init_course_schema.sql`
-    - 已落地 `courses / course_classes / class_courses / class_students / majors` 表结构与 Course_Service JDBC 读写；单体对应实体与 Mapper 删除保留到最终切流清理
+    - 已落地 `courses / course_classes / class_courses / class_students / majors` 表结构与 Course_Service JPA 读写；单体对应实体与 Mapper 删除保留到最终切流清理
     - 已补 `teacher_knowledge_points` 表，作为旧 `knowledge_points` 主数据在当前拆分架构中的拥有者表
     - 单体对应实体与 Mapper 删除保留到最终切流清理；Gateway 已无旧单体显式路由承接课程域主路径
     - _Requirements: 6.4, 12.1_
@@ -883,7 +883,7 @@
   - [x] 21.7 Gateway 切换 `course-route` 到 `lb://course-service`
     - Gateway 路由更新；保留回滚配置快照
     - 已补教师知识点管理兼容主链：`/api/teacher/knowledge-points`、`/api/teacher/knowledge-points/{id}`、`/api/teacher/knowledge-points/course/{courseId}` 由 `course-service` 承接，兼容旧 `ResponseResult` 包络与字段名 `pointName/name`
-    - 已补 `TeacherKnowledgePointCompatibilityController`、JDBC 仓储与 `teacher_knowledge_points` 表初始化，供教师知识点页面与教师作业页的课程知识点加载主路径使用
+    - 已补 `TeacherKnowledgePointCompatibilityController`、JPA 仓储与 `teacher_knowledge_points` 表初始化，供教师知识点页面与教师作业页的课程知识点加载主路径使用
     - `legacy-knowledge-route` 已删除；`assignment/**` 由 `assignment-service` 承接，`exam/**` 由 `exam-service` 承接，`mastery/student/{studentId}/course/{courseId}`、`stats/course/{courseId}` 与 `analyze/student/{studentId}/course/{courseId}` 已由 `analysis-service` 承接
     - _Requirements: 8.2, 16.2_
 
@@ -899,7 +899,7 @@
     - _Requirements: 6.2, 10.1_
 
   - [x] 22.2 迁移 `assignments / assignment_submissions` 到 `sc_assignment`
-    - 已完成 `assignments / assignment_submissions / assignment_classes` 的 JDBC 读写与 `assignment-service` 内部持久化接口
+    - 已完成 `assignments / assignment_submissions / assignment_classes` 的 JPA 读写与 `assignment-service` 内部持久化接口
     - 已接通学生提交、教师查看提交、教师批改提交对 `sc_assignment` 的读写路径
     - 学生读取链路已从跨 Schema 直查 `class_students` 改为经 `course-service` 聚合学生 `classIds` 后查询 `assignment_classes`
     - 2026-05-15 本地联调已验证 `GET /api/student/assignments` 不再因 `sc_assignment.class_students` 缺表而报 500
@@ -933,7 +933,7 @@
     - _Requirements: 10.4, 11.3_
 
   - [x]* 22.6 编写 Assignment_Service 单元测试
-    - 已覆盖应用服务、教师命令/查询服务、JDBC RowMapper、outbox 自动配置/stream 配置，以及学生/教师/内部控制器链路
+    - 已覆盖应用服务、教师命令/查询服务、JPA 仓储、outbox 自动配置/stream 配置，以及学生/教师/内部控制器链路
     - 2026-05-21 执行 `mvn --% -pl assignment-service -am test`，包含公共模块与 Assignment_Service 共 53 个测试，全部通过
     - _Requirements: 6.1_
 
@@ -976,9 +976,9 @@
 
   - [x] 23.2 迁移 `exams / exam_questions / exam_submissions` 到 `sc_exam`
     - 已在 `exam-service` V1 schema 中补齐 `exam_questions` 表，`exams`、`exam_submissions`、`exam_classes`、`exam_knowledge_points`、`exam_questions` 均归属 `sc_exam`
-    - 已新增 `ExamQuestionRecord` 与 JDBC 仓储替换/读取能力，教师创建/更新考试时可携带题目并写入 `exam_questions`
+    - 已新增 `ExamQuestionRecord` 与 JPA 仓储替换/读取能力，教师创建/更新考试时可携带题目并写入 `exam_questions`
     - 删除考试时同步清理 `exam_questions`，避免考试题目继续残留在服务内 schema
-    - 已补 schema 迁移、JDBC 仓储、服务层题目持久化测试
+    - 已补 schema 迁移、JPA 仓储、服务层题目持久化测试
     - _Requirements: 6.4, 12.1_
 
   - [x] 23.3 迁移 `ExamController` 与自动阅卷业务
@@ -1118,7 +1118,7 @@
     - `AssignmentSubmittedAnalysisHandler / ExamFinishedAnalysisHandler` 已接入对应 Feign 查询，事件消费时若存在知识点映射则按每个 `knowledgePointId` 写入细粒度 `kp_mastery`；无映射或远程不可用时继续降级为旧课程级掌握度行
     - `KnowledgePointController` 主数据兼容端点已按领域归属完成分流：`GET/POST/PUT/DELETE /api/teacher/knowledge-points`、`GET /api/teacher/knowledge-points/{id}`、`GET /api/teacher/knowledge-points/course/{courseId}` 经 `course-route -> lb://course-service`；作业关联 `GET/POST /api/teacher/knowledge-points/assignment/{assignmentId}` 经 `assignment-route -> lb://assignment-service`；考试关联 `GET/POST /api/teacher/knowledge-points/exam/{examId}` 经 `exam-route -> lb://exam-service`
     - Assignment / Exam 来源名称与权限聚合、触发类显式课程/班级权限收敛、Analysis_Service 细粒度知识点读模型、Assignment / Exam 事件侧知识点/题目维度来源映射已完成
-    - 已补 `AnalysisQueryControllerTest`、`AnalysisQueryServiceTest`、`JdbcEarlyWarningRepositoryTest`、Course / Assignment / Exam 知识点兼容控制器测试与事件映射测试，覆盖分析查询、知识点掌握统计聚合、知识点主数据分流、作业/考试关联、早预警兼容响应、Excel 下载响应头和 JDBC 筛选/更新/删除契约；并完成 `analysis-service:8086` 真实 HTTP smoke
+    - 已补 `AnalysisQueryControllerTest`、`AnalysisQueryServiceTest`、`JpaEarlyWarningRepositoryTest`、Course / Assignment / Exam 知识点兼容控制器测试与事件映射测试，覆盖分析查询、知识点掌握统计聚合、知识点主数据分流、作业/考试关联、早预警兼容响应、Excel 下载响应头和 JPA 查询/更新/删除契约；并完成 `analysis-service:8086` 真实 HTTP smoke
     - _Requirements: 6.1, 6.3_
 
   - [x] 24.4 消费 `AssignmentSubmittedEvent / ExamFinishedEvent` 更新 KP 掌握度与成绩趋势
@@ -1169,14 +1169,14 @@
   - [x] 24.7 编写 Analysis_Service 集成测试
     - 事件驱动链路：触发 `ExamFinishedEvent` → 断言 KP 掌握度更新 + 预警生成
     - 已新增 `AnalysisEventIntegrationTest`
-    - 使用 H2 MySQL mode + 真实 JDBC 仓储组合验证：
+    - 使用 H2 MySQL mode + 真实分析 JPA 仓储 + 事件基础设施 JDBC 组合验证：
       - `JdbcProcessedEventRepository`
-      - `JdbcAnalysisRepository`
+      - `JpaAnalysisRepository`
       - `JdbcOutboxEventRepository`
     - 覆盖低分 `ExamFinishedEvent` 写入 `processed_event / score_trends / kp_mastery / outbox_event`
     - 覆盖重复 `eventId` 幂等忽略，确保不会重复写分析投影或预警 outbox
     - 已在 `analysis-service` 补 test-scope H2 依赖，仅用于自动化集成测试
-    - RabbitMQ 端到端链路已由 24.5 真实 smoke 覆盖，本项聚焦本地可重复的 JDBC 集成测试
+    - RabbitMQ 端到端链路已由 24.5 真实 smoke 覆盖，本项聚焦本地可重复的分析 JPA + 事件基础设施 JDBC 集成测试
     - _Requirements: 6.6, 10.5_
 
   - [x] 24.8 Gateway 切换 `analysis-route`
@@ -1267,8 +1267,8 @@
 
   - [x] 25.5 编写 Notification_Service 契约测试
     - 已新增 `NotificationContractIntegrationTest`
-    - 使用 H2 MySQL mode + 真实 JDBC 仓储组合验证：
-      - `JdbcNotificationRepository`
+    - 使用 H2 MySQL mode + 真实 JPA 通知仓储 + 事件幂等 JDBC 组合验证：
+      - `JpaNotificationRepository`
       - `JdbcProcessedEventRepository`
       - `NotificationQueryService`
       - `NotificationCommandService`
@@ -1286,7 +1286,7 @@
     - 覆盖分页响应兼容字段：`totalPages`
     - 覆盖事件到落库契约：`AssignmentSubmittedEvent / ExamFinishedEvent / EarlyWarningRaisedEvent`
     - 覆盖重复 `EarlyWarningRaisedEvent` 的 `processed_event` 幂等收敛
-    - 已修复 `JdbcNotificationRepository#save` generated key 提取：显式只取 `id`，避免测试数据库返回多列 generated keys 时失败
+    - 已补 `JpaNotificationRepositoryTest` 与 `NotificationContractIntegrationTest`，覆盖生成主键、分页兼容字段与事件落库契约
     - 已在 `notification-service` 补 test-scope H2 依赖，仅用于契约集成测试
     - _Requirements: 10.1_
 
@@ -1344,9 +1344,9 @@
       - `LearningSuggestionRequestDTO`
     - 已新增 `AiModelClient` 模型代理边界与 `LocalMockAiModelClient` 默认实现，后续可替换为真实 OpenAI-compatible / 其它模型网关实现
     - 已新增 `AiGenerationService`，统一处理模型调用、角色解析与 AI 调用历史落库
-    - 已新增 `JdbcAiGenerationRepository`，仅写 `sc_ai.ai_generations` 历史调用记录，不写课程 / 考试 / 学情等业务库
+    - 已新增 `JpaAiGenerationRepository`，仅写 `sc_ai.ai_generations` 历史调用记录，不写课程 / 考试 / 学情等业务库
     - 已新增 `AiServiceExceptionHandler` 继承 common 统一异常处理，参数校验错误返回 `ResponseResult`
-    - 已补 `AiControllerTest / AiGenerationServiceTest / JdbcAiGenerationRepositoryTest` 覆盖兼容响应、身份缺失、参数校验、模型代理调用与历史记录落库
+    - 已补 `AiControllerTest / AiGenerationServiceTest / JpaAiGenerationRepositoryTest` 覆盖兼容响应、身份缺失、参数校验、模型代理调用与历史记录落库
     - _Requirements: 6.1, 1.3_
 
   - [x] 26.4 对 AI 调用配置按用户 QPS 限流
