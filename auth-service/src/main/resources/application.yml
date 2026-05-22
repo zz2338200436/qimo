@@ -8,6 +8,10 @@ spring:
     username: ${AUTH_DB_USERNAME:${DB_USERNAME:dev_user}}
     password: ${AUTH_DB_PASSWORD:${DB_PASSWORD:dev_only_pwd}}
     driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
   data:
     redis:
       host: ${REDIS_HOST:localhost}
