@@ -1,40 +1,66 @@
 package com._202510007517.platform.analysis.repository;
 
+import com._202510007517.platform.analysis.AnalysisServiceApplication;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.aop.support.AopUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
-import javax.sql.DataSource;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class JdbcAnalysisRepositoryTest {
+@SpringBootTest(
+        classes = AnalysisServiceApplication.class,
+        webEnvironment = SpringBootTest.WebEnvironment.MOCK)
+class JpaAnalysisRepositoryTest {
 
+    private static final String DATABASE_NAME = "analysis-repository-jpa-" + UUID.randomUUID();
+
+    @Autowired
     private JdbcTemplate jdbcTemplate;
-    private JdbcAnalysisRepository repository;
+
+    @Autowired
+    private AnalysisRepository repository;
+
+    @DynamicPropertySource
+    static void registerProperties(DynamicPropertyRegistry registry) {
+        registry.add("eureka.client.enabled", () -> "false");
+        registry.add("eureka.client.register-with-eureka", () -> "false");
+        registry.add("eureka.client.fetch-registry", () -> "false");
+        registry.add("spring.cloud.discovery.enabled", () -> "false");
+        registry.add("spring.cloud.stream.enabled", () -> "false");
+        registry.add("spring.datasource.url", () ->
+                "jdbc:h2:mem:" + DATABASE_NAME + ";MODE=MySQL;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1");
+        registry.add("spring.datasource.username", () -> "sa");
+        registry.add("spring.datasource.password", () -> "");
+        registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");
+        registry.add("spring.flyway.enabled", () -> "false");
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");
+    }
 
     @BeforeEach
     void setUp() {
-        DataSource dataSource = new DriverManagerDataSource(
-                "jdbc:h2:mem:analysis-repository;MODE=MySQL;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1",
-                "sa",
-                "");
-        jdbcTemplate = new JdbcTemplate(dataSource);
         recreateSchema();
-        repository = new JdbcAnalysisRepository(
-                jdbcTemplate,
-                Clock.fixed(Instant.parse("2026-05-20T08:00:00Z"), ZoneId.of("UTC")));
+        if (repository instanceof JpaAnalysisRepository jpaRepository) {
+            jpaRepository.setClock(Clock.fixed(Instant.parse("2026-05-20T08:00:00Z"), ZoneId.of("UTC")));
+        }
     }
 
     @Test
     void listsDailyStudentStudyTimeFromAnalysisReadModel() {
+        assertThat(AopUtils.getTargetClass(repository).getSimpleName()).isEqualTo("JpaAnalysisRepository");
+
         seedScoreTrend(11, 42, 2, "assignment", "2026-05-18 10:00:00");
         seedScoreTrend(12, 42, 2, "exam", "2026-05-19 10:00:00");
         seedScoreTrend(13, 42, 3, "exam", "2026-05-19 10:00:00");

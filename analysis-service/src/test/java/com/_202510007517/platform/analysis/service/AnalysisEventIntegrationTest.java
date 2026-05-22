@@ -1,6 +1,8 @@
 package com._202510007517.platform.analysis.service;
 
-import com._202510007517.platform.analysis.repository.JdbcAnalysisRepository;
+import com._202510007517.platform.analysis.repository.JpaAnalysisRepository;
+import com._202510007517.platform.analysis.repository.KnowledgeMasteryJpaRepository;
+import com._202510007517.platform.analysis.repository.ScoreTrendJpaRepository;
 import com._202510007517.platform.common.event.idempotency.IdempotentEventHandler;
 import com._202510007517.platform.common.event.idempotency.JdbcProcessedEventRepository;
 import com._202510007517.platform.common.event.outbox.JdbcOutboxEventRepository;
@@ -9,10 +11,19 @@ import com._202510007517.platform.events.exam.ExamFinishedEvent;
 import com._202510007517.platform.events.exam.ExamFinishedPayload;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.data.jpa.repository.support.JpaRepositoryFactory;
+import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
+import org.springframework.orm.jpa.SharedEntityManagerCreator;
+import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.sql.DataSource;
 import java.math.BigDecimal;
@@ -27,6 +38,8 @@ class AnalysisEventIntegrationTest {
 
     private JdbcTemplate jdbcTemplate;
     private ExamFinishedAnalysisHandler handler;
+    private EntityManagerFactory entityManagerFactory;
+    private TransactionTemplate transactionTemplate;
 
     @BeforeEach
     void setUp() {
@@ -36,19 +49,39 @@ class AnalysisEventIntegrationTest {
                 "");
         jdbcTemplate = new JdbcTemplate(dataSource);
         recreateSchema();
+        LocalContainerEntityManagerFactoryBean entityManagerFactoryBean = new LocalContainerEntityManagerFactoryBean();
+        entityManagerFactoryBean.setDataSource(dataSource);
+        entityManagerFactoryBean.setPackagesToScan("com._202510007517.platform.analysis.repository");
+        entityManagerFactoryBean.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
+        entityManagerFactoryBean.afterPropertiesSet();
+        entityManagerFactory = entityManagerFactoryBean.getObject();
+        JpaTransactionManager transactionManager = new JpaTransactionManager(entityManagerFactory);
+        transactionManager.setDataSource(dataSource);
+        transactionTemplate = new TransactionTemplate(transactionManager);
+        EntityManager entityManager = SharedEntityManagerCreator.createSharedEntityManager(entityManagerFactory);
+        JpaRepositoryFactory repositoryFactory = new JpaRepositoryFactory(entityManager);
         handler = new ExamFinishedAnalysisHandler(
                 new IdempotentEventHandler(new JdbcProcessedEventRepository(jdbcTemplate)),
-                new JdbcAnalysisRepository(jdbcTemplate),
+                new JpaAnalysisRepository(
+                        repositoryFactory.getRepository(ScoreTrendJpaRepository.class),
+                        repositoryFactory.getRepository(KnowledgeMasteryJpaRepository.class)),
                 new JdbcOutboxEventRepository(jdbcTemplate),
                 OBJECT_MAPPER);
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (entityManagerFactory != null) {
+            entityManagerFactory.close();
+        }
     }
 
     @Test
     void examFinishedEventUpdatesAnalysisTablesAndQueuesWarningOnce() throws Exception {
         ExamFinishedEvent event = examFinishedEvent();
 
-        boolean firstHandled = handler.handle(event);
-        boolean duplicateHandled = handler.handle(event);
+        boolean firstHandled = Boolean.TRUE.equals(transactionTemplate.execute(status -> handler.handle(event)));
+        boolean duplicateHandled = Boolean.TRUE.equals(transactionTemplate.execute(status -> handler.handle(event)));
 
         assertThat(firstHandled).isTrue();
         assertThat(duplicateHandled).isFalse();

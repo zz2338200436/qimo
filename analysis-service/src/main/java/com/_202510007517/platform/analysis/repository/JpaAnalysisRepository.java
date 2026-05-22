@@ -2,191 +2,161 @@ package com._202510007517.platform.analysis.repository;
 
 import com._202510007517.platform.analysis.api.dto.KnowledgeMasteryDTO;
 import com._202510007517.platform.analysis.api.dto.ScoreTrendDTO;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
+import com._202510007517.platform.common.exception.ResourceNotFoundException;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.Timestamp;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 @Repository
-public class JdbcAnalysisRepository implements AnalysisRepository {
+public class JpaAnalysisRepository implements AnalysisRepository {
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final DateTimeFormatter DAY_LABEL_FORMATTER = DateTimeFormatter.ofPattern("MM-dd");
     private static final long COURSE_LEVEL_KNOWLEDGE_POINT_ID = 0L;
 
-    private final JdbcTemplate jdbcTemplate;
-    private final Clock clock;
+    private final ScoreTrendJpaRepository scoreTrendJpaRepository;
+    private final KnowledgeMasteryJpaRepository knowledgeMasteryJpaRepository;
+    private Clock clock = Clock.systemDefaultZone();
 
-    @Autowired
-    public JdbcAnalysisRepository(JdbcTemplate jdbcTemplate) {
-        this(jdbcTemplate, Clock.systemDefaultZone());
+    public JpaAnalysisRepository(
+            ScoreTrendJpaRepository scoreTrendJpaRepository,
+            KnowledgeMasteryJpaRepository knowledgeMasteryJpaRepository) {
+        this.scoreTrendJpaRepository = scoreTrendJpaRepository;
+        this.knowledgeMasteryJpaRepository = knowledgeMasteryJpaRepository;
     }
 
-    JdbcAnalysisRepository(JdbcTemplate jdbcTemplate, Clock clock) {
-        this.jdbcTemplate = jdbcTemplate;
+    void setClock(Clock clock) {
         this.clock = clock;
     }
 
     @Override
+    @Transactional
     public void upsertScoreTrend(ScoreTrendRecord record) {
-        jdbcTemplate.update("""
-                        INSERT INTO score_trends (
-                            student_id, course_id, class_id, source_type, source_id, submission_id,
-                            score, max_score, score_rate, occurred_at
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ON DUPLICATE KEY UPDATE
-                            score = VALUES(score),
-                            max_score = VALUES(max_score),
-                            score_rate = VALUES(score_rate),
-                            occurred_at = VALUES(occurred_at)
-                        """,
-                record.studentId(),
-                record.courseId(),
-                record.classId(),
-                record.sourceType(),
-                record.sourceId(),
-                record.submissionId(),
-                record.score(),
-                record.maxScore(),
-                record.scoreRate(),
-                Timestamp.from(record.occurredAt()));
+        ScoreTrendEntity entity = scoreTrendJpaRepository.findBySourceTypeAndSubmissionId(
+                        record.sourceType(),
+                        record.submissionId())
+                .orElseGet(ScoreTrendEntity::new);
+        entity.setStudentId(record.studentId());
+        entity.setCourseId(record.courseId());
+        entity.setClassId(record.classId());
+        entity.setSourceType(record.sourceType());
+        entity.setSourceId(record.sourceId());
+        entity.setSubmissionId(record.submissionId());
+        entity.setScore(record.score());
+        entity.setMaxScore(record.maxScore());
+        entity.setScoreRate(record.scoreRate());
+        entity.setOccurredAt(record.occurredAt());
+        scoreTrendJpaRepository.save(entity);
     }
 
     @Override
+    @Transactional
     public void upsertKnowledgeMastery(KnowledgeMasteryRecord record) {
-        jdbcTemplate.update("""
-                        INSERT INTO kp_mastery (
-                            student_id, course_id, class_id, knowledge_point_id, mastery_score, evidence_count,
-                            last_source_type, last_source_id, last_event_id, updated_at
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ON DUPLICATE KEY UPDATE
-                            class_id = VALUES(class_id),
-                            mastery_score = ((mastery_score * evidence_count) + VALUES(mastery_score))
-                                    / (evidence_count + 1),
-                            evidence_count = evidence_count + 1,
-                            last_source_type = VALUES(last_source_type),
-                            last_source_id = VALUES(last_source_id),
-                            last_event_id = VALUES(last_event_id),
-                            updated_at = VALUES(updated_at)
-                        """,
-                record.studentId(),
-                record.courseId(),
-                record.classId(),
-                toStoredKnowledgePointId(record.knowledgePointId()),
-                record.masteryScore(),
-                record.evidenceCount(),
-                record.lastSourceType(),
-                record.lastSourceId(),
-                record.lastEventId(),
-                Timestamp.from(record.updatedAt()));
+        long storedKnowledgePointId = toStoredKnowledgePointId(record.knowledgePointId());
+        KnowledgeMasteryEntity entity = knowledgeMasteryJpaRepository.findByStudentIdAndCourseIdAndKnowledgePointId(
+                        record.studentId(),
+                        record.courseId(),
+                        storedKnowledgePointId)
+                .orElseGet(KnowledgeMasteryEntity::new);
+
+        if (entity.getId() == null) {
+            entity.setStudentId(record.studentId());
+            entity.setCourseId(record.courseId());
+            entity.setKnowledgePointId(storedKnowledgePointId);
+            entity.setMasteryScore(record.masteryScore());
+            entity.setEvidenceCount(record.evidenceCount());
+        } else {
+            BigDecimal oldWeighted = entity.getMasteryScore()
+                    .multiply(BigDecimal.valueOf(entity.getEvidenceCount()));
+            BigDecimal nextWeighted = oldWeighted.add(record.masteryScore());
+            int nextEvidenceCount = entity.getEvidenceCount() + 1;
+            entity.setMasteryScore(nextWeighted
+                    .divide(BigDecimal.valueOf(nextEvidenceCount), 4, RoundingMode.HALF_UP));
+            entity.setEvidenceCount(nextEvidenceCount);
+        }
+
+        entity.setClassId(record.classId());
+        entity.setLastSourceType(record.lastSourceType());
+        entity.setLastSourceId(record.lastSourceId());
+        entity.setLastEventId(record.lastEventId());
+        entity.setUpdatedAt(record.updatedAt());
+        knowledgeMasteryJpaRepository.save(entity);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ScoreTrendDTO> listScoreTrends(Long classId, Long courseId, Instant since) {
-        List<Object> args = new ArrayList<>();
-        StringBuilder sql = new StringBuilder("""
-                SELECT student_id, course_id, class_id, source_type, source_id, submission_id,
-                       score, max_score, score_rate, occurred_at
-                FROM score_trends
-                WHERE 1 = 1
-                """);
-        if (classId != null) {
-            sql.append(" AND class_id = ?");
-            args.add(classId);
-        }
-        if (courseId != null) {
-            sql.append(" AND course_id = ?");
-            args.add(courseId);
-        }
-        if (since != null) {
-            sql.append(" AND occurred_at >= ?");
-            args.add(Timestamp.from(since));
-        }
-        sql.append(" ORDER BY occurred_at ASC, id ASC");
-
-        return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> new ScoreTrendDTO(
-                rs.getLong("student_id"),
-                rs.getLong("course_id"),
-                readNullableLong(rs, "class_id"),
-                rs.getString("source_type"),
-                rs.getLong("source_id"),
-                rs.getLong("submission_id"),
-                readNullableInteger(rs, "score"),
-                readNullableInteger(rs, "max_score"),
-                rs.getBigDecimal("score_rate"),
-                rs.getTimestamp("occurred_at").toInstant()), args.toArray());
+        return scoreTrendJpaRepository.findAll(scoreTrendSpec(classId, courseId, since)).stream()
+                .sorted((left, right) -> {
+                    int timeCompare = left.getOccurredAt().compareTo(right.getOccurredAt());
+                    if (timeCompare != 0) {
+                        return timeCompare;
+                    }
+                    return compareNullable(left.getId(), right.getId());
+                })
+                .map(this::toDto)
+                .toList();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<KnowledgeMasteryDTO> listKnowledgeMastery(Long studentId, Long courseId) {
-        return jdbcTemplate.query("""
-                        SELECT student_id, course_id, class_id, knowledge_point_id, mastery_score, evidence_count,
-                               last_source_type, last_source_id, last_event_id, updated_at
-                        FROM kp_mastery
-                        WHERE student_id = ? AND course_id = ?
-                        ORDER BY updated_at DESC, knowledge_point_id ASC, id DESC
-                        """,
-                (rs, rowNum) -> new KnowledgeMasteryDTO(
-                        rs.getLong("student_id"),
-                        rs.getLong("course_id"),
-                        readNullableLong(rs, "class_id"),
-                        fromStoredKnowledgePointId(readNullableLong(rs, "knowledge_point_id")),
-                        rs.getBigDecimal("mastery_score"),
-                        rs.getInt("evidence_count"),
-                        rs.getString("last_source_type"),
-                        readNullableLong(rs, "last_source_id"),
-                        rs.getString("last_event_id"),
-                        rs.getTimestamp("updated_at").toInstant()),
-                studentId,
-                courseId);
+        return knowledgeMasteryJpaRepository.findAll((root, query, cb) -> cb.and(
+                        cb.equal(root.get("studentId"), studentId),
+                        cb.equal(root.get("courseId"), courseId)))
+                .stream()
+                .sorted((left, right) -> {
+                    int updatedCompare = right.getUpdatedAt().compareTo(left.getUpdatedAt());
+                    if (updatedCompare != 0) {
+                        return updatedCompare;
+                    }
+                    int kpCompare = compareNullable(left.getKnowledgePointId(), right.getKnowledgePointId());
+                    if (kpCompare != 0) {
+                        return kpCompare;
+                    }
+                    return compareNullable(right.getId(), left.getId());
+                })
+                .map(this::toDto)
+                .toList();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<KnowledgeMasteryDTO> listKnowledgeMasteryByScope(Long classId, Long courseId) {
-        List<Object> args = new ArrayList<>();
-        StringBuilder sql = new StringBuilder("""
-                SELECT student_id, course_id, class_id, knowledge_point_id, mastery_score, evidence_count,
-                       last_source_type, last_source_id, last_event_id, updated_at
-                FROM kp_mastery
-                WHERE 1 = 1
-                """);
-        if (classId != null) {
-            sql.append(" AND class_id = ?");
-            args.add(classId);
-        }
-        if (courseId != null) {
-            sql.append(" AND course_id = ?");
-            args.add(courseId);
-        }
-        sql.append(" ORDER BY updated_at DESC, knowledge_point_id ASC, id DESC");
-
-        return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> new KnowledgeMasteryDTO(
-                rs.getLong("student_id"),
-                rs.getLong("course_id"),
-                readNullableLong(rs, "class_id"),
-                fromStoredKnowledgePointId(readNullableLong(rs, "knowledge_point_id")),
-                rs.getBigDecimal("mastery_score"),
-                rs.getInt("evidence_count"),
-                rs.getString("last_source_type"),
-                readNullableLong(rs, "last_source_id"),
-                rs.getString("last_event_id"),
-                rs.getTimestamp("updated_at").toInstant()), args.toArray());
+        return knowledgeMasteryJpaRepository.findAll(knowledgeMasteryScopeSpec(classId, courseId)).stream()
+                .sorted((left, right) -> {
+                    int updatedCompare = right.getUpdatedAt().compareTo(left.getUpdatedAt());
+                    if (updatedCompare != 0) {
+                        return updatedCompare;
+                    }
+                    int kpCompare = compareNullable(left.getKnowledgePointId(), right.getKnowledgePointId());
+                    if (kpCompare != 0) {
+                        return kpCompare;
+                    }
+                    return compareNullable(right.getId(), left.getId());
+                })
+                .map(this::toDto)
+                .toList();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Map<String, Object> getTeacherDashboard(Long teacherId, Long classId, Long courseId, String timeRange) {
         List<ScoreTrendDTO> scoreRows = listScoreTrends(classId, courseId, resolveSince(timeRange));
         List<ScoreTrendDTO> scopedScores = scoreRows.stream()
@@ -197,13 +167,13 @@ public class JdbcAnalysisRepository implements AnalysisRepository {
 
         List<Long> courseIds = scopedScores.stream()
                 .map(ScoreTrendDTO::courseId)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .distinct()
                 .sorted()
                 .toList();
         List<Long> studentIds = scopedScores.stream()
                 .map(ScoreTrendDTO::studentId)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .distinct()
                 .toList();
 
@@ -259,6 +229,7 @@ public class JdbcAnalysisRepository implements AnalysisRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Map<String, Object> getTeacherLearningSummary(Long teacherId, Long classId, Long courseId, String timeRange) {
         List<ScoreTrendDTO> scoreRows = listScoreTrends(classId, courseId, resolveSince(timeRange));
         List<ScoreTrendDTO> scopedScores = scoreRows.stream()
@@ -270,7 +241,7 @@ public class JdbcAnalysisRepository implements AnalysisRepository {
         List<Long> studentIds = java.util.stream.Stream.concat(
                         scopedScores.stream().map(ScoreTrendDTO::studentId),
                         masteryRows.stream().map(row -> ((Number) row.get("studentId")).longValue()))
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .distinct()
                 .sorted()
                 .toList();
@@ -327,6 +298,7 @@ public class JdbcAnalysisRepository implements AnalysisRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> listStudentStudyTimeDistribution(
             Long studentId,
             String type,
@@ -341,6 +313,7 @@ public class JdbcAnalysisRepository implements AnalysisRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Map<String, Object> getStudentLearningStats(
             Long studentId,
             String semester,
@@ -382,6 +355,7 @@ public class JdbcAnalysisRepository implements AnalysisRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> listStudentKnowledgePoints(
             Long studentId,
             String semester,
@@ -391,11 +365,12 @@ public class JdbcAnalysisRepository implements AnalysisRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Map<String, Object> getStudentKnowledgePointDetail(Long studentId, Long knowledgePointId) {
         return readKnowledgePointStats(studentId, knowledgePointId).stream()
                 .filter(point -> knowledgePointId.equals(point.get("id")))
                 .findFirst()
-                .orElseThrow(() -> new com._202510007517.platform.common.exception.ResourceNotFoundException("知识点不存在"));
+                .orElseThrow(() -> new ResourceNotFoundException("知识点不存在"));
     }
 
     private List<Map<String, Object>> listDailyStudyTime(Long studentId, Long courseId, LocalDate today) {
@@ -436,98 +411,120 @@ public class JdbcAnalysisRepository implements AnalysisRepository {
     }
 
     private TaskScoreSummary readTaskScoreSummary(Long studentId, Long courseId) {
-        List<Object> args = new ArrayList<>();
-        StringBuilder sql = new StringBuilder("""
-                SELECT COUNT(DISTINCT submission_id) AS completed_tasks,
-                       AVG(score) AS average_score
-                FROM score_trends
-                WHERE student_id = ?
-                  AND score IS NOT NULL
-                """);
-        args.add(studentId);
-        if (courseId != null) {
-            sql.append(" AND course_id = ?");
-            args.add(courseId);
-        }
+        List<ScoreTrendEntity> rows = scoreTrendJpaRepository.findAll((root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("studentId"), studentId));
+            predicates.add(cb.isNotNull(root.get("score")));
+            if (courseId != null) {
+                predicates.add(cb.equal(root.get("courseId"), courseId));
+            }
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        });
 
-        return jdbcTemplate.query(sql.toString(), rs -> {
-            if (!rs.next()) {
-                return new TaskScoreSummary(0, 0.0);
-            }
-            int completedTasks = rs.getInt("completed_tasks");
-            double averageScore = rs.getDouble("average_score");
-            if (rs.wasNull()) {
-                averageScore = 0.0;
-            }
-            return new TaskScoreSummary(completedTasks, averageScore);
-        }, args.toArray());
+        int completedTasks = (int) rows.stream()
+                .map(ScoreTrendEntity::getSubmissionId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .count();
+        double averageScore = rows.stream()
+                .map(ScoreTrendEntity::getScore)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .average()
+                .orElse(0.0);
+        return new TaskScoreSummary(completedTasks, averageScore);
     }
 
     private List<Map<String, Object>> readKnowledgePointStats(Long studentId, Long courseId) {
-        List<Object> args = new ArrayList<>();
-        StringBuilder sql = new StringBuilder("""
-                SELECT course_id, knowledge_point_id, mastery_score, evidence_count
-                FROM kp_mastery
-                WHERE student_id = ?
-                """);
-        args.add(studentId);
-        if (courseId != null) {
-            sql.append(" AND course_id = ?");
-            args.add(courseId);
-        }
-        sql.append(" ORDER BY updated_at DESC, id DESC");
-
-        return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> {
-            Long rowCourseId = rs.getLong("course_id");
-            Long knowledgePointId = fromStoredKnowledgePointId(readNullableLong(rs, "knowledge_point_id"));
-            Long pointId = knowledgePointId == null ? rowCourseId : knowledgePointId;
-            String pointName = knowledgePointId == null ? "课程 " + rowCourseId : "知识点 " + knowledgePointId;
-            double mastery = roundOne(rs.getBigDecimal("mastery_score").doubleValue() * 100.0);
-            Map<String, Object> point = new LinkedHashMap<>();
-            point.put("id", pointId);
-            point.put("courseId", rowCourseId);
-            point.put("knowledgePointId", knowledgePointId);
-            point.put("name", pointName);
-            point.put("pointName", pointName);
-            point.put("description", knowledgePointId == null
-                    ? pointName + " 的知识点掌握汇总"
-                    : pointName + " 的掌握汇总");
-            point.put("difficulty", mastery >= 80.0 ? "中等" : "困难");
-            point.put("courseName", "课程 " + rowCourseId);
-            point.put("mastery", mastery);
-            point.put("practiceCount", rs.getInt("evidence_count"));
-            return point;
-        }, args.toArray());
+        return knowledgeMasteryJpaRepository.findAll((root, query, cb) -> {
+                    List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+                    predicates.add(cb.equal(root.get("studentId"), studentId));
+                    if (courseId != null) {
+                        predicates.add(cb.equal(root.get("courseId"), courseId));
+                    }
+                    return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+                }).stream()
+                .sorted((left, right) -> {
+                    int updatedCompare = right.getUpdatedAt().compareTo(left.getUpdatedAt());
+                    if (updatedCompare != 0) {
+                        return updatedCompare;
+                    }
+                    return compareNullable(right.getId(), left.getId());
+                })
+                .map(entity -> {
+                    Long rowCourseId = entity.getCourseId();
+                    Long knowledgePointId = fromStoredKnowledgePointId(entity.getKnowledgePointId());
+                    Long pointId = knowledgePointId == null ? rowCourseId : knowledgePointId;
+                    String pointName = knowledgePointId == null ? "课程 " + rowCourseId : "知识点 " + knowledgePointId;
+                    double mastery = roundOne(entity.getMasteryScore().doubleValue() * 100.0);
+                    Map<String, Object> point = new LinkedHashMap<>();
+                    point.put("id", pointId);
+                    point.put("courseId", rowCourseId);
+                    point.put("knowledgePointId", knowledgePointId);
+                    point.put("name", pointName);
+                    point.put("pointName", pointName);
+                    point.put("description", knowledgePointId == null
+                            ? pointName + " 的知识点掌握汇总"
+                            : pointName + " 的掌握汇总");
+                    point.put("difficulty", mastery >= 80.0 ? "中等" : "困难");
+                    point.put("courseName", "课程 " + rowCourseId);
+                    point.put("mastery", mastery);
+                    point.put("practiceCount", entity.getEvidenceCount());
+                    return point;
+                })
+                .toList();
     }
 
     private List<Map<String, Object>> readTeacherMasteryRows(Long classId, Long courseId) {
-        List<Object> args = new ArrayList<>();
-        StringBuilder sql = new StringBuilder("""
-                SELECT student_id, course_id, class_id, knowledge_point_id, mastery_score, evidence_count, updated_at
-                FROM kp_mastery
-                WHERE 1 = 1
-                """);
-        if (classId != null) {
-            sql.append(" AND class_id = ?");
-            args.add(classId);
-        }
-        if (courseId != null) {
-            sql.append(" AND course_id = ?");
-            args.add(courseId);
-        }
-        sql.append(" ORDER BY updated_at DESC, id DESC");
+        return knowledgeMasteryJpaRepository.findAll(knowledgeMasteryScopeSpec(classId, courseId)).stream()
+                .sorted((left, right) -> {
+                    int updatedCompare = right.getUpdatedAt().compareTo(left.getUpdatedAt());
+                    if (updatedCompare != 0) {
+                        return updatedCompare;
+                    }
+                    return compareNullable(right.getId(), left.getId());
+                })
+                .map(entity -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("studentId", entity.getStudentId());
+                    row.put("courseId", entity.getCourseId());
+                    row.put("classId", entity.getClassId());
+                    row.put("knowledgePointId", fromStoredKnowledgePointId(entity.getKnowledgePointId()));
+                    row.put("mastery", roundOne(entity.getMasteryScore().doubleValue() * 100.0));
+                    row.put("evidenceCount", entity.getEvidenceCount());
+                    row.put("updatedAt", entity.getUpdatedAt());
+                    return row;
+                })
+                .toList();
+    }
 
-        return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> {
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("studentId", rs.getLong("student_id"));
-            row.put("courseId", rs.getLong("course_id"));
-            row.put("classId", readNullableLong(rs, "class_id"));
-            row.put("knowledgePointId", fromStoredKnowledgePointId(readNullableLong(rs, "knowledge_point_id")));
-            row.put("mastery", roundOne(rs.getBigDecimal("mastery_score").doubleValue() * 100.0));
-            row.put("evidenceCount", rs.getInt("evidence_count"));
-            row.put("updatedAt", rs.getTimestamp("updated_at").toInstant());
-            return row;
-        }, args.toArray());
+    private Specification<ScoreTrendEntity> scoreTrendSpec(Long classId, Long courseId, Instant since) {
+        return (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (classId != null) {
+                predicates.add(cb.equal(root.get("classId"), classId));
+            }
+            if (courseId != null) {
+                predicates.add(cb.equal(root.get("courseId"), courseId));
+            }
+            if (since != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("occurredAt"), since));
+            }
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+    }
+
+    private Specification<KnowledgeMasteryEntity> knowledgeMasteryScopeSpec(Long classId, Long courseId) {
+        return (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (classId != null) {
+                predicates.add(cb.equal(root.get("classId"), classId));
+            }
+            if (courseId != null) {
+                predicates.add(cb.equal(root.get("courseId"), courseId));
+            }
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
     }
 
     private static Instant resolveSince(String timeRange) {
@@ -535,10 +532,11 @@ public class JdbcAnalysisRepository implements AnalysisRepository {
             return null;
         }
         String normalized = timeRange.trim().toLowerCase(Locale.ROOT);
+        Instant now = Instant.now();
         return switch (normalized) {
-            case "7d", "week" -> Instant.now().minus(java.time.Duration.ofDays(7));
-            case "30d", "month" -> Instant.now().minus(java.time.Duration.ofDays(30));
-            case "90d", "quarter" -> Instant.now().minus(java.time.Duration.ofDays(90));
+            case "7d", "week" -> now.minus(java.time.Duration.ofDays(7));
+            case "30d", "month" -> now.minus(java.time.Duration.ofDays(30));
+            case "90d", "quarter" -> now.minus(java.time.Duration.ofDays(90));
             default -> null;
         };
     }
@@ -576,29 +574,26 @@ public class JdbcAnalysisRepository implements AnalysisRepository {
             LocalDate startDate,
             LocalDate endDateExclusive,
             boolean weekly) {
-        List<Object> args = new ArrayList<>();
-        StringBuilder sql = new StringBuilder("""
-                SELECT source_type, occurred_at
-                FROM score_trends
-                WHERE student_id = ?
-                  AND occurred_at >= ?
-                  AND occurred_at < ?
-                """);
-        args.add(studentId);
-        args.add(Timestamp.valueOf(startDate.atStartOfDay()));
-        args.add(Timestamp.valueOf(endDateExclusive.atStartOfDay()));
-        if (courseId != null) {
-            sql.append(" AND course_id = ?");
-            args.add(courseId);
-        }
+        Instant start = startDate.atStartOfDay(clock.getZone()).toInstant();
+        Instant end = endDateExclusive.atStartOfDay(clock.getZone()).toInstant();
+        List<ScoreTrendEntity> rows = scoreTrendJpaRepository.findAll((root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("studentId"), studentId));
+            predicates.add(cb.greaterThanOrEqualTo(root.get("occurredAt"), start));
+            predicates.add(cb.lessThan(root.get("occurredAt"), end));
+            if (courseId != null) {
+                predicates.add(cb.equal(root.get("courseId"), courseId));
+            }
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        });
 
-        jdbcTemplate.query(sql.toString(), rs -> {
-            LocalDate date = rs.getTimestamp("occurred_at").toLocalDateTime().toLocalDate();
+        for (ScoreTrendEntity entity : rows) {
+            LocalDate date = LocalDate.ofInstant(entity.getOccurredAt(), clock.getZone());
             String bucket = studyTimeBucket(date, startDate, weekly);
             if (bucket != null) {
-                buckets.merge(bucket, scoreTrendHours(rs.getString("source_type")), Double::sum);
+                buckets.merge(bucket, scoreTrendHours(entity.getSourceType()), Double::sum);
             }
-        }, args.toArray());
+        }
     }
 
     private void mergeKnowledgeMasteryHours(
@@ -608,38 +603,63 @@ public class JdbcAnalysisRepository implements AnalysisRepository {
             LocalDate startDate,
             LocalDate endDateExclusive,
             boolean weekly) {
-        List<Object> args = new ArrayList<>();
-        StringBuilder sql = new StringBuilder("""
-                SELECT evidence_count, updated_at
-                FROM kp_mastery
-                WHERE student_id = ?
-                  AND updated_at >= ?
-                  AND updated_at < ?
-                """);
-        args.add(studentId);
-        args.add(Timestamp.valueOf(startDate.atStartOfDay()));
-        args.add(Timestamp.valueOf(endDateExclusive.atStartOfDay()));
-        if (courseId != null) {
-            sql.append(" AND course_id = ?");
-            args.add(courseId);
-        }
+        Instant start = startDate.atStartOfDay(clock.getZone()).toInstant();
+        Instant end = endDateExclusive.atStartOfDay(clock.getZone()).toInstant();
+        List<KnowledgeMasteryEntity> rows = knowledgeMasteryJpaRepository.findAll((root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("studentId"), studentId));
+            predicates.add(cb.greaterThanOrEqualTo(root.get("updatedAt"), start));
+            predicates.add(cb.lessThan(root.get("updatedAt"), end));
+            if (courseId != null) {
+                predicates.add(cb.equal(root.get("courseId"), courseId));
+            }
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        });
 
-        jdbcTemplate.query(sql.toString(), rs -> {
-            LocalDate date = rs.getTimestamp("updated_at").toLocalDateTime().toLocalDate();
+        for (KnowledgeMasteryEntity entity : rows) {
+            LocalDate date = LocalDate.ofInstant(entity.getUpdatedAt(), clock.getZone());
             String bucket = studyTimeBucket(date, startDate, weekly);
             if (bucket != null) {
                 double cap = weekly ? 56.0 : 8.0;
-                double hours = Math.min(rs.getInt("evidence_count") * 0.5, cap);
+                double hours = Math.min(entity.getEvidenceCount() * 0.5, cap);
                 buckets.merge(bucket, hours, Double::sum);
             }
-        }, args.toArray());
+        }
+    }
+
+    private ScoreTrendDTO toDto(ScoreTrendEntity entity) {
+        return new ScoreTrendDTO(
+                entity.getStudentId(),
+                entity.getCourseId(),
+                entity.getClassId(),
+                entity.getSourceType(),
+                entity.getSourceId(),
+                entity.getSubmissionId(),
+                entity.getScore(),
+                entity.getMaxScore(),
+                entity.getScoreRate(),
+                entity.getOccurredAt());
+    }
+
+    private KnowledgeMasteryDTO toDto(KnowledgeMasteryEntity entity) {
+        return new KnowledgeMasteryDTO(
+                entity.getStudentId(),
+                entity.getCourseId(),
+                entity.getClassId(),
+                fromStoredKnowledgePointId(entity.getKnowledgePointId()),
+                entity.getMasteryScore(),
+                entity.getEvidenceCount(),
+                entity.getLastSourceType(),
+                entity.getLastSourceId(),
+                entity.getLastEventId(),
+                entity.getUpdatedAt());
     }
 
     private static String studyTimeBucket(LocalDate date, LocalDate startDate, boolean weekly) {
         if (!weekly) {
             return date.format(DATE_FORMATTER);
         }
-        long weekOffset = java.time.temporal.ChronoUnit.WEEKS.between(startDate, date.with(DayOfWeek.MONDAY));
+        long weekOffset = ChronoUnit.WEEKS.between(startDate, date.with(DayOfWeek.MONDAY));
         if (weekOffset < 0 || weekOffset > 3) {
             return null;
         }
@@ -680,11 +700,6 @@ public class JdbcAnalysisRepository implements AnalysisRepository {
         return Math.round(value * 10.0) / 10.0;
     }
 
-    private static Long readNullableLong(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
-        long value = rs.getLong(column);
-        return rs.wasNull() ? null : value;
-    }
-
     private static long toStoredKnowledgePointId(Long knowledgePointId) {
         return knowledgePointId == null ? COURSE_LEVEL_KNOWLEDGE_POINT_ID : knowledgePointId;
     }
@@ -695,9 +710,17 @@ public class JdbcAnalysisRepository implements AnalysisRepository {
                 : knowledgePointId;
     }
 
-    private static Integer readNullableInteger(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
-        int value = rs.getInt(column);
-        return rs.wasNull() ? null : value;
+    private static int compareNullable(Long left, Long right) {
+        if (left == null && right == null) {
+            return 0;
+        }
+        if (left == null) {
+            return -1;
+        }
+        if (right == null) {
+            return 1;
+        }
+        return Long.compare(left, right);
     }
 
     private record TaskScoreSummary(int completedTasks, double averageScore) {
