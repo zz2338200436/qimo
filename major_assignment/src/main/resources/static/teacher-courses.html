@@ -686,9 +686,10 @@
                 setTimeout(() => {
                     if (window.initSidebar) {
                         window.initSidebar();
-                    } else {
-                        // 尝试直接调用，可能脚本已经内联执行
+                    } else if (typeof initSidebar === 'function') {
                         initSidebar();
+                    } else {
+                        console.warn('侧边栏初始化函数未定义，跳过初始化');
                     }
                 }, 100);
             })
@@ -4637,7 +4638,7 @@
                 console.log('3. 直接调用API URL:', apiUrl);
                 
                 // 构建完整的请求URL
-                const urlWithParams = new URL(apiUrl);
+                const urlWithParams = new URL(apiUrl, window.location.origin);
                 Object.entries(apiParams).forEach(([key, value]) => {
                     urlWithParams.searchParams.append(key, value);
                 });

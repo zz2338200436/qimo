@@ -66,8 +66,15 @@ Teacher pages:
 Browser-level JWT smoke scripts currently cover:
 
 - `scripts/verify-teacher-jwt-pages.js`
+  - `teacher-dashboard.html`
+  - `teacher-courses.html`
+  - `teacher-assignments.html`
+  - `teacher-knowledge.html`
   - `teacher-warning.html`
   - `teacher-student-dashboard.html`
+  - `teacher-notifications.html`
+  - `teacher-settings.html`
+  - `teacher-ai-tools.html`
 - `scripts/verify-student-jwt-pages.js`
   - `student-dashboard.html`
   - `student-courses.html`

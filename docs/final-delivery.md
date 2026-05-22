@@ -79,7 +79,8 @@ mvn -T 1 "-DargLine=-Xms64m -Xmx384m -XX:MaxMetaspaceSize=256m -XX:ReservedCodeC
 | 2026-05-21 | `node .\scripts\verify-gateway-api-smoke.js` | `All smoke checks passed: 18`，测试数据已清理 |
 | 2026-05-22 | `node .\scripts\verify-gateway-api-smoke.js` | `All smoke checks passed: 20`，统一网关链路再次验证通过 |
 | 2026-05-22 | `node .\scripts\verify-student-jwt-pages.js .\.runtime-logs\student-session-full-smoke.json` | 学生高频页面 5/5 通过：`student-dashboard / courses / assignments / notifications / settings` |
-| 2026-05-22 | `node .\scripts\verify-teacher-jwt-pages.js .\.runtime-logs\teacher-session-full-smoke.json` | 教师高频页面 2/2 通过：`teacher-warning / teacher-student-dashboard` |
+| 2026-05-22 | `node .\scripts\verify-teacher-jwt-pages.js .\.runtime-logs\teacher-session-full-smoke.json` | 教师受保护页面 9/9 通过：`teacher-dashboard / courses / assignments / knowledge / warning / student-dashboard / notifications / settings / ai-tools` |
+| 2026-05-22 | `mvn --% -pl major_assignment test -DfailIfNoTests=false` | `Tests run: 85, Failures: 0, Errors: 0, Skipped: 2` |
 
 说明：当前分支的常规验证使用 `mvn test` 与网关运行时烟测；正式封版前可再跑一次全仓 `mvn clean verify` 作为发布级证明。
 
@@ -158,8 +159,15 @@ powershell -ExecutionPolicy Bypass -File scripts\get-dev-auth-session.ps1 -Role 
 
 | 页面 | 结果 | 说明 |
 | --- | --- | --- |
+| `teacher-dashboard.html` | 通过 | 命中教师课程、作业、提交聚合数据 |
+| `teacher-courses.html` | 通过 | 命中教师课程接口 |
+| `teacher-assignments.html` | 通过 | 命中教师作业与课程接口 |
+| `teacher-knowledge.html` | 通过 | 命中教师知识点与分析接口 |
 | `teacher-warning.html` | 通过 | 命中 `analysis-service` 预警接口 |
 | `teacher-student-dashboard.html` | 通过 | 命中教师学情分析接口 |
+| `teacher-notifications.html` | 通过 | 页面首屏无鉴权错误、无 JS 异常 |
+| `teacher-settings.html` | 通过 | 命中教师用户资料接口 |
+| `teacher-ai-tools.html` | 通过 | 页面首屏无鉴权错误、无 JS 异常 |
 | `student-dashboard.html` | 通过 | 学生综合表现接口未接通时，会自动回退到已接通课程/作业/考试数据源 |
 | `student-courses.html` | 通过 | 命中学生课程接口 |
 | `student-assignments.html` | 通过 | 命中学生作业接口 |

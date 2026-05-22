@@ -11,25 +11,96 @@ const sessionStorageState = session.sessionStorage || {};
 
 const checks = [
     {
+        name: 'teacher-dashboard',
+        url: 'http://localhost:5500/teacher-dashboard.html',
+        expectedText: '仪表盘',
+        expectedApis: [
+            '/api/teacher/courses',
+            '/api/teacher/assignments',
+            '/api/teacher/submissions'
+        ]
+    },
+    {
+        name: 'teacher-courses',
+        url: 'http://localhost:5500/teacher-courses.html',
+        expectedText: '课程与班级管理',
+        expectedApis: [
+            '/api/teacher/courses'
+        ]
+    },
+    {
+        name: 'teacher-assignments',
+        url: 'http://localhost:5500/teacher-assignments.html',
+        expectedText: '作业与考试发布',
+        expectedApis: [
+            '/api/teacher/assignments',
+            '/api/teacher/courses'
+        ]
+    },
+    {
+        name: 'teacher-knowledge',
+        url: 'http://localhost:5500/teacher-knowledge.html',
+        expectedText: '知识点薄弱分析',
+        expectedApis: [
+            '/api/teacher/knowledge-points',
+            '/api/knowledge-points/analysis/teacher/course'
+        ]
+    },
+    {
         name: 'teacher-warning',
         url: 'http://localhost:5500/teacher-warning.html',
+        expectedText: '学情预警',
         fallbackText: '当前本地联调环境未接入预警服务',
         expectedApis: [
             '/api/early-warnings/teacher/list',
             '/api/early-warnings/teacher/stats'
-        ],
-        readText: async page => page.locator('.warning-list').innerText()
+        ]
     },
     {
         name: 'teacher-student-dashboard',
         url: 'http://localhost:5500/teacher-student-dashboard.html',
+        expectedText: '学生学习数据',
         fallbackText: '当前本地联调环境未接入该分析页面所需服务',
         expectedApis: [
             '/api/teacher/dashboard',
             '/api/teacher/learning-summary'
-        ],
-        readText: async page => page.locator('#studentTableBody').innerText()
+        ]
+    },
+    {
+        name: 'teacher-notifications',
+        url: 'http://localhost:5500/teacher-notifications.html',
+        expectedText: '通知管理',
+        expectedApis: []
+    },
+    {
+        name: 'teacher-settings',
+        url: 'http://localhost:5500/teacher-settings.html',
+        expectedText: '设置',
+        expectedApis: [
+            '/api/users/me'
+        ]
+    },
+    {
+        name: 'teacher-ai-tools',
+        url: 'http://localhost:5500/teacher-ai-tools.html',
+        expectedText: 'AI工具',
+        expectedApis: []
     }
+];
+
+const visibleErrorFragments = [
+    '加载失败',
+    '获取课程列表失败',
+    '获取作业列表失败',
+    '获取考试列表失败',
+    '加载用户信息失败',
+    '请先登录',
+    '未登录',
+    'Unauthorized',
+    'Forbidden',
+    'NetworkError',
+    '当前本地联调环境未接入预警服务',
+    '当前本地联调环境未接入该分析页面所需服务'
 ];
 
 function collectMatchedResponses(responses, expectedApis) {
@@ -60,36 +131,101 @@ function collectMatchedResponses(responses, expectedApis) {
         for (const check of checks) {
             const page = await context.newPage();
             const responses = [];
-            page.on('response', response => {
-                responses.push({
-                    url: response.url(),
-                    status: response.status()
-                });
+            const pageErrors = [];
+            const consoleErrors = [];
+            const failedResponses = [];
+            let renderedText = '';
+
+            page.on('pageerror', error => {
+                pageErrors.push(error.message);
             });
 
-            await page.goto(check.url, { waitUntil: 'domcontentloaded' });
-            await page.waitForTimeout(3000);
+            page.on('console', message => {
+                if (message.type() === 'error') {
+                    consoleErrors.push(message.text());
+                }
+            });
 
-            const renderedText = await check.readText(page);
-            const matchedResponses = collectMatchedResponses(responses, check.expectedApis);
-            const missingApi = matchedResponses.find(item => !item.found || item.status >= 400);
-            const hasFallback = renderedText.includes(check.fallbackText);
+            page.on('response', response => {
+                const url = response.url();
+                const status = response.status();
 
-            if (hasFallback || missingApi) {
+                responses.push({
+                    url,
+                    status
+                });
+
+                if (
+                    status >= 400 &&
+                    (url.includes('/api/') || url.includes('.html') || url.includes('.js') || url.includes('.css'))
+                ) {
+                    failedResponses.push({ url, status });
+                }
+            });
+
+            try {
+                await page.goto(check.url, { waitUntil: 'domcontentloaded' });
+                await page.waitForTimeout(5000);
+                renderedText = await page.locator('body').innerText();
+
+                const matchedResponses = collectMatchedResponses(responses, check.expectedApis);
+                const missingApi = matchedResponses.find(item => !item.found || item.status >= 400);
+                const hasFallback = check.fallbackText ? renderedText.includes(check.fallbackText) : false;
+                const missingText = check.expectedText ? !renderedText.includes(check.expectedText) : false;
+                const visibleError = visibleErrorFragments.find(fragment => renderedText.includes(fragment));
+                const unexpectedFailure =
+                    missingText ||
+                    hasFallback ||
+                    missingApi ||
+                    visibleError ||
+                    failedResponses.length > 0 ||
+                    pageErrors.length > 0 ||
+                    consoleErrors.length > 0;
+
+                if (unexpectedFailure) {
+                    hasFailure = true;
+                    console.error(`[FAIL] ${check.name}`);
+                    if (missingText) {
+                        console.error(`  expected text missing: ${check.expectedText}`);
+                    }
+                    if (hasFallback) {
+                        console.error(`  fallback text rendered: ${check.fallbackText}`);
+                    }
+                    if (missingApi) {
+                        console.error(`  api check failed: ${missingApi.apiFragment} (found=${missingApi.found}, status=${missingApi.status})`);
+                    }
+                    if (visibleError) {
+                        console.error(`  visible error fragment rendered: ${visibleError}`);
+                    }
+                    if (failedResponses.length > 0) {
+                        console.error(`  failed responses: ${failedResponses.map(item => `${item.status} ${item.url}`).join(' | ')}`);
+                    }
+                    if (pageErrors.length > 0) {
+                        console.error(`  page errors: ${pageErrors.join(' | ')}`);
+                    }
+                    if (consoleErrors.length > 0) {
+                        console.error(`  console errors: ${consoleErrors.join(' | ')}`);
+                    }
+                    console.error(`  rendered text: ${renderedText.slice(0, 1000)}`);
+                } else {
+                    console.log(`[PASS] ${check.name}`);
+                }
+            } catch (error) {
                 hasFailure = true;
                 console.error(`[FAIL] ${check.name}`);
-                if (hasFallback) {
-                    console.error(`  fallback text rendered: ${check.fallbackText}`);
+                console.error(`  navigation/check error: ${error.message}`);
+                if (pageErrors.length > 0) {
+                    console.error(`  page errors: ${pageErrors.join(' | ')}`);
                 }
-                if (missingApi) {
-                    console.error(`  api check failed: ${missingApi.apiFragment} (found=${missingApi.found}, status=${missingApi.status})`);
+                if (consoleErrors.length > 0) {
+                    console.error(`  console errors: ${consoleErrors.join(' | ')}`);
                 }
-                console.error(`  rendered text: ${renderedText}`);
-            } else {
-                console.log(`[PASS] ${check.name}`);
+                if (renderedText) {
+                    console.error(`  rendered text: ${renderedText.slice(0, 1000)}`);
+                }
+            } finally {
+                await page.close().catch(() => {});
             }
-
-            await page.close();
         }
     } finally {
         await browser.close();

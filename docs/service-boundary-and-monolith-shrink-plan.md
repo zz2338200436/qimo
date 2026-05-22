@@ -165,8 +165,15 @@ author: Codex
 
 | 页面 / 能力 | 验证方式 | 当前结论 |
 | --- | --- | --- |
+| `teacher-dashboard.html` | Playwright 页面冒烟 + 教师课程/作业/提交响应检查 | 已走 Gateway |
+| `teacher-courses.html` | Playwright 页面冒烟 + `/api/teacher/courses` 响应检查 | 已走 Gateway + `course-service` |
+| `teacher-assignments.html` | Playwright 页面冒烟 + `/api/teacher/assignments` / `/api/teacher/courses` 响应检查 | 已走 Gateway |
+| `teacher-knowledge.html` | Playwright 页面冒烟 + `/api/teacher/knowledge-points` / 分析接口响应检查 | 已走 Gateway |
 | `teacher-warning.html` | Playwright 页面冒烟 + `/api/early-warnings/**` 响应检查 | 已走 Gateway + `analysis-service` |
 | `teacher-student-dashboard.html` | Playwright 页面冒烟 + `/api/teacher/dashboard` / `/api/teacher/learning-summary` 响应检查 | 已走 Gateway + `analysis-service` |
+| `teacher-notifications.html` | Playwright 页面冒烟 + 首屏 JS/可见错误检查 | 首屏已走外部前端预览路径 |
+| `teacher-settings.html` | Playwright 页面冒烟 + `/api/users/me` 响应检查 | 已走 Gateway + `user-service` |
+| `teacher-ai-tools.html` | Playwright 页面冒烟 + 首屏 JS/可见错误检查 | 首屏已走外部前端预览路径 |
 | `student-dashboard.html` | Playwright 页面冒烟 + 已接通学生课程/作业/考试接口响应检查 | 已走 Gateway；综合表现接口未接通时会自动回退到已接通数据源 |
 | `student-courses.html` | Playwright 页面冒烟 + `/api/student/courses` 响应检查 | 已走 Gateway + `course-service` |
 | `student-assignments.html` | Playwright 页面冒烟 + `/api/student/assignments` 响应检查 | 已走 Gateway + `assignment-service` |
@@ -213,18 +220,24 @@ author: Codex
 
 ### B. 仍需继续补页面合同 / 浏览器冒烟的前端页面
 
-当前教师高频页面里，已经做过更强联调验证的是：
+教师受保护页面已经纳入 `scripts/verify-teacher-jwt-pages.js` 的首屏 JWT 冒烟，覆盖：
 
-- `teacher-warning.html`
-- `teacher-student-dashboard.html`
-
-而下面这些页面虽然多数接口在统一 API 烟测里已经覆盖，但还值得继续补“页面级合同”或 Playwright 冒烟：
-
+- `teacher-dashboard.html`
 - `teacher-courses.html`
 - `teacher-assignments.html`
 - `teacher-knowledge.html`
+- `teacher-warning.html`
+- `teacher-student-dashboard.html`
 - `teacher-notifications.html`
 - `teacher-settings.html`
+- `teacher-ai-tools.html`
+
+后续若继续增强页面级验证，重点不再是“能否打开首屏”，而是补具体 CRUD 操作合同：
+
+- 教师课程/班级分配新增、编辑、删除
+- 教师作业/考试发布、编辑、删除
+- 教师通知发送
+- 教师设置保存
 
 ### C. 本地烟测脚本与单体基座
 

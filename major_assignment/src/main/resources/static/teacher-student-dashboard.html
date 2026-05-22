@@ -610,9 +610,10 @@
                 setTimeout(() => {
                     if (window.initSidebar) {
                         window.initSidebar();
-                    } else {
-                        // 尝试直接调用，可能脚本已经内联执行
+                    } else if (typeof initSidebar === 'function') {
                         initSidebar();
+                    } else {
+                        console.warn('侧边栏初始化函数未定义，跳过初始化');
                     }
                 }, 100);
             })
