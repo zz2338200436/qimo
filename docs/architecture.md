@@ -1,8 +1,11 @@
-# 目标架构与组件选型
+---
+title: 目标架构与组件选型
+version: v0.2
+last_updated: 2026-05-20
+author: 架构组
+---
 
-> 版本：v0.2
-> 最后更新：2026-05-20
-> 作者：架构组
+# 目标架构与组件选型
 
 ## 1. 总体架构概述
 
@@ -32,7 +35,7 @@ flowchart LR
 
 | 项目 | 候选 | 选定 | 理由 | 备选切换条件 |
 | --- | --- | --- | --- | --- |
-| 注册中心 | Eureka / Nacos / Consul | Eureka Server | 与当前 Spring Cloud 2023.x 栈直接兼容，落地轻，便于先完成服务注册发现主链路 | 若后续切向 Kubernetes 原生服务发现，可评估 Spring Cloud Kubernetes |
+| 注册中心 | Eureka / Nacos / Consul | Eureka Server | 与当前仓库已锁定的 Spring Cloud 2025.0.0 栈兼容，落地轻，便于先完成服务注册发现主链路 | 若后续切向 Kubernetes 原生服务发现，可评估 Spring Cloud Kubernetes |
 | 配置管理 | `application.yml` + 环境变量 / Spring Cloud Config / Nacos Config / Apollo | `application.yml` + 环境变量（阶段 2 过渡态） | 当前先收敛注册发现与网关主链路，避免在首轮剥离同时引入第二个基础设施依赖 | 若后续需要集中化动态配置，再补 Spring Cloud Config 或 Apollo |
 
 ### 3.2 API 网关
@@ -85,10 +88,10 @@ Gateway 统一按 `(clientIp, userId, routeId)` 分桶限流，默认单实例�
 | --- | --- | --- |
 | Java | 17 | 所有模块统一使用 Java 17 |
 | Spring Boot | 3.5.3 | 与现有单体版本保持一致，降低阶段 2 迁移噪音 |
-| Spring Cloud | 2023.0.x | 由 `parent-pom` 统一 BOM 管控，子模块不得单独覆盖 |
+| Spring Cloud | 2025.0.0 | 由 `parent-pom` 统一 BOM 管控，子模块不得单独覆盖 |
 | Micrometer Tracing | 1.3.x | 为 TraceId/MDC/OTLP 打底 |
 | Resilience4j | 2.2.x | 统一熔断与限流能力 |
-| Eureka Client / Server | 4.1.x | 对应 Spring Cloud Netflix 2023.0.x 路径 |
+| Eureka Client / Server | BOM 管控（随 Spring Cloud 2025.0.0） | 由 Spring Cloud Netflix 依赖路径统一锁定，子模块不得单独覆盖 |
 
 说明：本仓库当前采用 `parent-pom` 统一导入这些 BOM，并通过 Maven Enforcer 阻止子模块私自漂移版本。这样即便 `major_assignment` 仍处在单体阶段，新的微服务骨架也已经具备一致的升级入口。
 

@@ -4,7 +4,7 @@
 > 最后更新：2026-05-19
 > 对应需求：`.kiro/specs/spring-cloud-migration/requirements.md`（R1~R18）
 > 对应设计：`.kiro/specs/spring-cloud-migration/design.md`
-> 实施语言：**Java 17 + Spring Boot 3.5.3 + Spring Cloud 2023.0.x**（与设计文档一致，无需额外语言选择）
+> 实施语言：**Java 17 + Spring Boot 3.5.3 + Spring Cloud 2025.0.0**（与设计文档一致，无需额外语言选择）
 
 ## Overview（概述）
 
@@ -50,9 +50,10 @@
     - `architecture.md` 中结构图占位使用 Mermaid/PlantUML 代码块
     - _Requirements: 18.1, 18.2, 18.4, 18.5_
 
-  - [ ]* 1.3 编写文档骨架完整性单元测试
+  - [x]* 1.3 编写文档骨架完整性单元测试
     - 解析 Markdown，断言 8 篇文档存在且包含必要 Front-Matter 字段与"变更记录"表格
     - 断言 `docs/README.md` 中所有 8 篇链接均可被识别
+    - 已补 `DocumentationSkeletonTest`
     - _Requirements: 18.1, 18.2, 18.3_
 
 ---
@@ -71,9 +72,10 @@
   - 每条问题包含六字段：编号 / 描述 / 证据 / 影响等级 / 建议阶段 / 验证手段
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-  - [ ]* 2.1 编写诊断报告结构完整性测试
+  - [x]* 2.1 编写诊断报告结构完整性测试
     - 用 Markdown 解析器断言：每条问题记录包含六字段且非空
     - 断言"高影响"问题数量 ≥ `migration-plan.md` 中阶段 1 必修问题数量（完整性度量关系）
+    - 已补 `DiagnosisReportStructureTest`
     - _Requirements: 1.1, 1.2, Invariant(完整性), Metamorphic(度量关系)_
 
 #### 现状治理 —— 鉴权与会话（R2）
@@ -154,9 +156,10 @@
     - 建立 ArchUnit 规则：`@RestController` 方法返回类型必须是 `ResponseResult<?>` 或其派生
     - _Requirements: 3.1_
 
-  - [ ]* 4.5 编写 ArchUnit 结构测试
+  - [x]* 4.5 编写 ArchUnit 结构测试
     - 断言：所有 `@RestController` 方法返回 `ResponseResult<?>`
     - 断言：`GlobalExceptionHandler` 是唯一 `@ControllerAdvice`
+    - 已补 `ControllerReturnTypeArchTest`
     - _Requirements: 3.1, 3.2_
 
 #### 现状治理 —— MDC 与 JSON 结构化日志（R3.4、R3.5）
@@ -260,9 +263,10 @@
     - 写方法使用 `@Caching` 显式枚举所有 `@CacheEvict`
     - _Requirements: 5.2, 5.3_
 
-  - [ ]* 8.3 编写缓存配置唯一性测试
+  - [x]* 8.3 编写缓存配置唯一性测试
     - **Property 7：缓存配置唯一性**（`(cacheName, key)` 组合在全应用内唯一）
     - 扫描所有 `@Cacheable` 注解并断言
+    - 已补 `CacheConfigurationUniquenessTest`
     - _Requirements: 5.2_
     - _Properties: P7 缓存配置唯一性_
 
@@ -278,9 +282,10 @@
     - 锁 Key 固定格式 `LOCK:{domain}:{resourceId}`
     - _Requirements: 5.4_
 
-  - [ ]* 8.6 编写分布式锁 Key 格式属性测试
+  - [x]* 8.6 编写分布式锁 Key 格式属性测试
     - **Property 9：分布式锁 Key 格式**（实际 Redis Key 匹配 `^LOCK:[^:]+:.+$`）
     - 使用 `lockKeyArb` 生成器（含特殊字符 / 空串 / 超长）
+    - 已由 `RedisDistributedLockImplTest` 覆盖典型值、特殊字符与参数边界
     - _Requirements: 5.4_
     - _Properties: P9 分布式锁 Key 格式_
 
@@ -327,7 +332,7 @@
   - _Requirements: 6.1, 6.2, 7.1_
 
   - [x] 11.1 创建 `parent-pom` 锁定 BOM 版本
-    - 声明 `java.version=17` / `spring-boot.version=3.5.3` / `spring-cloud.version=2023.0.x`
+    - 声明 `java.version=17` / `spring-boot.version=3.5.3` / `spring-cloud.version=2025.0.0`
     - `<dependencyManagement>` 引入 spring-cloud-dependencies / micrometer-tracing / resilience4j BOM
     - 子模块禁止覆盖版本（通过 Enforcer 插件规则约束）
     - _Requirements: 7.1, 7.9_
@@ -338,15 +343,16 @@
     - `common` 模块包含：ResponseResult / 异常体系 / MDC Filter / Feign 配置 / 指标 tagging
     - _Requirements: 6.2, 10.1_
 
-  - [ ]* 11.3 编写依赖版本一致性属性测试
+  - [x]* 11.3 编写依赖版本一致性属性测试
     - **Property 13：依赖版本一致**（所有子模块 `spring-boot.version / spring-cloud.version` 与 `docs/architecture.md` 声明一致）
     - 用 Maven Enforcer 规则 + ArchUnit / 自定义扫描实现
+    - 已补 `PlatformVersionAlignmentTest`
     - _Requirements: 7.1, 7 Invariant_
     - _Properties: P13 依赖版本一致_
 
   - [x] 11.4 在 `docs/architecture.md` 中填充选型决策表与版本说明
     - 对 R7.2~R7.9 每个选型写明 "候选 / 选定 / 理由 / 备选切换条件"
-    - 记录 Spring Cloud 2023.0.x 与 Spring Boot 3.5.3 匹配说明
+    - 记录 Spring Cloud 2025.0.0 与 Spring Boot 3.5.3 匹配说明
     - _Requirements: 7.3, 7.4, 7.9, 18.1, 18.4_
 
 #### Eureka Server 与接入
@@ -405,9 +411,10 @@
     - 携带原始 HTTP 状态码与下游 `ResponseResult.message`
     - _Requirements: 10.3_
 
-  - [ ]* 13.5 编写 ErrorDecoder 分类属性测试
+  - [x]* 13.5 编写 ErrorDecoder 分类属性测试
     - **Property 25：ErrorDecoder 错误分类**（`[400, 499] → RemoteClientException`；`[500, 599] → RemoteServerException`；`exception.code == httpStatus`）
     - 使用 `httpStatusArb` 生成器
+    - 已补 `GlobalFeignErrorDecoderTest`
     - _Requirements: 10.3, 10 Metamorphic_
     - _Properties: P25 ErrorDecoder 错误分类_
 
@@ -1488,7 +1495,7 @@
 - 属性测试任务刻意紧邻对应实现任务放置，以便错误在本任务内被发现。
 - 检查点任务（10 / 19 / 29）是阶段退出的硬门槛；失败时返回对应阶段内的任务继续修复。
 - 所有任务 **仅** 包含"写代码 / 写配置 / 写文档"这三类可由编码代理完成的工作；不包含用户培训、上线审批、业务演练、市场沟通等非编码活动。
-- 实施语言统一为 Java 17 + Spring Boot 3.5.3 + Spring Cloud 2023.0.x（与设计一致），所有代码示例、PBT 与工具链基于该栈。
+- 实施语言统一为 Java 17 + Spring Boot 3.5.3 + Spring Cloud 2025.0.0（与设计一致），所有代码示例、PBT 与工具链基于该栈。
 
 ## Workflow Completion（工作流完成说明）
 

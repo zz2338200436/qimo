@@ -160,7 +160,7 @@
 
 #### Acceptance Criteria
 
-1. THE Target_Platform SHALL 以 Spring Boot 3.x（≥ 3.5.3）作为每个微服务的基础框架，并锁定与之匹配的 Spring Cloud 版本（候选：2023.0.x / 2024.0.x）。
+1. THE Target_Platform SHALL 以 Spring Boot 3.x（≥ 3.5.3）作为每个微服务的基础框架，并锁定与之匹配的 Spring Cloud 版本（当前基线：2025.0.x）。
 2. THE Target_Platform SHALL 使用 Spring Cloud Gateway 作为统一网关，不使用 Zuul。
 3. THE Target_Platform SHALL 使用 Nacos 或 Eureka 中的一项作为 Registry，并在 `docs/architecture.md` 中说明选择理由与备选方案。
 4. THE Target_Platform SHALL 在目标态使用 Nacos Config、Spring Cloud Config 或 Apollo 中的一项作为 Config_Center；在阶段 2 过渡期允许先使用 `application.yml` + 环境变量承接配置管理。

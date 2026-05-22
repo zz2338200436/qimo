@@ -284,7 +284,7 @@ sequenceDiagram
 | --- | --- |
 | JDK | 17（LTS） |
 | Spring Boot | 3.5.3（与现状单体 `pom.xml` 一致） |
-| Spring Cloud | **2023.0.x**（BOM `2023.0.3+`，与 Spring Boot 3.5 兼容） |
+| Spring Cloud | **2025.0.0**（由 `parent-pom` 统一 BOM 锁定，与 Spring Boot 3.5.3 对齐） |
 | Spring Cloud Netflix | 4.1.x（Eureka Client / Server） |
 | Micrometer | 1.13+ |
 | Resilience4j | 2.x |
@@ -705,7 +705,7 @@ CREATE TABLE processed_event (
 
 ### Property 13：依赖版本一致
 
-*For any* 子模块 `m` 的 `pom.xml`，`spring-boot.version` 必须等于 `3.5.3`，`spring-cloud-dependencies.version` 必须等于 `docs/architecture.md` 中声明的 Spring Cloud 2023.0.x 版本，不得由子模块覆盖。
+*For any* 子模块 `m` 的 `pom.xml`，`spring-boot.version` 必须等于 `3.5.3`，`spring-cloud-dependencies.version` 必须等于 `docs/architecture.md` 中声明的 Spring Cloud 2025.0.0 版本，不得由子模块覆盖。
 
 **Validates: R7.1, R7 依赖一致性**
 
