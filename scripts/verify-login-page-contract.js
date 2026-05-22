@@ -21,7 +21,7 @@ for (const [name, content] of [
   ['teacher-login.html', teacherLogin],
   ['student-login.html', studentLogin]
 ]) {
-  assertIncludes(content, 'http://localhost:8080/api/auth/captcha', `${name} should load captcha from gateway auth route.`);
+  assertIncludes(content, '/api/auth/captcha', `${name} should load captcha from gateway auth route.`);
   assertNotIncludes(content, "/api/public/captcha", `${name} should not use legacy captcha endpoint.`);
   assertIncludes(content, 'CaptchaKey', `${name} should track captchaKey for login submission.`);
 }

@@ -158,6 +158,87 @@ author: Codex
 2. 建立“已切流接口清单”
 3. 建立“仍依赖单体的页面或脚本清单”
 
+## 6.4 当前已验证的前端主链路
+
+2026-05-22 本地冒烟已经确认，下面这些页面在 `frontend/dist` 预览模式下可以通过
+`5500 前端预览 -> Gateway(8080) -> 微服务` 的链路工作，不依赖单体静态资源托管：
+
+| 页面 / 能力 | 验证方式 | 当前结论 |
+| --- | --- | --- |
+| `teacher-warning.html` | Playwright 页面冒烟 + `/api/early-warnings/**` 响应检查 | 已走 Gateway + `analysis-service` |
+| `teacher-student-dashboard.html` | Playwright 页面冒烟 + `/api/teacher/dashboard` / `/api/teacher/learning-summary` 响应检查 | 已走 Gateway + `analysis-service` |
+| 登录页验证码 | `verify-login-page-contract.js` | 已走 `/api/auth/captcha`，不再依赖 legacy captcha 路径 |
+| 教师 / 学生统一 API 链路 | `verify-gateway-api-smoke.js` | 20 组统一网关烟测通过 |
+
+补充说明：
+
+- 本地 `5500` 预览端口现在不再只是裸 `http.server`，而是轻量前端代理服务：
+  - 静态资源来自 `frontend/dist`
+  - `/api/**` 自动代理到 `gateway`
+- 这样浏览器联调路径与生产部署保持一致，不需要在页面里重新写死 `localhost:8080`
+
+## 6.5 当前仍需继续收缩的单体兼容面
+
+以下内容仍然属于“过渡兼容面”，后续应继续减少对 `major_assignment` 的依赖：
+
+### A. 单体 Controller 兼容壳
+
+仍存在于 `major_assignment` 的主要控制器包括：
+
+- `AuthController.java`
+- `CourseController.java`
+- `AssignmentController.java`
+- `ExamController.java`
+- `AnalysisController.java`
+- `NotificationController.java`
+- `StudentController.java`
+- `TeacherDashboardController.java`
+- `DashboardController.java`
+- `KnowledgePointController.java`
+- `KnowledgePointAnalysisController.java`
+- `SystemDataController.java`
+- `UserController.java`
+- `EarlyWarningController.java`
+
+其中多数已经不应再作为长期主实现，只适合：
+
+- 兼容旧 URL
+- 兼容旧前端调用
+- 过渡期本地对照验证
+
+### B. 仍需继续补页面合同 / 浏览器冒烟的前端页面
+
+当前教师高频页面里，已经做过更强联调验证的是：
+
+- `teacher-warning.html`
+- `teacher-student-dashboard.html`
+
+而下面这些页面虽然多数接口在统一 API 烟测里已经覆盖，但还值得继续补“页面级合同”或 Playwright 冒烟：
+
+- `teacher-courses.html`
+- `teacher-assignments.html`
+- `teacher-knowledge.html`
+- `teacher-notifications.html`
+- `teacher-settings.html`
+- `student-dashboard.html`
+- `student-courses.html`
+- `student-assignments.html`
+- `student-notifications.html`
+- `student-settings.html`
+
+### C. 本地烟测脚本与单体基座
+
+以下脚本 / 资产短期内仍应保留，因为它们是迁移期验证工具，不是生产主实现：
+
+- `scripts/start-runtime-smoke-stack.ps1`
+- `scripts/frontend_dev_server.py`
+- `scripts/verify-gateway-api-smoke.js`
+- `scripts/verify-teacher-jwt-pages.js`
+- `scripts/verify-login-page-contract.js`
+- 以及一组学生/教师页面合同脚本
+
+这些属于“保留的迁移辅助基座”，不代表 `major_assignment` 仍应继续承载业务主逻辑。
+
 ## 7. 识别是否该继续放在单体里的判断标准
 
 遇到一个功能时，可以按这个判断：

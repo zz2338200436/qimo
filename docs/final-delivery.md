@@ -34,9 +34,9 @@
 | `analysis-service` | 8086 | 学情分析、趋势、预警、知识点掌握 | `sc_analysis` |
 | `notification-service` | 8087 | 通知、未读数、已读状态 | `sc_notification` |
 | `ai-service` | 8088 | AI 题目、试卷、学习建议生成 | `sc_ai` |
-| `frontend/dist` | 5500 | 静态前端本地预览 | 无 |
+| `frontend/dist` | 5500 | 前端本地预览（静态资源 + `/api/**` 代理到 Gateway） | 无 |
 
-本轮统一网关烟测使用默认 Gateway 地址 `http://localhost:8080`。如果本地端口冲突，可通过 `SERVER_PORT=18080` 临时覆盖，并同步调整登录态脚本和烟测脚本的 BaseUrl。
+本轮统一网关烟测使用默认 Gateway 地址 `http://localhost:8080`。`5500` 预览端口由本地轻量前端服务器承载，页面中的 `/api/**` 会转发到 Gateway，因此浏览器冒烟路径与生产部署保持一致。如果本地端口冲突，可通过 `SERVER_PORT=18080` 临时覆盖，并同步调整登录态脚本和烟测脚本的 BaseUrl。
 
 ## 3. 本地启动
 

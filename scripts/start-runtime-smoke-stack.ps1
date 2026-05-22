@@ -16,6 +16,7 @@ if ($pythonCommand) {
     $python = $python3Command.Source
 }
 $runtimeLogs = Join-Path $repoRoot '.runtime-logs'
+$workspaceDependencies = Join-Path $repoRoot '.runtime-logs'
 
 if (-not (Test-Path $runtimeLogs)) {
     New-Item -ItemType Directory -Path $runtimeLogs | Out-Null
@@ -85,24 +86,63 @@ function Start-JarService {
 }
 
 function Start-Frontend {
-    if (-not $python) {
-        throw "python executable not found in PATH."
-    }
-
     Stop-PortProcess -Port 5500
 
     $outLog = Join-Path $runtimeLogs 'frontend-smoke.out.log'
     $errLog = Join-Path $runtimeLogs 'frontend-smoke.err.log'
     Remove-Item $outLog, $errLog -Force -ErrorAction SilentlyContinue
 
-    Start-Process -FilePath $python `
-        -ArgumentList @('-m', 'http.server', '5500') `
-        -WorkingDirectory (Join-Path $repoRoot 'frontend\dist') `
-        -WindowStyle Hidden `
-        -RedirectStandardOutput $outLog `
-        -RedirectStandardError $errLog | Out-Null
+    $pythonCandidates = @()
+    if ($python) {
+        $pythonCandidates += $python
+    }
+    $pythonCandidates += @(
+        'D:\111\PyCharm\环境\Python312\python.exe',
+        'python',
+        'python3'
+    ) | Select-Object -Unique
 
-    Start-Sleep -Seconds 3
+    $frontendScript = Join-Path $repoRoot 'scripts\frontend_dev_server.py'
+    $started = $false
+
+    foreach ($pythonCandidate in $pythonCandidates) {
+        try {
+            if ($pythonCandidate -notin @('python', 'python3') -and -not (Test-Path $pythonCandidate)) {
+                continue
+            }
+
+            Start-Process -FilePath $pythonCandidate `
+                -ArgumentList @('-u', $frontendScript) `
+                -WorkingDirectory $repoRoot `
+                -WindowStyle Hidden `
+                -RedirectStandardOutput $outLog `
+                -RedirectStandardError $errLog | Out-Null
+
+            $deadline = (Get-Date).AddSeconds(8)
+            do {
+                Start-Sleep -Seconds 1
+                $listener = Get-NetTCPConnection -State Listen -LocalPort 5500 -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($listener) {
+                    $started = $true
+                    break
+                }
+            } while ((Get-Date) -lt $deadline)
+
+            if ($started) {
+                break
+            }
+        } catch {
+            Write-Warning ("Failed to start frontend preview with {0}: {1}" -f $pythonCandidate, $_.Exception.Message)
+        }
+    }
+
+    if (-not $started) {
+        $errorText = ''
+        if (Test-Path $errLog) {
+            $errorText = Get-Content $errLog -Tail 20 | Out-String
+        }
+        throw "Failed to start frontend preview server on port 5500. $errorText"
+    }
 }
 
 Start-Frontend

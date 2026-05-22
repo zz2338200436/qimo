@@ -9,6 +9,11 @@ The current deployable frontend root is:
 
 `frontend/dist`
 
+For local smoke testing, the repository now starts a lightweight preview server on `http://localhost:5500`
+that serves `frontend/dist` and proxies `/api/**` to the Gateway at `http://localhost:8080`.
+This keeps browser-based verification aligned with the production "frontend -> gateway -> services" path
+without reintroducing page-level hardcoded backend hosts.
+
 Nginx deployment config now lives at:
 
 `deploy/nginx/nginx.conf`

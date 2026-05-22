@@ -43,31 +43,36 @@ function assert(condition, message, details) {
 }
 
 async function requestJson(method, url, token, body, extraHeaders) {
-  const headers = {
-    Authorization: `Bearer ${token}`
-  };
-  if (body !== undefined) {
-    headers['Content-Type'] = 'application/json';
-  }
-  Object.assign(headers, extraHeaders || {});
-  const response = await fetch(url, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body)
-  });
-  const text = await response.text();
-  let json = null;
-  if (text) {
-    try {
-      json = JSON.parse(text);
-    } catch (error) {
-      throw new Error(`${method} ${url} returned non-JSON body: ${text.slice(0, 200)}`);
+  return retry(async () => {
+    const headers = {
+      Authorization: `Bearer ${token}`
+    };
+    if (body !== undefined) {
+      headers['Content-Type'] = 'application/json';
     }
-  }
-  if (!response.ok) {
-    throw new Error(`${method} ${url} failed with ${response.status}: ${text.slice(0, 300)}`);
-  }
-  return { response, json, text };
+    Object.assign(headers, extraHeaders || {});
+    const response = await fetch(url, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body)
+    });
+    const text = await response.text();
+    let json = null;
+    if (text) {
+      try {
+        json = JSON.parse(text);
+      } catch (error) {
+        throw new Error(`${method} ${url} returned non-JSON body: ${text.slice(0, 200)}`);
+      }
+    }
+    if (response.status === 503) {
+      throw new Error(`${method} ${url} failed with 503: ${text.slice(0, 300)}`);
+    }
+    if (!response.ok) {
+      throw new Error(`${method} ${url} failed with ${response.status}: ${text.slice(0, 300)}`);
+    }
+    return { response, json, text };
+  }, 5, 1500);
 }
 
 async function requestJsonAllowStatus(method, url, token, body, expectedStatuses, extraHeaders) {
