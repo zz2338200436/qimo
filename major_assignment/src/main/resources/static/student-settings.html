@@ -966,9 +966,13 @@
         // 导出数据
         async function exportData() {
             try {
-                const response = await fetch(`${API_BASE_URL}/student/export-data`, {
+                const response = await fetch(`${API_BASE_URL}/api/student/export-data`, {
                     method: 'GET',
-                    credentials: 'include'
+                    credentials: 'include',
+                    headers: {
+                        ...(window.getAccessToken && window.getAccessToken() ? { 'Authorization': `Bearer ${window.getAccessToken()}` } : {}),
+                        ...(window.getRoleContext && window.getRoleContext() ? { 'X-Role-Context': window.getRoleContext() } : {})
+                    }
                 });
 
                 if (!response.ok) {

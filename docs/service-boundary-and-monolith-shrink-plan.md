@@ -167,6 +167,11 @@ author: Codex
 | --- | --- | --- |
 | `teacher-warning.html` | Playwright 页面冒烟 + `/api/early-warnings/**` 响应检查 | 已走 Gateway + `analysis-service` |
 | `teacher-student-dashboard.html` | Playwright 页面冒烟 + `/api/teacher/dashboard` / `/api/teacher/learning-summary` 响应检查 | 已走 Gateway + `analysis-service` |
+| `student-dashboard.html` | Playwright 页面冒烟 + 已接通学生课程/作业/考试接口响应检查 | 已走 Gateway；综合表现接口未接通时会自动回退到已接通数据源 |
+| `student-courses.html` | Playwright 页面冒烟 + `/api/student/courses` 响应检查 | 已走 Gateway + `course-service` |
+| `student-assignments.html` | Playwright 页面冒烟 + `/api/student/assignments` 响应检查 | 已走 Gateway + `assignment-service` |
+| `student-notifications.html` | Playwright 页面冒烟 + `/api/notifications/student/**` 响应检查 | 已走 Gateway + `notification-service` |
+| `student-settings.html` | Playwright 页面冒烟 + `/api/student/profile` / `notification-settings` / `privacy-settings` 响应检查 | 已走 Gateway + `user-service` |
 | 登录页验证码 | `verify-login-page-contract.js` | 已走 `/api/auth/captcha`，不再依赖 legacy captcha 路径 |
 | 教师 / 学生统一 API 链路 | `verify-gateway-api-smoke.js` | 20 组统一网关烟测通过 |
 
@@ -220,11 +225,6 @@ author: Codex
 - `teacher-knowledge.html`
 - `teacher-notifications.html`
 - `teacher-settings.html`
-- `student-dashboard.html`
-- `student-courses.html`
-- `student-assignments.html`
-- `student-notifications.html`
-- `student-settings.html`
 
 ### C. 本地烟测脚本与单体基座
 
@@ -234,6 +234,7 @@ author: Codex
 - `scripts/frontend_dev_server.py`
 - `scripts/verify-gateway-api-smoke.js`
 - `scripts/verify-teacher-jwt-pages.js`
+- `scripts/verify-student-jwt-pages.js`
 - `scripts/verify-login-page-contract.js`
 - 以及一组学生/教师页面合同脚本
 

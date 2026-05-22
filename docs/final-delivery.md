@@ -1,7 +1,7 @@
 # Spring Cloud 迁移最终交付说明
 
 > 版本：v0.1
-> 最后更新：2026-05-21
+> 最后更新：2026-05-22
 > 作者：Codex
 
 ## 1. 交付范围
@@ -77,6 +77,9 @@ mvn -T 1 "-DargLine=-Xms64m -Xmx384m -XX:MaxMetaspaceSize=256m -XX:ReservedCodeC
 | 2026-05-21 | `mvn --% -pl analysis-service -am -Dtest=AnalysisQueryControllerTest -Dsurefire.failIfNoSpecifiedTests=false test` | `Tests run: 24, Failures: 0, Errors: 0, Skipped: 0` |
 | 2026-05-21 | `mvn --% -pl major_assignment -Dtest=CiWorkflowStructureTest test` | `BUILD SUCCESS`；当前 checkout 无 workflow 文件时该结构检查跳过 |
 | 2026-05-21 | `node .\scripts\verify-gateway-api-smoke.js` | `All smoke checks passed: 18`，测试数据已清理 |
+| 2026-05-22 | `node .\scripts\verify-gateway-api-smoke.js` | `All smoke checks passed: 20`，统一网关链路再次验证通过 |
+| 2026-05-22 | `node .\scripts\verify-student-jwt-pages.js .\.runtime-logs\student-session-full-smoke.json` | 学生高频页面 5/5 通过：`student-dashboard / courses / assignments / notifications / settings` |
+| 2026-05-22 | `node .\scripts\verify-teacher-jwt-pages.js .\.runtime-logs\teacher-session-full-smoke.json` | 教师高频页面 2/2 通过：`teacher-warning / teacher-student-dashboard` |
 
 说明：当前分支的常规验证使用 `mvn test` 与网关运行时烟测；正式封版前可再跑一次全仓 `mvn clean verify` 作为发布级证明。
 
@@ -148,6 +151,20 @@ powershell -ExecutionPolicy Bypass -File scripts\get-dev-auth-session.ps1 -Role 
 | AI 生成题目 | `POST /api/ai/generate-questions` | 200 | AI 题目生成成功 |
 
 统一脚本还覆盖了教师端课程/班级创建与删除、知识点创建与删除、作业发布与批改、考试发布与批改、通知创建与已读、学生资料更新、预警创建/导出/触发、学生知识点详情、教师学生详情兼容读取等写入链路。脚本结束时已删除本轮创建的 warning、notification、assignment、exam、class、course 测试数据。
+
+### 4.3 浏览器级页面烟测
+
+2026-05-22 已完成面向真实 `5500 前端预览 -> Gateway(8080) -> 微服务` 链路的页面级烟测：
+
+| 页面 | 结果 | 说明 |
+| --- | --- | --- |
+| `teacher-warning.html` | 通过 | 命中 `analysis-service` 预警接口 |
+| `teacher-student-dashboard.html` | 通过 | 命中教师学情分析接口 |
+| `student-dashboard.html` | 通过 | 学生综合表现接口未接通时，会自动回退到已接通课程/作业/考试数据源 |
+| `student-courses.html` | 通过 | 命中学生课程接口 |
+| `student-assignments.html` | 通过 | 命中学生作业接口 |
+| `student-notifications.html` | 通过 | 命中学生通知接口 |
+| `student-settings.html` | 通过 | 命中学生资料、通知设置、隐私设置接口 |
 
 ## 5. 本地 Flyway 注意事项
 

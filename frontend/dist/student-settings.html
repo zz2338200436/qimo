@@ -696,16 +696,6 @@
             return !!(window.isJwtOnlyStudentSession && window.isJwtOnlyStudentSession());
         }
 
-        function buildUnsupportedResult(message, code = 501) {
-            return {
-                success: false,
-                unsupported: true,
-                code,
-                message,
-                data: null
-            };
-        }
-
         function initializeLocalDevEmptyState() {
             const sessionContext = window.getStudentSessionContext ? window.getStudentSessionContext() : null;
             const user = (sessionContext && sessionContext.user) || JSON.parse(sessionStorage.getItem('user') || '{}');
@@ -737,9 +727,6 @@
         // 加载学生个人信息
         async function loadStudentProfile() {
             try {
-                if (isJwtOnlyStudentMode()) {
-                    return buildUnsupportedResult('当前 JWT 微服务环境暂未接通学生资料接口，已展示本地会话信息。');
-                }
                 console.log('开始加载学生个人信息...');
                 const response = await studentAPI.getStudentProfile();
                 console.log('API响应:', response);
@@ -876,10 +863,6 @@
         // 保存学生个人信息
         async function saveStudentProfile() {
             try {
-                if (isJwtOnlyStudentMode()) {
-                    showMessage('当前 JWT 微服务环境暂未接通学生资料保存接口。', 'info');
-                    return;
-                }
                 const formData = {
                     name: document.getElementById('profile-name')?.value?.trim() || '',
                     major: document.getElementById('profile-major')?.value?.trim() || '',
@@ -953,10 +936,6 @@
         // 保存通知设置
         async function saveNotificationSettings() {
             try {
-                if (isJwtOnlyStudentMode()) {
-                    showMessage('当前 JWT 微服务环境暂未接通学生通知设置接口。', 'info');
-                    return;
-                }
                 const formData = {
                     emailNotifications: document.getElementById('emailNotifications')?.checked || false,
                     smsNotifications: document.getElementById('smsNotifications')?.checked || false,
@@ -983,10 +962,6 @@
         // 保存隐私设置
         async function savePrivacySettings() {
             try {
-                if (isJwtOnlyStudentMode()) {
-                    showMessage('当前 JWT 微服务环境暂未接通学生隐私设置接口。', 'info');
-                    return;
-                }
                 const formData = {
                     shareProfile: document.getElementById('shareProfile')?.checked || false,
                     shareAchievements: document.getElementById('shareAchievements')?.checked || false,
@@ -1052,10 +1027,6 @@
         // 导出数据
         async function exportData() {
             try {
-                if (isJwtOnlyStudentMode()) {
-                    showMessage('当前 JWT 微服务环境暂未接通学生数据导出接口。', 'info');
-                    return;
-                }
                 const response = await fetch(`${API_BASE_URL}/api/student/export-data`, {
                     method: 'GET',
                     credentials: 'include',
@@ -1088,9 +1059,6 @@
         // 加载通知设置
         async function loadNotificationSettings() {
             try {
-                if (isJwtOnlyStudentMode()) {
-                    return buildUnsupportedResult('当前 JWT 微服务环境暂未接通学生通知设置接口。');
-                }
                 console.log('开始加载通知设置...');
                 const response = await studentAPI.getNotificationSettings();
                 console.log('通知设置API响应:', response);
@@ -1137,9 +1105,6 @@
         // 加载隐私设置
         async function loadPrivacySettings() {
             try {
-                if (isJwtOnlyStudentMode()) {
-                    return buildUnsupportedResult('当前 JWT 微服务环境暂未接通学生隐私设置接口。');
-                }
                 console.log('开始加载隐私设置...');
                 const response = await studentAPI.getPrivacySettings();
                 console.log('隐私设置API响应:', response);
@@ -1197,10 +1162,6 @@
                 console.error('部分DOM元素未找到:', checkResult);
             }
 
-            if (isJwtOnlyStudentMode()) {
-                return;
-            }
-
             loadStudentProfile().then(() => {
                 // 加载完成后保存原始数据
                 loadAndSaveOriginalProfile();
@@ -1215,9 +1176,6 @@
         // 加载并保存原始数据
         async function loadAndSaveOriginalProfile() {
             try {
-                if (isJwtOnlyStudentMode()) {
-                    return;
-                }
                 const response = await studentAPI.getStudentProfile();
                 
                 // 处理不同的响应数据结构
@@ -1290,9 +1248,7 @@
         });
         
         // 加载原始数据
-        if (!isJwtOnlyStudentMode()) {
-            loadAndSaveOriginalProfile();
-        }
+        loadAndSaveOriginalProfile();
         
         // 头像上传
         const avatarUpload = document.getElementById('avatarUpload');
@@ -1322,10 +1278,8 @@
         }
         
         // 加载通知和隐私设置
-        if (!isJwtOnlyStudentMode()) {
-            loadNotificationSettings();
-            loadPrivacySettings();
-        }
+        loadNotificationSettings();
+        loadPrivacySettings();
     });
     
     // 检查用户登录状态

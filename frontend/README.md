@@ -61,6 +61,24 @@ Teacher pages:
 - `teacher-notifications.html`
 - `teacher-settings.html`
 
+## Local smoke coverage
+
+Browser-level JWT smoke scripts currently cover:
+
+- `scripts/verify-teacher-jwt-pages.js`
+  - `teacher-warning.html`
+  - `teacher-student-dashboard.html`
+- `scripts/verify-student-jwt-pages.js`
+  - `student-dashboard.html`
+  - `student-courses.html`
+  - `student-assignments.html`
+  - `student-notifications.html`
+  - `student-settings.html`
+
+These scripts are intended to validate the real preview path:
+
+`frontend/dist (5500) -> /api proxy -> gateway (8080) -> microservices`
+
 Shared assets:
 
 - `api.js`
