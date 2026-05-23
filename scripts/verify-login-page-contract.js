@@ -31,7 +31,7 @@ assertIncludes(apiJs, 'captchaKey', 'AuthAPI.login should send captchaKey in log
 assertIncludes(gatewayYaml, '- X-Captcha-Key', 'Gateway should expose X-Captcha-Key so frontend can read captcha headers.');
 assertIncludes(apiJs, 'function clearAuthSession()', 'api.js should provide a shared auth session cleanup helper.');
 assertIncludes(apiJs, 'function persistAuthSession(authData)', 'api.js should provide a shared auth session persistence helper.');
-assertIncludes(apiJs, 'return normalizedUrl.pathname === \'/api/auth/login\';', 'api.js should detect auth login requests when attaching auth headers.');
+assertIncludes(apiJs, 'return normalizedUrl.pathname === \'/api/auth/login\' || normalizedUrl.pathname === \'/api/auth/refresh\';', 'api.js should detect auth login and refresh requests when attaching auth headers.');
 assertIncludes(apiJs, 'const accessToken = isLoginRequest ? null : getAccessToken();', 'login requests should not inherit stale Authorization headers.');
 assertIncludes(teacherLogin, 'window.clearAuthSession()', 'teacher login should clear stale auth state before submitting a new login.');
 assertIncludes(studentLogin, 'window.clearAuthSession()', 'student login should clear stale auth state before submitting a new login.');

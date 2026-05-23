@@ -314,7 +314,7 @@ function toBackendUrl(url) {
 function isAuthLoginRequest(url) {
     try {
         const normalizedUrl = new URL(toBackendUrl(url), typeof window !== 'undefined' ? window.location.href : API_BASE_URL);
-        return normalizedUrl.pathname === '/api/auth/login';
+        return normalizedUrl.pathname === '/api/auth/login' || normalizedUrl.pathname === '/api/auth/refresh';
     } catch (error) {
         return false;
     }

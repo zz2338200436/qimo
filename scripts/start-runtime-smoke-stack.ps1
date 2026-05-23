@@ -120,8 +120,9 @@ function Start-Frontend {
                 continue
             }
 
+            $quotedFrontendScript = '"' + $frontendScript + '"'
             Start-Process -FilePath $pythonCandidate `
-                -ArgumentList @('-u', $frontendScript) `
+                -ArgumentList @('-u', $quotedFrontendScript) `
                 -WorkingDirectory $repoRoot `
                 -WindowStyle Hidden `
                 -RedirectStandardOutput $outLog `

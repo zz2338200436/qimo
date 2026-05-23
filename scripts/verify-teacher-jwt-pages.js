@@ -14,6 +14,7 @@ const checks = [
         name: 'teacher-dashboard',
         url: 'http://localhost:5500/teacher-dashboard.html',
         expectedText: '仪表盘',
+        readyText: '教授课程',
         expectedApis: [
             '/api/teacher/courses',
             '/api/teacher/assignments',
@@ -166,6 +167,13 @@ function collectMatchedResponses(responses, expectedApis) {
             try {
                 await page.goto(check.url, { waitUntil: 'domcontentloaded' });
                 await page.waitForTimeout(5000);
+                if (check.readyText) {
+                    await page.waitForFunction(
+                        expected => document.body && document.body.innerText.includes(expected),
+                        check.readyText,
+                        { timeout: 10000 }
+                    );
+                }
                 renderedText = await page.locator('body').innerText();
 
                 const matchedResponses = collectMatchedResponses(responses, check.expectedApis);
