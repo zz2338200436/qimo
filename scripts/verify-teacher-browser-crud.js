@@ -292,6 +292,7 @@ async function runStep(results, name, action) {
         });
 
         await runStep(results, 'teacher knowledge page CRUD', async () => {
+            const knowledgePointName = `KP-${unique}-Updated`;
             const create = await api(teacherPage, 'POST', '/api/teacher/knowledge-points', {
                 pointName: `KP-${unique}`,
                 description: 'browser crud smoke knowledge point',
@@ -313,6 +314,19 @@ async function runStep(results, name, action) {
 
             const detail = await api(teacherPage, 'GET', `/api/teacher/knowledge-points/${created.knowledgePointId}`);
             assert(detail.data.pointName.endsWith('-Updated'), 'knowledge point detail should reflect update', detail.data);
+
+            await teacherPage.evaluate(() => localStorage.removeItem('knowledgePageFilters'));
+            await teacherPage.goto('http://localhost:5500/teacher-knowledge.html', { waitUntil: 'domcontentloaded' });
+            await teacherPage.waitForFunction(courseId => {
+                const select = document.getElementById('course-select');
+                return !!select && Array.from(select.options).some(option => option.value === String(courseId));
+            }, created.courseId);
+            await teacherPage.selectOption('#course-select', String(created.courseId));
+            await teacherPage.click('#queryBtn');
+            await teacherPage.waitForFunction(expectedTitle => {
+                return Array.from(document.querySelectorAll('.knowledge-card-title'))
+                    .some(node => (node.textContent || '').includes(expectedTitle));
+            }, knowledgePointName, { timeout: 10000 });
         });
 
         await runStep(results, 'teacher assignments page CRUD: assignment/exam/grade', async () => {

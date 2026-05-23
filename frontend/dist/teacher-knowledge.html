@@ -1820,6 +1820,8 @@
                 }
                 throw new Error(result?.message || `请求失败: ${result?.code || '未知错误'}`);
             }
+
+            formattedData = await mergeKnowledgeAnalysisWithPointList(formattedData, filters);
             
             return {
                 success: true,
@@ -1842,6 +1844,100 @@
                 message: error?.message || '获取知识点分析数据失败'
             };
         }
+    }
+
+    function normalizeKnowledgeDistributionEntry(point, fallbackOrderIndex) {
+        const knowledgePointId = point.knowledgePointId ?? point.id;
+        const knowledgePointName = point.knowledgePointName || point.pointName || point.name || `知识点 ${knowledgePointId}`;
+        const masteryRate = typeof point.masteryRate === 'number' ? point.masteryRate : 0;
+        const orderIndex = typeof point.orderIndex === 'number'
+            ? point.orderIndex
+            : Number.parseInt(point.orderIndex, 10) || fallbackOrderIndex;
+        return {
+            knowledgePointId,
+            knowledgePointName,
+            masteryRate,
+            difficulty: point.difficulty || '未知',
+            orderIndex
+        };
+    }
+
+    async function mergeKnowledgeAnalysisWithPointList(analysisData, filters) {
+        if (!analysisData) {
+            return analysisData;
+        }
+
+        const rawPointList = await getKnowledgePointList();
+        if (!rawPointList.success || !Array.isArray(rawPointList.data)) {
+            return analysisData;
+        }
+
+        const selectedCourseId = filters.courseId && filters.courseId !== 'all'
+            ? Number.parseInt(filters.courseId, 10)
+            : null;
+        const selectedKnowledgePointId = filters.knowledgePoint && filters.knowledgePoint !== 'all'
+            ? Number.parseInt(filters.knowledgePoint, 10)
+            : null;
+        const distribution = Array.isArray(analysisData.knowledgePointDistribution)
+            ? analysisData.knowledgePointDistribution.map((point, index) => normalizeKnowledgeDistributionEntry(point, index + 1))
+            : [];
+        const seenIds = new Set(distribution.map(point => point.knowledgePointId));
+
+        rawPointList.data
+            .filter(point => selectedCourseId === null || point.courseId === selectedCourseId)
+            .filter(point => selectedKnowledgePointId === null || point.id === selectedKnowledgePointId)
+            .forEach(point => {
+                if (seenIds.has(point.id)) {
+                    return;
+                }
+                distribution.push(normalizeKnowledgeDistributionEntry(point, distribution.length + 1));
+            });
+
+        distribution.sort((left, right) => {
+            if (left.orderIndex !== right.orderIndex) {
+                return left.orderIndex - right.orderIndex;
+            }
+            return left.knowledgePointId - right.knowledgePointId;
+        });
+        distribution.forEach((point, index) => {
+            point.orderIndex = typeof point.orderIndex === 'number' ? point.orderIndex : index + 1;
+        });
+
+        const distributionIds = new Set(distribution.map(point => point.knowledgePointId));
+        const excellentStudentAverage = Array.isArray(analysisData.excellentStudentAverage)
+            ? analysisData.excellentStudentAverage.slice(0, distribution.length)
+            : [];
+        while (excellentStudentAverage.length < distribution.length) {
+            excellentStudentAverage.push(0.0);
+        }
+
+        return {
+            ...analysisData,
+            knowledgePointDistribution: distribution,
+            weakTopics: distribution
+                .filter(point => point.masteryRate < 60)
+                .map(point => {
+                    const existingWeakTopic = Array.isArray(analysisData.weakTopics)
+                        ? analysisData.weakTopics.find(topic => topic.knowledgePointId === point.knowledgePointId)
+                        : null;
+                    return existingWeakTopic || {
+                        knowledgePointId: point.knowledgePointId,
+                        knowledgePointName: point.knowledgePointName,
+                        averageMastery: point.masteryRate,
+                        studentCount: 0,
+                        difficulty: point.difficulty
+                    };
+                }),
+            atRiskStudents: Array.isArray(analysisData.atRiskStudents)
+                ? analysisData.atRiskStudents.map(student => ({
+                    ...student,
+                    weakKnowledgePoints: Array.isArray(student.weakKnowledgePoints)
+                        ? student.weakKnowledgePoints.filter(point => distributionIds.has(point.knowledgePointId))
+                        : []
+                }))
+                : [],
+            excellentStudentAverage
+        };
     }
         
     // 全局图表实例
