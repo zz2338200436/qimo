@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 public class TeacherAssignmentCommandService {
@@ -230,7 +231,12 @@ public class TeacherAssignmentCommandService {
 
     private static String buildAssignmentGradedEventId(AssignmentSubmissionRecord submission) {
         return "assignment-graded-" + submission.getId() + "-" + submission.getScore()
-                + "-" + shortSha256(normalizeTeacherComment(submission.getTeacherComment()));
+                + "-" + shortSha256(normalizeTeacherComment(submission.getTeacherComment()))
+                + "-" + shortRandomSuffix();
+    }
+
+    private static String shortRandomSuffix() {
+        return UUID.randomUUID().toString().replace("-", "").substring(0, 8);
     }
 
     private static String normalizeTeacherComment(String value) {
