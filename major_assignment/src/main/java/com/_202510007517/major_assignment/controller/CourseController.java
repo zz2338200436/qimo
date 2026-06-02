@@ -24,6 +24,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/teacher/courses")
 @Validated
+@RequireLogin(roles = {RoleConstants.TEACHER})
 public class CourseController extends BaseController {
     
     // Logger实例
@@ -33,7 +34,6 @@ public class CourseController extends BaseController {
     private CourseService courseService;
     
     @GetMapping
-    @RequireLogin(roles = {RoleConstants.TEACHER})
     public ResponseResult<PageResult<Course>> getCourses(HttpServletRequest requestContext, 
                                                   @RequestParam(value = "page", defaultValue = "1") @Min(1) Integer page, 
                                                   @RequestParam(value = "size", defaultValue = "10") @Min(1) @Max(100) Integer size,
@@ -51,19 +51,7 @@ public class CourseController extends BaseController {
         Long teacherId = currentUserId;
         // 调用带分页和搜索参数的服务方法
         List<Course> courses = courseService.findByTeacherIdWithSearch(teacherId, courseName, courseCode, category, courseStatus);
-        
-        // 构建分页结果
-        PageResult<Course> pageResult = new PageResult<>();
-        pageResult.setContent(courses);
-        pageResult.setPageNumber(page);
-        pageResult.setPageSize(size);
-        pageResult.setTotalElements((long) courses.size());
-        pageResult.setTotalPages((int) Math.ceil((double) courses.size() / size));
-        pageResult.setFirst(page == 1);
-        pageResult.setLast(page >= pageResult.getTotalPages());
-        pageResult.setOffset((long) (page - 1) * size);
-        pageResult.setNumberOfElements(courses.size());
-        pageResult.setEmpty(courses.isEmpty());
+        PageResult<Course> pageResult = buildPageResultFromInMemoryList(courses, page, size);
         
         // 记录响应日志
         LogUtil.logResponse(logger, "GET", "/api/teacher/courses", 200, pageResult, teacherId);
@@ -71,7 +59,6 @@ public class CourseController extends BaseController {
     }
     
     @PostMapping
-    @RequireLogin(roles = {RoleConstants.TEACHER})
     public ResponseResult<Course> createCourse(@RequestBody @Valid Course course, HttpServletRequest requestContext) {
         Long currentUserId = getCurrentUserId(requestContext);
         
@@ -100,7 +87,6 @@ public class CourseController extends BaseController {
     }
     
     @PutMapping("/{id}")
-    @RequireLogin(roles = {RoleConstants.TEACHER})
     public ResponseResult<Course> updateCourse(@PathVariable Long id, @RequestBody @Valid Course course, HttpServletRequest requestContext) {
         Long currentUserId = getCurrentUserId(requestContext);
         
@@ -130,7 +116,6 @@ public class CourseController extends BaseController {
     }
     
     @DeleteMapping("/{id}")
-    @RequireLogin(roles = {RoleConstants.TEACHER})
     public ResponseResult<Void> deleteCourse(@PathVariable Long id, HttpServletRequest requestContext) {
         Long currentUserId = getCurrentUserId(requestContext);
         
@@ -154,7 +139,6 @@ public class CourseController extends BaseController {
     }
     
     @GetMapping("/{courseId}/students")
-    @RequireLogin(roles = {RoleConstants.TEACHER})
     public ResponseResult<List<Map<String, Object>>> getCourseStudents(@PathVariable Long courseId, HttpServletRequest requestContext) {
         Long currentUserId = getCurrentUserId(requestContext);
         
@@ -169,7 +153,6 @@ public class CourseController extends BaseController {
     }
     
     @GetMapping("/{courseId}")
-    @RequireLogin(roles = {RoleConstants.TEACHER})
     public ResponseResult<Course> getCourseDetails(@PathVariable Long courseId, HttpServletRequest requestContext) {
         Long currentUserId = getCurrentUserId(requestContext);
         

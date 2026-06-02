@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>知识点薄弱分析 - 智能学习辅助系统</title>
+    <link rel="icon" href="data:,">
     <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="lib/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <script src="lib/chart.umd.min.js"></script>
+    <link href="styles.css?v=20260523-1" rel="stylesheet">
     <style>
         /* 全局样式 */
         body {
@@ -657,12 +659,12 @@
         }
     </style>
 </head>
-<body>
+<body class="teacher-shell-body">
     <!-- 侧边栏导航组件 -->
     <div id="sidebar-container"></div>
     <script>
         // 加载侧边栏组件
-        fetch('components/teacher-sidebar-nav.html')
+        fetch('components/teacher-sidebar-nav.html?v=20260523-1')
             .then(response => response.text())
             .then(data => {
                 document.getElementById('sidebar-container').innerHTML = data;
@@ -686,9 +688,9 @@
     </script>
     
     <!-- 主内容区 -->
-    <main class="main-content" id="mainContent">
+    <main class="main-content teacher-shell-main" id="mainContent">
         <!-- 顶部导航栏 -->
-        <nav class="top-navbar">
+        <nav class="top-navbar teacher-topbar">
             <div style="display: flex; align-items: center;">
                 <button class="toggle-btn"><i class="fa fa-bars"></i></button>
                 <h2 class="page-title">知识点薄弱分析</h2>
@@ -698,7 +700,7 @@
         </nav>
         
         <!-- 内容区域 -->
-        <div class="content-container">
+        <div class="content-container teacher-content">
             <!-- 筛选区域 -->
             <div class="filter-section" id="filterSection">
                 <div class="filter-header" id="filterHeader">
@@ -811,24 +813,24 @@
             
             <!-- 图表区域 -->
             <div class="charts-section">
-                <div class="chart-card">
+                <div class="chart-card" data-chart-kind="knowledge-distribution">
                     <div class="chart-card-header">
                         <h4 class="chart-card-title">知识点掌握程度分布</h4>
                         <div class="chart-card-actions">
-                            <button class="active">柱状图</button>
-                            <button>饼图</button>
+                            <button class="active" data-chart-view="bar">柱状图</button>
+                            <button data-chart-view="pie">饼图</button>
                         </div>
                     </div>
                     <div class="chart-container">
                         <canvas id="knowledgeDistributionChart"></canvas>
                     </div>
                 </div>
-                <div class="chart-card">
+                <div class="chart-card" data-chart-kind="knowledge-radar">
                     <div class="chart-card-header">
                         <h4 class="chart-card-title">知识点掌握程度雷达图</h4>
                         <div class="chart-card-actions">
-                            <button class="active">所有学生</button>
-                            <button>单个学生</button>
+                            <button class="active" data-chart-view="all-students">所有学生</button>
+                            <button data-chart-view="single-student">单个学生</button>
                         </div>
                     </div>
                     <div class="radar-chart-container">
@@ -880,128 +882,15 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="card mb-3">
-                                <div class="card-body">
-                                    <h6 class="card-title">基本信息</h6>
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <p><strong>知识点ID：</strong>KP003</p>
-                                            <p><strong>知识点名称：</strong>循环结构</p>
-                                            <p><strong>课程：</strong>Python编程基础</p>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <p><strong>掌握程度：</strong>45%</p>
-                                            <p><strong>难度级别：</strong>中级</p>
-                                            <p><strong>重要程度：</strong>高</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="card mb-3">
-                                <div class="card-body">
-                                    <h6 class="card-title">学生掌握情况</h6>
-                                    <div class="progress mb-2">
-                                        <div class="progress-bar bg-danger" role="progressbar" style="width: 62%" aria-valuenow="62" aria-valuemin="0" aria-valuemax="100">薄弱(28人)</div>
-                                    </div>
-                                    <div class="progress mb-2">
-                                        <div class="progress-bar bg-warning" role="progressbar" style="width: 20%" aria-valuenow="20" aria-valuemin="0" aria-valuemax="100">一般(9人)</div>
-                                    </div>
-                                    <div class="progress mb-2">
-                                        <div class="progress-bar bg-primary" role="progressbar" style="width: 13%" aria-valuenow="13" aria-valuemin="0" aria-valuemax="100">良好(6人)</div>
-                                    </div>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-success" role="progressbar" style="width: 5%" aria-valuenow="5" aria-valuemin="0" aria-valuemax="100">优秀(2人)</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="card mb-3">
-                                <div class="card-body">
-                                    <h6 class="card-title">错误率最高的题目</h6>
-                                    <ul class="list-group list-group-flush">
-                                        <li class="list-group-item">
-                                            <p><strong>题目1：</strong>使用while循环计算1到100的和</p>
-                                            <p><strong>错误率：</strong>78%</p>
-                                        </li>
-                                        <li class="list-group-item">
-                                            <p><strong>题目2：</strong>使用for循环遍历列表并筛选偶数</p>
-                                            <p><strong>错误率：</strong>65%</p>
-                                        </li>
-                                        <li class="list-group-item">
-                                            <p><strong>题目3：</strong>使用嵌套循环打印九九乘法表</p>
-                                            <p><strong>错误率：</strong>85%</p>
-                                        </li>
-                                    </ul>
-                                </div>
-                            </div>
-                            <div class="card">
-                                <div class="card-body">
-                                    <h6 class="card-title">教学建议</h6>
-                                    <ol>
-                                        <li>重新讲解循环结构的基本概念和语法</li>
-                                        <li>增加课堂练习时间，特别是嵌套循环的练习</li>
-                                        <li>布置针对性的作业，重点练习while循环和for循环的区别</li>
-                                        <li>为薄弱学生提供额外的辅导或视频资源</li>
-                                    </ol>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card mt-3">
+                    <div class="card">
                         <div class="card-body">
-                            <h6 class="card-title">薄弱学生列表</h6>
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>学号</th>
-                                        <th>姓名</th>
-                                        <th>掌握程度</th>
-                                        <th>最近一次答题情况</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>2021001</td>
-                                        <td>张三</td>
-                                        <td>25%</td>
-                                        <td>错误率：90%</td>
-                                    </tr>
-                                    <tr>
-                                        <td>2021005</td>
-                                        <td>王五</td>
-                                        <td>32%</td>
-                                        <td>错误率：85%</td>
-                                    </tr>
-                                    <tr>
-                                        <td>2021008</td>
-                                        <td>赵六</td>
-                                        <td>38%</td>
-                                        <td>错误率：75%</td>
-                                    </tr>
-                                    <tr>
-                                        <td>2021012</td>
-                                        <td>孙七</td>
-                                        <td>42%</td>
-                                        <td>错误率：68%</td>
-                                    </tr>
-                                    <tr>
-                                        <td>2021015</td>
-                                        <td>周八</td>
-                                        <td>40%</td>
-                                        <td>错误率：72%</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            <button class="btn btn-sm btn-primary">查看全部薄弱学生</button>
+                            <h6 class="card-title">当前可用详情</h6>
+                            <p class="text-muted mb-0">正在加载知识点详情...</p>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
-                    <button type="button" class="btn btn-primary">生成针对性练习</button>
                 </div>
             </div>
         </div>
@@ -1065,10 +954,10 @@
     </div>
     
     <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="lib/bootstrap.bundle.min.js"></script>
     
     <!-- API服务 -->
-    <script src="api.js"></script>
+<script src="api.js?v=20260523-1"></script>
     
     <!-- 页面脚本 -->
     <script>
@@ -1168,7 +1057,7 @@
         }
         
         // 移除筛选条件
-        window.removeFilter = function(type) {
+        window.removeFilter = async function(type) {
             switch(type) {
                 case 'class':
                     document.getElementById('class-select').value = 'all';
@@ -1183,9 +1072,12 @@
                     document.getElementById('knowledge-point').value = 'all';
                     break;
             }
-            updateFilterBadges();
-            saveFilterConditions();
-            handleQuery();
+            const shouldRefreshStudents = type === 'class' || type === 'course';
+            await applyKnowledgeFilters({
+                refreshStudents: shouldRefreshStudents,
+                forceStudentRefresh: shouldRefreshStudents,
+                resetPagination: true
+            });
         };
         
         // 筛选区域折叠/展开功能
@@ -1226,7 +1118,7 @@
             if (!container) return;
 
             try {
-                const resp = await fetch('components/user-dropdown.html');
+            const resp = await fetch('components/user-dropdown.html?v=20260523-1');
                 if (!resp.ok) {
                     console.error('加载用户下拉组件失败:', resp.status, resp.statusText);
                     return;
@@ -1258,16 +1150,27 @@
             }
         }
 
-        // 侧边栏折叠功能 & 顶部用户下拉初始化
-        document.addEventListener('DOMContentLoaded', async function() {
-            // 登录检查：无教师登录信息则跳转
+        async function ensureTeacherKnowledgeAccess() {
             const user = sessionStorage.getItem('user');
-            if (!user) {
-                window.location.href = 'teacher-login.html';
-                return;
+            const token = sessionStorage.getItem('token');
+            const activeRole = sessionStorage.getItem('activeRole') || sessionStorage.getItem('role');
+            let parsedUser = null;
+            try {
+                parsedUser = user ? JSON.parse(user) : null;
+            } catch (error) {
+                parsedUser = null;
             }
+            const hasTeacherRole = activeRole === 'TEACHER'
+                || (Array.isArray(parsedUser?.roles) && parsedUser.roles.includes('TEACHER'))
+                || parsedUser?.activeRole === 'TEACHER';
+            if (!user || !token || !hasTeacherRole) {
+                window.location.href = 'teacher-login.html?v=20260523-1';
+                return false;
+            }
+            return true;
+        }
 
-            // 初始化侧边栏折叠
+        function initializeTeacherKnowledgeChrome() {
             const toggleBtn = document.querySelector('.toggle-btn');
             if (toggleBtn) {
                 toggleBtn.addEventListener('click', function() {
@@ -1279,13 +1182,34 @@
                     }
                 });
             }
+        }
 
-            // 加载右上角用户下拉菜单（教师端紫色主题）
-            await loadUserDropdownForTeacher('userDropdownContainer');
-        });
+        function initializeKnowledgeManagementControls() {
+            document.getElementById('addKnowledgeBtn').addEventListener('click', function() {
+                openKnowledgeEditModal();
+            });
+            document.getElementById('knowledgeForm').addEventListener('submit', handleKnowledgeFormSubmit);
+        }
     
     // 知识点管理功能
     let currentEditingKnowledgeId = null;
+
+    function normalizeKnowledgeDifficultyValue(rawDifficulty) {
+        const difficulty = (rawDifficulty || '').trim();
+        if (!difficulty) {
+            return '';
+        }
+
+        const difficultyMap = {
+            '简单': '简单',
+            '中级': '中级',
+            '中等': '中级',
+            '困难': '困难',
+            '较难': '困难'
+        };
+
+        return difficultyMap[difficulty] || difficulty;
+    }
     
     // 分页状态管理
     let currentPage = 1;
@@ -1327,27 +1251,19 @@
     // 加载知识点数据
     async function loadKnowledgeData(knowledgeId) {
         try {
-            const response = await fetch(`/api/teacher/knowledge-points/${knowledgeId}`, {
-                method: 'GET',
-                credentials: 'include'
-            });
-            const result = await response.json();
+            const result = await window.apiService.get(`/api/teacher/knowledge-points/${knowledgeId}`);
             
-            if (response.ok) {
-                if (result.code === 200) {
+                if (result?.code === 200) {
                     const knowledge = result.data;
                     document.getElementById('knowledgeId').value = knowledge.id;
-                    document.getElementById('knowledgeName').value = knowledge.name;
+                    document.getElementById('knowledgeName').value = knowledge.pointName || knowledge.name || '';
                     document.getElementById('knowledgeCourse').value = knowledge.courseId;
-                    document.getElementById('knowledgeDifficulty').value = knowledge.difficulty;
-                    document.getElementById('knowledgeImportance').value = knowledge.importance;
+                    document.getElementById('knowledgeDifficulty').value = normalizeKnowledgeDifficultyValue(knowledge.difficulty);
+                    document.getElementById('knowledgeImportance').value = knowledge.importance || '';
                     document.getElementById('knowledgeDescription').value = knowledge.description;
                     document.getElementById('knowledgeOrder').value = knowledge.orderIndex || 0;
-                } else {
-                    throw new Error(result.message || `获取知识点数据失败: ${result.code}`);
-                }
             } else {
-                throw new Error(result.message || `服务器错误: ${response.status}`);
+                throw new Error(result?.message || `获取知识点数据失败: ${result?.code || '未知错误'}`);
             }
         } catch (error) {
             console.error('加载知识点数据失败:', error);
@@ -1359,13 +1275,13 @@
     async function populateKnowledgeCourseOptions() {
         try {
             // 获取课程列表
-            const courseList = await getCourseList();
+            const courseList = await fetchTeacherCourseList();
             
             if (courseList.success) {
                 const courseSelect = document.getElementById('knowledgeCourse');
                 courseSelect.innerHTML = '<option value="">请选择课程</option>';
                 
-                courseList.data.content.forEach(course => {
+                courseList.data.forEach(course => {
                     const option = document.createElement('option');
                     option.value = course.id;
                     option.textContent = course.courseName;
@@ -1406,33 +1322,25 @@
                 method = 'POST';
             }
             
-            const response = await fetch(url, {
-                method: method,
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(knowledgeData)
-            });
+            const result = knowledgeData.id
+                ? await window.apiService.put(url, knowledgeData)
+                : await window.apiService.post(url, knowledgeData);
             
-            const result = await response.json();
-            
-            if (response.ok) {
-                if (result.code === 200 || result.code === 201) {
-                    // 关闭模态框
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('knowledgeEditModal'));
-                    modal.hide();
-                    
-                    // 重新加载数据
-                    await handleQuery();
-                    
-                    // 显示成功消息
-                    showSuccess(knowledgeData.id ? '知识点更新成功' : '知识点添加成功');
-                } else {
-                    throw new Error(result.message || `操作失败: ${result.code}`);
-                }
+            if (result?.code === 200 || result?.code === 201) {
+                // 关闭模态框
+                const modal = bootstrap.Modal.getInstance(document.getElementById('knowledgeEditModal'));
+                modal.hide();
+
+                await fetchKnowledgePointList({ forceRefresh: true });
+                populateKnowledgePointOptions(knowledgePointListState);
+                
+                // 重新加载数据
+                await handleQuery();
+                
+                // 显示成功消息
+                showSuccess(knowledgeData.id ? '知识点更新成功' : '知识点添加成功');
             } else {
-                throw new Error(result.message || `服务器错误: ${response.status}`);
+                throw new Error(result?.message || `操作失败: ${result?.code || '未知错误'}`);
             }
         } catch (error) {
             console.error('处理知识点表单提交失败:', error);
@@ -1452,25 +1360,19 @@
         }
         
         try {
-            const response = await fetch(`/api/teacher/knowledge-points/${knowledgeId}`, {
-                method: 'DELETE',
-                credentials: 'include'
-            });
+            const result = await window.apiService.delete(`/api/teacher/knowledge-points/${knowledgeId}`);
             
-            const result = await response.json();
-            
-            if (response.ok) {
-                if (result.code === 200) {
-                    // 重新加载数据
-                    await handleQuery();
-                    
-                    // 显示成功消息
-                    showSuccess('知识点删除成功');
-                } else {
-                    throw new Error(result.message || `删除失败: ${result.code}`);
-                }
+            if (result?.code === 200) {
+                await fetchKnowledgePointList({ forceRefresh: true });
+                populateKnowledgePointOptions(knowledgePointListState);
+
+                // 重新加载数据
+                await handleQuery();
+                
+                // 显示成功消息
+                showSuccess('知识点删除成功');
             } else {
-                throw new Error(result.message || `服务器错误: ${response.status}`);
+                throw new Error(result?.message || `删除失败: ${result?.code || '未知错误'}`);
             }
         } catch (error) {
             console.error('删除知识点失败:', error);
@@ -1480,113 +1382,101 @@
     
 
     
+    function buildStudentListSuccess(students, message = '学生列表数据获取成功') {
+        return {
+            success: true,
+            data: Array.isArray(students) ? students : [],
+            message
+        };
+    }
+
+    function dedupeStudentsById(students) {
+        return (Array.isArray(students) ? students : []).reduce((acc, student) => {
+            if (student && student.id && !acc.find(existingStudent => existingStudent.id === student.id)) {
+                acc.push(student);
+            }
+            return acc;
+        }, []);
+    }
+
+    async function fetchStudentsByTeacherParams(params = {}) {
+        const response = await window.teacherAPI.getStudents(params);
+        console.log('调用getStudents返回:', response);
+
+        if (response && response.code === 200) {
+            return dedupeStudentsById(response.data || []);
+        }
+
+        throw new Error(response?.message || `获取学生列表失败: ${response?.code || '未知错误'}`);
+    }
+
+    function intersectStudentsById(primaryStudents, secondaryStudents) {
+        const secondaryStudentIds = new Set(
+            dedupeStudentsById(secondaryStudents).map(student => student.id)
+        );
+
+        return dedupeStudentsById(primaryStudents.filter(student => secondaryStudentIds.has(student.id)));
+    }
+
+    async function fetchAllTeacherStudents() {
+        console.log('没有班级或课程参数或选择了全部，尝试获取班级列表...');
+        const classListResponse = await fetchTeacherClassList();
+        console.log('班级列表:', classListResponse);
+
+        if (!(classListResponse.success && classListResponse.data.length > 0)) {
+            console.log('没有班级数据，无法获取学生列表');
+            return [];
+        }
+
+        const classIds = classListResponse.data.map(cls => cls.id);
+        console.log('所有班级ID:', classIds);
+
+        const studentPromises = classIds.map(classId => window.teacherAPI.getStudents({ classId }));
+        const responses = await Promise.all(studentPromises);
+        console.log('所有班级学生响应:', responses);
+
+        const allStudents = [];
+        responses.forEach(response => {
+            if (response && response.code === 200) {
+                const students = response.data || [];
+                allStudents.push(...students);
+            }
+        });
+
+        return dedupeStudentsById(allStudents);
+    }
+
     // 获取学生列表
     async function getStudentList(params = {}) {
         try {
-            let allStudents = [];
-            
-            // 确保window.teacherAPI已经初始化
             if (!window.teacherAPI) {
                 console.error('teacherAPI未初始化');
-                return {
-                    success: true,
-                    data: [],
-                    message: 'teacherAPI未初始化'
-                };
+                return buildStudentListSuccess([], 'teacherAPI未初始化');
             }
-            
-            // 如果有班级或课程参数，使用对应的API
-            if (params.classId && params.classId !== 'all') {
-                const response = await window.teacherAPI.getStudents(params);
-                console.log('调用getStudents返回:', response);
-                
-                // 检查响应格式
-                if (response && response.code === 200) {
-                    const students = response.data || [];
-                    console.log('最终学生列表:', students);
-                    return {
-                        success: true,
-                        data: students,
-                        message: '学生列表数据获取成功'
-                    };
-                } else {
-                    throw new Error(response?.message || `获取学生列表失败: ${response?.code || '未知错误'}`);
-                }
-            } else if (params.courseId && params.courseId !== 'all') {
-                const response = await window.teacherAPI.getStudents(params);
-                console.log('调用getStudents返回:', response);
-                
-                // 检查响应格式
-                if (response && response.code === 200) {
-                    const students = response.data || [];
-                    console.log('最终学生列表:', students);
-                    return {
-                        success: true,
-                        data: students,
-                        message: '学生列表数据获取成功'
-                    };
-                } else {
-                    throw new Error(response?.message || `获取学生列表失败: ${response?.code || '未知错误'}`);
-                }
-            } else {
-                // 没有参数或选择了全部班级/课程时，获取所有班级，然后获取所有班级的学生
-                console.log('没有班级或课程参数或选择了全部，尝试获取班级列表...');
-                const classListResponse = await getClassList();
-                console.log('班级列表:', classListResponse);
-                
-                if (classListResponse.success && classListResponse.data.length > 0) {
-                    // 获取所有班级的学生
-                    const classIds = classListResponse.data.map(cls => cls.id);
-                    console.log('所有班级ID:', classIds);
-                    
-                    // 并行获取所有班级的学生
-                    const studentPromises = classIds.map(classId => 
-                        window.teacherAPI.getStudents({ classId })
-                    );
-                    
-                    const responses = await Promise.all(studentPromises);
-                    console.log('所有班级学生响应:', responses);
-                    
-                    // 合并所有学生数据
-                    responses.forEach(response => {
-                        if (response && response.code === 200) {
-                            const students = response.data || [];
-                            allStudents = [...allStudents, ...students];
-                        }
-                    });
-                    
-                    // 去重处理，避免同一学生出现在多个班级中
-                    const uniqueStudents = allStudents.reduce((acc, student) => {
-                        if (!acc.find(s => s.id === student.id)) {
-                            acc.push(student);
-                        }
-                        return acc;
-                    }, []);
-                    
-                    console.log('合并并去重后的学生列表:', uniqueStudents);
-                    return {
-                        success: true,
-                        data: uniqueStudents,
-                        message: '获取所有班级学生列表成功'
-                    };
-                } else {
-                    // 如果没有班级，返回空数组
-                    console.log('没有班级数据，无法获取学生列表');
-                    return {
-                        success: true,
-                        data: [],
-                        message: '没有班级数据，无法获取学生列表'
-                    };
-                }
+
+            const hasSelectedClass = params.classId && params.classId !== 'all';
+            const hasSelectedCourse = params.courseId && params.courseId !== 'all';
+
+            if (hasSelectedClass && hasSelectedCourse) {
+                const classStudents = await fetchStudentsByTeacherParams({ classId: params.classId });
+                const courseStudents = await fetchStudentsByTeacherParams({ courseId: params.courseId });
+                const filteredStudents = intersectStudentsById(courseStudents, classStudents);
+                console.log('班级与课程交集后的学生列表:', filteredStudents);
+                return buildStudentListSuccess(filteredStudents, '学生列表数据获取成功');
             }
+
+            if (hasSelectedClass || hasSelectedCourse) {
+                const students = await fetchStudentsByTeacherParams(params);
+                console.log('最终学生列表:', students);
+                return buildStudentListSuccess(students, '学生列表数据获取成功');
+            }
+
+            const allStudents = await fetchAllTeacherStudents();
+            console.log('合并并去重后的学生列表:', allStudents);
+            return buildStudentListSuccess(allStudents, '获取所有班级学生列表成功');
         } catch (error) {
             console.error('获取学生列表失败:', error);
-            // 如果发生任何错误，返回空数组，不影响页面加载
-            return {
-                success: true,
-                data: [],
-                message: `获取学生列表失败: ${error.message}`
-            };
+            return buildStudentListSuccess([], `获取学生列表失败: ${error.message}`);
         }
     }
     
@@ -1649,44 +1539,79 @@
         }
     }
     
-    // 获取班级列表
-    async function getClassList() {
-        // 使用全局teacherAPI服务
+    function normalizeTeacherCollection(data) {
+        if (Array.isArray(data)) {
+            return data;
+        }
+
+        if (Array.isArray(data?.content)) {
+            return data.content;
+        }
+
+        return [];
+    }
+
+    let classListState = [];
+    let courseListState = [];
+
+    async function fetchTeacherClassList(options = {}) {
+        const { forceRefresh = false } = options;
+
+        if (!forceRefresh && Array.isArray(classListState) && classListState.length > 0) {
+            return {
+                success: true,
+                data: classListState,
+                message: '获取数据成功'
+            };
+        }
+
         try {
             const response = await window.teacherAPI.getClasses();
-            
-            // 处理API响应，确保返回格式符合预期
+
             if (response.code === 200) {
+                const normalizedClassList = normalizeTeacherCollection(response.data);
+                classListState = normalizedClassList;
+
                 return {
                     success: true,
-                    data: response.data,
+                    data: normalizedClassList,
                     message: response.message || '获取数据成功'
                 };
-            } else {
-                throw new Error(response.message || `请求失败: ${response.code}`);
             }
+
+            throw new Error(response.message || `请求失败: ${response.code}`);
         } catch (error) {
             console.error('获取班级列表失败:', error);
             throw error;
         }
     }
-    
-    // 获取课程列表
-    async function getCourseList() {
-        // 使用全局teacherAPI服务
+
+    async function fetchTeacherCourseList(options = {}) {
+        const { forceRefresh = false } = options;
+
+        if (!forceRefresh && Array.isArray(courseListState) && courseListState.length > 0) {
+            return {
+                success: true,
+                data: courseListState,
+                message: '获取数据成功'
+            };
+        }
+
         try {
-            const response = await window.teacherAPI.getCourses();
-            
-            // 处理API响应，确保返回格式符合预期
+            const response = await window.teacherAPI.getCourses({ page: 1, size: 100 });
+
             if (response.code === 200) {
+                const normalizedCourseList = normalizeTeacherCollection(response.data);
+                courseListState = normalizedCourseList;
+
                 return {
                     success: true,
-                    data: response.data,
+                    data: normalizedCourseList,
                     message: response.message || '获取数据成功'
                 };
-            } else {
-                throw new Error(response.message || `请求失败: ${response.code}`);
             }
+
+            throw new Error(response.message || `请求失败: ${response.code}`);
         } catch (error) {
             console.error('获取课程列表失败:', error);
             throw error;
@@ -1695,58 +1620,105 @@
     
 
     
+    function getApiStatusCode(responseOrError) {
+        if (typeof responseOrError?.code === 'number') {
+            return responseOrError.code;
+        }
+        if (typeof responseOrError?.status === 'number') {
+            return responseOrError.status;
+        }
+        if (typeof responseOrError?.raw?.code === 'number') {
+            return responseOrError.raw.code;
+        }
+        if (typeof responseOrError?.response?.status === 'number') {
+            return responseOrError.response.status;
+        }
+        return null;
+    }
+
+    function buildKnowledgeUnavailableResult(message = '知识点分析服务暂不可用，请稍后重试') {
+        return {
+            success: true,
+            data: [],
+            message
+        };
+    }
+
+    function hideKnowledgePageNotice() {
+        const notice = document.getElementById('knowledge-page-notice');
+        if (notice) {
+            notice.remove();
+        }
+    }
+
+    let knowledgePointListState = [];
+
     // 获取知识点列表
-    async function getKnowledgePointList() {
+    async function fetchKnowledgePointList(options = {}) {
+        const { forceRefresh = false } = options;
+
+        if (!forceRefresh && Array.isArray(knowledgePointListState) && knowledgePointListState.length > 0) {
+            return {
+                success: true,
+                data: knowledgePointListState,
+                message: '获取数据成功'
+            };
+        }
+
         // 使用全局teacherAPI服务
         try {
             const response = await window.teacherAPI.getKnowledgePoints();
             
             // 处理API响应，确保返回格式符合预期
-            if (response.code === 200) {
+            if (response?.code === 200) {
+                const normalizedPointList = Array.isArray(response.data) ? response.data : [];
+                knowledgePointListState = normalizedPointList;
                 return {
                     success: true,
-                    data: response.data,
+                    data: normalizedPointList,
                     message: response.message || '获取数据成功'
                 };
-            } else {
-                throw new Error(response.message || `请求失败: ${response.code}`);
             }
+            if (response?.code === 401 || response?.code === 403) {
+                return buildKnowledgeUnavailableResult('知识点列表暂不可用，请稍后重试');
+            }
+            return {
+                success: false,
+                data: [],
+                message: response?.message || `请求失败: ${response?.code || '未知错误'}`
+            };
         } catch (error) {
             console.error('获取知识点列表失败:', error);
-            throw error;
+            const statusCode = getApiStatusCode(error);
+            if (statusCode === 401 || statusCode === 403) {
+                return buildKnowledgeUnavailableResult('知识点列表暂不可用，请稍后重试');
+            }
+            return {
+                success: false,
+                data: [],
+                message: error.message || '获取知识点列表失败'
+            };
         }
     }
     
     // 获取知识点数据
     async function getKnowledgeData(filters, page = 1, size = pageSize) {
         try {
-            // 构建完整的请求参数，包含所有筛选条件
-            const params = new URLSearchParams();
+            const params = {};
             if (filters.courseId && filters.courseId !== 'all') {
-                params.append('courseId', filters.courseId);
+                params.courseId = filters.courseId;
             }
             if (filters.classId && filters.classId !== 'all') {
-                params.append('classId', filters.classId);
+                params.classId = filters.classId;
             }
             if (filters.studentId && filters.studentId !== 'all') {
-                params.append('studentId', filters.studentId);
+                params.studentId = filters.studentId;
             }
             if (filters.knowledgePoint && filters.knowledgePoint !== 'all') {
-                params.append('knowledgePointId', filters.knowledgePoint);
+                params.knowledgePointId = filters.knowledgePoint;
             }
             
-            // 调用知识点分析接口获取完整数据
-            const url = `/api/knowledge-points/analysis/teacher/course${params.toString() ? '?' + params.toString() : ''}`;
-            console.log('知识点分析API请求URL:', url);
-            
-            const response = await fetch(url, {
-                method: 'GET',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-            const result = await response.json();
+            const result = await window.teacherAPI.getKnowledgePointAnalysis(params);
             console.log('知识点分析API响应:', result);
             
             let formattedData;
@@ -1769,6 +1741,10 @@
                 
                 console.log('知识点分析数据:', formattedData);
             } else {
+                const blockedByLegacyAuth = result?.code === 401 || result?.code === 403;
+                if (blockedByLegacyAuth) {
+                    return buildKnowledgeUnavailableResult('知识点分析服务暂不可用，请稍后重试');
+                }
                 throw new Error(result?.message || `请求失败: ${result?.code || '未知错误'}`);
             }
 
@@ -1781,8 +1757,10 @@
             };
         } catch (error) {
             console.error('获取知识点数据失败:', error);
-            
-            // 返回失败状态，而不是空数据
+            const statusCode = getApiStatusCode(error);
+            if (statusCode === 401 || statusCode === 403) {
+                return buildKnowledgeUnavailableResult('知识点分析服务暂不可用，请稍后重试');
+            }
             return {
                 success: false,
                 data: {
@@ -1790,7 +1768,7 @@
                     atRiskStudents: [],
                     excellentStudentAverage: []
                 },
-                message: '获取数据失败: ' + error.message
+                message: error?.message || '获取知识点分析数据失败'
             };
         }
     }
@@ -1816,7 +1794,7 @@
             return analysisData;
         }
 
-        const rawPointList = await getKnowledgePointList();
+        const rawPointList = await fetchKnowledgePointList();
         if (!rawPointList.success || !Array.isArray(rawPointList.data)) {
             return analysisData;
         }
@@ -1894,15 +1872,7 @@
     let knowledgeRadarChart;
     
     // 初始化图表
-    document.addEventListener('DOMContentLoaded', function() {
-        // 初始化添加知识点按钮事件
-        document.getElementById('addKnowledgeBtn').addEventListener('click', function() {
-            openKnowledgeEditModal();
-        });
-        
-        // 初始化表单提交事件
-        document.getElementById('knowledgeForm').addEventListener('submit', handleKnowledgeFormSubmit);
-        
+    function initializeKnowledgeAnalysisCharts() {
         // 知识点掌握程度分布图表 - 使用空数据初始化
         const knowledgeDistributionCtx = document.getElementById('knowledgeDistributionChart').getContext('2d');
         knowledgeDistributionChart = new Chart(knowledgeDistributionCtx, {
@@ -1995,13 +1965,7 @@
                 }
             }
         });
-    
-        // 初始化课程选择框
-        populateKnowledgeCourseOptions();
-        
-        // 页面加载时自动获取数据
-        loadInitialData();
-        });
+    }
     
     // 页面加载时加载初始数据
     async function loadInitialData() {
@@ -2039,24 +2003,20 @@
         try {
             // 加载班级列表
             console.log('开始加载班级列表...');
-            const classListResponse = await getClassList();
+            const classListResponse = await fetchTeacherClassList();
             console.log('班级列表响应:', classListResponse);
             if (classListResponse.success) {
-                // 确保班级数据是数组
-                const classes = Array.isArray(classListResponse.data) ? classListResponse.data : 
-                               (classListResponse.data.content ? classListResponse.data.content : []);
+                const classes = normalizeTeacherCollection(classListResponse.data);
                 populateClassOptions(classes);
                 console.log('班级列表加载完成，共', classes.length, '个班级');
             }
             
             // 加载课程列表
             console.log('开始加载课程列表...');
-            const courseListResponse = await getCourseList();
+            const courseListResponse = await fetchTeacherCourseList();
             console.log('课程列表响应:', courseListResponse);
             if (courseListResponse.success) {
-                // 确保课程数据是数组
-                const courses = Array.isArray(courseListResponse.data) ? courseListResponse.data : 
-                               (courseListResponse.data.content ? courseListResponse.data.content : []);
+                const courses = normalizeTeacherCollection(courseListResponse.data);
                 populateCourseOptions(courses);
                 console.log('课程列表加载完成，共', courses.length, '个课程');
             }
@@ -2067,54 +2027,103 @@
             console.log('学生列表加载完成');
             
             // 加载知识点列表
-            const knowledgePointListResponse = await getKnowledgePointList();
+            const knowledgePointListResponse = await fetchKnowledgePointList();
             console.log('知识点列表响应:', knowledgePointListResponse);
             if (knowledgePointListResponse.success) {
                 // 确保知识点数据是数组
                 const knowledgePoints = Array.isArray(knowledgePointListResponse.data) ? knowledgePointListResponse.data : [];
                 populateKnowledgePointOptions(knowledgePoints);
                 console.log('知识点列表加载完成，共', knowledgePoints.length, '个知识点');
+            } else {
+                populateKnowledgePointOptions([]);
+                console.warn('知识点列表加载失败:', knowledgePointListResponse.message);
             }
             
-            // 添加班级和课程选择变化的事件监听（使用节流）
-            document.getElementById('class-select').addEventListener('change', throttledUpdateStudentOptions);
-            document.getElementById('course-select').addEventListener('change', throttledUpdateStudentOptions);
         } catch (error) {
             console.error('加载筛选选项失败:', error);
         }
     }
     
-    // 更新学生选项 - 使用节流
-    const throttledUpdateStudentOptions = throttle(async function() {
+    function getStudentListParamsFromFilters() {
         const classSelect = document.getElementById('class-select');
         const courseSelect = document.getElementById('course-select');
-        
-        // 获取当前选择的班级和课程
+        const params = {};
+
         const selectedClass = classSelect.value;
         const selectedCourse = courseSelect.value;
-        
-        console.log('更新学生选项，班级:', selectedClass, '课程:', selectedCourse);
-        
-        const params = {};
+
         if (selectedClass && selectedClass !== 'all') {
             params.classId = selectedClass;
         }
         if (selectedCourse && selectedCourse !== 'all') {
             params.courseId = selectedCourse;
         }
-        
-        // 直接调用getStudentList获取学生列表
-        // 如果params为空，getStudentList会获取所有班级的学生
+
+        return params;
+    }
+
+    let studentOptionsFilterKey = null;
+    let studentOptionsRequestToken = 0;
+
+    function buildStudentOptionsFilterKey(params = {}) {
+        return JSON.stringify({
+            classId: params.classId || 'all',
+            courseId: params.courseId || 'all'
+        });
+    }
+
+    async function refreshStudentOptions(options = {}) {
+        const { forceRefresh = false } = options;
+        const params = getStudentListParamsFromFilters();
+        const nextFilterKey = buildStudentOptionsFilterKey(params);
+
+        if (!forceRefresh && nextFilterKey === studentOptionsFilterKey) {
+            return;
+        }
+
+        const requestToken = ++studentOptionsRequestToken;
+
+        console.log('更新学生选项，参数:', params);
+
         const studentListResponse = await getStudentList(params);
+
+        if (requestToken !== studentOptionsRequestToken) {
+            return;
+        }
+
         console.log('学生列表响应:', studentListResponse);
         
         if (studentListResponse.success) {
             populateStudentOptions(studentListResponse.data);
+            studentOptionsFilterKey = nextFilterKey;
         }
+    }
+
+    // 更新学生选项 - 使用防抖
+    const debouncedUpdateStudentOptions = debounce(function() {
+        refreshStudentOptions().then(() => {
+            saveFilterConditions();
+            updateFilterBadges();
+        }).catch(error => {
+            console.error('更新学生选项失败:', error);
+        });
     }, 300);
     
-    async function updateStudentOptions() {
-        await throttledUpdateStudentOptions();
+    async function updateStudentOptions(options = {}) {
+        await refreshStudentOptions(options);
+    }
+
+    async function applyKnowledgeFilters(options = {}) {
+        const { resetPagination = true, refreshStudents = false, forceStudentRefresh = false } = options;
+
+        saveFilterConditions();
+        updateFilterBadges();
+
+        if (refreshStudents) {
+            await updateStudentOptions({ forceRefresh: forceStudentRefresh });
+        }
+
+        await handleQuery(resetPagination ? 1 : currentPage);
     }
     
     // 填充班级选项
@@ -2235,16 +2244,13 @@
             this.classList.add('active');
             
             const chartCard = this.closest('.chart-card');
-            const chartTitle = chartCard.querySelector('.chart-card-title').textContent;
+            const chartKind = chartCard.dataset.chartKind;
+            const chartView = this.dataset.chartView;
             
-            if (chartTitle === '知识点掌握程度分布') {
-                // 切换图表类型
-                const chartType = this.textContent;
-                switchKnowledgeDistributionChartType(chartType);
-            } else if (chartTitle === '知识点掌握程度雷达图') {
-                // 切换显示方式
-                const displayType = this.textContent;
-                switchKnowledgeRadarChartType(displayType);
+            if (chartKind === 'knowledge-distribution') {
+                switchKnowledgeDistributionChartType(chartView);
+            } else if (chartKind === 'knowledge-radar') {
+                switchKnowledgeRadarChartType(chartView);
             }
         });
     });
@@ -2252,9 +2258,9 @@
     // 切换知识点掌握程度分布图表类型
     function switchKnowledgeDistributionChartType(chartType) {
         if (knowledgeDistributionChart) {
-            if (chartType === '柱状图') {
+            if (chartType === 'bar') {
                 knowledgeDistributionChart.config.type = 'bar';
-            } else if (chartType === '饼图') {
+            } else if (chartType === 'pie') {
                 knowledgeDistributionChart.config.type = 'pie';
             }
             knowledgeDistributionChart.update();
@@ -2312,11 +2318,36 @@
                 // 保存筛选条件
                 saveFilterConditions();
                 updateFilterBadges();
+                if (knowledgeData.message && knowledgeData.message.includes('知识点分析服务暂不可用')) {
+                    showKnowledgePageNotice(knowledgeData.message);
+                } else {
+                    hideKnowledgePageNotice();
+                }
+                if (knowledgeData.message && knowledgeData.message !== '获取数据成功') {
+                        console.info(knowledgeData.message);
+                }
             } else {
                 throw new Error(knowledgeData.message || '获取数据失败');
             }
         } catch (error) {
             console.error('获取数据失败:', error);
+            hideKnowledgePageNotice();
+            updateStatsCards({
+                knowledgePointDistribution: [],
+                atRiskStudents: [],
+                excellentStudentAverage: []
+            });
+            updateKnowledgeDistributionChart({
+                knowledgePointDistribution: []
+            });
+            updateKnowledgeRadarChart({
+                knowledgePointDistribution: [],
+                excellentStudentAverage: []
+            });
+            updateKnowledgeList({
+                atRiskStudents: []
+            });
+            updatePaginationInfo({});
             showError(error.message || '获取数据失败，请稍后重试');
         } finally {
             // 确保加载状态被隐藏
@@ -2394,6 +2425,21 @@
                 </div>
             `;
         }
+    }
+
+    function showKnowledgePageNotice(message) {
+        let notice = document.getElementById('knowledge-page-notice');
+        if (!notice) {
+            notice = document.createElement('div');
+            notice.id = 'knowledge-page-notice';
+            notice.className = 'alert alert-info mt-3';
+            const filterSection = document.querySelector('.filter-section');
+            if (!filterSection) {
+                return;
+            }
+            filterSection.insertAdjacentElement('afterend', notice);
+        }
+        notice.innerHTML = `<strong>提示：</strong>${message}`;
     }
     
     // 初始化页面为空状态
@@ -2662,79 +2708,99 @@
         
         return stars.join('');
     }
-        
-        // 初始化事件监听
-        document.addEventListener('DOMContentLoaded', function() {
-            // 查询按钮
-            const queryBtn = document.getElementById('queryBtn');
-            if (queryBtn) {
-                queryBtn.addEventListener('click', function() {
+
+    function initializeKnowledgeFilterControls() {
+        const classSelect = document.getElementById('class-select');
+        if (classSelect) {
+            classSelect.addEventListener('change', debouncedUpdateStudentOptions);
+        }
+
+        const courseSelect = document.getElementById('course-select');
+        if (courseSelect) {
+            courseSelect.addEventListener('change', debouncedUpdateStudentOptions);
+        }
+
+        const queryBtn = document.getElementById('queryBtn');
+        if (queryBtn) {
+            queryBtn.addEventListener('click', async function() {
+                await applyKnowledgeFilters({
+                    refreshStudents: true,
+                    resetPagination: true
+                });
+            });
+        }
+
+        const resetBtn = document.getElementById('resetBtn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', async function() {
+                document.getElementById('class-select').value = 'all';
+                document.getElementById('course-select').value = 'all';
+                document.getElementById('student-select').value = 'all';
+                document.getElementById('knowledge-point').value = 'all';
+
+                currentPage = 1;
+                totalPages = 1;
+                totalKnowledgePoints = 0;
+
+                localStorage.removeItem('knowledgePageFilters');
+                document.getElementById('student-select').value = 'all';
+                await applyKnowledgeFilters({
+                    refreshStudents: true,
+                    forceStudentRefresh: true,
+                    resetPagination: true
+                });
+            });
+        }
+
+        ['class-select', 'course-select', 'student-select', 'knowledge-point'].forEach(id => {
+            const select = document.getElementById(id);
+            if (select && id !== 'class-select' && id !== 'course-select') {
+                select.addEventListener('change', function() {
                     saveFilterConditions();
                     updateFilterBadges();
-                    handleQuery(1);
                 });
             }
-            
-            // 重置按钮
-            const resetBtn = document.getElementById('resetBtn');
-            if (resetBtn) {
-                resetBtn.addEventListener('click', function() {
-                    document.getElementById('class-select').value = 'all';
-                    document.getElementById('course-select').value = 'all';
-                    document.getElementById('student-select').value = 'all';
-                    document.getElementById('knowledge-point').value = 'all';
-                    
-                    // 重置分页信息
-                    currentPage = 1;
-                    totalPages = 1;
-                    totalKnowledgePoints = 0;
-                    
-                    // 更新标签
-                    updateFilterBadges();
-                    
-                    // 清除保存的筛选条件
-                    localStorage.removeItem('knowledgePageFilters');
-                    
-                    // 重置后重新查询数据
-                    handleQuery(1);
-                });
-            }
-            
-            // 筛选条件变化时自动保存和更新标签
-            ['class-select', 'course-select', 'student-select', 'knowledge-point'].forEach(id => {
-                const select = document.getElementById(id);
-                if (select) {
-                    select.addEventListener('change', function() {
-                        saveFilterConditions();
-                        updateFilterBadges();
-                    });
-                }
-            });
-            
-            // 初始化筛选区域折叠
-            initFilterCollapse();
-            
-            // 初始化回到顶部
-            initBackToTop();
         });
-        
-        // 导出分析报告
+
+        initFilterCollapse();
+        initBackToTop();
+    }
+
+    function initializeKnowledgeTableActions() {
         document.querySelector('.table-actions button:nth-child(2)').addEventListener('click', function() {
-            // 这里应该添加导出分析报告逻辑
-            alert('导出分析报告功能开发中');
+            const stats = Array.from(document.querySelectorAll('.stats-cards .stat-card')).map(card => card.innerText.trim()).join('\n\n');
+            const knowledgeList = Array.from(document.querySelectorAll('.knowledge-card')).map(card => card.innerText.trim()).join('\n\n----------------\n\n');
+            const report = [
+                '知识点分析报告',
+                `导出时间：${new Date().toLocaleString('zh-CN')}`,
+                '',
+                '统计概览',
+                stats || '暂无统计数据',
+                '',
+                '知识点明细',
+                knowledgeList || '暂无知识点明细'
+            ].join('\n');
+            const blob = new Blob([report], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `knowledge-analysis-${new Date().toISOString().slice(0, 10)}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            showKnowledgePageNotice('分析报告已导出到本地文本文件。');
         });
-        
-    // 仅显示薄弱知识点
-    document.querySelector('.table-actions button:last-child').addEventListener('click', function() {
-        this.classList.toggle('active');
-        if (this.classList.contains('active')) {
-            // 显示仅薄弱知识点
-            showOnlyWeakKnowledgePoints();
-        } else {
-            // 显示所有知识点
-            showAllKnowledgePoints();
-        }
-    });
+
+        document.querySelector('.table-actions button:last-child').addEventListener('click', function() {
+            this.classList.toggle('active');
+            if (this.classList.contains('active')) {
+                showOnlyWeakKnowledgePoints();
+            } else {
+                showAllKnowledgePoints();
+            }
+        });
+    }
     
     // 显示仅薄弱知识点
     function showOnlyWeakKnowledgePoints() {
@@ -2762,25 +2828,17 @@
         try {
             // 使用正确的接口URL
             const url = `/api/teacher/knowledge-points/${knowledgeId}`;
-            const response = await fetch(url, {
-                method: 'GET',
-                credentials: 'include'
-            });
-            const result = await response.json();
+            const result = await window.apiService.get(url);
             
-            if (response.ok) {
-                if (result.code === 200) {
-                    // 更新模态框内容
-                    updateKnowledgeDetailModal(result.data);
-                    
-                    // 显示模态框
-                    const modal = new bootstrap.Modal(document.getElementById('knowledgeDetailModal'));
-                    modal.show();
-                } else {
-                    throw new Error(result.message || `获取知识点详情失败: ${result.code}`);
-                }
+            if (result?.code === 200) {
+                // 更新模态框内容
+                updateKnowledgeDetailModal(result.data);
+                
+                // 显示模态框
+                const modal = new bootstrap.Modal(document.getElementById('knowledgeDetailModal'));
+                modal.show();
             } else {
-                throw new Error(result.message || `服务器错误: ${response.status}`);
+                throw new Error(result?.message || `获取知识点详情失败: ${result?.code || '未知错误'}`);
             }
         } catch (error) {
             console.error('获取知识点详情失败:', error);
@@ -2790,102 +2848,37 @@
     
     // 更新知识点详情模态框
     function updateKnowledgeDetailModal(knowledgeDetail) {
+        const knowledgePointName = knowledgeDetail.pointName || knowledgeDetail.name || '未命名知识点';
+        const knowledgePointDifficulty = knowledgeDetail.difficulty || '未设置';
+        const knowledgePointDescription = knowledgeDetail.description || '暂无知识点描述';
+        const knowledgePointOrderIndex = Number.isInteger(knowledgeDetail.orderIndex) ? knowledgeDetail.orderIndex : '未设置';
+        const knowledgePointCourseDisplay = knowledgeDetail.courseName || (knowledgeDetail.courseId != null ? `课程ID ${knowledgeDetail.courseId}` : '未关联课程');
+
         // 更新模态框标题
-        document.getElementById('knowledgeDetailModalLabel').textContent = `知识点详情 - ${knowledgeDetail.name}`;
+        document.getElementById('knowledgeDetailModalLabel').textContent = `知识点详情 - ${knowledgePointName}`;
         
         // 更新模态框内容
         const modalBody = document.querySelector('#knowledgeDetailModal .modal-body');
         
-        // 这里可以根据知识点详情数据更新模态框内容
-        // 示例代码，需要根据实际数据结构调整
         modalBody.innerHTML = `
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h6 class="card-title">基本信息</h6>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <p><strong>知识点ID：</strong>${knowledgeDetail.id || ''}</p>
-                                    <p><strong>知识点名称：</strong>${knowledgeDetail.name || ''}</p>
-                                    <p><strong>课程：</strong>${knowledgeDetail.courseName || ''}</p>
-                                </div>
-                                <div class="col-md-6">
-                                    <p><strong>掌握程度：</strong>${knowledgeDetail.masteryLevel || 0}%</p>
-                                    <p><strong>难度级别：</strong>${knowledgeDetail.difficultyLevel || ''}</p>
-                                    <p><strong>重要程度：</strong>${knowledgeDetail.importanceLevel || ''}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h6 class="card-title">学生掌握情况</h6>
-                            <div class="progress mb-2">
-                                <div class="progress-bar bg-danger" role="progressbar" style="width: ${knowledgeDetail.poorStudentsPercentage || 0}%" aria-valuenow="${knowledgeDetail.poorStudentsPercentage || 0}" aria-valuemin="0" aria-valuemax="100">薄弱(${knowledgeDetail.poorStudents || 0}人)</div>
-                            </div>
-                            <div class="progress mb-2">
-                                <div class="progress-bar bg-warning" role="progressbar" style="width: ${knowledgeDetail.averageStudentsPercentage || 0}%" aria-valuenow="${knowledgeDetail.averageStudentsPercentage || 0}" aria-valuemin="0" aria-valuemax="100">一般(${knowledgeDetail.averageStudents || 0}人)</div>
-                            </div>
-                            <div class="progress mb-2">
-                                <div class="progress-bar bg-primary" role="progressbar" style="width: ${knowledgeDetail.goodStudentsPercentage || 0}%" aria-valuenow="${knowledgeDetail.goodStudentsPercentage || 0}" aria-valuemin="0" aria-valuemax="100">良好(${knowledgeDetail.goodStudents || 0}人)</div>
-                            </div>
-                            <div class="progress">
-                                <div class="progress-bar bg-success" role="progressbar" style="width: ${knowledgeDetail.excellentStudentsPercentage || 0}%" aria-valuenow="${knowledgeDetail.excellentStudentsPercentage || 0}" aria-valuemin="0" aria-valuemax="100">优秀(${knowledgeDetail.excellentStudents || 0}人)</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h6 class="card-title">错误率最高的题目</h6>
-                            <ul class="list-group list-group-flush">
-                                ${knowledgeDetail.topErrorQuestions ? knowledgeDetail.topErrorQuestions.map(question => `
-                                    <li class="list-group-item">
-                                        <p><strong>${question.questionNumber || ''}：</strong>${question.questionContent || ''}</p>
-                                        <p><strong>错误率：</strong>${question.errorRate || 0}%</p>
-                                    </li>
-                                `).join('') : ''}
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="card">
-                        <div class="card-body">
-                            <h6 class="card-title">教学建议</h6>
-                            <ol>
-                                ${knowledgeDetail.teachingSuggestions ? knowledgeDetail.teachingSuggestions.map(suggestion => `
-                                    <li>${suggestion || ''}</li>
-                                `).join('') : ''}
-                            </ol>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="card mt-3">
+            <div class="card">
                 <div class="card-body">
-                    <h6 class="card-title">薄弱学生列表</h6>
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>学号</th>
-                                <th>姓名</th>
-                                <th>掌握程度</th>
-                                <th>最近一次答题情况</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${knowledgeDetail.weakStudentsList ? knowledgeDetail.weakStudentsList.map(student => `
-                                <tr>
-                                    <td>${student.username || ''}</td>
-                                    <td>${student.name || ''}</td>
-                                    <td>${student.masteryLevel || 0}%</td>
-                                    <td>错误率：${student.latestAnswerErrorRate || 0}%</td>
-                                </tr>
-                            `).join('') : ''}
-                        </tbody>
-                    </table>
-                    <button class="btn btn-sm btn-primary">查看全部薄弱学生</button>
+                    <h6 class="card-title">当前可用详情</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <p><strong>知识点ID：</strong>${knowledgeDetail.id || ''}</p>
+                            <p><strong>知识点名称：</strong>${knowledgePointName}</p>
+                            <p><strong>课程：</strong>${knowledgePointCourseDisplay}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>顺序：</strong>${knowledgePointOrderIndex}</p>
+                            <p><strong>难度：</strong>${knowledgePointDifficulty}</p>
+                            <p><strong>知识点描述：</strong>${knowledgePointDescription}</p>
+                        </div>
+                    </div>
+                    <div class="alert alert-secondary mt-3 mb-0">
+                        当前详情接口仅提供知识点基础信息，学生掌握分布与错题明细请以页面主分析区为准。
+                    </div>
                 </div>
             </div>
         `;
@@ -3007,12 +3000,26 @@
             }
         });
     }
-    
-    // 图片错误处理初始化
-    initImageErrorHandling();
-    
-    // 初始化分页功能
-    initPagination();
+
+    async function initializeTeacherKnowledgePage() {
+        const hasAccess = await ensureTeacherKnowledgeAccess();
+        if (!hasAccess) {
+            return;
+        }
+
+        initializeTeacherKnowledgeChrome();
+        await loadUserDropdownForTeacher('userDropdownContainer');
+        initializeKnowledgeManagementControls();
+        initializeKnowledgeAnalysisCharts();
+        initializeKnowledgeFilterControls();
+        initializeKnowledgeTableActions();
+        await populateKnowledgeCourseOptions();
+        initImageErrorHandling();
+        initPagination();
+        await loadInitialData();
+    }
+
+    document.addEventListener('DOMContentLoaded', initializeTeacherKnowledgePage);
     </script>
 </body>
 </html>

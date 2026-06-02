@@ -1,7 +1,4 @@
 <!-- 用户下拉菜单组件 -->
-<!-- Font Awesome CDN - 使用v5+版本 -->
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
-
 <style>
     /* 用户下拉菜单容器 */
     .user-dropdown-container {
@@ -201,22 +198,22 @@
             <!-- [DYNAMIC_USER_ROLE]_[API:GET_USER_INFO]_[用户角色] -->
             <div class="user-dropdown-role"></div>
         </div>
-        <i class="fas fa-chevron-down user-dropdown-arrow"></i>
+        <i class="fa fa-chevron-down user-dropdown-arrow"></i>
     </button>
 
     <div class="user-dropdown-menu" id="userDropdownMenu" aria-labelledby="userDropdownBtn">
         <!-- 预留位置，便于后续添加更多功能 -->
         <!-- <a href="#" class="user-dropdown-item">
-            <i class="fas fa-user"></i>
+            <i class="fa fa-user"></i>
             <span>个人资料</span>
         </a>
         <a href="#" class="user-dropdown-item">
-            <i class="fas fa-cog"></i>
+            <i class="fa fa-cog"></i>
             <span>账号设置</span>
         </a>
         <div class="user-dropdown-divider"></div> -->
         <button class="user-dropdown-item logout" id="logoutBtn">
-            <i class="fas fa-sign-out-alt"></i>
+            <i class="fa fa-sign-out"></i>
             <span>退出登录</span>
         </button>
     </div>
@@ -359,7 +356,10 @@
                 // 清除本地存储的用户信息和token（使用sessionStorage，每个标签页独立）
                 sessionStorage.removeItem('user');
                 sessionStorage.removeItem('token');
+                sessionStorage.removeItem('refreshToken');
                 sessionStorage.removeItem('userId');
+                sessionStorage.removeItem('activeRole');
+                sessionStorage.removeItem('role');
                 
                 // 重定向到对应的登录页面
                 window.location.href = loginPage;
@@ -397,11 +397,18 @@
                     if (roleElement) {
                         let roleText = '用户';
                         let isTeacherSide = false;
+                        const activeRole = user.activeRole || sessionStorage.getItem('activeRole') || sessionStorage.getItem('role');
+                        if (this.userType === 'teacher' || activeRole === 'TEACHER') {
+                            roleText = '课程教师';
+                            isTeacherSide = true;
+                        } else if (this.userType === 'student' || activeRole === 'STUDENT') {
+                            roleText = '学生用户';
+                        }
                         if (Array.isArray(user.roles)) {
-                            if (user.roles.includes('TEACHER')) {
+                            if (!isTeacherSide && user.roles.includes('TEACHER') && !user.roles.includes('STUDENT')) {
                                 roleText = '课程教师';
                                 isTeacherSide = true;
-                            } else if (user.roles.includes('STUDENT')) {
+                            } else if (roleText === '用户' && user.roles.includes('STUDENT')) {
                                 roleText = '学生用户';
                             }
                         }

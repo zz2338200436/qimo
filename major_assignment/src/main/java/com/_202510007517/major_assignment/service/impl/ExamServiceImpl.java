@@ -100,8 +100,8 @@ public class ExamServiceImpl implements ExamService {
     public Map<String, Object> getExamsWithPagination(Long studentId, Integer page, Integer size, String sortBy, String order, 
                                                    Long courseId, Boolean isActive, Boolean submitted) {
         // 安全处理分页参数
-        int safePage = PageUtils.safePage(page, 1);
-        int safeSize = PageUtils.safeSize(size, 10, 100);
+        int requestedPage = page == null ? 1 : page;
+        int requestedSize = size == null ? PageUtils.DEFAULT_PAGE_SIZE : size;
         
         // 直接基于学生ID查询其关联到的所有考试（通过exam_classes表关联）
         List<Exam> studentExams = examMapper.getExamsByStudentId(studentId);
@@ -132,12 +132,15 @@ public class ExamServiceImpl implements ExamService {
         
         // 计算总数
         int totalElements = filteredExams.size();
+        PageUtils.PageWindow window = PageUtils.resolvePageWindow(requestedPage, requestedSize, totalElements);
         
         // 应用分页
-        List<Exam> pagedExams = PageUtils.paginate(filteredExams, safePage, safeSize);
+        List<Exam> pagedExams = PageUtils.paginate(filteredExams, window.page(), window.size());
         
         // 为每个考试补充课程、教师和提交信息
         List<Map<String, Object>> examsWithDetails = new ArrayList<>();
+        Map<Long, Course> courseCache = new HashMap<>();
+        Map<Long, User> teacherCache = new HashMap<>();
         for (Exam exam : pagedExams) {
             Map<String, Object> examMap = new HashMap<>();
             examMap.put("id", exam.getId());
@@ -154,11 +157,17 @@ public class ExamServiceImpl implements ExamService {
             examMap.put("teacherId", exam.getTeacherId());
             
             // 课程、教师名称
-            Course course = courseService.findById(exam.getCourseId());
+            Course course = null;
+            if (exam.getCourseId() != null) {
+                course = courseCache.computeIfAbsent(exam.getCourseId(), courseService::findById);
+            }
             if (course != null) {
                 examMap.put("courseName", course.getCourseName());
             }
-            User teacher = userService.findById(exam.getTeacherId());
+            User teacher = null;
+            if (exam.getTeacherId() != null) {
+                teacher = teacherCache.computeIfAbsent(exam.getTeacherId(), userService::findById);
+            }
             if (teacher != null) {
                 examMap.put("teacherName", teacher.getName());
             }
@@ -169,7 +178,7 @@ public class ExamServiceImpl implements ExamService {
         }
         
         // 使用工具类构建分页响应
-        return PageUtils.buildPageResponse(examsWithDetails, safePage, safeSize, totalElements);
+        return PageUtils.buildPageResponse(examsWithDetails, window.page(), window.size(), totalElements);
     }
 
     @Override

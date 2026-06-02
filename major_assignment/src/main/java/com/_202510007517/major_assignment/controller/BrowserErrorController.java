@@ -1,6 +1,7 @@
 package com._202510007517.major_assignment.controller;
 
 import com._202510007517.major_assignment.entity.BrowserError;
+import com._202510007517.major_assignment.entity.dto.PageResult;
 import com._202510007517.major_assignment.entity.dto.ResponseResult;
 import com._202510007517.major_assignment.service.BrowserErrorService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -93,24 +94,10 @@ public class BrowserErrorController extends BaseController {
      * @return 响应结果
      */
     @GetMapping("/browser")
-    public ResponseResult<Map<String, Object>> getBrowserErrorList(@RequestParam Map<String, String> params,
-                                                                   @RequestParam(defaultValue = "1") int page,
-                                                                   @RequestParam(defaultValue = "10") int size) {
-        // 查询错误日志列表
-        List<BrowserError> errors = browserErrorService.getBrowserErrorList(params, page, size);
-        
-        // 查询错误日志总数
-        int total = browserErrorService.getBrowserErrorCount(params);
-        
-        // 构建响应数据
-        Map<String, Object> result = Map.of(
-                "content", errors,
-                "totalElements", total,
-                "pageNumber", page,
-                "pageSize", size,
-                "totalPages", (total + size - 1) / size
-        );
-        
+    public ResponseResult<PageResult<BrowserError>> getBrowserErrorList(@RequestParam Map<String, String> params,
+                                                                        @RequestParam(defaultValue = "1") int page,
+                                                                        @RequestParam(defaultValue = "10") int size) {
+        PageResult<BrowserError> result = browserErrorService.getBrowserErrorList(params, page, size);
         return ResponseResult.success(result, "获取错误日志列表成功", 200);
     }
 

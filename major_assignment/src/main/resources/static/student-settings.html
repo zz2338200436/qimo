@@ -4,14 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智能后台学习辅助系统 - 系统设置</title>
-    <!-- Bootstrap 5 CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome CDN -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <link href="lib/bootstrap.min.css" rel="stylesheet">
+    <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- 全局样式文件 -->
-    <link href="styles.css" rel="stylesheet">
+        <!-- 全局样式文件 -->
+    <link href="styles.css?v=20260523-1" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -347,6 +344,7 @@
                     <div id="profile">
                             <div class="settings-section">
                                 <h3>基本信息</h3>
+                                <p id="profilePersistenceNotice" class="text-muted">姓名、邮箱、手机号会同步到账号资料；专业、年级以当前浏览器补充信息为准。</p>
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group">
@@ -380,6 +378,7 @@
                                         <div class="form-group">
                                             <label class="form-label">年级</label>
                                             <select id="gradeSelect" class="form-select">
+                                                <option value="">请选择年级</option>
                                                 <option value="2021">2021级</option>
                                                 <option value="2022">2022级</option>
                                                 <option value="2023">2023级</option>
@@ -390,7 +389,8 @@
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label class="form-label">班级</label>
-                                            <input id="profile-class" type="text" class="form-control" value="" placeholder="请输入班级">
+                                            <input id="profile-class" type="text" class="form-control" value="" readonly>
+                                            <small id="classReadOnlyNotice" class="text-muted">班级由系统班级关系自动生成，当前页不可手动修改。</small>
                                         </div>
                                     </div>
                                 </div>
@@ -473,6 +473,7 @@
                     <div id="notifications" style="margin-top: 40px;">
                             <div class="settings-section">
                                 <h3>通知偏好</h3>
+                                <p id="notificationStorageNotice" class="text-muted">当前环境下通知偏好以本浏览器保存为准。</p>
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="emailNotifications" checked>
                                     <label class="form-check-label" for="emailNotifications">
@@ -536,6 +537,7 @@
                     <div id="privacy" style="margin-top: 40px;">
                             <div class="settings-section">
                                 <h3>隐私设置</h3>
+                                <p id="privacyStorageNotice" class="text-muted">当前环境下隐私设置以本浏览器保存为准。</p>
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="shareProfile" checked>
                                     <label class="form-check-label" for="shareProfile">
@@ -575,82 +577,44 @@
     <div id="messageContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
 
     <!-- jQuery CDN -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="lib/jquery-3.6.0.min.js"></script>
     
     <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="lib/bootstrap.bundle.min.js"></script>
     
     <!-- API服务 - 必须在主脚本之前加载 -->
-    <script src="api.js"></script>
+    <script src="api.js?v=20260523-1"></script>
+    <script src="common-ui.js?v=20260523-1"></script>
     
     <script>
         // 高亮当前导航项
         function highlightActiveNavItem() {
-            // 获取当前页面URL
-            const currentPage = window.location.pathname.split('/').pop() || 'index.html';
-            
-            // 移除所有导航项的active类
-            document.querySelectorAll('.sidebar-nav a').forEach(link => {
-                link.classList.remove('active');
-            });
-            
-            // 高亮当前页面的导航项
-            const activeLink = document.querySelector(`.sidebar-nav a[href="${currentPage}"]`);
-            if (activeLink) {
-                activeLink.classList.add('active');
-            }
+            CommonUI.highlightActiveNavItem({ selector: '.sidebar .menu-item, .menu-item, .sidebar-nav a' });
         }
         
         // 侧边栏折叠/展开功能
         function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('mainContent');
-            
-            if (sidebar) {
-                sidebar.classList.toggle('collapsed');
-                
-                // 保存状态到localStorage
-                const isCollapsed = sidebar.classList.contains('collapsed');
-                localStorage.setItem('sidebarCollapsed', isCollapsed);
-                
-                // 同时调整主内容区的margin-left
-                if (mainContent) {
-                    if (isCollapsed) {
-                        mainContent.classList.add('collapsed');
-                    } else {
-                        mainContent.classList.remove('collapsed');
-                    }
-                }
-            }
+            return CommonUI.toggleSidebar();
         }
         
         // 初始化侧边栏状态
         function initializeSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('mainContent');
-            
-            // 从localStorage获取侧边栏状态
-            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-            
-            if (sidebar && mainContent) {
-                if (isCollapsed) {
-                    sidebar.classList.add('collapsed');
-                    mainContent.classList.add('collapsed');
-                } else {
-                    sidebar.classList.remove('collapsed');
-                    mainContent.classList.remove('collapsed');
-                }
-            }
+            CommonUI.initializeSidebar();
         }
         
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', function() {
             // 验证用户登录状态
-            checkLoginStatus();
+            if (!checkLoginStatus()) {
+                return;
+            }
+            if (window.loadFrontendCapabilities) {
+                window.loadFrontendCapabilities();
+            }
             
             // 初始化组件加载
             $(function() {
-                $('#sidebar-container').load('components/sidebar-nav.html', function() {
+                $('#sidebar-container').load('components/sidebar-nav.html?v=20260523-1', function() {
                     highlightActiveNavItem();
                     // 初始化侧边栏状态
                     setTimeout(initializeSidebar, 100); // 延迟执行，确保侧边栏已经加载
@@ -673,6 +637,150 @@
             // 初始化API服务
             const apiService = new APIService();
             const studentAPI = new StudentAPI(apiService);
+
+        function showMessage(text, type = 'info') {
+            CommonUI.showMessage(text, type, { dismissible: false, duration: 3500 });
+        }
+
+        function isJwtOnlyStudentMode() {
+            return !!(window.isJwtOnlyStudentSession && window.isJwtOnlyStudentSession());
+        }
+
+        function getStudentLocalPreferenceKey(prefix) {
+            const userId = sessionStorage.getItem('userId') || 'current';
+            return `${prefix}:${userId}`;
+        }
+
+        function saveStudentLocalPreferences(prefix, data) {
+            localStorage.setItem(getStudentLocalPreferenceKey(prefix), JSON.stringify(data));
+        }
+
+        function loadStudentLocalPreferences(prefix) {
+            try {
+                const raw = localStorage.getItem(getStudentLocalPreferenceKey(prefix));
+                return raw ? JSON.parse(raw) : null;
+            } catch (error) {
+                console.warn('读取本地偏好失败:', error);
+                return null;
+            }
+        }
+
+        const NOTIFICATION_PREFERENCE_FIELD_IDS = [
+            'emailNotifications',
+            'smsNotifications',
+            'webNotifications',
+            'assignmentNotifications',
+            'gradeNotifications',
+            'courseNotifications',
+            'systemNotifications',
+            'reminderNotifications'
+        ];
+
+        const PRIVACY_PREFERENCE_FIELD_IDS = [
+            'shareProfile',
+            'shareAchievements',
+            'dataCollection'
+        ];
+
+        const STUDENT_ACADEMIC_PROFILE_FIELD_CONFIG = [
+            { key: 'major', elementId: 'profile-major' },
+            { key: 'grade', elementId: 'gradeSelect' }
+        ];
+
+        function readStudentPreferenceFields(fieldIds) {
+            return fieldIds.reduce((result, fieldId) => {
+                result[fieldId] = document.getElementById(fieldId)?.checked || false;
+                return result;
+            }, {});
+        }
+
+        function applyStudentPreferenceFields(fieldIds, settings) {
+            fieldIds.forEach(fieldId => {
+                const input = document.getElementById(fieldId);
+                const value = settings?.[fieldId];
+                if (input && typeof value === 'boolean') {
+                    input.checked = value;
+                }
+            });
+        }
+
+        function loadStudentPreferenceSection(prefix, fieldIds) {
+            const localSettings = loadStudentLocalPreferences(prefix);
+            if (!localSettings) {
+                return false;
+            }
+            applyStudentPreferenceFields(fieldIds, localSettings);
+            return true;
+        }
+
+        function readStudentAcademicProfileFields() {
+            return STUDENT_ACADEMIC_PROFILE_FIELD_CONFIG.reduce((result, field) => {
+                result[field.key] = document.getElementById(field.elementId)?.value?.trim?.() || document.getElementById(field.elementId)?.value || '';
+                return result;
+            }, {});
+        }
+
+        function resolveStudentAcademicFieldValue(localValue, serverValue = '') {
+            if (typeof localValue === 'string' && localValue.trim() !== '') {
+                return localValue.trim();
+            }
+            return typeof serverValue === 'string' ? serverValue : '';
+        }
+
+        function initializeLocalDevEmptyState() {
+            const sessionContext = window.getStudentSessionContext ? window.getStudentSessionContext() : null;
+            const user = (sessionContext && sessionContext.user) || JSON.parse(sessionStorage.getItem('user') || '{}');
+            const localAcademicProfile = loadStudentLocalPreferences('studentAcademicProfile') || {};
+            const usernameInput = document.getElementById('profile-username');
+            const nameInput = document.getElementById('profile-name');
+            const studentIdInput = document.getElementById('profile-studentId');
+            const majorInput = document.getElementById('profile-major');
+            const gradeSelect = document.getElementById('gradeSelect');
+            const classInput = document.getElementById('profile-class');
+            const emailInput = document.getElementById('profile-email');
+            const phoneInput = document.getElementById('profile-phone');
+            const avatarImg = document.getElementById('profile-avatar-img');
+
+            if (usernameInput) usernameInput.value = user.username || '';
+            if (nameInput) nameInput.value = user.name || user.username || '';
+            if (studentIdInput) studentIdInput.value = user.studentId || user.id || (window.getCurrentUserId ? window.getCurrentUserId() : '') || '';
+            if (majorInput) majorInput.value = resolveStudentAcademicFieldValue(localAcademicProfile.major);
+            if (gradeSelect) gradeSelect.value = resolveStudentAcademicFieldValue(localAcademicProfile.grade);
+            if (classInput) classInput.value = '';
+            if (emailInput) emailInput.value = '';
+            if (phoneInput) phoneInput.value = '';
+            if (avatarImg) avatarImg.src = 'default-avatar.svg';
+
+            showMessage('当前为 JWT 微服务登录环境，页面将保留已接通的学生设置能力；未接通的功能会单独提示。', 'info');
+        }
+
+        if (window.isJwtOnlyStudentSession && window.isJwtOnlyStudentSession()) {
+            initializeLocalDevEmptyState();
+        }
+
+        function setStudentAvatarSource(src) {
+            const avatarImg = document.getElementById('profile-avatar-img');
+            if (!avatarImg) {
+                return;
+            }
+
+            const normalized = typeof src === 'string' ? src.trim() : '';
+            avatarImg.src = normalized || 'default-avatar.svg';
+            avatarImg.alt = normalized ? '用户头像' : '默认用户头像';
+        }
+
+        async function resolveStudentAvatarSource(src) {
+            const normalized = typeof src === 'string' ? src.trim() : '';
+            if (!normalized || normalized.includes('default-avatar')) {
+                return 'default-avatar.svg';
+            }
+
+            if (normalized.startsWith('/avatars/') || normalized.includes('/avatars/')) {
+                return 'default-avatar.svg';
+            }
+
+            return normalized;
+        }
             
         // 加载学生个人信息
         async function loadStudentProfile() {
@@ -698,6 +806,7 @@
                 }
                 
                 console.log('学生数据:', student);
+                const localAcademicProfile = loadStudentLocalPreferences('studentAcademicProfile') || {};
 
                 const usernameInput = document.getElementById('profile-username');
                 const nameInput = document.getElementById('profile-name');
@@ -729,7 +838,7 @@
                 }
                 
                 if (nameInput) {
-                    nameInput.value = student.name || '';
+                    nameInput.value = student.name || student.realName || '';
                     console.log('设置姓名:', nameInput.value);
                 } else {
                     console.warn('未找到姓名输入框');
@@ -743,14 +852,14 @@
                 }
                 
                 if (majorInput) {
-                    majorInput.value = student.major || '';
+                    majorInput.value = resolveStudentAcademicFieldValue(localAcademicProfile.major, student.major || '');
                     console.log('设置专业:', majorInput.value);
                 } else {
                     console.warn('未找到专业输入框');
                 }
                 
-                if (gradeSelect && student.grade) {
-                    gradeSelect.value = student.grade;
+                if (gradeSelect) {
+                    gradeSelect.value = resolveStudentAcademicFieldValue(localAcademicProfile.grade, student.grade || '');
                     console.log('设置年级:', gradeSelect.value);
                 } else {
                     console.warn('未找到年级选择框或年级数据为空');
@@ -777,8 +886,9 @@
                     console.warn('未找到手机输入框');
                 }
                 
-                if (avatarImg && student.avatar) {
-                    avatarImg.src = student.avatar;
+                if (avatarImg) {
+                    const avatarSrc = await resolveStudentAvatarSource(student.avatar);
+                    setStudentAvatarSource(avatarSrc);
                     console.log('设置头像:', avatarImg.src);
                 }
                 
@@ -813,13 +923,11 @@
         // 保存学生个人信息
         async function saveStudentProfile() {
             try {
+                const academicProfileData = readStudentAcademicProfileFields();
                 const formData = {
                     name: document.getElementById('profile-name')?.value?.trim() || '',
-                    major: document.getElementById('profile-major')?.value?.trim() || '',
                     email: document.getElementById('profile-email')?.value?.trim() || '',
-                    phone: document.getElementById('profile-phone')?.value?.trim() || '',
-                    grade: document.getElementById('gradeSelect')?.value || '',
-                    className: document.getElementById('profile-class')?.value?.trim() || ''
+                    phone: document.getElementById('profile-phone')?.value?.trim() || ''
                 };
 
                 if (!formData.name) {
@@ -829,7 +937,17 @@
 
                 const response = await studentAPI.updateStudentProfile(formData);
                 if (response?.success) {
-                    showMessage('个人信息保存成功', 'success');
+                    saveStudentLocalPreferences('studentAcademicProfile', academicProfileData);
+                    originalProfileData = {
+                        ...originalProfileData,
+                        name: formData.name,
+                        email: formData.email,
+                        phone: formData.phone,
+                        major: academicProfileData.major,
+                        grade: academicProfileData.grade,
+                        className: document.getElementById('profile-class')?.value || originalProfileData.className || ''
+                    };
+                    showMessage('账号资料已保存，专业/年级已保存在当前浏览器。', 'success');
                 } else {
                     showMessage('个人信息保存失败: ' + (response?.message || '未知错误'), 'error');
                 }
@@ -863,11 +981,17 @@
                 
                 const response = await studentAPI.changePassword(currentPassword, newPassword, confirmPassword);
                 if (response && response.success) {
-                    showMessage('密码修改成功', 'success');
+                    showMessage('密码修改成功，请重新登录', 'success');
                     // 清空密码表单
                     document.querySelectorAll('#password .form-control').forEach(input => {
                         input.value = '';
                     });
+                    setTimeout(() => {
+                        if (window.clearAuthSession) {
+                            window.clearAuthSession();
+                        }
+                        window.location.href = 'student-login.html';
+                    }, 1200);
                 } else {
                     showMessage('密码修改失败: ' + (response.message || '未知错误'), 'error');
                 }
@@ -880,23 +1004,9 @@
         // 保存通知设置
         async function saveNotificationSettings() {
             try {
-                const formData = {
-                    emailNotifications: document.getElementById('emailNotifications')?.checked || false,
-                    smsNotifications: document.getElementById('smsNotifications')?.checked || false,
-                    webNotifications: document.getElementById('webNotifications')?.checked || false,
-                    assignmentNotifications: document.getElementById('assignmentNotifications')?.checked || false,
-                    gradeNotifications: document.getElementById('gradeNotifications')?.checked || false,
-                    courseNotifications: document.getElementById('courseNotifications')?.checked || false,
-                    systemNotifications: document.getElementById('systemNotifications')?.checked || false,
-                    reminderNotifications: document.getElementById('reminderNotifications')?.checked || false
-                };
-                
-                const response = await studentAPI.updateNotificationSettings(formData);
-                if (response?.success) {
-                    showMessage('通知设置保存成功', 'success');
-                } else {
-                    showMessage('通知设置保存失败: ' + (response?.message || '未知错误'), 'error');
-                }
+                const formData = readStudentPreferenceFields(NOTIFICATION_PREFERENCE_FIELD_IDS);
+                saveStudentLocalPreferences('studentNotificationSettings', formData);
+                showMessage('通知设置已保存在当前浏览器。', 'success');
             } catch (error) {
                 console.error('保存通知设置失败:', error);
                 showMessage('通知设置保存失败: ' + error.message, 'error');
@@ -906,53 +1016,42 @@
         // 保存隐私设置
         async function savePrivacySettings() {
             try {
-                const formData = {
-                    shareProfile: document.getElementById('shareProfile')?.checked || false,
-                    shareAchievements: document.getElementById('shareAchievements')?.checked || false,
-                    dataCollection: document.getElementById('dataCollection')?.checked || false
-                };
-                
-                const response = await studentAPI.updatePrivacySettings(formData);
-                if (response?.success) {
-                    showMessage('隐私设置保存成功', 'success');
-                } else {
-                    showMessage('隐私设置保存失败: ' + (response?.message || '未知错误'), 'error');
-                }
+                const formData = readStudentPreferenceFields(PRIVACY_PREFERENCE_FIELD_IDS);
+                saveStudentLocalPreferences('studentPrivacySettings', formData);
+                showMessage('隐私设置已保存在当前浏览器。', 'success');
             } catch (error) {
                 console.error('保存隐私设置失败:', error);
                 showMessage('隐私设置保存失败: ' + error.message, 'error');
             }
         }
         
+        function validateAvatarFile(file) {
+            if (!file) {
+                return '请选择要上传的头像';
+            }
+
+            if (!file.type.startsWith('image/')) {
+                return '仅支持上传图片格式文件';
+            }
+
+            if (file.size > 2 * 1024 * 1024) {
+                return '头像大小不能超过2MB';
+            }
+
+            return '';
+        }
+
         // 上传头像
-        async function uploadAvatar(file) {
+        async function uploadAvatar(avatarDataUrl) {
             try {
-                if (!file) {
-                    showMessage('请选择要上传的头像', 'error');
+                if (!avatarDataUrl) {
+                    showMessage('头像文件读取失败', 'error');
                     return;
                 }
 
-                const isImage = file.type.startsWith('image/');
-                const isSizeValid = file.size <= 2 * 1024 * 1024; // 2MB
-
-                if (!isImage) {
-                    showMessage('仅支持上传图片格式文件', 'error');
-                    return;
-                }
-
-                if (!isSizeValid) {
-                    showMessage('头像大小不能超过2MB', 'error');
-                    return;
-                }
-
-                const formData = new FormData();
-                formData.append('avatar', file);
-                
-                const response = await studentAPI.uploadAvatar(formData);
+                const response = await studentAPI.uploadAvatar({ avatar: avatarDataUrl });
                 if (response?.success) {
-                    if (response?.data?.avatarUrl && document.getElementById('profile-avatar-img')) {
-                        document.getElementById('profile-avatar-img').src = response.data.avatarUrl;
-                    }
+                    setStudentAvatarSource(avatarDataUrl);
                     showMessage('头像上传成功', 'success');
                 } else {
                     showMessage('头像上传失败: ' + (response?.message || '未知错误'), 'error');
@@ -979,165 +1078,45 @@
                     throw new Error('导出失败，服务器返回状态码 ' + response.status);
                 }
 
-                const blob = await response.blob();
+                const result = await response.json();
+                if (!result?.success || !result?.data) {
+                    throw new Error(result?.message || '导出失败，服务器未返回有效数据');
+                }
+
+                const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json;charset=utf-8' });
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `student_data_${new Date().toISOString().slice(0, 10)}.json`;
+                a.download = `student-data-export-${new Date().toISOString().slice(0, 10)}.json`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-                showMessage('数据导出成功', 'success');
+                showMessage('学生学习数据导出成功', 'success');
             } catch (error) {
                 console.error('导出数据失败:', error);
-                showMessage('数据导出失败: ' + error.message, 'error');
+                showMessage(`学生学习数据导出失败：${error.message}`, 'error');
             }
         }
         
         // 加载通知设置
         async function loadNotificationSettings() {
             try {
-                console.log('开始加载通知设置...');
-                const response = await studentAPI.getNotificationSettings();
-                console.log('通知设置API响应:', response);
-                
-                // 处理不同的响应数据结构
-                let settings = {};
-                if (response) {
-                    if (response.data) {
-                        settings = response.data;
-                    } else if (response.success && response.data) {
-                        settings = response.data;
-                    } else {
-                        settings = response;
-                    }
-                }
-                
-                console.log('通知设置数据:', settings);
-                
-                const emailNotifications = document.getElementById('emailNotifications');
-                const smsNotifications = document.getElementById('smsNotifications');
-                const webNotifications = document.getElementById('webNotifications');
-                const assignmentNotifications = document.getElementById('assignmentNotifications');
-                const gradeNotifications = document.getElementById('gradeNotifications');
-                const courseNotifications = document.getElementById('courseNotifications');
-                const systemNotifications = document.getElementById('systemNotifications');
-                const reminderNotifications = document.getElementById('reminderNotifications');
-                
-                if (emailNotifications) emailNotifications.checked = Boolean(settings.emailNotifications);
-                if (smsNotifications) smsNotifications.checked = Boolean(settings.smsNotifications);
-                if (webNotifications) webNotifications.checked = Boolean(settings.webNotifications);
-                if (assignmentNotifications) assignmentNotifications.checked = Boolean(settings.assignmentNotifications);
-                if (gradeNotifications) gradeNotifications.checked = Boolean(settings.gradeNotifications);
-                if (courseNotifications) courseNotifications.checked = Boolean(settings.courseNotifications);
-                if (systemNotifications) systemNotifications.checked = Boolean(settings.systemNotifications);
-                if (reminderNotifications) reminderNotifications.checked = Boolean(settings.reminderNotifications);
-                
-                console.log('通知设置加载完成');
+                loadStudentPreferenceSection('studentNotificationSettings', NOTIFICATION_PREFERENCE_FIELD_IDS);
             } catch (error) {
                 console.error('加载通知设置失败:', error);
-                showMessage('加载通知设置失败: ' + (error.message || '未知错误'), 'error');
+                showMessage('读取当前浏览器保存的通知设置失败: ' + (error.message || '未知错误'), 'error');
             }
         }
         
         // 加载隐私设置
         async function loadPrivacySettings() {
             try {
-                console.log('开始加载隐私设置...');
-                const response = await studentAPI.getPrivacySettings();
-                console.log('隐私设置API响应:', response);
-                
-                // 处理不同的响应数据结构
-                let settings = {};
-                if (response) {
-                    if (response.data) {
-                        settings = response.data;
-                    } else if (response.success && response.data) {
-                        settings = response.data;
-                    } else {
-                        settings = response;
-                    }
-                }
-                
-                console.log('隐私设置数据:', settings);
-                
-                const shareProfile = document.getElementById('shareProfile');
-                const shareAchievements = document.getElementById('shareAchievements');
-                const dataCollection = document.getElementById('dataCollection');
-                
-                if (shareProfile) shareProfile.checked = Boolean(settings.shareProfile);
-                if (shareAchievements) shareAchievements.checked = Boolean(settings.shareAchievements);
-                if (dataCollection) dataCollection.checked = Boolean(settings.dataCollection);
-                
-                console.log('隐私设置加载完成');
+                loadStudentPreferenceSection('studentPrivacySettings', PRIVACY_PREFERENCE_FIELD_IDS);
             } catch (error) {
                 console.error('加载隐私设置失败:', error);
-                showMessage('加载隐私设置失败: ' + (error.message || '未知错误'), 'error');
+                showMessage('读取当前浏览器保存的隐私设置失败: ' + (error.message || '未知错误'), 'error');
             }
-        }
-        
-        // 测试函数：直接填充测试数据
-        function fillTestData() {
-            console.log('=== 开始测试数据填充 ===');
-            const testData = {
-                username: 'testuser',
-                name: '测试用户',
-                studentId: '2022001',
-                major: '计算机科学',
-                grade: '2022',
-                className: '计科2022-1班',
-                email: 'test@example.com',
-                phone: '13800138000'
-            };
-            
-            const elements = {
-                username: document.getElementById('profile-username'),
-                name: document.getElementById('profile-name'),
-                studentId: document.getElementById('profile-studentId'),
-                major: document.getElementById('profile-major'),
-                grade: document.getElementById('gradeSelect'),
-                className: document.getElementById('profile-class'),
-                email: document.getElementById('profile-email'),
-                phone: document.getElementById('profile-phone')
-            };
-            
-            console.log('元素查找结果:', elements);
-            
-            if (elements.username) {
-                elements.username.value = testData.username;
-                console.log('✓ 用户名已设置:', elements.username.value);
-            }
-            if (elements.name) {
-                elements.name.value = testData.name;
-                console.log('✓ 姓名已设置:', elements.name.value);
-            }
-            if (elements.studentId) {
-                elements.studentId.value = testData.studentId;
-                console.log('✓ 学号已设置:', elements.studentId.value);
-            }
-            if (elements.major) {
-                elements.major.value = testData.major;
-                console.log('✓ 专业已设置:', elements.major.value);
-            }
-            if (elements.grade) {
-                elements.grade.value = testData.grade;
-                console.log('✓ 年级已设置:', elements.grade.value);
-            }
-            if (elements.className) {
-                elements.className.value = testData.className;
-                console.log('✓ 班级已设置:', elements.className.value);
-            }
-            if (elements.email) {
-                elements.email.value = testData.email;
-                console.log('✓ 邮箱已设置:', elements.email.value);
-            }
-            if (elements.phone) {
-                elements.phone.value = testData.phone;
-                console.log('✓ 手机已设置:', elements.phone.value);
-            }
-            
-            console.log('=== 测试数据填充完成 ===');
         }
         
         // 加载用户个人信息 - 延迟执行确保DOM完全加载
@@ -1160,12 +1139,10 @@
             // 如果元素都找到了，先测试填充
             if (Object.values(checkResult).every(v => v)) {
                 console.log('所有DOM元素都已找到，开始填充数据');
-                // 先测试填充，看看是否能显示
-                fillTestData();
             } else {
                 console.error('部分DOM元素未找到:', checkResult);
             }
-            
+
             loadStudentProfile().then(() => {
                 // 加载完成后保存原始数据
                 loadAndSaveOriginalProfile();
@@ -1194,12 +1171,13 @@
                     }
                 }
                 
+                const localAcademicProfile = loadStudentLocalPreferences('studentAcademicProfile') || {};
                 originalProfileData = {
-                    name: student.name || '',
+                    name: student.name || student.realName || '',
                     email: student.email || '',
                     phone: student.phone || '',
-                    major: student.major || '',
-                    grade: student.grade || '',
+                    major: resolveStudentAcademicFieldValue(localAcademicProfile.major, student.major || ''),
+                    grade: resolveStudentAcademicFieldValue(localAcademicProfile.grade, student.grade || ''),
                     className: student.className || ''
                 };
             } catch (error) {
@@ -1266,18 +1244,23 @@
         
         if (avatarUpload) {
             avatarUpload.addEventListener('change', function(e) {
-                if (e.target.files && e.target.files[0]) {
-                    const reader = new FileReader();
-                    reader.onload = function(event) {
-                        const avatarImg = document.querySelector('.avatar-upload img');
-                        if (avatarImg) {
-                            avatarImg.src = event.target.result;
-                        }
-                        // 上传头像到服务器
-                        uploadAvatar(e.target.files[0]);
-                    };
-                    reader.readAsDataURL(e.target.files[0]);
+                const file = e.target.files && e.target.files[0];
+                const validationMessage = validateAvatarFile(file);
+
+                if (validationMessage) {
+                    showMessage(validationMessage, 'error');
+                    return;
                 }
+
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const avatarDataUrl = event.target.result;
+                    uploadAvatar(avatarDataUrl);
+                };
+                reader.onerror = function() {
+                    showMessage('头像文件读取失败', 'error');
+                };
+                reader.readAsDataURL(file);
             });
         }
         
@@ -1288,20 +1271,14 @@
     
     // 检查用户登录状态
     function checkLoginStatus() {
-        const user = sessionStorage.getItem('user');
-        if (!user) {
-            window.location.href = 'student-login.html';
+        if (!CommonUI.requireStudentSession({ redirectUrl: 'student-login.html' })) {
             return false;
         }
-        
-        // 加载用户下拉组件
-        if ($('#userDropdownContainer').length > 0) {
-            $('#userDropdownContainer').load('components/user-dropdown.html', function() {
-                if (typeof UserDropdown !== 'undefined') {
-                    new UserDropdown('userDropdownContainer');
-                }
+
+        CommonUI.loadUserDropdown('userDropdownContainer', 'student')
+            .catch(error => {
+                console.error('加载用户下拉组件失败:', error);
             });
-        }
         return true;
     }
     </script>

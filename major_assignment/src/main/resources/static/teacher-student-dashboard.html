@@ -4,14 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>学生学习数据看板 - 智能学习辅助系统</title>
+    <link rel="icon" href="data:,">
     <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="lib/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <script src="lib/chart.umd.min.js"></script>
     <!-- SheetJS for Excel export -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="lib/xlsx.full.min.js"></script>
+    <link href="styles.css?v=20260523-1" rel="stylesheet">
     <style>
         /* 全局样式 */
         body {
@@ -405,6 +407,21 @@
             position: relative;
             height: 300px;
         }
+
+        .chart-empty-state {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            text-align: center;
+            color: #64748b;
+            font-size: 14px;
+            line-height: 1.6;
+            background: rgba(248, 250, 252, 0.92);
+            border-radius: 12px;
+        }
         
         /* 表格区域 */
         .table-section {
@@ -597,12 +614,12 @@
         }
     </style>
 </head>
-<body>
+<body class="teacher-shell-body">
     <!-- 侧边栏导航组件 -->
     <div id="sidebar-container"></div>
     <script>
         // 加载侧边栏组件
-        fetch('components/teacher-sidebar-nav.html')
+        fetch('components/teacher-sidebar-nav.html?v=20260523-1')
             .then(response => response.text())
             .then(data => {
                 document.getElementById('sidebar-container').innerHTML = data;
@@ -621,9 +638,9 @@
     </script>
     
     <!-- 主内容区 -->
-    <main class="main-content" id="mainContent">
+    <main class="main-content teacher-shell-main" id="mainContent">
         <!-- 顶部导航栏 -->
-        <nav class="top-navbar">
+        <nav class="top-navbar teacher-topbar">
             <div class="navbar-left">
                 <button class="toggle-btn" id="toggleBtn">
                     <i class="fa fa-bars"></i>
@@ -638,7 +655,7 @@
         </nav>
         
         <!-- 内容区域 -->
-        <div class="content-container">
+        <div class="content-container teacher-content">
             <!-- 筛选区域 -->
             <div class="filter-section">
                 <div class="filter-row">
@@ -680,9 +697,8 @@
                         </div>
                     </div>
                     <div class="stat-value" id="studentCount">180</div>
-                    <div class="stat-change positive">
-                        <i class="fa fa-arrow-up"></i>
-                        <span>+5 人 (2.8%)</span>
+                    <div class="stat-change" id="studentCountMeta">
+                        <span>当前筛选学生统计</span>
                     </div>
                 </div>
                 <div class="stat-card">
@@ -693,9 +709,8 @@
                         </div>
                     </div>
                     <div class="stat-value" id="averageScore">82.5</div>
-                    <div class="stat-change positive">
-                        <i class="fa fa-arrow-up"></i>
-                        <span>+3.2 分 (4.0%)</span>
+                    <div class="stat-change" id="averageScoreMeta">
+                        <span>基于当前筛选结果</span>
                     </div>
                 </div>
                 <div class="stat-card">
@@ -706,9 +721,8 @@
                         </div>
                     </div>
                     <div class="stat-value" id="assignmentCompletionRate">92.3%</div>
-                    <div class="stat-change negative">
-                        <i class="fa fa-arrow-down"></i>
-                        <span>-1.5% (1.6%)</span>
+                    <div class="stat-change" id="assignmentCompletionRateMeta">
+                        <span>基于最近提交活跃度</span>
                     </div>
                 </div>
                 <div class="stat-card">
@@ -719,18 +733,17 @@
                         </div>
                     </div>
                     <div class="stat-value" id="learningProgress">78.5%</div>
-                    <div class="stat-change positive">
-                        <i class="fa fa-arrow-up"></i>
-                        <span>+5.8% (7.8%)</span>
+                    <div class="stat-change" id="learningProgressMeta">
+                        <span>基于当前筛选学习进度</span>
                     </div>
                 </div>
             </div>
             
             <!-- 图表区域 -->
             <div class="charts-section">
-                <div class="chart-card">
+                <div class="chart-card" data-chart-kind="score-distribution">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3 class="chart-title">成绩分布</h3>
+                        <h3 class="chart-title">成绩分布（课程记录）</h3>
                         <div style="display: flex; gap: 8px;" class="chart-card-actions">
                             <button style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; color: #64748b; cursor: pointer; transition: all 0.3s ease;" class="active">饼图</button>
                             <button style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #ffffff; color: #64748b; cursor: pointer; transition: all 0.3s ease;">柱状图</button>
@@ -740,12 +753,13 @@
                         <canvas id="scoreDistributionChart"></canvas>
                     </div>
                 </div>
-                <div class="chart-card">
+                <div class="chart-card" data-chart-kind="score-trend">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3 class="chart-title">成绩趋势</h3>
+                        <h3 class="chart-title">当前筛选平均成绩趋势</h3>
                         <div style="display: flex; gap: 8px;" class="chart-card-actions">
                             <button style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; color: #64748b; cursor: pointer; transition: all 0.3s ease;" class="active">周</button>
                             <button style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #ffffff; color: #64748b; cursor: pointer; transition: all 0.3s ease;">月</button>
+                            <button style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #ffffff; color: #64748b; cursor: pointer; transition: all 0.3s ease;">三个月</button>
                             <button style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #ffffff; color: #64748b; cursor: pointer; transition: all 0.3s ease;">学期</button>
                         </div>
                     </div>
@@ -798,13 +812,24 @@
         </div>
     </main>
     <!-- API服务 -->
-    <script src="api.js"></script>
+<script src="api.js?v=20260523-1"></script>
     
     <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="lib/bootstrap.bundle.min.js"></script>
     
     <!-- 页面脚本 -->
     <script>
+const TEACHER_DASHBOARD_API_BASE = '/api';
+
+        function withTeacherApiBase(path) {
+            if (!path || /^https?:\/\//i.test(path) || !path.startsWith('/')) {
+                return path;
+            }
+            if (path.startsWith('/api/')) {
+                return path;
+            }
+            return `${TEACHER_DASHBOARD_API_BASE}${path}`;
+        }
         
         // 显示通知函数
         function showNotification(message, type = 'info', retryCallback = null) {
@@ -868,7 +893,23 @@
             // 显示带重试按钮的通知
             showNotification(errorMessage, 'danger', retryCallback);
         }
-        
+
+        function isAccessDeniedError(error) {
+            const message = String(error?.message || '');
+            return /401|403|未授权|权限不足|Forbidden/.test(message);
+        }
+
+        function getStudentTableFallbackMessage(error) {
+            const message = String(error?.message || '');
+            if (/401|未授权/.test(message)) {
+                return '登录已过期，正在跳转到登录页';
+            }
+            if (/403|权限不足|Forbidden/.test(message)) {
+                return '当前账号暂无权限查看学生学习数据';
+            }
+            return '加载失败，请检查网络连接或点击上方通知重试';
+        }
+
         // 学生详情模态框HTML
         const studentDetailModalHTML = `
             <div class="modal fade" id="studentDetailModal" tabindex="-1" aria-labelledby="studentDetailModalLabel" aria-hidden="true">
@@ -896,6 +937,10 @@
                                                 <tr>
                                                     <th scope="row">班级</th>
                                                     <td id="detailClassName"></td>
+                                                </tr>
+                                                <tr>
+                                                    <th scope="row">当前课程</th>
+                                                    <td id="detailCourseName"></td>
                                                 </tr>
                                                 <tr>
                                                     <th scope="row">平均成绩</th>
@@ -993,7 +1038,100 @@
         let currentPage = 1;
         let pageSize = 10;
         let totalPages = 1;
-        let totalStudents = 0;
+        let totalStudentRows = 0;
+        let totalUniqueStudents = 0;
+
+        function countUniqueStudents(studentRows) {
+            if (!Array.isArray(studentRows) || studentRows.length === 0) {
+                return 0;
+            }
+            const studentIds = new Set();
+            studentRows.forEach(row => {
+                const studentId = row?.studentId;
+                if (studentId !== null && studentId !== undefined && String(studentId).trim() !== '') {
+                    studentIds.add(String(studentId));
+                }
+            });
+            return studentIds.size;
+        }
+
+        function buildStudentTableTitle(label, uniqueStudentCount, rowCount) {
+            const safeLabel = label || '学生学习数据详情';
+            const safeUniqueStudentCount = Number.isFinite(Number(uniqueStudentCount)) ? Number(uniqueStudentCount) : 0;
+            const safeRowCount = Number.isFinite(Number(rowCount)) ? Number(rowCount) : 0;
+
+            if (safeUniqueStudentCount <= 0 && safeRowCount <= 0) {
+                return safeLabel;
+            }
+
+            if (safeRowCount > safeUniqueStudentCount) {
+                return `${safeLabel} <span style="font-size: 12px; color: #64748b; font-weight: normal;">(${safeUniqueStudentCount}名学生，${safeRowCount}条课程记录)</span>`;
+            }
+
+            return `${safeLabel} <span style="font-size: 12px; color: #64748b; font-weight: normal;">(${safeUniqueStudentCount}名学生)</span>`;
+        }
+
+        function updateStudentTableTitle(label, uniqueStudentCount, rowCount) {
+            const tableTitle = document.querySelector('.table-section h3.chart-title');
+            if (!tableTitle) {
+                return;
+            }
+            tableTitle.innerHTML = buildStudentTableTitle(label, uniqueStudentCount, rowCount);
+        }
+
+        function syncScoreTrendTimeRangeControls(timeRange = 'week') {
+            const normalizedTimeRange = String(timeRange || 'week').trim() || 'week';
+            const timeRangeSelect = document.getElementById('timeRangeSelect');
+            if (timeRangeSelect && timeRangeSelect.value !== normalizedTimeRange) {
+                timeRangeSelect.value = normalizedTimeRange;
+            }
+
+            const timeRangeLabelMap = {
+                week: '周',
+                month: '月',
+                quarter: '三个月',
+                semester: '学期'
+            };
+            const activeLabel = timeRangeLabelMap[normalizedTimeRange] || '周';
+            const scoreTrendButtons = document.querySelectorAll('.chart-card:nth-child(2) .chart-card-actions button');
+            scoreTrendButtons.forEach(button => {
+                button.classList.toggle('active', button.textContent.trim() === activeLabel);
+            });
+        }
+
+        const dashboardStatMetaText = {
+            studentCount: '当前筛选学生统计',
+            averageScore: '基于当前筛选结果',
+            assignmentCompletionRate: '基于最近提交活跃度',
+            learningProgress: '基于当前筛选学习进度'
+        };
+
+        function applyDashboardStatMetaText() {
+            Object.entries(dashboardStatMetaText).forEach(([key, text]) => {
+                const metaElement = document.getElementById(`${key}Meta`);
+                if (metaElement) {
+                    metaElement.textContent = text;
+                }
+            });
+        }
+
+        function findStudentRow(studentId, courseId = '', courseName = '', className = '') {
+            if (!Array.isArray(currentStudentData) || currentStudentData.length === 0) {
+                return null;
+            }
+
+            const normalizedStudentId = String(studentId);
+            const normalizedCourseId = String(courseId || '').trim();
+            const normalizedCourseName = String(courseName || '').trim();
+            const normalizedClassName = String(className || '').trim();
+
+            return currentStudentData.find(item =>
+                String(item?.studentId) === normalizedStudentId
+                && (!normalizedCourseId || String(item?.courseId || '').trim() === normalizedCourseId)
+                && (!normalizedCourseName || String(item?.courseName || '').trim() === normalizedCourseName)
+                && (!normalizedClassName || String(item?.className || '').trim() === normalizedClassName)
+            ) || currentStudentData.find(item => String(item?.studentId) === normalizedStudentId) || null;
+        }
         
         // 显示字段错误
         function showFieldError(field, message) {
@@ -1025,7 +1163,7 @@
         async function checkClassExists(className) {
             try {
                 // 调用API检查班级是否存在
-                const response = await fetch(`/api/teacher/classes?className=${encodeURIComponent(className)}`, {
+                const response = await fetch(withTeacherApiBase(`/teacher/classes?className=${encodeURIComponent(className)}`), {
                     credentials: 'include'
                 });
                 
@@ -1172,7 +1310,7 @@
         });
         
         // 显示学生详情
-        async function showStudentDetail(studentId, studentName, fallbackClassName) {
+        async function showStudentDetail(studentId, studentName, fallbackClassName, fallbackCourseName = '', fallbackCourseId = '') {
             try {
                 // 先销毁可能存在的图表实例，防止内存泄漏
                 if (studentDetailChart) {
@@ -1210,9 +1348,7 @@
                 // 获取学生详细数据（优先接口，退回到已加载的列表数据）
                 let studentData = null;
                 // 先从当前列表缓存里取一份，用于后续字段补全
-                const cachedStudent = Array.isArray(currentStudentData)
-                    ? currentStudentData.find(item => item.studentId == studentId)
-                    : null;
+                const cachedStudent = findStudentRow(studentId, fallbackCourseId, fallbackCourseName, fallbackClassName);
                 try {
                     const apiService = new APIService();
                     const teacherApi = new TeacherAPI(apiService);
@@ -1233,17 +1369,18 @@
                     studentData = cachedStudent;
                 }
 
-                // 如果接口有数据但缺字段，用缓存数据进行补全（常见字段：班级、平均分等）
-                if (studentData && cachedStudent) {
-                    studentData = {
-                        ...cachedStudent,
-                        ...studentData
-                    };
-                }
+                const rowScopedStudentData = cachedStudent ? {
+                    ...studentData,
+                    ...cachedStudent
+                } : studentData;
+
+                // 课程行语义优先：学生级详情接口只补充通用字段，不覆盖当前点击行的课程维度字段
+                studentData = rowScopedStudentData;
 
                 // 统一班级名称兜底，兼容多种字段名，并尝试通过classId反查全局班级列表或单条班级接口
                 let resolvedClassName = '';
                 let resolvedClassId = '';
+                let resolvedCourseName = '';
                 if (studentData) {
                     resolvedClassName = studentData.className
                         || studentData.classTitle
@@ -1254,6 +1391,13 @@
                         || (studentData.clazz && (studentData.clazz.name || studentData.clazz.className))
                         || '';
                     resolvedClassId = studentData.classId || studentData.class_id || studentData.classID || (studentData.classInfo && studentData.classInfo.id);
+                    resolvedCourseName = studentData.courseName
+                        || studentData.course_title
+                        || studentData.courseTitle
+                        || studentData.course
+                        || studentData.course_name
+                        || (studentData.courseInfo && (studentData.courseInfo.name || studentData.courseInfo.courseName))
+                        || '';
                 }
                 // 若仍为空且有classId，尝试用全局班级缓存反查名称
                 if (!resolvedClassName && resolvedClassId && Array.isArray(window.teacherClasses)) {
@@ -1267,7 +1411,7 @@
                 // 如果全局缓存没有命中且有classId，兜底调用单条班级接口一次
                 if (!resolvedClassName && resolvedClassId) {
                     try {
-                        const classResp = await fetch(`/api/teacher/classes/${resolvedClassId}`, { credentials: 'include' });
+                        const classResp = await fetch(withTeacherApiBase(`/teacher/classes/${resolvedClassId}`), { credentials: 'include' });
                         if (classResp.ok) {
                             const classJson = await classResp.json().catch(() => ({}));
                             const classData = classJson.data || classJson;
@@ -1291,6 +1435,15 @@
                 if (!resolvedClassName && fallbackClassName) {
                     resolvedClassName = fallbackClassName;
                 }
+                if (!resolvedCourseName && cachedStudent) {
+                    resolvedCourseName = cachedStudent.courseName
+                        || cachedStudent.course_name
+                        || (cachedStudent.courseInfo && (cachedStudent.courseInfo.name || cachedStudent.courseInfo.courseName))
+                        || '';
+                }
+                if (!resolvedCourseName && fallbackCourseName) {
+                    resolvedCourseName = fallbackCourseName;
+                }
                 
                 // 仍然没有数据则提示用户
                 if (!studentData) {
@@ -1305,6 +1458,7 @@
                 const statusLabel = averageScoreVal === null ? '未知' : averageScoreVal < 60 ? '⚠️ 预警' : averageScoreVal < 75 ? '⚠️ 关注' : '正常';
                 const statusClass = averageScoreVal === null ? 'badge-secondary' : averageScoreVal < 60 ? 'badge-danger' : averageScoreVal < 75 ? 'badge-warning' : 'badge-success';
                 let recentScores = [];
+                let recentScoreLabels = [];
                 const extractScores = source => Array.isArray(source)
                     ? source.filter(score => Number.isFinite(Number(score))).map(score => Number(score))
                     : [];
@@ -1313,19 +1467,31 @@
                 // 若近期成绩为空，尝试调用成绩趋势接口作为兜底
                 if ((!recentScores || recentScores.length === 0) && studentId) {
                     try {
-                        const trendResponse = await teacherApi.getScoreTrend({ studentId });
+                        const trendParams = { studentId };
+                        const effectiveCourseId = fallbackCourseId || cachedStudent?.courseId || studentData?.courseId || '';
+                        if (effectiveCourseId && String(effectiveCourseId) !== 'all') {
+                            trendParams.courseId = effectiveCourseId;
+                        }
+                        const trendResponse = await teacherApi.getScoreTrend(trendParams);
                         const trendSuccess = trendResponse && (trendResponse.success === undefined || trendResponse.success !== false);
                         const trendData = trendSuccess ? (trendResponse.data || trendResponse.scores || trendResponse.recentScores || trendResponse) : null;
                         if (trendData) {
-                            // 兼容多种返回结构：数组或对象带 recentScores/scores
-                            const trendScores = Array.isArray(trendData)
+                            const trendPoints = Array.isArray(trendData)
                                 ? trendData
                                 : Array.isArray(trendData.recentScores)
                                     ? trendData.recentScores
                                     : Array.isArray(trendData.scores)
                                         ? trendData.scores
                                         : [];
-                            recentScores = trendScores.filter(score => Number.isFinite(Number(score))).map(score => Number(score));
+                            if (trendPoints.length > 0 && typeof trendPoints[0] === 'object' && trendPoints[0] !== null) {
+                                recentScoreLabels = trendPoints.map((point, index) => point.date || `第${index + 1}次`);
+                                recentScores = trendPoints
+                                    .map(point => point.averageScore)
+                                    .filter(score => Number.isFinite(Number(score)))
+                                    .map(score => Number(score));
+                            } else {
+                                recentScores = trendPoints.filter(score => Number.isFinite(Number(score))).map(score => Number(score));
+                            }
                         }
                     } catch (trendError) {
                         console.warn('成绩趋势接口兜底失败:', trendError);
@@ -1357,6 +1523,10 @@
                                         <tr>
                                             <th scope="row">班级</th>
                                             <td>${resolvedClassName || '未知班级'}</td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">当前课程</th>
+                                            <td>${resolvedCourseName || '未知课程'}</td>
                                         </tr>
                                         <tr>
                                             <th scope="row">平均成绩</th>
@@ -1424,7 +1594,9 @@
                         studentDetailChart.destroy();
                     }
                     
-                    const labels = recentScores.map((_, index) => `第${index + 1}次`);
+                    const labels = recentScoreLabels.length === recentScores.length && recentScoreLabels.length > 0
+                        ? recentScoreLabels
+                        : recentScores.map((_, index) => `第${index + 1}次`);
                     
                     studentDetailChart = new Chart(ctx, {
                         type: 'line',
@@ -1573,7 +1745,8 @@
             // 无数据时显示占位并重置分页
             if (!data || data.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="9" class="text-center">暂无学生数据</td></tr>';
-                totalStudents = 0;
+                totalStudentRows = 0;
+                totalUniqueStudents = 0;
                 totalPages = 1;
                 currentPage = 1;
                 updatePaginationUI();
@@ -1591,6 +1764,7 @@
                     // 提取需要的数据（适配后端返回的字段名）
                     const studentId = perf.studentId || '未知';
                     const studentName = perf.realName || '未知';
+                    const studentCourseId = perf.courseId || '';
                     const className = perf.className || '未知';
                     // 优先使用学生实际的课程名称，确保显示正确的课程信息
                     const courseName = perf.courseName || '未知课程';
@@ -1621,8 +1795,8 @@
                         </td>
                         <td><span class="badge ${statusClass}">${status}</span></td>
                         <td>
-                            <button class="btn btn-sm btn-primary view-detail-btn" data-student-id="${studentId}" data-student-name="${studentName}" data-class-name="${className}"><i class="fa fa-eye"></i> 查看</button>
-                            <button class="btn btn-sm btn-secondary edit-student-btn" data-student-id="${studentId}" data-student-name="${studentName}"><i class="fa fa-edit"></i> 编辑</button>
+                            <button class="btn btn-sm btn-primary view-detail-btn" data-student-id="${studentId}" data-student-name="${studentName}" data-class-name="${className}" data-course-name="${courseName}" data-course-id="${studentCourseId}"><i class="fa fa-eye"></i> 查看</button>
+                            <button class="btn btn-sm btn-secondary edit-student-btn" data-student-id="${studentId}" data-student-name="${studentName}" data-class-name="${className}" data-course-name="${courseName}" data-course-id="${studentCourseId}"><i class="fa fa-edit"></i> 编辑</button>
                         </td>
                     `;
                     
@@ -1823,12 +1997,12 @@
             try {
                 // 读取当前筛选条件
                 const classId = document.getElementById('classSelect').value;
-                const courseId = document.getElementById('courseSelect').value;
+                const selectedCourseId = document.getElementById('courseSelect').value;
                 const timeRange = document.getElementById('timeRangeSelect').value;
                 
                 console.log('当前筛选条件:', {
                     classId: classId,
-                    courseId: courseId,
+                    courseId: selectedCourseId,
                     timeRange: timeRange
                 });
                 
@@ -1838,8 +2012,8 @@
                 if (classId !== 'all') {
                     params.append('classId', classId);
                 }
-                if (courseId !== 'all') {
-                    params.append('courseId', courseId);
+                if (selectedCourseId !== 'all') {
+                    params.append('courseId', selectedCourseId);
                 }
                 // 添加时间范围参数
                 params.append('timeRange', timeRange);
@@ -1847,7 +2021,7 @@
                 const url = `/api/teacher/learning-summary?${paramsString}`;
                 console.log('调用学习汇总API:', url);
                 
-                const response = await fetch(url, { credentials: 'include' });
+                const response = await fetch(withTeacherApiBase(url), { credentials: 'include' });
                 if (!response.ok) {
                     console.error('获取学生学习数据失败，状态码:', response.status);
                     const errorText = await response.text();
@@ -1889,22 +2063,28 @@
                     tbody.innerHTML = '<tr><td colspan="9" class="text-center">暂无符合筛选条件的学生</td></tr>';
                     // 清空当前数据
                     currentStudentData = [];
-                    totalStudents = 0;
+                    totalStudentRows = 0;
+                    totalUniqueStudents = 0;
                     totalPages = 1;
                     currentPage = 1;
+                    updateStudentTableTitle('学生学习数据详情', 0, 0);
                     updatePaginationUI();
                     return;
                 }
                 
                 // 保存当前学生数据
                 currentStudentData = performances;
+                totalUniqueStudents = Number.isFinite(Number(summary.totalStudents))
+                    ? Number(summary.totalStudents)
+                    : countUniqueStudents(performances);
                 
                 // 更新总记录数和计算总页数
-                totalStudents = performances.length;
-                totalPages = Math.ceil(totalStudents / pageSize);
+                totalStudentRows = performances.length;
+                totalPages = Math.max(1, Math.ceil(totalStudentRows / pageSize));
                 
                 // 重置当前页码
                 currentPage = 1;
+                updateStudentTableTitle('学生学习数据详情', totalUniqueStudents, totalStudentRows);
                 
                 // 应用当前排序
                 sortStudentData(currentSortField, currentSortDirection);
@@ -1914,12 +2094,13 @@
             } catch (error) {
                 // 使用全局错误处理函数，添加重试功能
                 handleApiError(error, '加载学生数据', 'loadStudentData');
-                
-                // 显示错误状态
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center"><i class="fa fa-exclamation-circle mr-2 text-danger"></i> 加载失败，请检查网络连接或点击上方通知重试</td></tr>`;
-                totalStudents = 0;
+                const fallbackMessage = getStudentTableFallbackMessage(error);
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center"><i class="fa fa-exclamation-circle mr-2 text-warning"></i> ${fallbackMessage}</td></tr>`;
+                totalStudentRows = 0;
+                totalUniqueStudents = 0;
                 totalPages = 1;
                 currentPage = 1;
+                updateStudentTableTitle('学生学习数据详情', 0, 0);
                 updatePaginationUI();
             }
         }
@@ -1930,6 +2111,7 @@
             document.getElementById('classSelect').value = 'all';
             document.getElementById('courseSelect').value = 'all';
             document.getElementById('timeRangeSelect').value = 'week';
+            syncScoreTrendTimeRangeControls('week');
         }
         
         // 初始化班级和课程列表
@@ -1946,16 +2128,16 @@
                 
                 // 并行获取班级和课程列表
                 const classesUrl = courseId ? `/api/teacher/classes?courseId=${courseId}` : '/api/teacher/classes';
-                const coursesUrl = '/api/teacher/courses';
+                const coursesUrl = '/api/teacher/courses?page=1&size=100';
                 console.log('准备调用API:', classesUrl, '和', coursesUrl);
                 
                 const [classesResponse, coursesResponse] = await Promise.all([
-                    fetch(classesUrl, { credentials: 'include' }).catch(error => {
+                    fetch(withTeacherApiBase(classesUrl), { credentials: 'include' }).catch(error => {
                         console.error('班级API网络请求失败:', error);
                         // 返回一个失败的响应对象，让后续代码处理
                         return { ok: false, status: 500, text: () => Promise.resolve('网络请求失败') };
                     }),
-                    fetch(coursesUrl, { credentials: 'include' }).catch(error => {
+                    fetch(withTeacherApiBase(coursesUrl), { credentials: 'include' }).catch(error => {
                         console.error('课程API网络请求失败:', error);
                         // 返回一个失败的响应对象，让后续代码处理
                         return { ok: false, status: 500, text: () => Promise.resolve('网络请求失败') };
@@ -2129,7 +2311,7 @@
                 const paramsString = params.toString();
                 const dashboardUrl = `/api/teacher/dashboard?${paramsString}`;
                 console.log('准备调用仪表盘API:', dashboardUrl);
-                const response = await fetch(dashboardUrl, { credentials: 'include' });
+                const response = await fetch(withTeacherApiBase(dashboardUrl), { credentials: 'include' });
                 
                 console.log('仪表盘API响应状态:', response.status);
                 if (!response.ok) {
@@ -2199,6 +2381,7 @@
                     const studentCount = dashboardData.totalStudents || 0;
                     console.log('学生总数:', studentCount);
                     document.getElementById('studentCount').textContent = studentCount;
+                    applyDashboardStatMetaText();
                     
                     // 平均成绩 - 从averageScores数组计算平均值
                     let averageScore = 0;
@@ -2227,8 +2410,10 @@
                     console.log('作业完成率:', assignmentCompletionRate);
                     document.getElementById('assignmentCompletionRate').textContent = assignmentCompletionRate + '%';
                     
-                    // 学习进度 - 暂时使用averageScore作为学习进度
-                    const overallProgress = averageScore;
+                    // 学习进度 - 使用后端返回的真实 overallProgress
+                    const overallProgress = Number.isFinite(Number(dashboardData.overallProgress))
+                        ? Math.max(0, Math.min(100, Math.round(Number(dashboardData.overallProgress))))
+                        : 0;
                     console.log('学习进度:', overallProgress);
                     document.getElementById('learningProgress').textContent = overallProgress + '%';
                     
@@ -2241,6 +2426,7 @@
                     document.getElementById('averageScore').textContent = 0;
                     document.getElementById('assignmentCompletionRate').textContent = '0%';
                     document.getElementById('learningProgress').textContent = '0%';
+                    applyDashboardStatMetaText();
                 }
             } catch (error) {
                 // 使用全局错误处理函数，添加重试功能
@@ -2252,6 +2438,7 @@
                 document.getElementById('averageScore').textContent = 0;
                 document.getElementById('assignmentCompletionRate').textContent = '0%';
                 document.getElementById('learningProgress').textContent = '0%';
+                applyDashboardStatMetaText();
             } finally {
                 // 清除加载状态
                 console.log('清除加载状态');
@@ -2268,10 +2455,9 @@
         // 检查登录状态
         async function checkLoginStatus() {
             try {
-                // 首先检查localStorage中是否有用户信息
+                const token = sessionStorage.getItem('token');
                 const user = sessionStorage.getItem('user');
-                if (!user) {
-                    // 没有用户信息，跳转到登录页面
+                if (!user || !token) {
                     console.error('localStorage中没有用户信息，跳转到登录页面');
                     showNotification('您未登录或登录已过期，请重新登录', 'warning');
                     setTimeout(() => {
@@ -2279,37 +2465,7 @@
                     }, 1500);
                     return false;
                 }
-                
-                // 有用户信息，验证token是否有效
-                try {
-                    // 发送一个简单的请求来检查登录状态
-                    const response = await fetch('/api/teacher/dashboard', {
-                        method: 'GET',
-                        credentials: 'include',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    
-                    if (response.status === 401) {
-                        // 未登录或token失效，跳转到登录页面
-                        console.error('API返回401未授权，跳转到登录页面');
-                        showNotification('您未登录或登录已过期，请重新登录', 'warning');
-                        // 清除无效的用户信息
-                        sessionStorage.removeItem('user');
-                        sessionStorage.removeItem('token');
-                        setTimeout(() => {
-                            window.location.href = 'teacher-login.html';
-                        }, 1500);
-                        return false;
-                    }
-                    
-                    return true;
-                } catch (apiError) {
-                    // API调用失败，可能是网络问题，允许用户重试
-                    console.error('检查登录状态API调用失败:', apiError);
-                    return true;
-                }
+                return true;
             } catch (error) {
                 console.error('检查登录状态失败:', error);
                 // 网络错误时，不强制跳转，允许用户重试
@@ -2323,7 +2479,7 @@
             if (!container) return;
 
             try {
-                const resp = await fetch('components/user-dropdown.html');
+            const resp = await fetch('components/user-dropdown.html?v=20260523-1');
                 if (!resp.ok) {
                     console.error('加载用户下拉组件失败:', resp.status, resp.statusText);
                     return;
@@ -2377,7 +2533,7 @@
 
             // 加载右上角用户下拉菜单（教师端紫色主题）
             await loadUserDropdownForTeacher('userDropdownContainer');
-            
+
             // 初始化班级和课程列表
             await initFilterOptions();
             
@@ -2420,7 +2576,7 @@
                         // 再更新表格和图表数据
                         await loadStudentData();
                         await initScoreDistributionChart(scoreDistributionChart ? scoreDistributionChart.config.type : 'pie');
-                        await initScoreTrendChart(scoreTrendChart ? scoreTrendChart.config.type : 'line');
+                        await initScoreTrendChart(timeRange);
                     } catch (error) {
                         console.error('查询失败:', error);
                         
@@ -2469,7 +2625,14 @@
                     // 再更新表格和图表数据
                     await loadStudentData();
                     await initScoreDistributionChart(scoreDistributionChart ? scoreDistributionChart.config.type : 'pie');
-                    await initScoreTrendChart(scoreTrendChart ? scoreTrendChart.config.type : 'line');
+                    await initScoreTrendChart(timeRange);
+                });
+            }
+
+            const timeRangeSelect = document.getElementById('timeRangeSelect');
+            if (timeRangeSelect) {
+                timeRangeSelect.addEventListener('change', function() {
+                    syncScoreTrendTimeRangeControls(this.value);
                 });
             }
             
@@ -2485,9 +2648,9 @@
                     
                     // 获取当前图表卡片
                     const chartCard = this.closest('.chart-card');
-                    const chartTitle = chartCard.querySelector('.chart-title')?.textContent;
+                    const chartKind = chartCard?.dataset?.chartKind || '';
                     
-                    if (chartTitle === '成绩分布') {
+                    if (chartKind === 'score-distribution') {
                         // 切换成绩分布图表类型
                         const chartType = this.textContent;
                         if (chartType === '饼图') {
@@ -2495,16 +2658,18 @@
                         } else if (chartType === '柱状图') {
                             await initScoreDistributionChart('bar');
                         }
-                    } else if (chartTitle === '成绩趋势') {
+                    } else if (chartKind === 'score-trend') {
                         // 切换成绩趋势图表时间范围
                         // 获取时间范围参数映射
                         const timeRangeMap = {
                             '周': 'week',
                             '月': 'month',
+                            '三个月': 'quarter',
                             '学期': 'semester'
                         };
                         const timeRangeText = this.textContent;
                         const timeRange = timeRangeMap[timeRangeText] || 'week';
+                        syncScoreTrendTimeRangeControls(timeRange);
                         await initScoreTrendChart(timeRange);
                     }
                 });
@@ -2536,7 +2701,7 @@
                     const paramsString = params.toString();
                     const url = `/api/teacher/learning-summary${paramsString ? '?' + paramsString : ''}`;
                     
-                    const response = await fetch(url, { credentials: 'include' });
+                    const response = await fetch(withTeacherApiBase(url), { credentials: 'include' });
                     if (!response.ok) {
                         throw new Error('获取数据失败');
                     }
@@ -2553,6 +2718,7 @@
                         '学号': perf.studentId || '未知',
                         '姓名': perf.realName || '未知',
                         '班级': perf.className || '未知',
+                        '课程': perf.courseName || '未知课程',
                         '平均成绩': perf.averageScore || 0,
                         '待交作业': perf.pendingAssignments || 0,
                         '学习进度': `${Math.round(perf.overallProgress || 0)}%`
@@ -2567,6 +2733,7 @@
                         { wch: 12 }, // 学号
                         { wch: 10 }, // 姓名
                         { wch: 20 }, // 班级
+                        { wch: 20 }, // 课程
                         { wch: 10 }, // 平均成绩
                         { wch: 10 }, // 待交作业
                         { wch: 10 }  // 学习进度
@@ -2650,15 +2817,17 @@
                 // 读取当前筛选条件
                 const classId = document.getElementById('classSelect').value;
                 const courseId = document.getElementById('courseSelect').value;
+                const timeRange = document.getElementById('timeRangeSelect').value;
                 
                 // 使用学习汇总API获取所有学生数据
                 // 构建查询参数，无论classId和courseId是否为'all'都包含，确保后端能正确处理组合查询
                 const params = new URLSearchParams();
                 params.append('classId', classId);
                 params.append('courseId', courseId);
+                params.append('timeRange', timeRange);
                 const paramsString = params.toString();
                 const url = `/api/teacher/learning-summary?${paramsString}`;
-                const response = await fetch(url, { credentials: 'include' });
+                const response = await fetch(withTeacherApiBase(url), { credentials: 'include' });
                 
                 if (!response.ok) {
                     throw new Error('获取学生数据失败');
@@ -2704,8 +2873,9 @@
                 
                 // 同步全局数据，保持排序/分页一致
                 currentStudentData = filteredStudents;
-                totalStudents = filteredStudents.length;
-                totalPages = Math.max(1, Math.ceil(totalStudents / pageSize));
+                totalUniqueStudents = countUniqueStudents(filteredStudents);
+                totalStudentRows = filteredStudents.length;
+                totalPages = Math.max(1, Math.ceil(totalStudentRows / pageSize));
                 currentPage = 1;
                 
                 // 清空表格
@@ -2723,7 +2893,7 @@
                 // 更新表格标题，显示当前分数段
                 const tableTitle = document.querySelector('.table-section h3.chart-title');
                 if (tableTitle) {
-                    tableTitle.innerHTML = `分数段：${scoreRange} <span style="font-size: 12px; color: #64748b; font-weight: normal;">(${filteredStudents.length}名学生)</span>`;
+                    tableTitle.innerHTML = buildStudentTableTitle(`分数段：${scoreRange}`, totalUniqueStudents, totalStudentRows);
                     tableTitle.style.transition = 'all 0.3s ease';
                     tableTitle.style.color = color;
                 }
@@ -2780,7 +2950,7 @@
             params.append('timeRange', timeRange);
             const paramsString = params.toString();
             const url = `/api/teacher/learning-summary?${paramsString}`;
-            const response = await fetch(url, { credentials: 'include' });
+            const response = await fetch(withTeacherApiBase(url), { credentials: 'include' });
             
             if (!response.ok) {
                 console.error('获取成绩分布数据失败，状态码:', response.status);
@@ -2930,7 +3100,7 @@
                 } else {
                     // 对于饼图，使用传统的数据结构
                     chartDatasets = [{
-                        label: '学生人数',
+                        label: '课程记录数',
                         data: chartData.data,
                         backgroundColor: chartData.backgroundColor,
                         borderColor: chartData.backgroundColor,
@@ -2976,7 +3146,7 @@
                                             context.dataset.data[context.dataIndex] : 
                                             context.dataset.data.reduce((a, b) => a + b, 0);
                                         const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-                                        return `${label}: ${value}人 (${percentage}%)`;
+                                        return `${label}: ${value}条记录 (${percentage}%)`;
                                     }
                                 }
                             }
@@ -2986,7 +3156,7 @@
                                 beginAtZero: true,
                                 title: {
                                     display: true,
-                                    text: '学生人数'
+                                    text: '课程记录数'
                                 },
                                 ticks: {
                                     stepSize: 5
@@ -3010,14 +3180,16 @@
                 });
             } catch (error) {
                 console.error('初始化成绩分布图表失败:', error);
-                showNotification('加载成绩分布图表失败', 'danger');
+                if (!isAccessDeniedError(error)) {
+                    showNotification('加载成绩分布图表失败', 'danger');
+                }
             }
         }
         
         // 获取成绩趋势数据
         async function getScoreTrendData(timeRange = 'week') {
             const classId = document.getElementById('classSelect').value;
-            const courseId = document.getElementById('courseSelect').value;
+            const selectedCourseId = document.getElementById('courseSelect').value;
             const apiService = new APIService();
             const teacherApi = new TeacherAPI(apiService);
             
@@ -3028,8 +3200,8 @@
                 if (classId !== 'all') {
                     params.classId = classId;
                 }
-                if (courseId !== 'all') {
-                    params.courseId = courseId;
+                if (selectedCourseId !== 'all') {
+                    params.courseId = selectedCourseId;
                 }
                 
                 const response = await teacherApi.getScoreTrend(params);
@@ -3041,8 +3213,12 @@
                 
                 const trendArray = Array.isArray(payload) ? payload : [];
                 if (trendArray.length === 0) {
-                    console.warn('成绩趋势为空，使用默认占位数据');
-                    return getDefaultTrendData(timeRange);
+                    return {
+                        labels: [],
+                        scores: [],
+                        isEmpty: true,
+                        message: '当前筛选下暂无成绩趋势数据'
+                    };
                 }
                 
                 const labels = [];
@@ -3052,7 +3228,7 @@
                     const dateStr = item.date || '';
                     // 根据时间范围生成友好标签
                     let label = dateStr;
-                    if (timeRange === 'week' || timeRange === 'month') {
+                    if (timeRange === 'week' || timeRange === 'month' || timeRange === 'quarter') {
                         // 显示MM-DD
                         label = dateStr.slice(5);
                     }
@@ -3060,45 +3236,91 @@
                     scores.push(Math.round((item.averageScore || 0) * 10) / 10);
                 });
                 
-                return { labels, scores };
+                return { labels, scores, isEmpty: false, message: '' };
             } catch (error) {
                 console.error('获取成绩趋势数据失败:', error);
-                showNotification('获取成绩趋势数据失败，已显示占位数据', 'warning');
-                return getDefaultTrendData(timeRange);
+                return {
+                    labels: [],
+                    scores: [],
+                    isEmpty: true,
+                    message: '成绩趋势数据暂不可用，请稍后重试'
+                };
             }
         }
         
-        // 获取默认趋势数据
-        function getDefaultTrendData(timeRange) {
-            switch(timeRange) {
-                case 'week':
-                    return {
-                        labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
-                        scores: [75.2, 76.5, 77.8, 78.3, 79.1, 80.5, 81.2]
-                    };
-                case 'month':
-                    return {
-                        labels: ['第1周', '第2周', '第3周', '第4周'],
-                        scores: [70.5, 73.2, 75.8, 78.1]
-                    };
-                case 'semester':
-                    return {
-                        labels: ['第1周', '第2周', '第3周', '第4周', '第5周', '第6周', '第7周', '第8周'],
-                        scores: [65.2, 68.5, 72.1, 75.3, 77.8, 80.2, 82.5, 84.1]
-                    };
-                default:
-                    return {
-                        labels: ['第1周', '第2周', '第3周', '第4周', '第5周', '第6周', '第7周', '第8周'],
-                        scores: [75.2, 76.5, 77.8, 78.3, 79.1, 80.5, 81.2, 82.5]
-                    };
+        function clearScoreTrendEmptyState(chartContainer) {
+            const emptyState = chartContainer?.parentElement?.querySelector('.score-trend-empty-state');
+            if (emptyState) {
+                emptyState.remove();
             }
         }
-        
+
+        function renderScoreTrendEmptyState(chartContainer, message) {
+            clearScoreTrendEmptyState(chartContainer);
+            const emptyState = document.createElement('div');
+            emptyState.className = 'chart-empty-state score-trend-empty-state';
+            emptyState.textContent = message;
+            chartContainer.parentElement.appendChild(emptyState);
+        }
+
+        function buildScoreTrendEmptyChart(scoreTrendCtx) {
+            return new Chart(scoreTrendCtx, {
+                type: 'line',
+                data: {
+                    labels: ['暂无数据'],
+                    datasets: [{
+                        label: '当前筛选平均成绩',
+                        data: [null],
+                        borderColor: '#cbd5e1',
+                        backgroundColor: 'rgba(203, 213, 225, 0.15)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        spanGaps: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            min: 0,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: '平均成绩'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '时间'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    }
+                }
+            });
+        }
+
         // 初始化成绩趋势图表
         async function initScoreTrendChart(timeRange = 'week') {
+            let chartContainer = null;
+            let loadingText = null;
             try {
+                syncScoreTrendTimeRangeControls(timeRange);
+
                 // 检查图表容器是否存在
-                const chartContainer = document.getElementById('scoreTrendChart');
+                chartContainer = document.getElementById('scoreTrendChart');
                 if (!chartContainer) {
                     console.error('图表容器不存在');
                     return;
@@ -3109,10 +3331,12 @@
                     console.error('无法获取画布上下文');
                     return;
                 }
+
+                clearScoreTrendEmptyState(chartContainer);
                 
                 // 显示加载状态
                 chartContainer.style.opacity = '0.5';
-                const loadingText = document.createElement('div');
+                loadingText = document.createElement('div');
                 loadingText.className = 'chart-loading';
                 loadingText.textContent = '加载中...';
                 loadingText.style.position = 'absolute';
@@ -3134,6 +3358,12 @@
                 if (scoreTrendChart) {
                     scoreTrendChart.destroy();
                 }
+
+                if (trendData.isEmpty) {
+                    scoreTrendChart = buildScoreTrendEmptyChart(scoreTrendCtx);
+                    renderScoreTrendEmptyState(chartContainer, trendData.message);
+                    return;
+                }
                 
                 // 创建新图表实例
                 scoreTrendChart = new Chart(scoreTrendCtx, {
@@ -3141,6 +3371,7 @@
                     data: {
                         labels: trendData.labels,
                         datasets: [{
+                            label: '当前筛选平均成绩',
                             data: trendData.scores,
                             borderColor: '#0d6efd',
                             backgroundColor: 'rgba(13, 110, 253, 0.1)',
@@ -3172,12 +3403,34 @@
                         plugins: {
                             legend: {
                                 display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const value = Number(context.raw || 0);
+                                        return `当前筛选平均成绩: ${value}分`;
+                                    }
+                                }
                             }
                         }
                     }
                 });
             } catch (error) {
                 console.error('初始化成绩趋势图表失败:', error);
+                if (chartContainer) {
+                    chartContainer.style.opacity = '1';
+                    if (loadingText) {
+                        loadingText.remove();
+                    }
+                    const scoreTrendCtx = chartContainer.getContext('2d');
+                    if (scoreTrendChart) {
+                        scoreTrendChart.destroy();
+                    }
+                    if (scoreTrendCtx) {
+                        scoreTrendChart = buildScoreTrendEmptyChart(scoreTrendCtx);
+                        renderScoreTrendEmptyState(chartContainer, '成绩趋势数据暂不可用，请稍后重试');
+                    }
+                }
                 showNotification('加载成绩趋势图表失败', 'danger');
             }
         }
@@ -3190,17 +3443,8 @@
                 const activeScoreDistributionButton = Array.from(scoreDistributionButtons).find(btn => btn.classList.contains('active'));
                 const chartType = activeScoreDistributionButton ? (activeScoreDistributionButton.textContent === '饼图' ? 'pie' : 'bar') : 'pie';
                 
-                // 获取时间范围参数映射
-                const timeRangeMap = {
-                    '周': 'week',
-                    '月': 'month',
-                    '学期': 'semester'
-                };
-                
-                const scoreTrendButtons = document.querySelectorAll('.chart-card:nth-child(2) .chart-card-actions button');
-                const activeScoreTrendButton = Array.from(scoreTrendButtons).find(btn => btn.classList.contains('active'));
-                const timeRangeText = activeScoreTrendButton ? activeScoreTrendButton.textContent : '周';
-                const timeRange = timeRangeMap[timeRangeText] || 'week';
+                const timeRange = document.getElementById('timeRangeSelect').value;
+                syncScoreTrendTimeRangeControls(timeRange);
                 
                 await Promise.all([
                     initScoreDistributionChart(chartType),
@@ -3212,7 +3456,7 @@
         }
         
         // 编辑学生函数
-        async function editStudent(studentId, studentName) {
+        async function editStudent(studentId, studentName, courseId = '', courseName = '', className = '') {
             console.log('编辑学生:', studentId, studentName);
             
             // 获取模态框元素
@@ -3257,7 +3501,13 @@
                 const summaryResponse = await teacherApi.getLearningSummary(params);
                 
                 // 从学习汇总中查找当前学生数据
-                const studentData = summaryResponse.data.studentPerformances.find(student => student.studentId == studentId);
+                const performances = summaryResponse?.data?.studentPerformances || [];
+                const studentData = performances.find(student =>
+                    String(student?.studentId) === String(studentId)
+                    && (!courseId || String(student?.courseId || '').trim() === String(courseId).trim())
+                    && (!courseName || String(student?.courseName || '').trim() === String(courseName).trim())
+                    && (!className || String(student?.className || '').trim() === String(className).trim())
+                ) || performances.find(student => String(student?.studentId) === String(studentId));
                 
                 if (!studentData) {
                     throw new Error('未找到该学生的详细数据');
@@ -3268,6 +3518,13 @@
                 
                 // 加载班级数据到下拉选择框
                 await loadClasses();
+
+                const editForm = document.getElementById('editStudentForm');
+                if (editForm) {
+                    editForm.dataset.courseId = courseId || '';
+                    editForm.dataset.courseName = courseName || '';
+                    editForm.dataset.className = className || '';
+                }
                 
                 // 填充表单数据
                 document.getElementById('editStudentId').value = studentData.studentId;
@@ -3305,6 +3562,13 @@
                 
                 // 加载班级数据到下拉选择框
                 await loadClasses();
+
+                const editForm = document.getElementById('editStudentForm');
+                if (editForm) {
+                    editForm.dataset.courseId = courseId || '';
+                    editForm.dataset.courseName = courseName || '';
+                    editForm.dataset.className = className || '';
+                }
                 
                 // 填充默认数据
                 document.getElementById('editStudentId').value = studentId;
@@ -3342,6 +3606,9 @@
             const studentId = document.getElementById('editStudentId').value;
             const studentName = document.getElementById('editStudentName').value;
             const formClassId = document.getElementById('editStudentClass').value;
+            const courseId = form.dataset.courseId || '';
+            const courseName = form.dataset.courseName || '';
+            const className = form.dataset.className || '';
             // 成绩、作业、进度均由系统计算，此处不再手动编辑
             
             try {
@@ -3424,19 +3691,30 @@
                 }
                 
                 // 1. 先更新当前学生数据数组中的对应学生信息，确保UI能立即反映最新数据
-                const studentIndex = currentStudentData.findIndex(student => student.studentId == studentId);
+                const studentIndex = currentStudentData.findIndex(student =>
+                    String(student?.studentId) === String(studentId)
+                    && (!courseId || String(student?.courseId || '').trim() === String(courseId).trim())
+                    && (!courseName || String(student?.courseName || '').trim() === String(courseName).trim())
+                    && (!className || String(student?.className || '').trim() === String(className).trim())
+                );
                 if (studentIndex !== -1) {
                     const classSelect = document.getElementById('editStudentClass');
                     const selectedOption = classSelect && classSelect.selectedOptions ? classSelect.selectedOptions[0] : null;
+                    const updatedClassName = selectedOption?.textContent || currentStudentData[studentIndex].className;
                     
-                    // 更新当前学生数据
-                    currentStudentData[studentIndex] = {
-                        ...currentStudentData[studentIndex],
-                        realName: studentName,
-                        classId: formClassId,
-                        className: selectedOption?.textContent || currentStudentData[studentIndex].className
-                    };
-                    console.log('已更新本地学生数据数组中的学生信息');
+                    // 同步更新该学生在当前表格中的所有课程行，避免多课程场景下一部分行先旧后一部分行先新
+                    currentStudentData = currentStudentData.map(student => {
+                        if (String(student?.studentId) !== String(studentId)) {
+                            return student;
+                        }
+                        return {
+                            ...student,
+                            realName: studentName,
+                            classId: formClassId,
+                            className: updatedClassName
+                        };
+                    });
+                    console.log('已批量更新本地学生数据数组中的学生信息');
                 }
                 
                 // 2. 立即重新渲染表格，使用更新后的本地数据
@@ -3504,14 +3782,20 @@
             if (viewBtn) {
                 const studentId = viewBtn.getAttribute('data-student-id');
                 const studentName = viewBtn.getAttribute('data-student-name');
-                showStudentDetail(studentId, studentName);
+                const className = viewBtn.getAttribute('data-class-name');
+                const courseName = viewBtn.getAttribute('data-course-name');
+                const courseId = viewBtn.getAttribute('data-course-id');
+                showStudentDetail(studentId, studentName, className, courseName, courseId);
             }
             
             const editBtn = e.target.closest('.edit-student-btn');
             if (editBtn) {
                 const studentId = editBtn.getAttribute('data-student-id');
                 const studentName = editBtn.getAttribute('data-student-name');
-                editStudent(studentId, studentName);
+                const className = editBtn.getAttribute('data-class-name');
+                const courseName = editBtn.getAttribute('data-course-name');
+                const courseId = editBtn.getAttribute('data-course-id');
+                editStudent(studentId, studentName, courseId, courseName, className);
             }
         });
     </script>

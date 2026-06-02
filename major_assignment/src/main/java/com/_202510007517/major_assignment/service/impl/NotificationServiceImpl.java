@@ -3,6 +3,7 @@ package com._202510007517.major_assignment.service.impl;
 import com._202510007517.major_assignment.entity.Notification;
 import com._202510007517.major_assignment.mapper.NotificationMapper;
 import com._202510007517.major_assignment.service.NotificationService;
+import com._202510007517.major_assignment.utils.PageUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -86,19 +87,18 @@ public class NotificationServiceImpl implements NotificationService {
         
         // 分页
         int total = filteredNotifications.size();
-        List<Notification> paginatedNotifications = new ArrayList<>();
-        if (total > 0) {
-            int startIndex = (page - 1) * size;
-            int endIndex = Math.min(startIndex + size, total);
-            paginatedNotifications = filteredNotifications.subList(startIndex, endIndex);
-        }
+        PageUtils.PageWindow window = PageUtils.resolvePageWindow(
+                page == null ? 1 : page,
+                size == null ? PageUtils.DEFAULT_PAGE_SIZE : size,
+                total);
+        List<Notification> paginatedNotifications = PageUtils.paginate(filteredNotifications, window.page(), window.size());
         
         Map<String, Object> result = new HashMap<>();
         result.put("notifications", paginatedNotifications);
         result.put("total", total);
-        result.put("page", page);
-        result.put("size", size);
-        result.put("totalPages", (int) Math.ceil((double) total / size));
+        result.put("page", window.page());
+        result.put("size", window.size());
+        result.put("totalPages", window.totalPages());
         
         return result;
     }

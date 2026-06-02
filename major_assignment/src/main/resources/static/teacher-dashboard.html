@@ -4,16 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智能后台学习辅助系统 - 教师控制台</title>
+    <link rel="icon" href="data:,">
     <!-- Bootstrap 5 CSS -->
     <link href="lib/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome CSS -->
-    <link href="lib/font-awesome-full.css" rel="stylesheet">
+    <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- ECharts JS -->
+        <!-- ECharts JS -->
     <script src="lib/echarts.min.js"></script>
     <!-- API服务 -->
-    <script src="api.js"></script>
+    <script src="api.js?v=20260523-1"></script>
+    <script src="common-ui.js?v=20260523-1"></script>
+    <link href="styles.css?v=20260523-1" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -505,57 +507,79 @@
                 opacity: 1;
             }
         }
+
+        body.teacher-shell-body {
+            background: #f8fafc;
+        }
+
+        .content-container.teacher-content {
+            padding: 24px;
+        }
+
+        .teacher-topbar .page-title {
+            color: #0f172a;
+        }
+
+        .stat-card.teacher-stat-panel,
+        .chart-card.teacher-panel,
+        .recent-activities.teacher-panel {
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+        }
+
+        .recent-activities.teacher-panel {
+            padding: 24px;
+        }
+
+        .recent-activities-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
-<body>
+<body class="teacher-shell-body">
     <!-- 侧边栏导航组件 -->
     <div id="sidebar-container"></div>
     <script>
-        // 加载侧边栏组件
-        fetch('components/teacher-sidebar-nav.html')
-            .then(response => response.text())
-            .then(data => {
-                document.getElementById('sidebar-container').innerHTML = data;
-                // 确保侧边栏组件完全加载后初始化
-                setTimeout(() => {
-                    // 初始化侧边栏切换功能
-                    const sidebar = document.getElementById('sidebar');
-                    const mainContent = document.getElementById('mainContent');
-                    const toggleBtn = document.getElementById('toggleBtn');
-                    
-                    if (sidebar && mainContent && toggleBtn) {
-                        toggleBtn.addEventListener('click', () => {
-                            sidebar.classList.toggle('collapsed');
-                            mainContent.classList.toggle('collapsed');
-                        });
-                    }
-                }, 100);
-            })
+        CommonUI.loadTeacherSidebar('sidebar-container')
             .catch(error => console.error('加载侧边栏组件失败:', error));
     </script>
     
     <!-- 主内容区 -->
-    <main class="main-content" id="mainContent">
+    <main class="main-content teacher-shell-main" id="mainContent">
         <!-- 顶部导航栏 -->
-        <nav class="top-navbar">
+        <nav class="top-navbar teacher-topbar">
             <div class="navbar-left">
                 <button class="toggle-btn" id="toggleBtn">
                     <i class="fa fa-bars"></i>
                 </button>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item"><a href="teacher-dashboard.html" id="breadcrumbHomeLink">首页</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">仪表盘</li>
+                    </ol>
+                </nav>
                 <h1 class="page-title">仪表盘</h1>
             </div>
             
             <div class="navbar-right">
+                <button class="notification-btn" id="notificationBtn" type="button" title="查看通知">
+                    <i class="fa fa-bell"></i>
+                    <span class="notification-badge" id="notificationBadge">0</span>
+                </button>
                 <!-- 用户下拉菜单组件（与学生端保持一致样式与交互） -->
                 <div id="userDropdownContainer"></div>
             </div>
         </nav>
         
         <!-- 内容容器 -->
-        <div class="content-container">
+        <div class="content-container teacher-content">
             <!-- 统计卡片 -->
             <div class="stats-cards">
-                <div class="stat-card">
+                <div class="stat-card teacher-stat-panel">
                     <div class="stat-header">
                         <div class="stat-title">教授课程</div>
                         <div class="stat-icon courses">
@@ -564,12 +588,11 @@
                     </div>
                     <div class="stat-value" data-stat="totalCourses">0</div>
                     <div class="stat-change">
-                        <i class="fa fa-arrow-up"></i>
-                        <span>较上周 <span data-stat="totalCoursesChange">0</span></span>
+                        <span id="totalCoursesMetaLabel">当前筛选课程统计</span>
                     </div>
                 </div>
                 
-                <div class="stat-card">
+                <div class="stat-card teacher-stat-panel">
                     <div class="stat-header">
                         <div class="stat-title">学生总数</div>
                         <div class="stat-icon students">
@@ -578,12 +601,11 @@
                     </div>
                     <div class="stat-value" data-stat="totalStudents">0</div>
                     <div class="stat-change">
-                        <i class="fa fa-arrow-up"></i>
-                        <span>较上周 <span data-stat="totalStudentsChange">0</span></span>
+                        <span id="totalStudentsMetaLabel">当前筛选学生统计</span>
                     </div>
                 </div>
                 
-                <div class="stat-card">
+                <div class="stat-card teacher-stat-panel">
                     <div class="stat-header">
                         <div class="stat-title">待批改作业</div>
                         <div class="stat-icon assignments">
@@ -592,12 +614,11 @@
                     </div>
                     <div class="stat-value" data-stat="pendingAssignments">0</div>
                     <div class="stat-change">
-                        <i class="fa fa-arrow-down"></i>
-                        <span>较昨日 <span data-stat="pendingAssignmentsChange">0</span></span>
+                        <span id="pendingAssignmentsMetaLabel">基于当前待批改队列</span>
                     </div>
                 </div>
                 
-                <div class="stat-card">
+                <div class="stat-card teacher-stat-panel">
                     <div class="stat-header">
                         <div class="stat-title">待批改考试</div>
                         <div class="stat-icon" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
@@ -606,12 +627,11 @@
                     </div>
                     <div class="stat-value" data-stat="pendingExams">0</div>
                     <div class="stat-change">
-                        <i class="fa fa-arrow-up"></i>
-                        <span>较昨日 <span data-stat="pendingExamsChange">0</span></span>
+                        <span id="pendingExamsMetaLabel">基于当前待批改队列</span>
                     </div>
                 </div>
                 
-                <div class="stat-card">
+                <div class="stat-card teacher-stat-panel">
                     <div class="stat-header">
                         <div class="stat-title">学情预警</div>
                         <div class="stat-icon warnings">
@@ -620,27 +640,26 @@
                     </div>
                     <div class="stat-value" data-stat="warningCount">0</div>
                     <div class="stat-change">
-                        <i class="fa fa-arrow-up"></i>
-                        <span>较昨日 <span data-stat="warningCountChange">0</span></span>
+                        <span id="warningCountMetaLabel">基于当前预警列表</span>
                     </div>
                 </div>
             </div>
             
             <!-- 图表区域 -->
             <div class="charts-section">
-                <div class="chart-card">
+                <div class="chart-card teacher-panel">
                     <h3 class="chart-title">班级平均分对比</h3>
                     <div class="chart-container" id="averageScoreChart"></div>
                 </div>
                 
-                <div class="chart-card">
+                <div class="chart-card teacher-panel">
                     <h3 class="chart-title">作业提交率趋势</h3>
                     <div class="chart-container" id="submissionRateChart"></div>
                 </div>
             </div>
             
             <!-- 最近活动 -->
-            <div class="recent-activities">
+            <div class="recent-activities teacher-panel">
                 <div class="recent-activities-header">
                     <h3 class="activities-title">最近活动</h3>
                     <button id="refreshActivitiesBtn" class="btn btn-sm btn-outline-primary">
@@ -657,113 +676,63 @@
     <script>
         // 通用函数：为教师端加载右上角用户下拉菜单，并执行组件内脚本
         async function loadUserDropdownForTeacher(containerId) {
-            const container = document.getElementById(containerId);
-            if (!container) return;
+            return CommonUI.loadTeacherUserDropdown(containerId);
+        }
 
-            try {
-                const resp = await fetch('components/user-dropdown.html');
-                if (!resp.ok) {
-                    console.error('加载用户下拉组件失败:', resp.status, resp.statusText);
-                    return;
-                }
-
-                const html = await resp.text();
-                container.innerHTML = html;
-
-                // 手动执行组件中的内联脚本，确保 UserDropdown 类可用
-                const scripts = container.querySelectorAll('script');
-                scripts.forEach(oldScript => {
-                    const script = document.createElement('script');
-                    if (oldScript.src) {
-                        script.src = oldScript.src;
-                    } else {
-                        script.textContent = oldScript.textContent;
-                    }
-                    document.body.appendChild(script);
-                    oldScript.remove();
+        function bindDashboardHeaderActions() {
+            const notificationBtn = document.getElementById('notificationBtn');
+            if (notificationBtn && !notificationBtn.dataset.bound) {
+                notificationBtn.addEventListener('click', () => {
+                    window.location.href = 'teacher-notifications.html';
                 });
-
-                if (typeof UserDropdown !== 'undefined') {
-                    new UserDropdown(containerId, 'teacher');
-                } else {
-                    console.error('UserDropdown 组件未定义，可能脚本未正确加载');
-                }
-            } catch (e) {
-                console.error('加载用户下拉组件异常:', e);
+                notificationBtn.dataset.bound = 'true';
             }
         }
 
-        // 侧边栏切换功能
-        const sidebar = document.getElementById('sidebar');
-        const mainContent = document.getElementById('mainContent');
-        const toggleBtn = document.getElementById('toggleBtn');
-        
-        toggleBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-            mainContent.classList.toggle('collapsed');
-        });
-        
+        function updateNotificationBadge(data) {
+            const notificationBadge = document.getElementById('notificationBadge');
+            if (!notificationBadge) {
+                return;
+            }
+
+            const payload = getDashboardPayload(data);
+            const recentActivities = Array.isArray(payload.recentActivities) ? payload.recentActivities.length : 0;
+            const warningCount = Number(payload.warningCount || 0);
+            const badgeCount = Math.max(recentActivities, warningCount, 0);
+
+            notificationBadge.textContent = String(badgeCount);
+            notificationBadge.style.display = badgeCount > 0 ? 'flex' : 'none';
+        }
+
+        function startTeacherDashboardAutoRefresh() {
+            setInterval(async () => {
+                await loadDashboardContent({ skipRecentActivities: true });
+            }, 30000);
+        }
+
+        async function initializeTeacherDashboardPage() {
+            // 加载右上角用户下拉菜单（与学生端保持一致，教师端为紫色主题）
+            await loadUserDropdownForTeacher('userDropdownContainer');
+            bindDashboardHeaderActions();
+
+            // 加载仪表盘内容
+            await loadDashboardContent();
+
+            // 手动刷新最近活动
+            const refreshActivitiesBtn = document.getElementById('refreshActivitiesBtn');
+            if (refreshActivitiesBtn) {
+                refreshActivitiesBtn.addEventListener('click', refreshRecentActivities);
+            }
+        }
+         
         // 页面加载完成后初始化数据
         window.onload = async function() {
             try {
-                // 检查是否有登录信息
-                const user = sessionStorage.getItem('user');
-                
-                if (!user) {
-                    // 没有登录信息，跳转到登录页面
-                    window.location.href = 'teacher-login.html';
+                if (!CommonUI.requireTeacherSession({ redirectUrl: 'teacher-login.html?v=20260523-1' })) {
                     return;
                 }
-                
-                // 解析用户信息
-                let userInfo;
-                try {
-                    userInfo = JSON.parse(user);
-                } catch (error) {
-                    console.error('解析用户信息失败:', error);
-                    sessionStorage.removeItem('token');
-                    sessionStorage.removeItem('user');
-                    window.location.href = 'teacher-login.html';
-                    return;
-                }
-                
-                // 加载右上角用户下拉菜单组件（与学生端保持一致）
-                const dropdownContainer = document.getElementById('userDropdownContainer');
-                if (dropdownContainer) {
-                    try {
-                        const resp = await fetch('components/user-dropdown.html');
-                        if (!resp.ok) {
-                            console.error('加载用户下拉组件失败:', resp.status, resp.statusText);
-                        } else {
-                            const html = await resp.text();
-                            dropdownContainer.innerHTML = html;
-                            if (typeof UserDropdown !== 'undefined') {
-                                // 传入'userType'帮助未来区分角色，目前主要用于可读性
-                                new UserDropdown('userDropdownContainer', 'teacher');
-                            }
-                        }
-                    } catch (e) {
-                        console.error('加载用户下拉组件异常:', e);
-                    }
-                }
-
-                // 加载右上角用户下拉菜单（与学生端保持一致，教师端为紫色主题）
-                await loadUserDropdownForTeacher('userDropdownContainer');
-
-                // 加载仪表盘内容
-                await loadDashboardContent();
-                
-                // 手动刷新最近活动
-                const refreshActivitiesBtn = document.getElementById('refreshActivitiesBtn');
-                if (refreshActivitiesBtn) {
-                    refreshActivitiesBtn.addEventListener('click', refreshRecentActivities);
-                }
-                
-                // 添加定时刷新机制
-                // 1. 每30秒刷新统计数据和图表
-                setInterval(async () => {
-                    await loadDashboardContent({ skipRecentActivities: true });
-                }, 30000);
+                await initializeTeacherDashboardPage();
+                startTeacherDashboardAutoRefresh();
             } catch (error) {
                 console.error('加载数据失败:', error);
                 
@@ -772,29 +741,335 @@
             }
         };
         
+        function getDashboardPayload(data) {
+            if (!data) {
+                return {};
+            }
+
+            let payload = data;
+            const unwrapKeys = ['data', 'result', 'payload'];
+            for (let depth = 0; depth < 5; depth += 1) {
+                if (!payload || Array.isArray(payload) || typeof payload !== 'object') {
+                    break;
+                }
+                let unwrapped = false;
+                for (const key of unwrapKeys) {
+                    const candidate = payload[key];
+                    if (candidate !== undefined && candidate !== null) {
+                        payload = candidate;
+                        unwrapped = true;
+                        break;
+                    }
+                }
+                if (!unwrapped) {
+                    break;
+                }
+            }
+
+            return payload && typeof payload === 'object' ? payload : {};
+        }
+
+        const dashboardStatMetaLabelText = {
+            totalCoursesMetaLabel: '当前筛选课程统计',
+            totalStudentsMetaLabel: '当前筛选学生统计',
+            pendingAssignmentsMetaLabel: '基于当前待批改队列',
+            pendingExamsMetaLabel: '基于当前待批改队列',
+            warningCountMetaLabel: '基于当前预警列表'
+        };
+
+        function applyDashboardStatMetaLabels() {
+            Object.entries(dashboardStatMetaLabelText).forEach(([elementId, text]) => {
+                const labelElement = document.getElementById(elementId);
+                if (labelElement) {
+                    labelElement.textContent = text;
+                }
+            });
+        }
+
+        function buildChartCategoryAxisData(values, emptyLabel = '暂无数据') {
+            return Array.isArray(values) && values.length > 0 ? values : [emptyLabel];
+        }
+
+        function buildChartSeriesData(values, emptyValue = 0) {
+            return Array.isArray(values) && values.length > 0 ? values : [emptyValue];
+        }
+
+        function revealActivityItem(activityItem, index = 0) {
+            activityItem.style.opacity = '0';
+            activityItem.style.transform = 'translateY(10px)';
+            activityItem.style.transition = 'all 0.3s ease';
+            activityItem.style.transitionDelay = `${index * 50}ms`;
+            setTimeout(() => {
+                activityItem.style.opacity = '1';
+                activityItem.style.transform = 'translateY(0)';
+            }, 10);
+        }
+
+        function createEmptyRecentActivityItem() {
+            const emptyActivityItem = document.createElement('div');
+            emptyActivityItem.className = 'activity-item fade-in';
+            emptyActivityItem.innerHTML = `
+                <div class="activity-icon" style="background-color: #6b7280;">
+                    <i class="fa fa-info-circle"></i>
+                </div>
+                <div class="activity-content">
+                    <div class="activity-text">暂无活动记录</div>
+                    <div class="activity-time"></div>
+                </div>
+            `;
+            return emptyActivityItem;
+        }
+
+        function buildChartLoadingStateMarkup() {
+            return `
+                <div class="loading-state" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
+                    <i class="fa fa-spinner fa-spin fa-3x" style="color: #667eea;"></i>
+                    <p style="margin-top: 10px; color: #475569;">加载中...</p>
+                </div>
+            `;
+        }
+
+        function appendStatCardLoadingOverlays() {
+            const statCards = document.querySelectorAll('.stat-card');
+            statCards.forEach(card => {
+                if (card.querySelector('.loading-overlay')) {
+                    return;
+                }
+                const loadingOverlay = document.createElement('div');
+                loadingOverlay.className = 'loading-overlay';
+                loadingOverlay.innerHTML = `
+                    <i class="fa fa-spinner fa-spin fa-2x" style="color: #667eea;"></i>
+                    <p style="margin-top: 8px; font-size: 14px; color: #475569;">加载中...</p>
+                `;
+                card.appendChild(loadingOverlay);
+            });
+        }
+
+        function replaceChartContainersWithLoadingState() {
+            const chartContainers = document.querySelectorAll('.chart-container');
+            chartContainers.forEach(container => {
+                container.innerHTML = buildChartLoadingStateMarkup();
+            });
+        }
+
+        function removeStatCardLoadingOverlays() {
+            const loadingOverlays = document.querySelectorAll('.loading-overlay');
+            loadingOverlays.forEach(overlay => {
+                overlay.remove();
+            });
+        }
+
+        function removeChartContainerLoadingStates() {
+            const loadingStates = document.querySelectorAll('.loading-state');
+            loadingStates.forEach(state => {
+                state.remove();
+            });
+        }
+
+        function ensureContentContainerReady() {
+            if (!contentContainer) {
+                console.error('teacher dashboard content container is not initialized.');
+                return false;
+            }
+            return true;
+        }
+
+        function ensureTeacherApiReady() {
+            if (typeof window.teacherAPI === 'undefined') {
+                console.error('teacher dashboard API bridge is not available.');
+                showErrorNotification('系统服务正在加载中，请稍后重试');
+                return false;
+            }
+            return true;
+        }
+
+        function getTeacherDashboardApi() {
+            if (typeof window.teacherAPI !== 'undefined') {
+                return window.teacherAPI;
+            }
+
+            const apiService = new APIService();
+            return new TeacherAPI(apiService);
+        }
+
+        function ensureTeacherLoaderPrerequisites(requireApi = true) {
+            if (!ensureContentContainerReady()) {
+                return false;
+            }
+
+            if (requireApi && !ensureTeacherApiReady()) {
+                return false;
+            }
+
+            return true;
+        }
+
+        async function renderTeacherSectionContent(title, renderContent, options = {}) {
+            const {
+                requireApi = true,
+                errorMessage = `加载${title}失败，请稍后重试`,
+                errorDetail = '',
+                afterRender = null
+            } = options;
+
+            if (!ensureTeacherLoaderPrerequisites(requireApi)) {
+                return;
+            }
+
+            try {
+                contentContainer.innerHTML = await renderContent();
+                if (typeof afterRender === 'function') {
+                    await afterRender();
+                }
+            } catch (error) {
+                console.error(`${title}渲染失败:`, error);
+                const detail = typeof errorDetail === 'function' ? errorDetail(error) : errorDetail;
+                contentContainer.innerHTML = buildTeacherSectionErrorMarkup(title, errorMessage, detail);
+            }
+        }
+
+        function readAssignmentSearchParams(previousSearchParams = {}) {
+            const searchKeyword = document.getElementById('assignment-search').value;
+            const courseId = document.getElementById('assignment-course').value;
+            const status = document.getElementById('assignment-status').value;
+
+            return {
+                ...previousSearchParams,
+                keyword: searchKeyword,
+                courseId: courseId ? parseInt(courseId) : undefined,
+                isActive: status ? status === 'true' : undefined
+            };
+        }
+
+        function bindAssignmentSearchControls(previousSearchParams = {}) {
+            document.getElementById('assignment-search-btn').addEventListener('click', async () => {
+                const newSearchParams = readAssignmentSearchParams(previousSearchParams);
+                await loadAssignmentsContent(newSearchParams);
+            });
+        }
+
+        function buildExamSearchPanelMarkup(courses = []) {
+            return `
+                <div class="search-filter-container">
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <input type="text" id="search-exam" class="form-control" placeholder="请输入考试名称">
+                        </div>
+                        <div class="col-md-3">
+                            <select id="filter-course" class="form-control">
+                                <option value="">全部课程</option>
+                                ${courses.map(course => `<option value="${course}">${course}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select id="filter-status" class="form-control">
+                                <option value="">全部状态</option>
+                                <option value="即将开始">即将开始</option>
+                                <option value="进行中">进行中</option>
+                                <option value="已结束">已结束</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button id="search-btn" class="btn btn-primary w-100">
+                                <i class="fa fa-search"></i> 搜索
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function readExamFilterValues() {
+            const searchTerm = document.getElementById('search-exam').value;
+            const selectedCourse = document.getElementById('filter-course').value;
+            const selectedStatus = document.getElementById('filter-status').value;
+
+            return { searchTerm, selectedCourse, selectedStatus };
+        }
+
+        function buildTeacherEmptyStateMarkup(iconClass, message) {
+            return `
+                <div class="empty-state">
+                    <i class="fa ${iconClass} fa-3x text-muted"></i>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+
+        function buildTeacherTableEmptyRow(colspan, iconClass, message) {
+            return `
+                <tr>
+                    <td colspan="${colspan}" class="text-center">
+                        ${buildTeacherEmptyStateMarkup(iconClass, message)}
+                    </td>
+                </tr>
+            `;
+        }
+
+        function buildTeacherSectionShell(title, bodyMarkup, subtitleMarkup = '', contentClass = '') {
+            const contentClassAttr = contentClass ? ` class="${contentClass}"` : '';
+            return `
+                <div class="fade-in">
+                    <h2>${title}</h2>
+                    ${subtitleMarkup}
+                    <div${contentClassAttr}>
+                        ${bodyMarkup}
+                    </div>
+                </div>
+            `;
+        }
+
+        function buildTeacherSectionErrorMarkup(title, message, detail = '') {
+            return buildTeacherSectionShell(title, `
+                <div class="error-state">
+                    <i class="fa fa-exclamation-circle fa-5x text-danger"></i>
+                    <p>${message}</p>
+                    ${detail ? `<small class="text-muted">${detail}</small>` : ''}
+                </div>
+            `);
+        }
+
+        function buildTeacherDatedSectionMarkup(title, contentMarkup) {
+            return buildTeacherSectionShell(
+                title,
+                contentMarkup,
+                `<p>当前时间: ${new Date().toLocaleString()}</p>`
+            );
+        }
+
+        function buildTeacherInfoSectionMarkup(title, description, infoMessage) {
+            return buildTeacherSectionShell(title, `
+                <div class="teacher-panel teacher-section">
+                    <h2 class="teacher-section-title">${title}</h2>
+                    <p class="teacher-section-description">${description}</p>
+                    <div class="teacher-info-state" style="margin-top: 16px;">
+                        <i class="fa fa-info-circle"></i>
+                        ${infoMessage}
+                    </div>
+                </div>
+            `);
+        }
+
         // 更新统计数据
         function updateStatistics(data) {
             if (!data) return;
-            
+
+            const payload = getDashboardPayload(data);
+            applyDashboardStatMetaLabels();
             // 适配不同的数据结构，确保字段名匹配
             const adaptedData = {
                 // 从API返回的数据中提取字段，适配到前端期望的格式
-                totalCourses: data.totalCourses || data.courseCount || 0,
-                totalCoursesChange: data.totalCoursesChange || data.courseCountChange || 0,
-                totalStudents: data.totalStudents || data.studentCount || 0,
-                totalStudentsChange: data.totalStudentsChange || data.studentCountChange || 0,
-                pendingAssignments: data.pendingAssignments || data.pendingAssignments || 0,
-                pendingAssignmentsChange: data.pendingAssignmentsChange || data.pendingAssignmentsChange || 0,
-                pendingExams: data.pendingExams || data.pendingExams || 0,
-                pendingExamsChange: data.pendingExamsChange || data.pendingExamsChange || 0,
-                warningCount: data.warningCount || data.warningCount || 0,
-                warningCountChange: data.warningCountChange || data.warningCountChange || 0,
+                totalCourses: payload.totalCourses ?? payload.courseCount ?? 0,
+                totalStudents: payload.totalStudents ?? payload.studentCount ?? 0,
+                pendingAssignments: payload.pendingAssignments ?? payload.pendingGrades ?? 0,
+                pendingExams: payload.pendingExams ?? payload.upcomingExams ?? 0,
+                warningCount: payload.warningCount ?? 0,
                 // 其他需要的字段
-                courseNames: data.courseNames || [],
-                averageScores: data.averageScores || [],
-                submissionRateDays: data.submissionRateDays || [],
-                submissionRates: data.submissionRates || [],
-                recentActivities: data.recentActivities || []
+                courseNames: Array.isArray(payload.courseNames) ? payload.courseNames : [],
+                averageScores: Array.isArray(payload.averageScores) ? payload.averageScores : [],
+                submissionRateDays: Array.isArray(payload.submissionRateDays) ? payload.submissionRateDays : [],
+                submissionRates: Array.isArray(payload.submissionRates) ? payload.submissionRates : [],
+                recentActivities: Array.isArray(payload.recentActivities) ? payload.recentActivities : []
             };
             
             // 使用data-stat属性更新所有统计数据
@@ -802,28 +1077,7 @@
             statElements.forEach(element => {
                 const statKey = element.getAttribute('data-stat');
                 if (adaptedData.hasOwnProperty(statKey)) {
-                    let value = adaptedData[statKey];
-                    
-                    // 处理变化量字段，添加符号
-                    if (statKey.endsWith('Change')) {
-                        if (value > 0) {
-                            value = '+' + value;
-                        }
-                    }
-                    
-                    element.textContent = value;
-                }
-            });
-            
-            // 更新变化量的CSS类（positive/negative）
-            const changeElements = document.querySelectorAll('.stat-change');
-            changeElements.forEach(changeElement => {
-                const changeSpan = changeElement.querySelector('[data-stat$="Change"]');
-                if (changeSpan) {
-                    const statKey = changeSpan.getAttribute('data-stat');
-                    const value = adaptedData[statKey];
-                    changeElement.classList.remove('positive', 'negative');
-                    changeElement.classList.add(value >= 0 ? 'positive' : 'negative');
+                    element.textContent = adaptedData[statKey];
                 }
             });
         }
@@ -862,7 +1116,7 @@
                 },
                 xAxis: {
                     type: 'category',
-                    data: courseNames.length > 0 ? courseNames : ['暂无数据'],
+                    data: buildChartCategoryAxisData(courseNames),
                     axisLabel: {
                         interval: 0,
                         rotate: 30
@@ -877,7 +1131,7 @@
                 series: [{
                     name: '平均分',
                     type: 'bar',
-                    data: averageScores.length > 0 ? averageScores : [0],
+                    data: buildChartSeriesData(averageScores),
                     itemStyle: {
                         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
                             {offset: 0, color: '#667eea'},
@@ -914,7 +1168,7 @@
                 xAxis: {
                     type: 'category',
                     boundaryGap: false,
-                    data: submissionRateDays.length > 0 ? submissionRateDays : ['暂无数据']
+                    data: buildChartCategoryAxisData(submissionRateDays)
                 },
                 yAxis: {
                     type: 'value',
@@ -926,7 +1180,7 @@
                     name: '提交率',
                     type: 'line',
                     stack: '总量',
-                    data: submissionRates.length > 0 ? submissionRates : [0],
+                    data: buildChartSeriesData(submissionRates),
                     lineStyle: {
                         color: '#667eea'
                     },
@@ -956,6 +1210,54 @@
         }
         
         // 更新最近活动
+        function normalizeDashboardActivities(data) {
+            const payload = getDashboardPayload(data);
+            if (Array.isArray(payload.recentActivities)) {
+                return payload.recentActivities;
+            }
+            if (Array.isArray(data)) {
+                return data;
+            }
+
+            const assignments = Array.isArray(payload.assignments) ? payload.assignments : [];
+            const submissions = Array.isArray(payload.submissions) ? payload.submissions : [];
+            const courses = Array.isArray(payload.courses) ? payload.courses : [];
+            const activities = [];
+
+            submissions.slice(0, 5).forEach(item => {
+                activities.push({
+                    activityType: item.graded ? '作业批改' : '作业提交',
+                    details: `${item.studentName || '学生'}${item.graded ? '的提交已批改' : '提交了作业'}：${item.title || '未命名作业'}`,
+                    activityDate: item.submissionDate || item.updatedAt || new Date().toISOString()
+                });
+            });
+
+            if (!activities.length) {
+                assignments.slice(0, 5).forEach(item => {
+                    activities.push({
+                        activityType: '作业提交',
+                        details: `布置作业：${item.title || item.assignmentTitle || '未命名作业'}`,
+                        activityDate: item.dueDate || item.updatedAt || new Date().toISOString()
+                    });
+                });
+            }
+
+            if (!activities.length) {
+                courses.slice(0, 5).forEach(item => {
+                    activities.push({
+                        activityType: '系统通知',
+                        details: `课程已就绪：${item.courseName || item.name || '未命名课程'}`,
+                        activityDate: item.updatedAt || item.createdAt || new Date().toISOString()
+                    });
+                });
+            }
+
+            return activities
+                .slice()
+                .sort((a, b) => new Date(b.activityDate || b.date || 0) - new Date(a.activityDate || a.date || 0))
+                .slice(0, 5);
+        }
+
         function updateRecentActivities(data) {
             const recentActivitiesContainer = document.querySelector('.recent-activities');
             if (!recentActivitiesContainer) return;
@@ -975,25 +1277,7 @@
             console.log('updateRecentActivities 传入数据:', data);
             
             // 适配不同的数据结构
-            let recentActivities = [];
-            if (data) {
-                // 情况1：直接在data中找到recentActivities
-                if (Array.isArray(data.recentActivities)) {
-                    recentActivities = data.recentActivities;
-                }
-                // 情况2：在data.data中找到recentActivities（某些API可能返回嵌套结构）
-                else if (data.data && Array.isArray(data.data.recentActivities)) {
-                    recentActivities = data.data.recentActivities;
-                }
-                // 情况3：data本身就是活动数组
-                else if (Array.isArray(data)) {
-                    recentActivities = data;
-                }
-                // 情况4：检查data是否包含活动数据（某些API可能直接返回数据）
-                else if (data.length && Array.isArray(data)) {
-                    recentActivities = data;
-                }
-            }
+            const recentActivities = normalizeDashboardActivities(data);
             
             console.log('最终使用的活动数据:', recentActivities);
             
@@ -1002,11 +1286,6 @@
                 recentActivities.forEach((activity, index) => {
                     const activityItem = document.createElement('div');
                     activityItem.className = 'activity-item fade-in';
-                    // 添加初始隐藏状态
-                    activityItem.style.opacity = '0';
-                    activityItem.style.transform = 'translateY(10px)';
-                    activityItem.style.transition = 'all 0.3s ease';
-                    activityItem.style.transitionDelay = `${index * 50}ms`;
                     activityItem.innerHTML = `
                         <div class="activity-icon" style="background-color: ${getActivityColor(activity.activityType || '系统通知')};">
                             <i class="fa fa-${getActivityIcon(activity.activityType || '系统通知')}"></i>
@@ -1017,46 +1296,19 @@
                         </div>
                     `;
                     recentActivitiesContainer.appendChild(activityItem);
-                    
-                    // 触发淡入动画
-                    setTimeout(() => {
-                        activityItem.style.opacity = '1';
-                        activityItem.style.transform = 'translateY(0)';
-                    }, 10);
+                    revealActivityItem(activityItem, index);
                 });
             } else {
-                // 如果没有活动数据，显示提示信息
-                const noActivityItem = document.createElement('div');
-                noActivityItem.className = 'activity-item fade-in';
-                noActivityItem.style.opacity = '0';
-                noActivityItem.style.transform = 'translateY(10px)';
-                noActivityItem.style.transition = 'all 0.3s ease';
-                noActivityItem.innerHTML = `
-                    <div class="activity-icon" style="background-color: #6b7280;">
-                        <i class="fa fa-info-circle"></i>
-                    </div>
-                    <div class="activity-content">
-                        <div class="activity-text">暂无活动记录</div>
-                        <div class="activity-time"></div>
-                    </div>
-                `;
-                recentActivitiesContainer.appendChild(noActivityItem);
-                
-                // 触发淡入动画
-                setTimeout(() => {
-                    noActivityItem.style.opacity = '1';
-                    noActivityItem.style.transform = 'translateY(0)';
-                }, 10);
+                const emptyActivityItem = createEmptyRecentActivityItem();
+                recentActivitiesContainer.appendChild(emptyActivityItem);
+                revealActivityItem(emptyActivityItem);
             }
         }
         
         // 手动刷新最近活动
         async function refreshRecentActivities() {
             try {
-                const apiService = new APIService();
-                const teacherAPI = new TeacherAPI(apiService);
-                const response = await teacherAPI.getTeacherDashboard();
-                const dashboardData = response.data || response;
+                const dashboardData = await buildDashboardFromAvailableApis();
                 updateRecentActivities(dashboardData);
             } catch (error) {
                 console.error('刷新最近活动失败:', error);
@@ -1066,60 +1318,27 @@
         
         // 显示加载状态
         function showLoadingState() {
-            // 在每个统计卡片上显示加载状态
-            const statCards = document.querySelectorAll('.stat-card');
-            statCards.forEach(card => {
-                const loadingOverlay = document.createElement('div');
-                loadingOverlay.className = 'loading-overlay';
-                loadingOverlay.innerHTML = `
-                    <i class="fa fa-spinner fa-spin fa-2x" style="color: #667eea;"></i>
-                    <p style="margin-top: 8px; font-size: 14px; color: #475569;">加载中...</p>
-                `;
-                card.appendChild(loadingOverlay);
-            });
-            
-            // 在图表容器上显示加载状态
-            const chartContainers = document.querySelectorAll('.chart-container');
-            chartContainers.forEach(container => {
-                container.innerHTML = `
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
-                        <i class="fa fa-spinner fa-spin fa-3x" style="color: #667eea;"></i>
-                        <p style="margin-top: 10px; color: #475569;">加载中...</p>
-                    </div>
-                `;
-            });
+            appendStatCardLoadingOverlays();
+            replaceChartContainersWithLoadingState();
         }
         
         // 隐藏加载状态
         function hideLoadingState() {
-            // 移除所有统计卡片上的加载状态
-            const loadingOverlays = document.querySelectorAll('.loading-overlay');
-            loadingOverlays.forEach(overlay => {
-                overlay.remove();
-            });
+            removeStatCardLoadingOverlays();
+            removeChartContainerLoadingStates();
         }
         
         // 显示错误通知
         function showErrorNotification(message) {
-            const notification = document.createElement('div');
-            notification.className = 'notification error-notification';
-            notification.innerHTML = `
-                <div class="notification-content">
-                    <i class="fa fa-exclamation-circle"></i>
-                    <span>${message}</span>
-                </div>
-                <button class="notification-close" onclick="this.parentElement.remove()">
-                    <i class="fa fa-times"></i>
-                </button>
-            `;
-            document.body.appendChild(notification);
-            
-            // 3秒后自动关闭通知
-            setTimeout(() => {
-                if (notification.parentElement) {
-                    notification.remove();
-                }
-            }, 3000);
+            CommonUI.showErrorToast(message);
+        }
+
+        function showSuccessNotification(message) {
+            CommonUI.showSuccessToast(message);
+        }
+
+        function showNotification(message, type = 'info') {
+            CommonUI.showToast(message, type);
         }
         
         // 辅助函数：获取活动颜色
@@ -1183,57 +1402,121 @@
         
         // 页面内容容器
         let contentContainer;
+        let examListState = [];
+
+        async function buildDashboardFromAvailableApis() {
+            const teacherAPI = getTeacherDashboardApi();
+
+            try {
+                const response = await teacherAPI.getDashboard({ page: 1, size: 100 });
+                const payload = getDashboardPayload(response);
+                if (payload && Object.keys(payload).length > 0) {
+                    return payload;
+                }
+            } catch (error) {
+                console.warn('教师仪表盘聚合接口不可用，回退到页面本地聚合:', error);
+            }
+
+            const [coursesResponse, assignmentsResponse, submissionsResponse] = await Promise.all([
+                teacherAPI.getCourses({ page: 1, size: 100 }),
+                teacherAPI.getAssignments({ page: 1, size: 100 }),
+                teacherAPI.getSubmissions({ page: 1, size: 100 })
+            ]);
+
+            const courses = typeof extractTeacherApiList === 'function'
+                ? extractTeacherApiList(coursesResponse, ['courses'])
+                : [];
+            const assignments = typeof extractTeacherApiList === 'function'
+                ? extractTeacherApiList(assignmentsResponse, ['assignments'])
+                : [];
+            const submissions = typeof extractTeacherApiList === 'function'
+                ? extractTeacherApiList(submissionsResponse, ['submissions'])
+                : [];
+
+            const totalCourses = courses.length;
+            const totalStudents = courses.reduce((sum, course) => sum + (Number(course.studentCount) || 0), 0);
+            const pendingAssignments = assignments.filter(item => String(item.status || '').toLowerCase() !== 'graded').length;
+
+            const courseNames = courses.map(course => course.courseName || course.name || `课程${course.id}`);
+            const averageScores = courses.map(course => {
+                const score = Number(course.averageScore);
+                return Number.isFinite(score) ? score : 0;
+            });
+
+            const recentActivities = submissions
+                .slice()
+                .sort((a, b) => new Date(b.submissionDate || b.updatedAt || 0) - new Date(a.submissionDate || a.updatedAt || 0))
+                .slice(0, 5)
+                .map(item => ({
+                    activityType: item.graded ? '作业批改' : '作业提交',
+                    details: `${item.studentName || '学生'}${item.graded ? '的提交已批改' : '提交了作业'}：${item.title || '未命名作业'}`,
+                    activityDate: item.submissionDate || item.updatedAt || new Date().toISOString()
+                }));
+
+            const submissionRateDays = Array.from({ length: 7 }, (_, index) => {
+                const date = new Date();
+                date.setDate(date.getDate() - (6 - index));
+                return `${date.getMonth() + 1}/${date.getDate()}`;
+            });
+
+            const submissionsByDay = new Map(submissionRateDays.map(day => [day, 0]));
+            submissions.forEach(item => {
+                const date = new Date(item.submissionDate || item.updatedAt || Date.now());
+                const key = `${date.getMonth() + 1}/${date.getDate()}`;
+                if (submissionsByDay.has(key)) {
+                    submissionsByDay.set(key, submissionsByDay.get(key) + 1);
+                }
+            });
+
+            const submissionBase = Math.max(assignments.length, 1);
+            const submissionRates = submissionRateDays.map(day => {
+                const count = submissionsByDay.get(day) || 0;
+                return Math.min(Math.round((count / submissionBase) * 100), 100);
+            });
+
+            return {
+                totalCourses,
+                totalStudents,
+                pendingAssignments,
+                pendingExams: 0,
+                warningCount: 0,
+                courses,
+                assignments,
+                submissions,
+                courseNames,
+                averageScores,
+                submissionRateDays,
+                submissionRates,
+                recentActivities
+            };
+        }
         
         // 页面加载完成后执行
         document.addEventListener('DOMContentLoaded', function() {
             // 初始化页面内容容器
             contentContainer = document.querySelector('.content-container');
         });
+
+        const teacherPageLoaders = {
+            dashboard: () => loadDashboardContent({ manageLoading: false }),
+            courses: () => loadCoursesContent(),
+            classes: () => loadClassesContent(),
+            assignments: () => loadAssignmentsContent(),
+            exams: () => loadExamsContent(),
+            'learning-data': () => loadLearningDataContent(),
+            warnings: () => loadWarningsContent(),
+            'ai-tools': () => loadAIToolsContent(),
+            settings: () => loadSettingsContent()
+        };
         
         // 加载页面内容 - 这个函数目前仅用于导航切换，dashboard内容由window.onload统一加载
         async function loadPageContent(page) {
             try {
                 // 显示加载状态
                 showLoadingState();
-                
-                // 确保page参数不为null或undefined
-                if (!page) {
-                    await loadDashboardContent();
-                    return;
-                }
-                
-                // 根据页面类型加载不同的内容
-                switch (page) {
-                    case 'dashboard':
-                        await loadDashboardContent();
-                        break;
-                    case 'courses':
-                        await loadCoursesContent();
-                        break;
-                    case 'classes':
-                        await loadClassesContent();
-                        break;
-                    case 'assignments':
-                        await loadAssignmentsContent();
-                        break;
-                    case 'exams':
-                        await loadExamsContent();
-                        break;
-                    case 'learning-data':
-                        await loadLearningDataContent();
-                        break;
-                    case 'warnings':
-                        await loadWarningsContent();
-                        break;
-                    case 'ai-tools':
-                        await loadAIToolsContent();
-                        break;
-                    case 'settings':
-                        await loadSettingsContent();
-                        break;
-                    default:
-                        await loadDashboardContent();
-                }
+
+                const pageLoader = page ? teacherPageLoaders[page] : teacherPageLoaders.dashboard;
+                await (pageLoader || teacherPageLoaders.dashboard)();
             } catch (error) {
                 console.error('加载页面内容失败:', error);
                 showErrorNotification('加载页面内容失败，请稍后重试');
@@ -1245,403 +1528,211 @@
         
         // 加载仪表盘内容
         async function loadDashboardContent(options = {}) {
-            const { skipRecentActivities = false } = options;
-            showLoadingState();
+            const { skipRecentActivities = false, manageLoading = true } = options;
+            if (manageLoading) {
+                showLoadingState();
+            }
             
-            // 获取仪表盘数据
-            let dashboardData;
             try {
-                const apiService = new APIService();
-                const teacherAPI = new TeacherAPI(apiService);
-                const response = await teacherAPI.getTeacherDashboard();
-                
-                // 处理未登录或权限不足
-                if (!response || response.success === false) {
-                    console.error('仪表盘接口返回未授权/无权限', response);
-                    const code = response?.code;
-                    if (code === 401 || code === 403) {
-                        showNotification('请先使用教师账号登录后再访问仪表盘', 'warning');
-                        setTimeout(() => window.location.href = 'teacher-login.html', 1500);
-                    } else {
-                        showNotification(response?.message || '加载仪表盘失败', 'danger');
-                    }
-                    hideLoadingState();
-                    return;
-                }
-                
-                dashboardData = response.data || response;
-                
-                // 调试：打印API返回的完整数据
-                console.log('API返回的完整数据:', response);
-                console.log('dashboardData:', dashboardData);
-                
-                // 更新统计数据
+                const dashboardData = await buildDashboardFromAvailableApis();
                 updateStatistics(dashboardData);
-                
-                // 更新图表
+                updateNotificationBadge(dashboardData);
                 initCharts(dashboardData);
-                
-                // 更新最近活动（手动/首次加载时才刷新）
                 if (!skipRecentActivities) {
                     updateRecentActivities(dashboardData);
                 }
-                
-            } catch (apiError) {
-                console.error('API调用失败:', apiError);
-                
-                // 根据错误类型显示不同的提示信息
-                let errorMessage = '';
-                
-                // 检查是否是无数据错误（实际是成功返回但没有数据）
-                if (apiError.message.includes('未找到符合条件') || apiError.message.includes('暂无数据')) {
-                    errorMessage = '未找到符合条件的数据';
-                } else if (apiError.message.includes('401') || apiError.message.includes('未授权')) {
-                    errorMessage = '登录已过期，请重新登录';
-                    // 跳转到登录页面
-                    setTimeout(() => {
-                        window.location.href = 'teacher-login.html';
-                    }, 1500);
-                } else if (apiError.message.includes('403') || apiError.message.includes('权限不足')) {
-                    errorMessage = '权限不足，无法访问该资源';
-                } else if (apiError.message.includes('404')) {
-                    errorMessage = '请求的资源不存在';
-                } else if (apiError.message.includes('500') || apiError.message.includes('服务器内部错误')) {
-                    errorMessage = '服务器暂时无法提供数据，请稍后重试';
-                } else {
-                    errorMessage = '网络异常，请检查网络连接后重试';
-                }
-                
-                // 显示错误通知
-                showErrorNotification(errorMessage);
-                
-                // 即使API调用失败，也要在需要时显示"暂无活动记录"
-                if (!skipRecentActivities) {
-                    updateRecentActivities({ recentActivities: [] });
-                }
             } finally {
-                hideLoadingState();
+                if (manageLoading) {
+                    hideLoadingState();
+                }
             }
         }
         
         // 加载课程管理内容
         async function loadCoursesContent() {
-            // 确保 contentContainer 已经初始化
-            if (!contentContainer) {
-                console.error('contentContainer 未初始化');
-                return;
-            }
-            
-            // 确保 teacherAPI 已经加载
-            if (typeof window.teacherAPI === 'undefined') {
-                console.error('teacherAPI 未定义');
-                showErrorNotification('系统服务正在加载中，请稍后重试');
-                return;
-            }
-            
-            // 获取课程数据
-            try {
-                const courses = await window.teacherAPI.getCourses();
+            await renderTeacherSectionContent('课程管理', async () => {
+                const response = await window.teacherAPI.getCourses({ page: 1, size: 100 });
+                const courses = typeof extractTeacherApiList === 'function'
+                    ? extractTeacherApiList(response, ['courses'])
+                    : [];
                 
-                // 创建课程管理内容
-                contentContainer.innerHTML = `
-                    <div class="fade-in">
-                        <h2>课程管理</h2>
-                        <p>当前时间: ${new Date().toLocaleString()}</p>
-                        
-                        <div class="table-responsive">
-                            <table class="table table-striped">
-                                <thead>
+                return buildTeacherDatedSectionMarkup('课程管理', `
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>课程名称</th>
+                                    <th>课程代码</th>
+                                    <th>学分</th>
+                                    <th>学生人数</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${courses && courses.length > 0 ? courses.map(course => `
                                     <tr>
-                                        <th>课程名称</th>
-                                        <th>课程代码</th>
-                                        <th>学分</th>
-                                        <th>学生人数</th>
-                                        <th>操作</th>
+                                        <td>${course.courseName}</td>
+                                        <td>${course.courseCode}</td>
+                                        <td>${course.credit}</td>
+                                        <td>${course.classes ? course.classes.length : 0}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary">查看</button>
+                                            <button class="btn btn-sm btn-warning">编辑</button>
+                                            <button class="btn btn-sm btn-danger">删除</button>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    ${courses && courses.length > 0 ? courses.map(course => `
-                                        <tr>
-                                            <td>${course.courseName}</td>
-                                            <td>${course.courseCode}</td>
-                                            <td>${course.credit}</td>
-                                            <td>${course.classes ? course.classes.length : 0}</td>
-                                            <td>
-                                                <button class="btn btn-sm btn-primary">查看</button>
-                                                <button class="btn btn-sm btn-warning">编辑</button>
-                                                <button class="btn btn-sm btn-danger">删除</button>
-                                            </td>
-                                        </tr>
-                                    `).join('') : `
-                                        <tr>
-                                            <td colspan="5" class="text-center">
-                                                <div class="empty-state">
-                                                    <i class="fa fa-book fa-3x text-muted"></i>
-                                                    <p>暂无课程数据</p>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    `}
-                                </tbody>
-                            </table>
-                        </div>
+                                `).join('') : buildTeacherTableEmptyRow(5, 'fa-book', '暂无课程数据')}
+                            </tbody>
+                        </table>
                     </div>
-                `;
-            } catch (error) {
-                console.error('获取课程列表失败:', error);
-                contentContainer.innerHTML = `
-                    <div class="fade-in">
-                        <h2>课程管理</h2>
-                        <div class="error-state">
-                            <i class="fa fa-exclamation-circle fa-5x text-danger"></i>
-                            <p>获取课程列表失败，请稍后重试</p>
-                        </div>
-                    </div>
-                `;
-            }
+                `);
+            }, {
+                errorMessage: '获取课程列表失败，请稍后重试'
+            });
         }
         
         // 加载班级管理内容
         async function loadClassesContent() {
-            // 确保 contentContainer 已经初始化
-            if (!contentContainer) {
-                console.error('contentContainer 未初始化');
-                return;
-            }
-            
-            // 确保 teacherAPI 已经加载
-            if (typeof window.teacherAPI === 'undefined') {
-                console.error('teacherAPI 未定义');
-                showErrorNotification('系统服务正在加载中，请稍后重试');
-                return;
-            }
-            
-            // 获取班级数据
-            try {
-                const classes = await window.teacherAPI.getClasses();
+            await renderTeacherSectionContent('班级管理', async () => {
+                const response = await window.teacherAPI.getClasses();
+                const classes = typeof extractTeacherApiList === 'function'
+                    ? extractTeacherApiList(response, ['classes'])
+                    : [];
                 
-                // 创建班级管理内容
-                contentContainer.innerHTML = `
-                    <div class="fade-in">
-                        <h2>班级管理</h2>
-                        <p>当前时间: ${new Date().toLocaleString()}</p>
-                        
-                        <div class="table-responsive">
-                            <table class="table table-striped">
-                                <thead>
+                return buildTeacherDatedSectionMarkup('班级管理', `
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>班级名称</th>
+                                    <th>班级代码</th>
+                                    <th>学生人数</th>
+                                    <th>班主任</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${classes && classes.length > 0 ? classes.map(cls => `
                                     <tr>
-                                        <th>班级名称</th>
-                                        <th>班级代码</th>
-                                        <th>学生人数</th>
-                                        <th>班主任</th>
-                                        <th>操作</th>
+                                        <td>${cls.className}</td>
+                                        <td>${cls.classCode}</td>
+                                        <td>${cls.studentCount || 0}</td>
+                                        <td>${cls.teacher ? cls.teacher.userName : '未分配'}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary">查看</button>
+                                            <button class="btn btn-sm btn-warning">编辑</button>
+                                            <button class="btn btn-sm btn-danger">删除</button>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    ${classes && classes.length > 0 ? classes.map(cls => `
-                                        <tr>
-                                            <td>${cls.className}</td>
-                                            <td>${cls.classCode}</td>
-                                            <td>${cls.studentCount || 0}</td>
-                                            <td>${cls.teacher ? cls.teacher.userName : '未分配'}</td>
-                                            <td>
-                                                <button class="btn btn-sm btn-primary">查看</button>
-                                                <button class="btn btn-sm btn-warning">编辑</button>
-                                                <button class="btn btn-sm btn-danger">删除</button>
-                                            </td>
-                                        </tr>
-                                    `).join('') : `
-                                        <tr>
-                                            <td colspan="5" class="text-center">
-                                                <div class="empty-state">
-                                                    <i class="fa fa-users fa-3x text-muted"></i>
-                                                    <p>暂无班级数据</p>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    `}
-                                </tbody>
-                            </table>
-                        </div>
+                                `).join('') : buildTeacherTableEmptyRow(5, 'fa-users', '暂无班级数据')}
+                            </tbody>
+                        </table>
                     </div>
-                `;
-            } catch (error) {
-                console.error('获取班级列表失败:', error);
-                contentContainer.innerHTML = `
-                    <div class="fade-in">
-                        <h2>班级管理</h2>
-                        <div class="error-state">
-                            <i class="fa fa-exclamation-circle fa-5x text-danger"></i>
-                            <p>获取班级列表失败，请稍后重试</p>
-                        </div>
-                    </div>
-                `;
-            }
+                `);
+            }, {
+                errorMessage: '获取班级列表失败，请稍后重试'
+            });
         }
         
         // 加载作业管理内容
         async function loadAssignmentsContent(searchParams = {}) {
-            // 确保 contentContainer 已经初始化
-            if (!contentContainer) {
-                console.error('contentContainer 未初始化');
-                return;
-            }
-            
-            // 确保 teacherAPI 已经加载
-            if (typeof window.teacherAPI === 'undefined') {
-                console.error('teacherAPI 未定义');
-                showErrorNotification('系统服务正在加载中，请稍后重试');
-                return;
-            }
-            
-            // 获取作业数据
-            try {
-                // 使用封装好的API服务
-                const apiService = new APIService();
-                const teacherAPI = new TeacherAPI(apiService);
+            await renderTeacherSectionContent('作业管理', async () => {
+                const teacherAPI = getTeacherDashboardApi();
                 
                 // 调用API获取作业列表，传递搜索参数
                 const response = await teacherAPI.getAssignments(searchParams);
-                const assignmentsData = response.data || {};
-                const assignments = assignmentsData.content || [];
+                const assignments = typeof extractTeacherApiList === 'function'
+                    ? extractTeacherApiList(response, ['assignments'])
+                    : [];
                 
                 // 获取所有课程名称，用于下拉筛选
-                const courses = await teacherAPI.getCourses();
-                const courseList = courses.data || [];
+                const coursesResponse = await teacherAPI.getCourses({ page: 1, size: 100 });
+                const courseList = typeof extractTeacherApiList === 'function'
+                    ? extractTeacherApiList(coursesResponse, ['courses'])
+                    : [];
                 
-                // 创建作业管理内容
-                contentContainer.innerHTML = `
-                    <div class="fade-in">
-                        <h2>作业管理</h2>
-                        <p>当前时间: ${new Date().toLocaleString()}</p>
-                        
-                        <!-- 搜索筛选表单 -->
-                        <div class="search-filter-container mb-4">
-                            <div class="row">
-                                <div class="col-md-3">
-                                    <input type="text" id="assignment-search" class="form-control" placeholder="请输入作业名称" value="${searchParams.keyword || ''}">
-                                </div>
-                                <div class="col-md-3">
-                                    <select id="assignment-course" class="form-control">
-                                        <option value="">全部课程</option>
-                                        ${courseList.map(course => `
-                                            <option value="${course.id}" ${searchParams.courseId === course.id ? 'selected' : ''}>${course.courseName}</option>
-                                        `).join('')}
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <select id="assignment-status" class="form-control">
-                                        <option value="">全部状态</option>
-                                        <option value="true" ${searchParams.isActive === true ? 'selected' : ''}>进行中</option>
-                                        <option value="false" ${searchParams.isActive === false ? 'selected' : ''}>已结束</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <button id="assignment-search-btn" class="btn btn-primary w-100">
-                                        <i class="fa fa-search"></i> 搜索
-                                    </button>
-                                </div>
+                return buildTeacherDatedSectionMarkup('作业管理', `
+                    <div class="search-filter-container mb-4">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <input type="text" id="assignment-search" class="form-control" placeholder="请输入作业名称" value="${searchParams.keyword || ''}">
+                            </div>
+                            <div class="col-md-3">
+                                <select id="assignment-course" class="form-control">
+                                    <option value="">全部课程</option>
+                                    ${courseList.map(course => `
+                                        <option value="${course.id}" ${searchParams.courseId === course.id ? 'selected' : ''}>${course.courseName}</option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select id="assignment-status" class="form-control">
+                                    <option value="">全部状态</option>
+                                    <option value="true" ${searchParams.isActive === true ? 'selected' : ''}>进行中</option>
+                                    <option value="false" ${searchParams.isActive === false ? 'selected' : ''}>已结束</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <button id="assignment-search-btn" class="btn btn-primary w-100">
+                                    <i class="fa fa-search"></i> 搜索
+                                </button>
                             </div>
                         </div>
-                        
-                        <div class="table-responsive">
-                            <table class="table table-striped">
-                                <thead>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>作业名称</th>
+                                    <th>所属课程</th>
+                                    <th>截止日期</th>
+                                    <th>提交人数</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${assignments.length > 0 ? assignments.map(assignment => `
                                     <tr>
-                                        <th>作业名称</th>
-                                        <th>所属课程</th>
-                                        <th>截止日期</th>
-                                        <th>提交人数</th>
-                                        <th>操作</th>
+                                        <td>${assignment.title}</td>
+                                        <td>${assignment.courseName || assignment.course_name}</td>
+                                        <td>${assignment.dueDate ? new Date(assignment.dueDate).toLocaleString() : '未知'}</td>
+                                        <td>${assignment.submittedCount || 0}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary" onclick="viewAssignment(${assignment.id})">
+                                                <i class="fa fa-eye"></i> 查看
+                                            </button>
+                                            <button class="btn btn-sm btn-warning" onclick="editAssignment(${assignment.id})">
+                                                <i class="fa fa-edit"></i> 编辑
+                                            </button>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteAssignment(${assignment.id})">
+                                                <i class="fa fa-trash"></i> 删除
+                                            </button>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    ${assignments.length > 0 ? assignments.map(assignment => `
-                                        <tr>
-                                            <td>${assignment.title}</td>
-                                            <td>${assignment.courseName || assignment.course_name}</td>
-                                            <td>${assignment.dueDate ? new Date(assignment.dueDate).toLocaleString() : '未知'}</td>
-                                            <td>${assignment.submittedCount || 0}</td>
-                                            <td>
-                                                <button class="btn btn-sm btn-primary" onclick="viewAssignment(${assignment.id})">
-                                                    <i class="fa fa-eye"></i> 查看
-                                                </button>
-                                                <button class="btn btn-sm btn-warning" onclick="editAssignment(${assignment.id})">
-                                                    <i class="fa fa-edit"></i> 编辑
-                                                </button>
-                                                <button class="btn btn-sm btn-danger" onclick="deleteAssignment(${assignment.id})">
-                                                    <i class="fa fa-trash"></i> 删除
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    `).join('') : `
-                                        <tr>
-                                            <td colspan="5" class="text-center">
-                                                <div class="empty-state">
-                                                    <i class="fa fa-file-text-o fa-3x text-muted"></i>
-                                                    <p>暂无作业数据</p>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    `}
-                                </tbody>
-                            </table>
-                        </div>
+                                `).join('') : buildTeacherTableEmptyRow(5, 'fa-file-text-o', '暂无作业数据')}
+                            </tbody>
+                        </table>
                     </div>
-                `;
-                
-                // 添加搜索事件监听
-                document.getElementById('assignment-search-btn').addEventListener('click', async () => {
-                    const searchKeyword = document.getElementById('assignment-search').value;
-                    const courseId = document.getElementById('assignment-course').value;
-                    const status = document.getElementById('assignment-status').value;
-                    
-                    // 构建搜索参数
-                    const newSearchParams = {
-                        ...searchParams,
-                        keyword: searchKeyword,
-                        courseId: courseId ? parseInt(courseId) : undefined,
-                        isActive: status ? status === 'true' : undefined
-                    };
-                    
-                    // 重新加载作业列表
-                    await loadAssignmentsContent(newSearchParams);
-                });
-            } catch (error) {
-                console.error('获取作业列表失败:', error);
-                contentContainer.innerHTML = `
-                    <div class="fade-in">
-                        <h2>作业管理</h2>
-                        <div class="error-state">
-                            <i class="fa fa-exclamation-circle fa-5x text-danger"></i>
-                            <p>获取作业列表失败，请稍后重试</p>
-                        </div>
-                    </div>
-                `;
-            }
+                `);
+            }, {
+                errorMessage: '获取作业列表失败，请稍后重试',
+                afterRender: async () => {
+                    bindAssignmentSearchControls(searchParams);
+                }
+            });
         }
         
         // 加载考试管理内容
         async function loadExamsContent() {
-            // 确保 contentContainer 已经初始化
-            if (!contentContainer) {
-                console.error('contentContainer 未初始化');
-                return;
-            }
-            
-            // 确保 teacherAPI 已经加载
-            if (typeof window.teacherAPI === 'undefined') {
-                console.error('teacherAPI 未定义');
-                showErrorNotification('系统服务正在加载中，请稍后重试');
-                return;
-            }
-            
-            // 获取考试数据
-            try {
+            await renderTeacherSectionContent('考试管理', async () => {
                 const response = await window.teacherAPI.getExams();
                 
                 // 从响应中提取考试列表
-                const exams = response?.data?.content || response?.content || [];
+                const exams = typeof extractTeacherApiList === 'function'
+                    ? extractTeacherApiList(response, ['exams'])
+                    : [];
+                examListState = exams;
                 
                 // 生成考试列表HTML
                 let examsContent;
@@ -1650,32 +1741,7 @@
                     const courses = [...new Set(exams.map(exam => exam.courseName).filter(name => name))];
                     
                     examsContent = `
-                        <div class="search-filter-container">
-                            <div class="row mb-4">
-                                <div class="col-md-3">
-                                    <input type="text" id="search-exam" class="form-control" placeholder="请输入考试名称">
-                                </div>
-                                <div class="col-md-3">
-                                    <select id="filter-course" class="form-control">
-                                        <option value="">全部课程</option>
-                                        ${courses.map(course => `<option value="${course}">${course}</option>`).join('')}
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <select id="filter-status" class="form-control">
-                                        <option value="">全部状态</option>
-                                        <option value="即将开始">即将开始</option>
-                                        <option value="进行中">进行中</option>
-                                        <option value="已结束">已结束</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <button id="search-btn" class="btn btn-primary w-100">
-                                        <i class="fa fa-search"></i> 搜索
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                        ${buildExamSearchPanelMarkup(courses)}
                         
                         <div class="table-responsive">
                             <table class="table table-striped">
@@ -1704,14 +1770,14 @@
                                                 </span>
                                             </td>
                                             <td>
-                                                <button class="btn btn-sm btn-primary" onclick="viewExam(${exam.id})">
+                                                <button class="btn btn-sm btn-outline-secondary teacher-muted-action" onclick="viewExam(${exam.id})">
                                                     <i class="fa fa-eye"></i> 查看
                                                 </button>
-                                                <button class="btn btn-sm btn-warning" onclick="editExam(${exam.id})">
+                                                <button class="btn btn-sm btn-outline-secondary teacher-muted-action" onclick="editExam(${exam.id})">
                                                     <i class="fa fa-pencil"></i> 编辑
                                                 </button>
                                                 ${getExamStatus(exam.startTime, exam.endTime) === '即将开始' ? `
-                                                    <button class="btn btn-sm btn-success" onclick="startExam(${exam.id})">
+                                                    <button class="btn btn-sm btn-outline-secondary teacher-muted-action" onclick="startExam(${exam.id})">
                                                         <i class="fa fa-play"></i> 开始考试
                                                     </button>
                                                 ` : ''}
@@ -1727,72 +1793,23 @@
                     `;
                 } else {
                     examsContent = `
-                        <div class="search-filter-container">
-                            <div class="row mb-4">
-                                <div class="col-md-3">
-                                    <input type="text" id="search-exam" class="form-control" placeholder="请输入考试名称">
-                                </div>
-                                <div class="col-md-3">
-                                    <select id="filter-course" class="form-control">
-                                        <option value="">全部课程</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <select id="filter-status" class="form-control">
-                                        <option value="">全部状态</option>
-                                        <option value="即将开始">即将开始</option>
-                                        <option value="进行中">进行中</option>
-                                        <option value="已结束">已结束</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <button id="search-btn" class="btn btn-primary w-100">
-                                        <i class="fa fa-search"></i> 搜索
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                        ${buildExamSearchPanelMarkup()}
                         
-                        <div class="empty-state">
-                            <i class="fa fa-pencil-square-o fa-5x text-muted"></i>
-                            <p>暂无考试数据</p>
-                        </div>
+                        ${buildTeacherEmptyStateMarkup('fa-pencil-square-o', '暂无考试数据')}
                     `;
                 }
                 
-                // 直接通过innerHTML设置内容，应用淡入动画
-                contentContainer.innerHTML = `
-                    <div class="content-title fade-in">
-                        <h2>考试管理</h2>
-                        <div class="content-timestamp">
-                            ${new Date().toLocaleString()}
-                        </div>
-                    </div>
+                return buildTeacherDatedSectionMarkup('考试管理', `
                     <div class="exams-container fade-in">
                         ${examsContent}
                     </div>
-                `;
-                
-                // 添加搜索和筛选事件监听
-                setupExamsSearchAndFilter();
-                
-            } catch (error) {
-                console.error('获取考试列表失败:', error);
-                contentContainer.innerHTML = `
-                    <div class="content-title fade-in">
-                        <h2>考试管理</h2>
-                        <div class="content-timestamp">
-                            ${new Date().toLocaleString()}
-                        </div>
-                    </div>
-                    <div class="exams-container fade-in">
-                        <div class="error-state">
-                            <i class="fa fa-exclamation-circle fa-5x text-danger"></i>
-                            <p>获取考试列表失败，请稍后重试</p>
-                        </div>
-                    </div>
-                `;
-            }
+                `);
+            }, {
+                errorMessage: '获取考试列表失败，请稍后重试',
+                afterRender: async () => {
+                    setupExamsSearchAndFilter();
+                }
+            });
         }
         
         // 设置考试搜索和筛选事件
@@ -1801,6 +1818,10 @@
             const filterCourse = document.getElementById('filter-course');
             const filterStatus = document.getElementById('filter-status');
             const searchBtn = document.getElementById('search-btn');
+
+            if (!searchInput || !filterCourse || !filterStatus || !searchBtn) {
+                return;
+            }
             
             // 搜索按钮点击事件
             searchBtn.addEventListener('click', filterExams);
@@ -1819,19 +1840,20 @@
         
         // 筛选考试列表
         async function filterExams() {
-            const searchTerm = document.getElementById('search-exam').value;
-            const selectedCourse = document.getElementById('filter-course').value;
-            const selectedStatus = document.getElementById('filter-status').value;
+            const { searchTerm, selectedCourse, selectedStatus } = readExamFilterValues();
             
             try {
-                // 重新获取考试数据
-                const exams = await window.teacherAPI.getExams();
+                const exams = Array.isArray(examListState) ? examListState : [];
                 
                 // 应用筛选条件
                 const filteredExams = exams.filter(exam => {
-                    const matchesSearch = !searchTerm || exam.title.toLowerCase().includes(searchTerm.toLowerCase());
-                    const matchesCourse = !selectedCourse || exam.courseName === selectedCourse;
-                    const examStatus = exam.status || getExamStatus(exam.examTime);
+                    const examTitle = exam.title || exam.examTitle || '未命名考试';
+                    const examCourseName = exam.courseName || exam.course?.courseName || '未知课程';
+                    const examStartTime = exam.startTime || exam.examTime || exam.examDate;
+                    const examEndTime = exam.endTime || exam.endDate;
+                    const examStatus = exam.status || getExamStatus(examStartTime, examEndTime);
+                    const matchesSearch = !searchTerm || examTitle.toLowerCase().includes(searchTerm.toLowerCase());
+                    const matchesCourse = !selectedCourse || examCourseName === selectedCourse;
                     const matchesStatus = !selectedStatus || examStatus === selectedStatus;
                     
                     return matchesSearch && matchesCourse && matchesStatus;
@@ -1843,25 +1865,25 @@
                     if (filteredExams.length > 0) {
                         tableBody.innerHTML = filteredExams.map(exam => `
                             <tr>
-                                <td>${exam.title}</td>
-                                <td>${exam.courseName}</td>
-                                <td>${new Date(exam.examTime).toLocaleString()}</td>
+                                <td>${exam.title || exam.examTitle || '未命名考试'}</td>
+                                <td>${exam.courseName || exam.course?.courseName || '未知课程'}</td>
+                                <td>${new Date(exam.startTime || exam.examTime || exam.examDate || Date.now()).toLocaleString()}</td>
                                 <td>${exam.duration}分钟</td>
-                                <td>${exam.participantsCount || 0}</td>
+                                <td>${exam.participantsCount || exam.submittedCount || 0}</td>
                                 <td>
-                                    <span class="badge ${getStatusBadgeClass(exam.status)}">
-                                        ${exam.status || getExamStatus(exam.examTime)}
+                                    <span class="badge ${getStatusBadgeClass(exam.status || getExamStatus(exam.startTime || exam.examTime || exam.examDate, exam.endTime || exam.endDate))}">
+                                        ${exam.status || getExamStatus(exam.startTime || exam.examTime || exam.examDate, exam.endTime || exam.endDate)}
                                     </span>
                                 </td>
                                 <td>
-                                    <button class="btn btn-sm btn-primary" onclick="viewExam(${exam.id})">
+                                    <button class="btn btn-sm btn-outline-secondary teacher-muted-action" onclick="viewExam(${exam.id})">
                                         <i class="fa fa-eye"></i> 查看
                                     </button>
-                                    <button class="btn btn-sm btn-warning" onclick="editExam(${exam.id})">
+                                    <button class="btn btn-sm btn-outline-secondary teacher-muted-action" onclick="editExam(${exam.id})">
                                         <i class="fa fa-pencil"></i> 编辑
                                     </button>
-                                    ${getExamStatus(exam.examTime) === '即将开始' ? `
-                                        <button class="btn btn-sm btn-success" onclick="startExam(${exam.id})">
+                                    ${getExamStatus(exam.startTime || exam.examTime || exam.examDate, exam.endTime || exam.endDate) === '即将开始' ? `
+                                        <button class="btn btn-sm btn-outline-secondary teacher-muted-action" onclick="startExam(${exam.id})">
                                             <i class="fa fa-play"></i> 开始考试
                                         </button>
                                     ` : ''}
@@ -1873,14 +1895,7 @@
                         `).join('');
                     } else {
                         tableBody.innerHTML = `
-                            <tr>
-                                <td colspan="7" class="text-center">
-                                    <div class="empty-state">
-                                        <i class="fa fa-search fa-3x text-muted"></i>
-                                        <p>没有找到符合条件的考试</p>
-                                    </div>
-                                </td>
-                            </tr>
+                            ${buildTeacherTableEmptyRow(7, 'fa-search', '没有找到符合条件的考试')}
                         `;
                     }
                 }
@@ -1934,25 +1949,67 @@
             }
         }
         
+        function openTeacherAssignmentWorkspace(tab, assignmentId, action) {
+            const params = new URLSearchParams({ tab });
+            if (assignmentId) {
+                params.set('assignmentId', String(assignmentId));
+            }
+            if (action) {
+                params.set('action', action);
+            }
+            window.location.href = `teacher-assignments.html?${params.toString()}&v=20260523-1`;
+        }
+
+        function viewAssignment(assignmentId) {
+            console.log('查看作业详情:', assignmentId);
+            openTeacherAssignmentWorkspace('assignments', assignmentId, 'view');
+        }
+
+        function editAssignment(assignmentId) {
+            console.log('编辑作业:', assignmentId);
+            openTeacherAssignmentWorkspace('assignments', assignmentId, 'edit');
+        }
+
+        async function deleteAssignment(assignmentId) {
+            if (confirm('确定要删除这个作业吗？此操作不可恢复。')) {
+                try {
+                    await window.teacherAPI.deleteAssignment(assignmentId);
+                    showSuccessNotification('作业删除成功');
+                    await loadAssignmentsContent();
+                } catch (error) {
+                    console.error('删除作业失败:', error);
+                    showErrorNotification('删除作业失败，请稍后重试');
+                }
+            }
+        }
+
+        function openTeacherExamWorkspace(tab, examId, action) {
+            const params = new URLSearchParams({ tab });
+            if (examId) {
+                params.set('examId', String(examId));
+            }
+            if (action) {
+                params.set('action', action);
+            }
+            window.location.href = `teacher-assignments.html?${params.toString()}&v=20260523-1`;
+        }
+
         // 查看考试详情
         function viewExam(examId) {
             console.log('查看考试详情:', examId);
-            // 这里可以实现查看考试详情的逻辑
-            showErrorNotification('查看考试功能正在开发中');
+            openTeacherExamWorkspace('exams', examId, 'view');
         }
         
         // 编辑考试
         function editExam(examId) {
             console.log('编辑考试:', examId);
-            // 这里可以实现编辑考试的逻辑
-            showErrorNotification('编辑考试功能正在开发中');
+            openTeacherExamWorkspace('exams', examId, 'edit');
         }
         
         // 开始考试
         function startExam(examId) {
             console.log('开始考试:', examId);
-            // 这里可以实现开始考试的逻辑
-            showErrorNotification('开始考试功能正在开发中');
+            openTeacherExamWorkspace('exams', examId, 'start');
         }
         
         // 删除考试
@@ -1960,7 +2017,7 @@
             if (confirm('确定要删除这个考试吗？此操作不可恢复。')) {
                 try {
                     await window.teacherAPI.deleteExam(examId);
-                    showErrorNotification('考试删除成功');
+                    showSuccessNotification('考试删除成功');
                     // 重新加载考试列表
                     await loadExamsContent();
                 } catch (error) {
@@ -1972,154 +2029,85 @@
         
         // 加载学习数据内容
         async function loadLearningDataContent() {
-            // 确保 contentContainer 已经初始化
-            if (!contentContainer) {
-                console.error('contentContainer 未初始化');
-                return;
-            }
-            
-            // 创建学习数据内容
-            contentContainer.innerHTML = `
-                <div class="fade-in">
-                    <h2>学习数据</h2>
-                    <div class="alert alert-info">
-                        <i class="fa fa-info-circle"></i>
-                        学习数据页面正在开发中...
-                    </div>
-                </div>
-            `;
+            await renderTeacherSectionContent('学习数据', async () => buildTeacherInfoSectionMarkup(
+                '学习数据',
+                '学情总览能力已预留，当前交付环境建议从仪表盘与预警页查看核心教学数据。',
+                '当前页面保留为扩展入口，待聚合分析服务完成后再开放独立视图。'
+            ), {
+                requireApi: false
+            });
         }
         
         // 加载学情预警内容
         async function loadWarningsContent() {
-            // 确保 contentContainer 已经初始化
-            if (!contentContainer) {
-                console.error('contentContainer 未初始化');
-                return;
-            }
-            
-            // 确保 teacherAPI 已经加载
-            if (typeof window.teacherAPI === 'undefined') {
-                console.error('teacherAPI 未定义');
-                showErrorNotification('系统服务正在加载中，请稍后重试');
-                return;
-            }
-            
-            // 获取学情预警数据
-            try {
+            await renderTeacherSectionContent('学情预警', async () => {
                 const response = await window.teacherAPI.getEarlyWarnings();
                 const warningsData = response.data || {};
                 const warnings = warningsData.content || [];
                 
-                // 创建学情预警内容
-                contentContainer.innerHTML = `
-                    <div class="fade-in">
-                        <h2>学情预警</h2>
-                        <p>当前时间: ${new Date().toLocaleString()}</p>
-                        
-                        <div class="table-responsive">
-                            <table class="table table-striped">
-                                <thead>
+                return buildTeacherDatedSectionMarkup('学情预警', `
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>学生姓名</th>
+                                    <th>预警类型</th>
+                                    <th>预警课程</th>
+                                    <th>预警原因</th>
+                                    <th>预警时间</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${warnings && warnings.length > 0 ? warnings.map(warning => `
                                     <tr>
-                                        <th>学生姓名</th>
-                                        <th>预警类型</th>
-                                        <th>预警课程</th>
-                                        <th>预警原因</th>
-                                        <th>预警时间</th>
-                                        <th>状态</th>
-                                        <th>操作</th>
+                                        <td>${warning.studentName || '未知学生'}</td>
+                                        <td>${warning.warningType || '未知类型'}</td>
+                                        <td>${warning.courseName || '未知课程'}</td>
+                                        <td>${warning.warningMessage || '无描述'}</td>
+                                        <td>${warning.triggerDate ? new Date(warning.triggerDate).toLocaleString() : '未知时间'}</td>
+                                        <td>${warning.status ? warning.status : '未处理'}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary">查看详情</button>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    ${warnings && warnings.length > 0 ? warnings.map(warning => `
-                                        <tr>
-                                            <td>${warning.studentName || '未知学生'}</td>
-                                            <td>${warning.warningType || '未知类型'}</td>
-                                            <td>${warning.courseName || '未知课程'}</td>
-                                            <td>${warning.warningMessage || '无描述'}</td>
-                                            <td>${warning.triggerDate ? new Date(warning.triggerDate).toLocaleString() : '未知时间'}</td>
-                                            <td>${warning.status ? warning.status : '未处理'}</td>
-                                            <td>
-                                                <button class="btn btn-sm btn-primary">查看详情</button>
-                                            </td>
-                                        </tr>
-                                    `).join('') : `
-                                        <tr>
-                                            <td colspan="7" class="text-center">
-                                                <div class="empty-state">
-                                                    <i class="fa fa-bell-o fa-3x text-muted"></i>
-                                                    <p>暂无学情预警数据</p>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    `}
-                                </tbody>
-                            </table>
-                        </div>
+                                `).join('') : buildTeacherTableEmptyRow(7, 'fa-bell-o', '暂无学情预警数据')}
+                            </tbody>
+                        </table>
                     </div>
-                `;
-            } catch (error) {
-                console.error('获取学情预警列表失败:', error);
-                // 详细记录错误信息，以便调试
-                console.error('错误详情:', error.message, error.stack);
-                contentContainer.innerHTML = `
-                    <div class="fade-in">
-                        <h2>学情预警</h2>
-                        <div class="error-state">
-                            <i class="fa fa-exclamation-circle fa-5x text-danger"></i>
-                            <p>获取学情预警列表失败，请稍后重试</p>
-                            <small class="text-muted">${error.message}</small>
-                        </div>
-                    </div>
-                `;
-            }
+                `);
+            }, {
+                errorMessage: '获取学情预警列表失败，请稍后重试',
+                errorDetail: error => error.message
+            });
         }
         
         // 加载AI工具内容
         async function loadAIToolsContent() {
-            // 确保 contentContainer 已经初始化
-            if (!contentContainer) {
-                console.error('contentContainer 未初始化');
-                return;
-            }
-            
-            // 创建AI工具内容
-            contentContainer.innerHTML = `
-                <div class="fade-in">
-                    <h2>AI辅助工具</h2>
-                    <div class="alert alert-info">
-                        <i class="fa fa-info-circle"></i>
-                        AI辅助工具页面正在开发中...
-                    </div>
-                </div>
-            `;
+            await renderTeacherSectionContent('AI辅助工具', async () => buildTeacherInfoSectionMarkup(
+                'AI辅助工具',
+                '教师端 AI 工具已经拆分到独立模块，这里保留为导航缓冲区，避免在演示中出现跳转落差。',
+                '请从左侧导航进入 AI 辅助工具页，使用可用的分析与生成能力。'
+            ), {
+                requireApi: false
+            });
         }
         
         // 加载系统设置内容
         async function loadSettingsContent() {
-            // 确保 contentContainer 已经初始化
-            if (!contentContainer) {
-                console.error('contentContainer 未初始化');
-                return;
-            }
-            
-            // 创建系统设置内容
-            contentContainer.innerHTML = `
-                <div class="fade-in">
-                    <h2>系统设置</h2>
-                    <div class="alert alert-info">
-                        <i class="fa fa-info-circle"></i>
-                        系统设置页面正在开发中...
-                    </div>
-                </div>
-            `;
+            await renderTeacherSectionContent('系统设置', async () => buildTeacherInfoSectionMarkup(
+                '系统设置',
+                '系统设置已迁移到独立页面，当前区域仅保留说明，避免重复维护两套入口。',
+                '请通过左侧导航进入设置页，完成账户、通知与安全配置。'
+            ), {
+                requireApi: false
+            });
         }
         
         // 重置主内容区域
         function resetMainContent() {
-            // 确保 contentContainer 已经初始化
-            if (!contentContainer) {
-                console.error('contentContainer 未初始化');
+            if (!ensureContentContainerReady()) {
                 return;
             }
             
@@ -2127,32 +2115,6 @@
             contentContainer.innerHTML = '';
         }
         
-        // 显示加载状态
-        function showLoadingState() {
-            // 只在当前页面存在统计卡片和图表容器时才添加加载状态
-            // 这样可以避免在其他页面调用时出错
-            const statsCards = document.querySelectorAll('.stats-card .stat-value');
-            if (statsCards.length > 0) {
-                statsCards.forEach(card => {
-                    card.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
-                });
-            }
-            
-            const chartContainers = document.querySelectorAll('.chart-container');
-            if (chartContainers.length > 0) {
-                chartContainers.forEach(container => {
-                    container.innerHTML = '<div class="loading-state"><i class="fa fa-spinner fa-spin fa-3x"></i><p>加载中...</p></div>';
-                });
-            }
-        }
-        
-        // 隐藏加载状态
-        function hideLoadingState() {
-            const loadingStates = document.querySelectorAll('.loading-state');
-            loadingStates.forEach(state => {
-                state.remove();
-            });
-        }
     </script>
 </body>
 </html>

@@ -23,10 +23,6 @@ class StudentSettingsCapabilityAlignmentTest {
         assertAll(
                 () -> assertTrue(content.contains("const response = await studentAPI.getStudentProfile();"),
                         relativePath + " should load student profile through the connected Gateway route"),
-                () -> assertTrue(content.contains("const response = await studentAPI.getNotificationSettings();"),
-                        relativePath + " should load notification settings through the connected Gateway route"),
-                () -> assertTrue(content.contains("const response = await studentAPI.getPrivacySettings();"),
-                        relativePath + " should load privacy settings through the connected Gateway route"),
                 () -> assertTrue(content.contains("const response = await fetch(`${API_BASE_URL}/api/student/export-data`"),
                         relativePath + " should export through /api/student/export-data"),
                 () -> assertNotContains(content, relativePath,
@@ -34,15 +30,11 @@ class StudentSettingsCapabilityAlignmentTest {
                 () -> assertNotContains(content, relativePath,
                         "showMessage('当前 JWT 微服务环境暂未接通学生资料保存接口。', 'info');"),
                 () -> assertNotContains(content, relativePath,
-                        "showMessage('当前 JWT 微服务环境暂未接通学生通知设置接口。', 'info');"),
-                () -> assertNotContains(content, relativePath,
-                        "showMessage('当前 JWT 微服务环境暂未接通学生隐私设置接口。', 'info');"),
-                () -> assertNotContains(content, relativePath,
                         "showMessage('当前 JWT 微服务环境暂未接通学生数据导出接口。', 'info');"),
-                () -> assertNotContains(content, relativePath,
-                        "return buildUnsupportedResult('当前 JWT 微服务环境暂未接通学生通知设置接口。');"),
-                () -> assertNotContains(content, relativePath,
-                        "return buildUnsupportedResult('当前 JWT 微服务环境暂未接通学生隐私设置接口。');")
+                () -> assertTrue(content.contains("当前环境下通知偏好以本浏览器保存为准。"),
+                        relativePath + " should clearly mark notification preferences as browser-local"),
+                () -> assertTrue(content.contains("当前环境下隐私设置以本浏览器保存为准。"),
+                        relativePath + " should clearly mark privacy preferences as browser-local")
         );
     }
 

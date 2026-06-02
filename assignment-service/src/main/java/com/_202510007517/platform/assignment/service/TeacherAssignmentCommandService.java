@@ -21,6 +21,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -195,7 +198,7 @@ public class TeacherAssignmentCommandService {
     private void persistAssignmentGradedEvent(AssignmentRecord assignment, AssignmentSubmissionRecord submission) {
         Instant occurredAt = parseEventInstant(submission.getSubmissionDate());
         AssignmentGradedEvent event = new AssignmentGradedEvent(
-                "assignment-graded-" + submission.getId(),
+                buildAssignmentGradedEventId(submission),
                 occurredAt,
                 new EventAggregate("assignment_submission", String.valueOf(submission.getId())),
                 new AssignmentGradedPayload(
@@ -223,6 +226,29 @@ public class TeacherAssignmentCommandService {
                 occurredAt,
                 occurredAt,
                 null));
+    }
+
+    private static String buildAssignmentGradedEventId(AssignmentSubmissionRecord submission) {
+        return "assignment-graded-" + submission.getId() + "-" + submission.getScore()
+                + "-" + shortSha256(normalizeTeacherComment(submission.getTeacherComment()));
+    }
+
+    private static String normalizeTeacherComment(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private static String shortSha256(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder builder = new StringBuilder(12);
+            for (int i = 0; i < 6; i++) {
+                builder.append(String.format("%02x", hash[i]));
+            }
+            return builder.toString();
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 algorithm is unavailable", ex);
+        }
     }
 
     private String toJson(Object value) {

@@ -134,6 +134,39 @@ class TeacherAssignmentCommandServiceTest {
         assertThat(outboxEventRepository.savedEvents).hasSize(1);
         assertThat(outboxEventRepository.savedEvents.get(0).bindingName()).isEqualTo("assignment.graded");
         assertThat(outboxEventRepository.savedEvents.get(0).eventType()).isEqualTo("AssignmentGradedEvent");
+        assertThat(outboxEventRepository.savedEvents.get(0).eventId()).startsWith("assignment-graded-3001-95-");
+        assertThat(outboxEventRepository.savedEvents.get(0).eventId()).isNotEqualTo("assignment-graded-3001");
+    }
+
+    @Test
+    void regradeSubmissionWithChangedScoreGeneratesDistinctOutboxEventId() {
+        FakeAssignmentRepository repository = new FakeAssignmentRepository();
+        CourseFeignClient courseFeignClient = mock(CourseFeignClient.class);
+        InMemoryOutboxEventRepository outboxEventRepository = new InMemoryOutboxEventRepository();
+        TeacherAssignmentCommandService service = new TeacherAssignmentCommandService(
+                repository,
+                courseFeignClient,
+                outboxEventRepository,
+                new ObjectMapper().findAndRegisterModules());
+
+        TeacherAssignmentGradeRequestDTO first = new TeacherAssignmentGradeRequestDTO();
+        first.setScore(89);
+        first.setTeacherComment("第一次批改");
+        first.setGraded(true);
+
+        TeacherAssignmentGradeRequestDTO second = new TeacherAssignmentGradeRequestDTO();
+        second.setScore(91);
+        second.setTeacherComment("第二次批改");
+        second.setGraded(true);
+
+        service.gradeSubmission(7L, 3001L, first);
+        service.gradeSubmission(7L, 3001L, second);
+
+        assertThat(outboxEventRepository.savedEvents).hasSize(2);
+        assertThat(outboxEventRepository.savedEvents.get(0).eventId()).startsWith("assignment-graded-3001-89-");
+        assertThat(outboxEventRepository.savedEvents.get(1).eventId()).startsWith("assignment-graded-3001-91-");
+        assertThat(outboxEventRepository.savedEvents.get(0).eventId())
+                .isNotEqualTo(outboxEventRepository.savedEvents.get(1).eventId());
     }
 
     @Test

@@ -5,32 +5,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智能后台学习辅助系统 - 学生控制面板</title>
-    <!-- Bootstrap 5 CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome CDN -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <link href="lib/bootstrap.min.css" rel="stylesheet">
+    <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <!-- jQuery CDN -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- ECharts CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="lib/jquery-3.6.0.min.js"></script>
+    <script src="lib/bootstrap.bundle.min.js"></script>
+    <script src="lib/echarts.min.js"></script>
     <!-- 全局样式文件 -->
-    <link href="styles.css" rel="stylesheet">
+    <link href="styles.css?v=20260523-1" rel="stylesheet">
     <link rel="icon" href="data:,">
     <!-- API服务文件 -->
-    <script src="api.js"></script>
+    <script src="api.js?v=20260523-1"></script>
+    <script src="common-ui.js?v=20260523-1"></script>
 </head>
 <body>
 <!-- 侧边栏导航组件 -->
 <div id="sidebar-container"></div>
 <script>
     $(function() {
-        $('#sidebar-container').load('components/sidebar-nav.html', function() {
-            highlightActiveNavItem();
-            initializeSidebar();
+        $('#sidebar-container').load('components/sidebar-nav.html?v=20260523-1', function() {
+            CommonUI.highlightActiveNavItem({ selector: '.sidebar .menu-item, .menu-item' });
+            CommonUI.initializeSidebar();
         });
     });
 </script>
@@ -74,8 +71,8 @@
                     </div>
                 </div>
                 <div class="stat-value" id="courseCount">0</div>
-                <div class="stat-change">
-                    <i class="fas fa-spinner fa-spin"></i> 加载中...
+                <div class="stat-change" id="courseCountMetaLabel">
+                    当前课程总览
                 </div>
             </div>
 
@@ -87,8 +84,8 @@
                     </div>
                 </div>
                 <div class="stat-value" id="assignmentCount">0</div>
-                <div class="stat-change">
-                    <i class="fas fa-spinner fa-spin"></i> 加载中...
+                <div class="stat-change" id="assignmentCountMetaLabel">
+                    当前待完成作业
                 </div>
             </div>
 
@@ -96,12 +93,12 @@
                 <div class="stat-header">
                     <span class="stat-title">即将到来的考试</span>
                     <div class="stat-icon exams">
-                        <i class="fas fa-chart-line"></i>
+                        <i class="fas fa-line-chart"></i>
                     </div>
                 </div>
                 <div class="stat-value" id="examCount">0</div>
-                <div class="stat-change">
-                    <i class="fas fa-spinner fa-spin"></i> 加载中...
+                <div class="stat-change" id="examCountMetaLabel">
+                    当前考试安排
                 </div>
             </div>
 
@@ -113,8 +110,8 @@
                     </div>
                 </div>
                 <div class="stat-value" id="progressPercentage">0%</div>
-                <div class="stat-change">
-                    <i class="fas fa-spinner fa-spin"></i> 加载中...
+                <div class="stat-change" id="progressPercentageMetaLabel">
+                    当前学习进度估算
                 </div>
             </div>
         </div>
@@ -148,66 +145,27 @@
 <script>
     // 高亮当前导航项
     function highlightActiveNavItem() {
-        // 获取当前页面URL
-        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
-        
-        // 移除所有导航项的active类
-        document.querySelectorAll('.sidebar .menu-item').forEach(link => {
-            link.classList.remove('active');
-        });
-        
-        // 高亮当前页面的导航项
-        const activeLink = document.querySelector(`.sidebar .menu-item[href="${currentPage}"]`);
-        if (activeLink) {
-            activeLink.classList.add('active');
-        }
+        CommonUI.highlightActiveNavItem({ selector: '.sidebar .menu-item, .menu-item' });
     }
     
     // 侧边栏折叠/展开功能
     function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const mainContent = document.getElementById('mainContent');
-        
-        if (sidebar) {
-            sidebar.classList.toggle('collapsed');
-            
-            // 保存状态到localStorage
-            const isCollapsed = sidebar.classList.contains('collapsed');
-            localStorage.setItem('sidebarCollapsed', isCollapsed);
-            
-            // 同时调整主内容区的margin-left
-            if (mainContent) {
-                if (isCollapsed) {
-                    mainContent.classList.add('collapsed');
-                } else {
-                    mainContent.classList.remove('collapsed');
-                }
-            }
-        }
+        return CommonUI.toggleSidebar();
     }
     
     // 初始化侧边栏状态
     function initializeSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const mainContent = document.getElementById('mainContent');
-        
-        // 从localStorage获取侧边栏状态
-        const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-        
-        if (sidebar && mainContent) {
-            if (isCollapsed) {
-                sidebar.classList.add('collapsed');
-                mainContent.classList.add('collapsed');
-            } else {
-                sidebar.classList.remove('collapsed');
-                mainContent.classList.remove('collapsed');
-            }
-        }
+        CommonUI.initializeSidebar();
     }
     
     // 页面加载完成后执行
     document.addEventListener('DOMContentLoaded', function() {
-        checkLoginStatus();
+        if (!checkLoginStatus()) {
+            return;
+        }
+        if (window.loadFrontendCapabilities) {
+            window.loadFrontendCapabilities();
+        }
         if (window.isJwtOnlyStudentSession && window.isJwtOnlyStudentSession()) {
             showMessage('检测到当前为 JWT 微服务登录环境，学生仪表盘将优先加载已接通的微服务数据。', 'info');
         }
@@ -235,49 +193,30 @@
     });
 
     function showMessage(text, type = 'info') {
-        const messageContainer = document.getElementById('messageContainer');
-        if (!messageContainer) {
-            return;
-        }
-        messageContainer.innerHTML = `
-            <div class="message message-${type}">
-                <span class="message-text">${text}</span>
-            </div>
-        `;
-        setTimeout(() => {
-            if (messageContainer.firstElementChild) {
-                messageContainer.innerHTML = '';
-            }
-        }, 3500);
+        CommonUI.showMessage(text, type, { dismissible: false, duration: 3500 });
     }
 
     // 检查登录状态
     function checkLoginStatus() {
-        const sessionContext = window.getStudentSessionContext ? window.getStudentSessionContext() : null;
-        const user = sessionStorage.getItem('user');
-        if (!user && !(sessionContext && sessionContext.canRender)) {
-            window.location.href = 'student-login.html';
-            return;
+        if (!CommonUI.requireStudentSession({ redirectUrl: 'student-login.html' })) {
+            return false;
         }
 
         // 加载用户下拉菜单组件
-        $('#userDropdownContainer').load('components/user-dropdown.html', function(response, status, xhr) {
-            if (status == 'error') {
-                console.error('加载用户下拉组件失败:', xhr.status, xhr.statusText);
-            } else {
-                // 组件加载成功后初始化
-                if (typeof UserDropdown !== 'undefined') {
-                    new UserDropdown('userDropdownContainer', 'student');
-                    const menuItems = document.querySelectorAll('.sidebar .menu-item');
-                    menuItems.forEach(item => item.classList.remove('active'));
-                    const dashboardItem = document.getElementById('nav-dashboard');
-                    if (dashboardItem) {
-                        dashboardItem.classList.add('active');
-                    }
-                    initializeSidebar();
+        CommonUI.loadUserDropdown('userDropdownContainer', 'student')
+            .then(() => {
+                const menuItems = document.querySelectorAll('.sidebar .menu-item');
+                menuItems.forEach(item => item.classList.remove('active'));
+                const dashboardItem = document.getElementById('nav-dashboard');
+                if (dashboardItem) {
+                    dashboardItem.classList.add('active');
                 }
-            }
-        });
+                initializeSidebar();
+            })
+            .catch(error => {
+                console.error('加载用户下拉组件失败:', error);
+            });
+        return true;
     }
 
     // 计算本周学习时间分布
@@ -410,12 +349,27 @@
         return Math.round(progressValues.reduce((sum, value) => sum + value, 0) / progressValues.length);
     }
 
+    async function populateDashboardStudyTimeFromConnectedSources(studentAPI, chartData) {
+        try {
+            const studyTimeData = await studentAPI.getStudyTimeDistribution();
+            console.log('获取到学习时间分布数据:', studyTimeData);
+            if (studyTimeData && studyTimeData.success && studyTimeData.data && Array.isArray(studyTimeData.data)) {
+                chartData.studyTime = transformStudyTimeData(
+                    studyTimeData.data.sort((a, b) => new Date(a.date) - new Date(b.date))
+                );
+                return;
+            }
+        } catch (error) {
+            console.error('获取学习时间分布失败:', error);
+        }
+
+        chartData.studyTime = transformStudyTimeData([]);
+    }
+
     async function populateDashboardFromConnectedSources(studentAPI, statsData, chartData) {
         let courseList = [];
         let assignmentList = [];
         let examList = [];
-        let recentAssignments = [];
-        let recentExams = [];
 
         try {
             const courses = await studentAPI.getStudentCourses();
@@ -447,6 +401,20 @@
             console.error('从考试列表获取仪表盘数据失败:', error);
         }
 
+        await populateDashboardStudyTimeFromConnectedSources(studentAPI, chartData);
+
+        statsData.courses = courseList.length;
+        statsData.assignments = assignmentList.length;
+        statsData.exams = examList.length;
+        statsData.progress = deriveDashboardProgressFromCourses(courseList);
+
+        await populateDashboardActivitiesFromConnectedSources(studentAPI, statsData);
+    }
+
+    async function populateDashboardActivitiesFromConnectedSources(studentAPI, statsData) {
+        let recentAssignments = [];
+        let recentExams = [];
+
         try {
             const assignments = await studentAPI.getAssignments({ page: 1, size: 5 });
             if (assignments && assignments.success && assignments.data) {
@@ -457,7 +425,7 @@
         }
 
         try {
-            const exams = await studentAPI.getExams({ page: 1, size: 5 });
+            const exams = await studentAPI.getExams({ page: 1, size: 20 });
             if (exams && exams.success && exams.data) {
                 recentExams = exams.data.content || exams.data || [];
             }
@@ -465,14 +433,10 @@
             console.error('从考试列表获取最近活动失败:', error);
         }
 
-        chartData.studyTime = transformStudyTimeData([]);
-
-        statsData.courses = courseList.length;
-        statsData.assignments = assignmentList.length;
-        statsData.exams = examList.length;
-        statsData.progress = deriveDashboardProgressFromCourses(courseList);
-
         const activities = [];
+        let upcomingExamCountFromList = 0;
+        const now = new Date();
+
         recentAssignments.forEach(assignment => {
             activities.push({
                 type: 'assignment',
@@ -480,13 +444,26 @@
                 time: assignment.dueDate || assignment.submitTime || new Date().toISOString()
             });
         });
+
         recentExams.forEach(exam => {
+            const startTime = exam.startTime ? new Date(exam.startTime) : null;
+            if (startTime && startTime > now) {
+                upcomingExamCountFromList++;
+            }
+
             activities.push({
                 type: 'exam',
                 text: `考试：${exam.title || exam.examTitle || '未命名考试'}`,
                 time: exam.startTime || exam.examTime || new Date().toISOString()
             });
         });
+
+        if ((!statsData.exams || statsData.exams === 0) && upcomingExamCountFromList > 0) {
+            console.log('使用最近活动考试列表覆盖 statsData.exams，数量为:', upcomingExamCountFromList);
+            statsData.exams = upcomingExamCountFromList;
+            updateStats(statsData);
+        }
+
         activities.sort((a, b) => new Date(b.time) - new Date(a.time));
         updateRecentActivities(activities.slice(0, 5));
     }
@@ -507,7 +484,7 @@
             }
             if (!studentId && !(sessionContext && sessionContext.canRender)) {
                 console.error('学生登录上下文缺失');
-                showMockData();
+                showEmptyStateData();
                 return;
             }
             console.log('当前登录学生ID:', studentId || '未知，改由JWT上下文继续请求');
@@ -518,13 +495,9 @@
             
             let statsData = {
                 courses: 0,
-                coursesChange: 0,
                 assignments: 0,
-                assignmentsChange: 0,
                 exams: 0,
-                examsChange: 0,
-                progress: 0,
-                progressChange: 0
+                progress: 0
             };
             
             let chartData = {
@@ -560,32 +533,24 @@
                         
                         // 更新统计数据
                         statsData.courses = data.courseCount || 0;
-                        statsData.coursesChange = data.courseCountChange || (Math.round(Math.random() * 5) - 2);
                         
                         statsData.assignments = data.pendingAssignments || 0;
-                        statsData.assignmentsChange = data.pendingAssignmentsChange || (Math.round(Math.random() * 5) - 2);
                         
                         statsData.exams = data.upcomingExams || 0;
-                        statsData.examsChange = data.upcomingExamsChange || (Math.round(Math.random() * 5) - 2);
                         
                         statsData.progress = Math.round(data.overallProgress || 0);
-                        statsData.progressChange = Math.round(data.overallProgressChange || 0);
                     } else if (performanceData.data) {
                         // 如果没有success字段，但直接有data字段
                         const data = performanceData.data;
                         
                         // 更新统计数据
                         statsData.courses = data.courseCount || 0;
-                        statsData.coursesChange = data.courseCountChange || 0;
                         
                         statsData.assignments = data.pendingAssignments || 0;
-                        statsData.assignmentsChange = data.pendingAssignmentsChange || 0;
                         
                         statsData.exams = data.upcomingExams || 0;
-                        statsData.examsChange = data.upcomingExamsChange || 0;
                         
                         statsData.progress = Math.round(data.overallProgress || 0);
-                        statsData.progressChange = Math.round(data.overallProgressChange || 0);
                     } else {
                         console.warn('API返回的数据格式不正确:', performanceData);
                     }
@@ -629,25 +594,7 @@
                         }
                     }
                     
-                    // 获取学习时间分布数据
-                    try {
-                        // 调用学习时间分布接口
-                        const studyTimeData = await studentAPI.getStudyTimeDistribution();
-                        console.log('获取到学习时间分布数据:', studyTimeData);
-                        if (studyTimeData && studyTimeData.success && studyTimeData.data && Array.isArray(studyTimeData.data)) {
-                            // 规范化学习时间为周一到周日的数组
-                            chartData.studyTime = transformStudyTimeData(
-                                studyTimeData.data.sort((a, b) => new Date(a.date) - new Date(b.date))
-                            );
-                        } else {
-                            // 使用空数组，让图表显示没有数据的状态
-                            chartData.studyTime = transformStudyTimeData([]);
-                        }
-                    } catch (error) {
-                        console.error('获取学习时间分布失败:', error);
-                        // 使用空数组，让图表显示没有数据的状态
-                        chartData.studyTime = transformStudyTimeData([]);
-                    }
+                    await populateDashboardStudyTimeFromConnectedSources(studentAPI, chartData);
                     
                     // 更新最近活动
                     if (data.recentActivities && Array.isArray(data.recentActivities)) {
@@ -662,62 +609,10 @@
                         const activitiesResponse = await studentAPI.getRecentActivities();
                         if (activitiesResponse?.unsupported) {
                             showMessage(activitiesResponse.message, 'info');
-                            updateRecentActivities([]);
+                            await populateDashboardActivitiesFromConnectedSources(studentAPI, statsData);
                         } else {
-                            // 尝试获取最近活动数据，同时利用考试列表修正“即将到来的考试”数量
                             try {
-                                // 获取作业和考试数据，用于生成最近活动
-                                const assignments = await studentAPI.getAssignments({ page: 1, size: 5 });
-                                const exams = await studentAPI.getExams({ page: 1, size: 20 });
-                                
-                                const activities = [];
-                                let upcomingExamCountFromList = 0;
-                                
-                                // 处理作业数据
-                                if (assignments && assignments.success && assignments.data) {
-                                    const assignmentList = assignments.data.content || assignments.data || [];
-                                    assignmentList.forEach(assignment => {
-                                        activities.push({
-                                            type: 'assignment',
-                                            text: `作业：${assignment.title}`,
-                                            time: assignment.dueDate || new Date().toISOString()
-                                        });
-                                    });
-                                }
-                                
-                                // 处理考试数据，同时统计“即将到来”的考试数量
-                                if (exams && exams.success && exams.data) {
-                                    const examList = exams.data.content || exams.data || [];
-                                    const now = new Date();
-                                    
-                                    examList.forEach(exam => {
-                                        const startTime = exam.startTime ? new Date(exam.startTime) : null;
-                                        
-                                        // 统计尚未开始的考试数量，用于修正统计卡片中的“即将到来的考试”数量
-                                        if (startTime && startTime > now) {
-                                            upcomingExamCountFromList++;
-                                        }
-                                        
-                                        activities.push({
-                                            type: 'exam',
-                                            text: `考试：${exam.title}`,
-                                            time: exam.startTime || new Date().toISOString()
-                                        });
-                                    });
-                                    
-                                    // 如果后端没有正确返回 upcomingExams（为0），但前端列表中统计到了“即将到来的考试”，
-                                    // 则使用前端根据考试列表计算出的数量进行覆盖，避免统计卡片显示为0。
-                                    if ((statsData.exams === 0 || !statsData.exams) && upcomingExamCountFromList > 0) {
-                                        console.log('使用前端考试列表覆盖 statsData.exams，数量为:', upcomingExamCountFromList);
-                                        statsData.exams = upcomingExamCountFromList;
-                                    }
-                                }
-                                
-                                // 按时间排序
-                                activities.sort((a, b) => new Date(b.time) - new Date(a.time));
-                                
-                                // 只显示最近5条活动
-                                updateRecentActivities(activities.slice(0, 5));
+                                await populateDashboardActivitiesFromConnectedSources(studentAPI, statsData);
                             } catch (error) {
                                 console.error('生成最近活动数据失败:', error);
                                 // 没有活动数据时显示空列表
@@ -735,19 +630,15 @@
             try {
                 // 获取学生统计数据
                 const studentStats = await studentAPI.getStudentStats();
-                if (studentStats && studentStats.success && studentStats.data) {
-                    const data = studentStats.data;
-                    statsData = {
-                        courses: data.totalCourses || 0,
-                        coursesChange: data.totalCoursesChange || 0,
-                        assignments: (data.totalAssignments || 0) - (data.completedAssignments || 0),
-                        assignmentsChange: data.assignmentsChange || 0,
-                        exams: (data.totalExams || 0) - (data.completedExams || 0),
-                        examsChange: data.examsChange || 0,
-                        progress: Math.round(data.averageScore || 0),
-                        progressChange: data.averageScoreChange || 0
-                    };
-                }
+                    if (studentStats && studentStats.success && studentStats.data) {
+                        const data = studentStats.data;
+                        statsData = {
+                            courses: data.totalCourses || 0,
+                            assignments: (data.totalAssignments || 0) - (data.completedAssignments || 0),
+                            exams: (data.totalExams || 0) - (data.completedExams || 0),
+                            progress: Math.round(data.averageScore || 0)
+                        };
+                    }
             } catch (statsError) {
                 console.error('获取学生统计数据失败:', statsError);
                 let fallbackCourseList = [];
@@ -812,41 +703,7 @@
                 
                 // 尝试获取最近活动数据
                 try {
-                    // 获取作业和考试数据，用于生成最近活动
-                    const assignments = await studentAPI.getAssignments({ page: 1, size: 5 });
-                    const exams = await studentAPI.getExams({ page: 1, size: 5 });
-                    
-                    const activities = [];
-                    
-                    // 处理作业数据
-                    if (assignments && assignments.success && assignments.data) {
-                        const assignmentList = assignments.data.content || assignments.data || [];
-                        assignmentList.forEach(assignment => {
-                            activities.push({
-                                type: 'assignment',
-                                text: `作业：${assignment.title}`,
-                                time: assignment.dueDate || new Date().toISOString()
-                            });
-                        });
-                    }
-                    
-                    // 处理考试数据
-                    if (exams && exams.success && exams.data) {
-                        const examList = exams.data.content || exams.data || [];
-                        examList.forEach(exam => {
-                            activities.push({
-                                type: 'exam',
-                                text: `考试：${exam.title}`,
-                                time: exam.startTime || new Date().toISOString()
-                            });
-                        });
-                    }
-                    
-                    // 按时间排序
-                    activities.sort((a, b) => new Date(b.time) - new Date(a.time));
-                    
-                    // 只显示最近5条活动
-                    updateRecentActivities(activities.slice(0, 5));
+                    await populateDashboardActivitiesFromConnectedSources(studentAPI, statsData);
                 } catch (error) {
                     console.error('生成最近活动数据失败:', error);
                     // 没有活动数据时显示空列表
@@ -855,8 +712,7 @@
                 
                 // 尝试从API获取学习时间分布
                 try {
-                    const studyTimes = await calculateStudyTime();
-                    chartData.studyTime = transformStudyTimeData(studyTimes);
+                    await populateDashboardStudyTimeFromConnectedSources(studentAPI, chartData);
                 } catch (error) {
                     console.error('获取学习时间分布失败:', error);
                     chartData.studyTime = transformStudyTimeData([]);
@@ -900,8 +756,8 @@
             console.error('获取仪表板数据失败:', error);
             // 显示错误消息
             showMessage('加载仪表盘数据失败，请稍后重试', 'error');
-            // 显示模拟数据，而不是空数据
-            showMockData();
+            // 显示空状态数据
+            showEmptyStateData();
         } finally {
             // 隐藏加载状态
             hideLoading();
@@ -913,6 +769,12 @@
     // 更新统计数据（带过渡效果）
     function updateStats(stats) {
         if (stats) {
+            const metaLabelOverrides = {
+                courses: '当前课程总览',
+                assignments: '当前待完成作业',
+                exams: '当前考试安排',
+                progress: '当前学习进度估算'
+            };
             // 添加加载状态
             const statValues = document.querySelectorAll('.stat-value');
             const statChanges = document.querySelectorAll('.stat-change');
@@ -925,7 +787,7 @@
                 change.style.opacity = '0.5';
             });
             
-            // 延迟更新数值，模拟数据加载
+            // 延迟更新数值，模拟异步数据加载
             setTimeout(() => {
                 animateValue('courseCount', 0, stats.courses || 0, 600);
                 animateValue('assignmentCount', 0, stats.assignments || 0, 600);
@@ -933,10 +795,10 @@
                 animateProgress('progressPercentage', 0, stats.progress || 0, 600);
                 
                 // 更新变化趋势
-                updateStatChange('courseCount', stats.coursesChange || 0, '较上月');
-                updateStatChange('assignmentCount', stats.assignmentsChange || 0, '较上周');
-                updateStatChange('examCount', stats.examsChange || 0, '较上周');
-                updateStatChange('progressPercentage', stats.progressChange || 0, '较上月');
+                updateStatMeta('courseCount', metaLabelOverrides.courses);
+                updateStatMeta('assignmentCount', metaLabelOverrides.assignments);
+                updateStatMeta('examCount', metaLabelOverrides.exams);
+                updateStatMeta('progressPercentage', metaLabelOverrides.progress);
                 
                 // 恢复不透明度
                 statValues.forEach(value => {
@@ -951,47 +813,10 @@
     }
     
     // 更新变化趋势显示
-    function updateStatChange(elementId, changeValue, timePeriod) {
-        let statCard;
-        if (elementId === 'courseCount') {
-            statCard = document.querySelector('.stat-card:nth-child(1)');
-        } else if (elementId === 'assignmentCount') {
-            statCard = document.querySelector('.stat-card:nth-child(2)');
-        } else if (elementId === 'examCount') {
-            statCard = document.querySelector('.stat-card:nth-child(3)');
-        } else if (elementId === 'progressPercentage') {
-            statCard = document.querySelector('.stat-card:nth-child(4)');
-        }
-        
-        if (statCard) {
-            const changeElement = statCard.querySelector('.stat-change');
-            if (changeElement) {
-                let icon = 'fa-arrow-up';
-                let className = 'positive';
-                
-                if (changeValue < 0) {
-                    icon = 'fa-arrow-down';
-                    className = 'negative';
-                    changeValue = Math.abs(changeValue);
-                } else if (changeValue === 0) {
-                    icon = 'fa-minus';
-                    className = 'neutral';
-                }
-                
-                let unit = '';
-                if (elementId === 'progressPercentage') {
-                    unit = '%';
-                } else if (elementId === 'courseCount') {
-                    unit = '门';
-                } else if (elementId === 'assignmentCount') {
-                    unit = '个';
-                } else if (elementId === 'examCount') {
-                    unit = '个';
-                }
-                
-                changeElement.className = `stat-change ${className}`;
-                changeElement.innerHTML = `<i class="fas ${icon}"></i> ${timePeriod}${changeValue > 0 ? changeValue > 0 ? changeValue > 0 ? '增加' : '减少' : '变化' : '无变化'} ${changeValue}${unit}`;
-            }
+    function updateStatMeta(elementId, labelText) {
+        const labelElement = document.getElementById(`${elementId}MetaLabel`);
+        if (labelElement) {
+            labelElement.textContent = labelText;
         }
     }
     
@@ -1205,7 +1030,7 @@
                     iconColor = '#10b981';
                     break;
                 case 'exam':
-                    iconClass = 'fas fa-chart-line';
+            iconClass = 'fas fa-line-chart';
                     iconColor = '#f59e0b';
                     break;
                 case 'resource':
@@ -1287,19 +1112,15 @@
     }
     
     // 显示空状态数据
-    function showMockData() {
+    function showEmptyStateData() {
         console.log('显示空状态数据');
         
         // 空统计数据
         const emptyStatsData = {
             courses: 0,
-            coursesChange: 0,
             assignments: 0,
-            assignmentsChange: 0,
             exams: 0,
-            examsChange: 0,
-            progress: 0,
-            progressChange: 0
+            progress: 0
         };
         
         // 空图表数据

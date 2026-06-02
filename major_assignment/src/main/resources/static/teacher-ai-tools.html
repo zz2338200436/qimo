@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI工具模块 - 智能学习辅助系统</title>
+    <link rel="icon" href="data:,">
     <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="lib/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link href="lib/font-awesome.min.css" rel="stylesheet">
+    <link href="styles.css?v=20260523-1" rel="stylesheet">
     <style>
         /* 全局样式 */
         body {
@@ -388,6 +390,24 @@
             font-size: 0.75rem;
             font-weight: 500;
         }
+
+        .teacher-ai-tools-availability-banner {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1d4ed8;
+            border-radius: 8px;
+            padding: 16px 18px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .tool-unavailable-note {
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 8px;
+            padding: 18px;
+            color: #475569;
+        }
         
         /* 加载状态 */
         .loading-container {
@@ -423,12 +443,12 @@
         }
     </style>
 </head>
-<body>
+<body class="teacher-shell-body">
     <!-- 侧边栏导航组件 -->
     <div id="sidebar-container"></div>
     <script>
         // 加载侧边栏组件
-        fetch('components/teacher-sidebar-nav.html')
+        fetch('components/teacher-sidebar-nav.html?v=20260523-1')
             .then(response => response.text())
             .then(data => {
                 document.getElementById('sidebar-container').innerHTML = data;
@@ -443,9 +463,9 @@
     </script>
     
     <!-- 主内容区 -->
-    <main class="main-content" id="mainContent">
+    <main class="main-content teacher-shell-main" id="mainContent">
         <!-- 顶部导航栏 -->
-        <nav class="top-navbar">
+        <nav class="top-navbar teacher-topbar">
             <div style="display: flex; align-items: center;">
                 <button class="toggle-btn"><i class="fa fa-bars"></i></button>
                 <h2 class="page-title">AI工具</h2>
@@ -455,7 +475,10 @@
         </nav>
         
         <!-- 内容区域 -->
-        <div class="content-container">
+        <div class="content-container teacher-content">
+            <div id="teacher-ai-tools-availability-banner" class="teacher-ai-tools-availability-banner" role="alert">
+                当前已接通：题目生成、试卷生成、学习建议。知识点讲解、作业批改、教学计划暂不可用。
+            </div>
             <!-- AI工具卡片 -->
             <div class="ai-tools-grid">
                 <div class="ai-tool-card">
@@ -528,14 +551,14 @@
                 </div>
                 <div class="ai-tool-card">
                     <div class="ai-tool-card-header">
-                        <h3 class="ai-tool-card-title">学情分析</h3>
+                        <h3 class="ai-tool-card-title">AI学习建议</h3>
                         <div class="ai-tool-card-icon">
                             <i class="fa fa-bar-chart"></i>
                         </div>
                     </div>
                     <div class="ai-tool-card-body">
                         <p class="ai-tool-card-description">
-                            基于学生的学习数据，分析学习情况，生成个性化的学习建议。
+                            基于学生身份生成学习建议。
                         </p>
                         <div class="ai-tool-card-actions">
                             <button class="btn btn-primary btn-sm" onclick="activateTool('learning-analyzer')">使用</button>
@@ -567,68 +590,23 @@
                 <h3 class="form-section-title">AI题目生成</h3>
                 <form id="question-generator-form">
                     <div class="form-row">
-                        <div class="form-group">
-                            <label for="course-select">选择课程</label>
-                            <select id="course-select" class="form-control">
-                                <option value="CS101">Python编程基础</option>
-                                <option value="CS102">数据结构与算法</option>
-                                <option value="MA201">高等数学</option>
-                                <option value="DB301">数据库系统</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="knowledge-points">选择知识点</label>
-                            <select id="knowledge-points" class="form-control" multiple>
-                                <option value="KP001">函数定义与调用</option>
-                                <option value="KP002">条件语句</option>
-                                <option value="KP003">循环结构</option>
-                                <option value="KP004">列表与字典</option>
-                                <option value="KP005">面向对象编程</option>
-                            </select>
+                        <div class="form-group col-12">
+                            <label for="question-topic">主题 / 知识点</label>
+                            <input type="text" id="question-topic" class="form-control" value="函数定义与调用" placeholder="例如：函数定义与调用">
                         </div>
                     </div>
                     <div class="form-row">
-                        <div class="form-group">
-                            <label for="question-type">题目类型</label>
-                            <select id="question-type" class="form-control">
-                                <option value="all">全部类型</option>
-                                <option value="multiple-choice">选择题</option>
-                                <option value="true-false">判断题</option>
-                                <option value="fill-in">填空题</option>
-                                <option value="short-answer">简答题</option>
-                            </select>
-                        </div>
                         <div class="form-group">
                             <label for="difficulty">难度级别</label>
                             <select id="difficulty" class="form-control">
-                                <option value="all">全部难度</option>
                                 <option value="easy">简单</option>
-                                <option value="medium">中等</option>
+                                <option value="medium" selected>中等</option>
                                 <option value="hard">困难</option>
                             </select>
                         </div>
-                    </div>
-                    <div class="form-row">
                         <div class="form-group">
                             <label for="question-count">题目数量</label>
                             <input type="number" id="question-count" class="form-control" value="10" min="1" max="50">
-                        </div>
-                        <div class="form-group">
-                            <label for="specific-requirements">特定要求</label>
-                            <input type="text" id="specific-requirements" class="form-control" placeholder="例如：增加实际应用场景">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="knowledge-depth">知识深度</label>
-                            <input type="range" id="knowledge-depth" class="form-control-range" min="1" max="5" value="3">
-                            <div class="text-center" id="depth-label">3 (中等深度)</div>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group col-12">
-                            <label for="additional-instructions">额外说明</label>
-                            <textarea id="additional-instructions" class="form-control" rows="3" placeholder="请输入额外的生成要求..."></textarea>
                         </div>
                     </div>
                     <div class="form-row">
@@ -645,22 +623,16 @@
                 <h3 class="form-section-title">AI试卷生成</h3>
                 <form id="exam-generator-form">
                     <div class="form-row">
-                        <div class="form-group">
+                        <div class="form-group col-12">
                             <label for="exam-course-name">课程名称</label>
-                            <select id="exam-course-name" class="form-control">
-                                <option value="Python编程基础">Python编程基础</option>
-                                <option value="数据结构与算法">数据结构与算法</option>
-                                <option value="高等数学">高等数学</option>
-                                <option value="数据库系统">数据库系统</option>
-                                <option value="线性代数">线性代数</option>
-                            </select>
+                            <input type="text" id="exam-course-name" class="form-control" value="Python编程基础" placeholder="请输入课程名称">
                         </div>
+                    </div>
+                    <div class="form-row">
                         <div class="form-group">
                             <label for="exam-total-score">总分</label>
                             <input type="number" id="exam-total-score" class="form-control" value="100" min="50" max="200">
                         </div>
-                    </div>
-                    <div class="form-row">
                         <div class="form-group">
                             <label for="exam-duration">考试时长（分钟）</label>
                             <input type="number" id="exam-duration" class="form-control" value="120" min="30" max="300">
@@ -669,15 +641,9 @@
                             <label for="exam-difficulty">难度级别</label>
                             <select id="exam-difficulty" class="form-control">
                                 <option value="easy">简单</option>
-                                <option value="medium">中等</option>
+                                <option value="medium" selected>中等</option>
                                 <option value="hard">困难</option>
                             </select>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group col-12">
-                            <label for="exam-description">试卷描述（可选）</label>
-                            <textarea id="exam-description" class="form-control" rows="3" placeholder="请输入试卷的额外要求或说明..."></textarea>
                         </div>
                     </div>
                     <div class="form-row">
@@ -694,59 +660,15 @@
                 <h3 class="form-section-title">AI知识点讲解</h3>
                 <form id="knowledge-explainer-form">
                     <div class="form-row">
-                        <div class="form-group">
-                            <label for="explain-course-name">选择课程</label>
-                            <select id="explain-course-name" class="form-control">
-                                <option value="Python编程基础">Python编程基础</option>
-                                <option value="数据结构与算法">数据结构与算法</option>
-                                <option value="高等数学">高等数学</option>
-                                <option value="数据库系统">数据库系统</option>
-                                <option value="线性代数">线性代数</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="explain-knowledge-point">选择知识点</label>
-                            <select id="explain-knowledge-point" class="form-control">
-                                <option value="函数定义与调用">函数定义与调用</option>
-                                <option value="条件语句">条件语句</option>
-                                <option value="循环结构">循环结构</option>
-                                <option value="列表与字典">列表与字典</option>
-                                <option value="面向对象编程">面向对象编程</option>
-                                <option value="数据库设计">数据库设计</option>
-                                <option value="SQL查询">SQL查询</option>
-                                <option value="线性方程组">线性方程组</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="explain-depth">讲解深度</label>
-                            <select id="explain-depth" class="form-control">
-                                <option value="基础">基础</option>
-                                <option value="中级">中级</option>
-                                <option value="高级">高级</option>
-                                <option value="专家级">专家级</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="explain-style">讲解风格</label>
-                            <select id="explain-style" class="form-control">
-                                <option value="通俗易懂">通俗易懂</option>
-                                <option value="学术严谨">学术严谨</option>
-                                <option value="案例驱动">案例驱动</option>
-                                <option value="互动式">互动式</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-row">
                         <div class="form-group col-12">
-                            <label for="explain-additional">额外要求（可选）</label>
-                            <textarea id="explain-additional" class="form-control" rows="3" placeholder="请输入额外的讲解要求，例如：包含示例代码、添加练习题等..."></textarea>
+                            <div class="tool-unavailable-note">
+                                当前 AI 服务暂未提供知识点讲解能力。我们先保留入口，但不会再展示本地伪生成结果。
+                            </div>
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group col-12 text-center">
-                            <button type="submit" class="btn btn-primary">生成讲解</button>
+                            <button type="submit" class="btn btn-primary">查看状态说明</button>
                             <button type="button" class="btn btn-secondary ms-2" onclick="cancelTool('knowledge-explainer')">取消</button>
                         </div>
                     </div>
@@ -758,62 +680,15 @@
                 <h3 class="form-section-title">AI作业批改</h3>
                 <form id="assignment-evaluator-form">
                     <div class="form-row">
-                        <div class="form-group">
-                            <label for="evaluate-course">选择课程</label>
-                            <select id="evaluate-course" class="form-control">
-                                <option value="Python编程基础">Python编程基础</option>
-                                <option value="数据结构与算法">数据结构与算法</option>
-                                <option value="高等数学">高等数学</option>
-                                <option value="数据库系统">数据库系统</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="evaluate-assignment">选择作业</label>
-                            <select id="evaluate-assignment" class="form-control">
-                                <option value="作业1：函数定义与调用">作业1：函数定义与调用</option>
-                                <option value="作业2：条件语句与循环结构">作业2：条件语句与循环结构</option>
-                                <option value="作业3：面向对象编程">作业3：面向对象编程</option>
-                                <option value="作业4：数据库设计">作业4：数据库设计</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="evaluate-student">选择学生</label>
-                            <select id="evaluate-student" class="form-control">
-                                <option value="张三">张三</option>
-                                <option value="李四">李四</option>
-                                <option value="王五">王五</option>
-                                <option value="赵六">赵六</option>
-                                <option value="孙七">孙七</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="evaluate-criteria">批改标准</label>
-                            <select id="evaluate-criteria" class="form-control">
-                                <option value="default">默认标准</option>
-                                <option value="strict">严格标准</option>
-                                <option value="lenient">宽松标准</option>
-                                <option value="custom">自定义标准</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-row">
                         <div class="form-group col-12">
-                            <label for="evaluate-file">上传作业文件</label>
-                            <input type="file" id="evaluate-file" class="form-control" accept=".pdf,.doc,.docx,.txt,.py,.java">
-                            <small class="form-text text-muted">支持PDF、Word、TXT、Python、Java等格式</small>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group col-12">
-                            <label for="evaluate-additional">额外说明（可选）</label>
-                            <textarea id="evaluate-additional" class="form-control" rows="3" placeholder="请输入额外的批改要求或说明..."></textarea>
+                            <div class="tool-unavailable-note">
+                                当前 AI 服务暂未提供作业批改能力。页面会明确提示不可用，而不会继续展示本地批改报告。
+                            </div>
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group col-12 text-center">
-                            <button type="submit" class="btn btn-primary">开始批改</button>
+                            <button type="submit" class="btn btn-primary">查看状态说明</button>
                             <button type="button" class="btn btn-secondary ms-2" onclick="cancelTool('assignment-evaluator')">取消</button>
                         </div>
                     </div>
@@ -822,52 +697,18 @@
             
             <!-- 学情分析工具 -->
             <div id="learning-analyzer" class="form-section" style="display: none;">
-                <h3 class="form-section-title">AI学情分析</h3>
+                <h3 class="form-section-title">AI学习建议</h3>
                 <form id="learning-analyzer-form">
                     <div class="form-row">
-                        <div class="form-group">
-                            <label for="analyze-course">选择课程</label>
-                            <select id="analyze-course" class="form-control">
-                                <option value="Python编程基础">Python编程基础</option>
-                                <option value="数据结构与算法">数据结构与算法</option>
-                                <option value="高等数学">高等数学</option>
-                                <option value="数据库系统">数据库系统</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
+                        <div class="form-group col-12">
                             <label for="analyze-student">选择学生</label>
-                            <select id="analyze-student" class="form-control">
-                                <option value="80">张三 (ID: 80)</option>
-                                <option value="81">李四 (ID: 81)</option>
-                                <option value="82">王五 (ID: 82)</option>
-                                <option value="83">赵六 (ID: 83)</option>
-                                <option value="84">孙七 (ID: 84)</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="analyze-dimension">分析维度</label>
-                            <select id="analyze-dimension" class="form-control" multiple>
-                                <option value="knowledge-mastery" selected>知识点掌握情况</option>
-                                <option value="learning-progress" selected>学习进度</option>
-                                <option value="performance-trend" selected>成绩趋势</option>
-                                <option value="weak-points" selected>薄弱环节</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="analyze-time-range">时间范围</label>
-                            <select id="analyze-time-range" class="form-control">
-                                <option value="last-week">最近一周</option>
-                                <option value="last-month" selected>最近一个月</option>
-                                <option value="last-quarter">最近三个月</option>
-                                <option value="this-semester">本学期</option>
-                            </select>
+                            <input type="number" id="analyze-student" class="form-control" value="80" min="1" placeholder="请输入学生 ID">
+                            <small class="form-text text-muted">当前能力会基于学生身份返回学习建议。</small>
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group col-12 text-center">
-                            <button type="submit" class="btn btn-primary">开始分析</button>
+                            <button type="submit" class="btn btn-primary">生成学习建议</button>
                             <button type="button" class="btn btn-secondary ms-2" onclick="cancelTool('learning-analyzer')">取消</button>
                         </div>
                     </div>
@@ -879,55 +720,15 @@
                 <h3 class="form-section-title">AI教学计划生成</h3>
                 <form id="teaching-planner-form">
                     <div class="form-row">
-                        <div class="form-group">
-                            <label for="plan-course-name">选择课程</label>
-                            <select id="plan-course-name" class="form-control">
-                                <option value="Python编程基础">Python编程基础</option>
-                                <option value="数据结构与算法">数据结构与算法</option>
-                                <option value="高等数学">高等数学</option>
-                                <option value="数据库系统">数据库系统</option>
-                                <option value="线性代数">线性代数</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="plan-duration">计划时长（周）</label>
-                            <input type="number" id="plan-duration" class="form-control" value="16" min="4" max="24">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="plan-start-date">开始日期</label>
-                            <input type="date" id="plan-start-date" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label for="plan-end-date">结束日期</label>
-                            <input type="date" id="plan-end-date" class="form-control">
-                        </div>
-                    </div>
-                    <div class="form-row">
                         <div class="form-group col-12">
-                            <label for="plan-knowledge-points">包含知识点</label>
-                            <select id="plan-knowledge-points" class="form-control" multiple>
-                                <option value="函数定义与调用">函数定义与调用</option>
-                                <option value="条件语句">条件语句</option>
-                                <option value="循环结构">循环结构</option>
-                                <option value="列表与字典">列表与字典</option>
-                                <option value="面向对象编程">面向对象编程</option>
-                                <option value="数据库设计">数据库设计</option>
-                                <option value="SQL查询">SQL查询</option>
-                                <option value="线性方程组">线性方程组</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group col-12">
-                            <label for="plan-additional">额外要求</label>
-                            <textarea id="plan-additional" class="form-control" rows="3" placeholder="请输入额外的教学计划要求..."></textarea>
+                            <div class="tool-unavailable-note">
+                                当前 AI 服务暂未提供教学计划生成能力。页面会保留状态说明，但不会再生成本地演示计划。
+                            </div>
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group col-12 text-center">
-                            <button type="submit" class="btn btn-primary">生成教学计划</button>
+                            <button type="submit" class="btn btn-primary">查看状态说明</button>
                             <button type="button" class="btn btn-secondary ms-2" onclick="cancelTool('teaching-planner')">取消</button>
                         </div>
                     </div>
@@ -936,7 +737,7 @@
         </div>
         
         <!-- 结果展示区 -->
-        <div id="result-container" class="content-container" style="display: none;">
+        <div id="result-container" class="content-container teacher-content" style="display: none;">
             <div class="result-section">
                 <h3 class="result-section-title">生成结果</h3>
                 <div class="result-header">
@@ -976,17 +777,126 @@
     </div>
     
     <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="lib/bootstrap.bundle.min.js"></script>
     
     <!-- 页面功能脚本 -->
     <script>
+        function getTeacherAiCsrfToken() {
+            const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+            return match ? decodeURIComponent(match[1]) : null;
+        }
+
+        async function requestTeacherAi(endpoint, payload) {
+            const accessToken = sessionStorage.getItem('token');
+            if (!accessToken) {
+                throw new Error('当前登录状态已失效，请重新登录后再试。');
+            }
+
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+            };
+            const csrfToken = getTeacherAiCsrfToken();
+            if (csrfToken) {
+                headers['X-XSRF-TOKEN'] = csrfToken;
+            }
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                credentials: 'include',
+                headers,
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json().catch(() => null);
+            if (!response.ok || !result?.success) {
+                throw new Error(result?.message || `AI 请求失败（${response.status}）`);
+            }
+            return result.data || {};
+        }
+
+        function resolveCorrectAnswerIndexes(answer, options = []) {
+            if (!answer || !Array.isArray(options) || options.length === 0) {
+                return [];
+            }
+            const normalizedAnswer = String(answer).trim().toUpperCase();
+            const optionIndex = normalizedAnswer.charCodeAt(0) - 65;
+            if (optionIndex >= 0 && optionIndex < options.length) {
+                return [optionIndex];
+            }
+            return [];
+        }
+
+        function buildQuestionResultFromApi(question = {}, context = {}) {
+            const difficulty = question.difficulty || context.difficulty || 'medium';
+            return {
+                type: 'question',
+                questionType: question.type || '题目',
+                difficulty,
+                content: question.content || '暂无题目内容',
+                options: Array.isArray(question.options) ? question.options : [],
+                correctAnswers: resolveCorrectAnswerIndexes(question.answer, question.options),
+                answer: question.answer || '',
+                explanation: question.score != null
+                    ? `${question.explanation || ''}${question.explanation ? ' ' : ''}分值：${question.score}分`
+                    : (question.explanation || ''),
+                knowledgePoints: context.topic ? [context.topic] : []
+            };
+        }
+
+        function buildQuestionResultsFromApi(payload) {
+            const questions = Array.isArray(payload?.questions) ? payload.questions : [];
+            return questions.map(question => buildQuestionResultFromApi(question, {
+                topic: payload.topic || '',
+                difficulty: payload.difficulty || ''
+            }));
+        }
+
+        function buildExamResultsFromApi(payload) {
+            const summary = {
+                type: 'exam-section',
+                title: payload.title || `${payload.courseName || '未命名课程'}模拟试卷`,
+                content: `<p>课程：${payload.courseName || '未命名课程'}</p>`,
+                distribution: `总分：${payload.totalScore || '--'} 分；时长：${payload.duration || '--'} 分钟；难度：${payload.difficulty || '未标注'}`
+            };
+            const questions = Array.isArray(payload?.questions) ? payload.questions : [];
+            return [
+                summary,
+                ...questions.map(question => buildQuestionResultFromApi(question, {
+                    topic: payload.courseName || '',
+                    difficulty: payload.difficulty || ''
+                }))
+            ];
+        }
+
+        function buildLearningSuggestionResults(payload, context = {}) {
+            const suggestions = Array.isArray(payload?.suggestions) ? payload.suggestions : [];
+            const items = suggestions.length > 0
+                ? `<ul>${suggestions.map(item => `<li>${item}</li>`).join('')}</ul>`
+                : '<p>当前没有可展示的学习建议。</p>';
+            return [{
+                type: 'suggestion',
+                title: context.studentLabel ? `AI学习建议 - ${context.studentLabel}` : 'AI学习建议',
+                content: `<p>基于当前学生身份生成学习建议：</p>${items}`,
+                studentId: payload.studentId || context.studentId || ''
+            }];
+        }
+
+        function buildUnavailableAiToolResult(title, message) {
+            return {
+                type: 'unavailable',
+                title,
+                content: message
+            };
+        }
+
         // 通用函数：为教师端加载右上角用户下拉菜单，并执行组件内脚本
         async function loadUserDropdownForTeacher(containerId) {
             const container = document.getElementById(containerId);
             if (!container) return;
 
             try {
-                const resp = await fetch('components/user-dropdown.html');
+            const resp = await fetch('components/user-dropdown.html?v=20260523-1');
                 if (!resp.ok) {
                     console.error('加载用户下拉组件失败:', resp.status, resp.statusText);
                     return;
@@ -1037,25 +947,6 @@
                     mainContent.classList.toggle('collapsed');
                 });
             }
-            
-            // 初始化知识深度滑块
-            const depthSlider = document.getElementById('knowledge-depth');
-            const depthLabel = document.getElementById('depth-label');
-            if (depthSlider && depthLabel) {
-                depthSlider.addEventListener('input', function() {
-                    const depth = parseInt(this.value);
-                    let depthText = '';
-                    switch(depth) {
-                        case 1: depthText = '1 (入门级)'; break;
-                        case 2: depthText = '2 (基础级)'; break;
-                        case 3: depthText = '3 (中等深度)'; break;
-                        case 4: depthText = '4 (进阶)'; break;
-                        case 5: depthText = '5 (专家级)'; break;
-                    }
-                    depthLabel.textContent = depthText;
-                });
-            }
-
             // 加载右上角用户下拉菜单（教师端紫色主题）
             await loadUserDropdownForTeacher('userDropdownContainer');
             
@@ -1159,12 +1050,12 @@
         // 显示工具帮助
         function showToolHelp(toolId) {
             const helpMessages = {
-                'question-generator': 'AI题目生成工具可以根据您选择的课程、知识点、题目类型和难度生成高质量的题目。',
-                'exam-generator': 'AI试卷生成工具可以根据课程大纲和知识点自动生成完整的试卷，包括题目分布和分数设置。',
-                'knowledge-explainer': 'AI知识点讲解工具可以生成知识点的详细讲解和示例，帮助学生更好地理解和掌握。',
-                'assignment-evaluator': 'AI作业批改工具可以自动批改客观题和主观题，生成详细的评分报告和改进建议。',
-                'learning-analyzer': 'AI学情分析工具可以基于学生的学习数据，分析学习情况，生成个性化的学习建议。',
-                'teaching-planner': 'AI教学计划生成工具可以根据课程大纲和时间安排，自动生成详细的教学计划和进度安排。'
+                'question-generator': 'AI题目生成工具会根据您输入的主题、难度和数量调用真实接口生成题目。',
+                'exam-generator': 'AI试卷生成工具会根据课程名称、总分、时长和难度调用真实接口生成试卷。',
+                'knowledge-explainer': '当前 AI 服务暂未提供知识点讲解能力，页面会明确提示不可用状态。',
+                'assignment-evaluator': '当前 AI 服务暂未提供作业批改能力，页面会明确提示不可用状态。',
+                'learning-analyzer': 'AI学习建议工具会基于学生身份返回学习建议。',
+                'teaching-planner': '当前 AI 服务暂未提供教学计划生成能力，页面会明确提示不可用状态。'
             };
             
             showMessage(helpMessages[toolId] || '该工具的帮助信息暂未提供。', 'info');
@@ -1372,6 +1263,33 @@
                         ${result.keyMilestones ? `<div class="mt-2"><strong>关键里程碑：</strong>${result.keyMilestones}</div>` : ''}
                     </div>
                 `;
+            } else if (result.type === 'suggestion') {
+                div.innerHTML = `
+                    <div class="question-header">
+                        <div>
+                            <span class="question-number">${index}.</span>
+                            <span class="question-type">学习建议</span>
+                        </div>
+                        ${result.studentId ? `<span class="question-difficulty difficulty-medium">学生 ID：${result.studentId}</span>` : ''}
+                    </div>
+                    <div class="question-content">
+                        <h5>${result.title || ''}</h5>
+                        <div>${result.content || ''}</div>
+                    </div>
+                `;
+            } else if (result.type === 'unavailable') {
+                div.innerHTML = `
+                    <div class="question-header">
+                        <div>
+                            <span class="question-number">${index}.</span>
+                            <span class="question-type">能力状态</span>
+                        </div>
+                    </div>
+                    <div class="question-content">
+                        <h5>${result.title || ''}</h5>
+                        <p>${result.content || ''}</p>
+                    </div>
+                `;
             } else {
                 div.innerHTML = `
                     <div class="question-header">
@@ -1407,257 +1325,121 @@
         }
         
         // 生成题目
-        function generateQuestions() {
+        async function generateQuestions() {
             showLoading();
-            
-            // 模拟AI生成过程
-            setTimeout(() => {
-                const mockResults = [
-                    {
-                        type: 'question',
-                        questionType: '选择题',
-                        difficulty: 'easy',
-                        content: '以下哪个是Python中定义函数的关键字？',
-                        options: ['func', 'function', 'def', 'define'],
-                        correctAnswers: [2],
-                        answer: 'C',
-                        explanation: 'Python中使用def关键字来定义函数。',
-                        knowledgePoints: ['函数定义与调用']
-                    },
-                    {
-                        type: 'question',
-                        questionType: '选择题',
-                        difficulty: 'medium',
-                        content: '以下哪个不是Python的内置数据类型？',
-                        options: ['list', 'tuple', 'string', 'array'],
-                        correctAnswers: [3],
-                        answer: 'D',
-                        explanation: 'array不是Python的内置数据类型，需要通过导入模块使用。',
-                        knowledgePoints: ['列表与字典', '数据类型']
-                    },
-                    {
-                        type: 'question',
-                        questionType: '填空题',
-                        difficulty: 'medium',
-                        content: '请写出 Python 中用于遍历可迭代对象的关键字：____。',
-                        answer: 'for',
-                        explanation: 'for 语句用于遍历序列或可迭代对象。',
-                        knowledgePoints: ['循环结构']
-                    },
-                    {
-                        type: 'question',
-                        questionType: '简答题',
-                        difficulty: 'hard',
-                        content: '简述 Python 列表和元组的差异，并给出使用场景。',
-                        answer: '列表可变、元组不可变；需要修改场景用列表，固定数据用元组。',
-                        explanation: '可变性影响存储开销与安全性，设计数据结构时需权衡。',
-                        knowledgePoints: ['列表与字典', '数据类型']
-                    },
-                    {
-                        type: 'question',
-                        questionType: '判断题',
-                        difficulty: 'easy',
-                        content: 'Python中，列表是可变数据类型。',
-                        options: ['正确', '错误'],
-                        correctAnswers: [0],
-                        answer: 'A',
-                        explanation: '列表是Python的可变数据类型，可以修改其元素。',
-                        knowledgePoints: ['列表与字典', '数据类型']
-                    }
-                ];
-                
-                showResults(mockResults);
+            try {
+                const topic = document.getElementById('question-topic').value.trim();
+                const difficulty = document.getElementById('difficulty').value;
+                const count = Number(document.getElementById('question-count').value);
+                if (!topic) {
+                    throw new Error('请输入题目主题或知识点。');
+                }
+                const result = await requestTeacherAi('/api/ai/generate-questions', {
+                    topic,
+                    difficulty,
+                    count
+                });
+                showResults(buildQuestionResultsFromApi(result));
                 showMessage('题目生成成功！', 'success');
-            }, 1500);
+            } catch (error) {
+                hideLoading();
+                showMessage(error.message || '题目生成失败，请稍后重试。', 'danger');
+            }
         }
         
         // 生成试卷
-        function generateExam() {
+        async function generateExam() {
             showLoading();
-            
-            // 模拟AI生成过程
-            setTimeout(() => {
-                const mockResults = [
-                    {
-                        type: 'exam-section',
-                        title: 'Python编程基础测试卷',
-                        content: '<h5>一、选择题（10题，3分/题，共30分）</h5><p>覆盖变量、流程控制、函数。</p>',
-                        distribution: '难度分布：易 50%，中 40%，难 10%'
-                    },
-                    {
-                        type: 'question',
-                        questionType: '选择题',
-                        difficulty: 'easy',
-                        content: 'Python的创始人是谁？',
-                        options: ['Guido van Rossum', 'James Gosling', 'Bjarne Stroustrup', 'Dennis Ritchie'],
-                        correctAnswers: [0],
-                        answer: 'A',
-                        explanation: 'Python由Guido van Rossum创立。',
-                        knowledgePoints: ['Python概述']
-                    },
-                    {
-                        type: 'question',
-                        questionType: '填空题',
-                        difficulty: 'medium',
-                        content: '写出将字符串 s 转为整数的语句：____。',
-                        answer: 'int(s)',
-                        explanation: '使用内置函数 int 完成类型转换。',
-                        knowledgePoints: ['类型转换']
-                    },
-                    {
-                        type: 'exam-section',
-                        title: '二、简答题（2题，10分/题，共20分）',
-                        content: '<p>考察函数与异常处理。</p>'
-                    },
-                    {
-                        type: 'question',
-                        questionType: '简答题',
-                        difficulty: 'hard',
-                        content: '说明 try/except 的作用，并给出捕获 ValueError 的示例。',
-                        answer: '用于异常捕获与恢复；示例：try: int("a") except ValueError: pass',
-                        explanation: '异常处理保证程序健壮性。',
-                        knowledgePoints: ['异常处理']
-                    },
-                    {
-                        type: 'exam-section',
-                        title: '三、编程题（3题，20分/题，共60分）',
-                        content: '<p>综合考察迭代、数据结构与文件操作。</p>',
-                        distribution: '建议完成时间：每题 25 分钟'
-                    }
-                ];
-                
-                showResults(mockResults);
+            try {
+                const courseName = document.getElementById('exam-course-name').value.trim();
+                const totalScore = Number(document.getElementById('exam-total-score').value);
+                const duration = Number(document.getElementById('exam-duration').value);
+                const difficulty = document.getElementById('exam-difficulty').value;
+                if (!courseName) {
+                    throw new Error('请输入课程名称。');
+                }
+                const result = await requestTeacherAi('/api/ai/generate-exam', {
+                    courseName,
+                    totalScore,
+                    duration,
+                    difficulty
+                });
+                showResults(buildExamResultsFromApi(result));
                 showMessage('试卷生成成功！', 'success');
-            }, 2000);
+            } catch (error) {
+                hideLoading();
+                showMessage(error.message || '试卷生成失败，请稍后重试。', 'danger');
+            }
         }
         
         // 生成知识点讲解
         function generateKnowledgeExplain() {
             showLoading();
-            
-            // 模拟AI生成过程
-            setTimeout(() => {
-                const mockResults = [
-                    {
-                        type: 'knowledge',
-                        title: '函数定义与调用',
-                        depth: 'medium',
-                        content: '函数用于封装可复用的逻辑，提升代码可读性与维护性。常见结构包含参数、返回值与文档字符串。',
-                        examples: [
-                            'def greet(name):\n    """打印问候语"""\n    print(f"Hello, {name}!")\n\ngreet("World")',
-                            'def add(a, b=0):\n    return a + b\n\nresult = add(3)\nprint(result)  # 3'
-                        ],
-                        exercises: [
-                            '编写一个函数，接收列表并返回去重后的新列表。',
-                            '实现带默认参数的函数，完成温度单位转换。'
-                        ]
-                    },
-                    {
-                        type: 'knowledge',
-                        title: '列表推导式',
-                        depth: 'medium',
-                        content: '列表推导式提供简洁的序列生成方式，适合过滤与映射场景，但需避免过度嵌套以保证可读性。',
-                        examples: [
-                            '[x * x for x in range(5)]  # [0, 1, 4, 9, 16]',
-                            '[x for x in data if x % 2 == 0]'
-                        ],
-                        exercises: [
-                            '使用列表推导式筛选出 1-100 中能被 3 整除的数字。',
-                            '将字符串列表转换为其长度列表。'
-                        ]
-                    }
-                ];
-                
-                showResults(mockResults);
-                showMessage('知识点讲解生成成功！', 'success');
-            }, 1800);
+            showResults([buildUnavailableAiToolResult('知识点讲解', '当前 AI 服务暂未提供知识点讲解能力，请稍后再试。')]);
+            showMessage('当前 AI 服务暂未提供知识点讲解能力，请稍后再试。', 'info');
         }
         
         // 作业批改
         function evaluateAssignment() {
             showLoading();
-            
-            // 模拟AI生成过程
-            setTimeout(() => {
-                const mockResults = [
-                    {
-                        type: 'evaluation',
-                        title: '作业批改报告 - 张三',
-                        score: '85分',
-                        content: '<p>作业：函数定义与调用</p><p>优点：代码结构清晰，命名规范。</p><p>扣分点：缺少异常处理，边界测试不足。</p>',
-                        suggestions: '补充 try/except 捕获用户输入异常，添加 3 个边界用例。'
-                    },
-                    {
-                        type: 'evaluation',
-                        title: '作业批改报告 - 李四',
-                        score: '92分',
-                        content: '<p>作业：条件语句与循环</p><p>优点：逻辑严谨，时间复杂度优良。</p><p>扣分点：注释略少。</p>',
-                        suggestions: '在关键循环前添加 1-2 行注释，标注循环目的与终止条件。'
-                    }
-                ];
-                
-                showResults(mockResults);
-                showMessage('作业批改完成！', 'success');
-            }, 2500);
+            showResults([buildUnavailableAiToolResult('作业批改', '当前 AI 服务暂未提供作业批改能力，请稍后再试。')]);
+            showMessage('当前 AI 服务暂未提供作业批改能力，请稍后再试。', 'info');
         }
         
-        // 学情分析
-        function analyzeLearning() {
+        // 学习建议
+        async function analyzeLearning() {
             showLoading();
-            
-            // 模拟AI生成过程
-            setTimeout(() => {
-                const mockResults = [
-                    {
-                        type: 'analysis',
-                        title: '学习情况分析报告 - 张三',
-                        content: '<p>课程：Python编程基础</p><p>知识点掌握：函数 90%，循环 75%，面向对象 60%</p><p>成绩趋势：近四周提升 8 分</p>',
-                        recommendations: '强化面向对象编程，安排 2 次小测与 3 道编程练习。'
-                    },
-                    {
-                        type: 'analysis',
-                        title: '学习情况分析报告 - 李四',
-                        content: '<p>课程：数据结构与算法</p><p>知识点掌握：数组 95%，链表 80%，排序 70%</p><p>学习进度：按计划完成 85%</p>',
-                        recommendations: '增加排序算法练习，建议完成 5 道中等难度题。'
-                    }
-                ];
-                
-                showResults(mockResults);
-                showMessage('学情分析完成！', 'success');
-            }, 2200);
+            try {
+                const studentId = Number(document.getElementById('analyze-student').value);
+                if (!studentId) {
+                    throw new Error('请输入有效的学生 ID。');
+                }
+                const result = await requestTeacherAi('/api/ai/learning-suggestions', {
+                    studentId
+                });
+                showResults(buildLearningSuggestionResults(result, {
+                    studentId,
+                    studentLabel: `学生 ${studentId}`
+                }));
+                showMessage('学习建议生成成功！', 'success');
+            } catch (error) {
+                hideLoading();
+                showMessage(error.message || '学习建议生成失败，请稍后重试。', 'danger');
+            }
         }
         
         // 生成教学计划
         function generateTeachingPlan() {
             showLoading();
-            
-            // 模拟AI生成过程
-            setTimeout(() => {
-                const mockResults = [
-                    {
-                        type: 'plan',
-                        title: 'Python编程基础教学计划',
-                        weeks: 8,
-                        content: '<h5>第1-2周：环境与语法</h5><p>安装、变量、基本数据类型。</p><h5>第3-4周：流程与函数</h5><p>条件、循环、函数与文档字符串。</p><h5>第5-6周：数据结构</h5><p>列表、字典、集合及常见操作。</p><h5>第7-8周：文件与异常</h5><p>文件读写、异常处理、综合项目。</p>',
-                        keyMilestones: '第4周小测；第8周课程项目提交'
-                    },
-                    {
-                        type: 'plan',
-                        title: '数据库系统教学计划',
-                        weeks: 6,
-                        content: '<h5>第1周：数据库基础</h5><p>关系模型、SQL 基础。</p><h5>第2-3周：查询与约束</h5><p>连接查询、约束与索引。</p><h5>第4-5周：事务与优化</h5><p>事务特性、执行计划与优化。</p><h5>第6周：课程项目</h5><p>设计并实现一个小型业务库。</p>',
-                        keyMilestones: '第3周 SQL 实训；第6周项目展示'
-                    }
-                ];
-                
-                showResults(mockResults);
-                showMessage('教学计划生成成功！', 'success');
-            }, 2000);
+            showResults([buildUnavailableAiToolResult('教学计划生成', '当前 AI 服务暂未提供教学计划生成能力，请稍后再试。')]);
+            showMessage('当前 AI 服务暂未提供教学计划生成能力，请稍后再试。', 'info');
         }
         
         // 导出结果
         function exportResults() {
-            showMessage('导出功能正在开发中...', 'info');
+            const resultContent = document.getElementById('result-content');
+            const resultCount = document.getElementById('result-count');
+            if (!resultContent || !resultContent.textContent.trim()) {
+                showMessage('当前没有可导出的结果。', 'info');
+                return;
+            }
+            const exportText = [
+                'AI 工具导出结果',
+                `导出时间：${new Date().toLocaleString('zh-CN')}`,
+                `结果数量：${resultCount ? resultCount.textContent : '0'}`,
+                '',
+                resultContent.innerText.trim()
+            ].join('\n');
+            const blob = new Blob([exportText], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `teacher-ai-results-${new Date().toISOString().slice(0, 10)}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            showMessage('结果已导出到本地文件。', 'success');
         }
         
         // 清空结果

@@ -1,60 +1,127 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
 
-const dashboardPath = path.join(__dirname, '..', 'frontend', 'dist', 'student-dashboard.html');
-const content = fs.readFileSync(dashboardPath, 'utf8');
-const apiJsPath = path.join(__dirname, '..', 'frontend', 'dist', 'api.js');
-const apiContent = fs.readFileSync(apiJsPath, 'utf8');
-
-function assert(condition, message) {
-  if (!condition) {
-    throw new Error(message);
+function assertIncludes(content, needle, message) {
+  if (!content.includes(needle)) {
+    throw new Error(`${message} Missing: ${needle}`);
   }
 }
 
-assert(
-  /function normalizeStudentCourseProgress\s*\(/.test(content),
-  'student-dashboard.html 应定义 normalizeStudentCourseProgress()，避免直接依赖不存在的 course.progress 字段。'
+function assertNotIncludes(content, needle, message) {
+  if (content.includes(needle)) {
+    throw new Error(`${message} Found unexpected snippet: ${needle}`);
+  }
+}
+
+function assertMatches(content, regex, message) {
+  if (!regex.test(content)) {
+    throw new Error(`${message} Missing pattern: ${regex}`);
+  }
+}
+
+function assertNotMatches(content, regex, message) {
+  if (regex.test(content)) {
+    throw new Error(`${message} Found unexpected pattern: ${regex}`);
+  }
+}
+
+function extractFunctionSegment(content, startMarker, endMarker) {
+  const startIndex = content.indexOf(startMarker);
+  if (startIndex === -1) {
+    throw new Error(`Missing start marker: ${startMarker}`);
+  }
+  const endIndex = content.indexOf(endMarker, startIndex);
+  if (endIndex === -1) {
+    throw new Error(`Missing end marker: ${endMarker}`);
+  }
+  return content.slice(startIndex, endIndex);
+}
+
+const pageContent = fs.readFileSync('frontend/dist/student-dashboard.html', 'utf8');
+
+[
+  'id="courseCountMetaLabel"',
+  'id="assignmentCountMetaLabel"',
+  'id="examCountMetaLabel"',
+  'id="progressPercentageMetaLabel"',
+  'async function populateDashboardStudyTimeFromConnectedSources(studentAPI, chartData) {',
+  'await populateDashboardStudyTimeFromConnectedSources(studentAPI, chartData);',
+  'async function populateDashboardActivitiesFromConnectedSources(studentAPI, statsData) {',
+  'await populateDashboardActivitiesFromConnectedSources(studentAPI, statsData);',
+  'function showEmptyStateData() {',
+  "console.log('显示空状态数据');",
+  'const emptyStatsData = {',
+  'const emptyChartData = {',
+  'const emptyActivities = [];',
+  "'当前课程总览'",
+  "'当前待完成作业'",
+  "'当前考试安排'",
+  "'当前学习进度估算'",
+  'const labelElement = document.getElementById(`${elementId}MetaLabel`);',
+  'labelElement.textContent = labelText;'
+].forEach(snippet => {
+  assertIncludes(
+    pageContent,
+    snippet,
+    'student dashboard contract mismatch.'
+  );
+});
+
+assertMatches(
+  pageContent,
+  /async function populateDashboardFromConnectedSources\(studentAPI, statsData, chartData\) \{[\s\S]*?await populateDashboardStudyTimeFromConnectedSources\(studentAPI, chartData\);[\s\S]*?statsData\.courses = courseList\.length;/,
+  'student dashboard should populate study-time data from the shared connected-sources helper before deriving connected-source stats.'
 );
 
-assert(
-  /function buildCourseProgressChartData\s*\(/.test(content),
-  'student-dashboard.html 应定义 buildCourseProgressChartData()，统一生成课程进度图数据。'
+const connectedSourcesSegment = extractFunctionSegment(
+  pageContent,
+  'async function populateDashboardFromConnectedSources(studentAPI, statsData, chartData) {',
+  'async function populateDashboardActivitiesFromConnectedSources(studentAPI, statsData) {'
 );
 
-assert(
-  /buildCourseProgressChartData\(courseList\)/.test(content),
-  'student-dashboard.html 应在课程列表 fallback 分支里复用 buildCourseProgressChartData(courseList)。'
+assertIncludes(
+  connectedSourcesSegment,
+  'await populateDashboardStudyTimeFromConnectedSources(studentAPI, chartData);',
+  'student dashboard connected-sources segment should hydrate study-time data through the shared helper.'
 );
 
-assert(
-  !content.includes('chartData.courseProgress = courseList.map(course => course.progress || 0);'),
-  'student-dashboard.html 仍在直接读取 course.progress || 0，这会让当前微服务课程数据全部显示为 0。'
+assertNotIncludes(
+  connectedSourcesSegment,
+  'chartData.studyTime = transformStudyTimeData([]);',
+  'student dashboard connected-sources segment should not wipe study-time data back to an empty chart directly.'
 );
 
-assert(
-  /function populateDashboardFromConnectedSources\s*\(/.test(content),
-  'student-dashboard.html 应定义 populateDashboardFromConnectedSources()，在综合表现接口 unsupported 时继续走已接通的数据源。'
-);
+[
+  'id="courseCountChangeLabel"',
+  'id="assignmentCountChangeLabel"',
+  'id="examCountChangeLabel"',
+  'id="progressPercentageChangeLabel"',
+  'const changeLabelOverrides = {',
+  'coursesChange:',
+  'assignmentsChange:',
+  'examsChange:',
+  'progressChange:',
+  'const labelElement = document.getElementById(`${elementId}ChangeLabel`);',
+  'showMockData();',
+  'function showMockData() {',
+  "console.log('显示模拟数据');",
+  '显示模拟数据，而不是空数据',
+  'Math.random()',
+  'data.courseCountChange',
+  'data.pendingAssignmentsChange',
+  'data.upcomingExamsChange',
+  'data.overallProgressChange',
+  "updateStatChange('courseCount', stats.coursesChange || 0, '较上月');",
+  "updateStatChange('assignmentCount', stats.assignmentsChange || 0, '较上周');",
+  "updateStatChange('examCount', stats.examsChange || 0, '较上周');",
+  "updateStatChange('progressPercentage', stats.progressChange || 0, '较上月');",
+  'changeElement.innerHTML = `<i class="fas ${icon}"></i> ${timePeriod}`;',
+  "showMessage(activitiesResponse.message, 'info');\n                            updateRecentActivities([]);"
+].forEach(snippet => {
+  assertNotIncludes(
+    pageContent,
+    snippet,
+    'student dashboard should not use random deltas or render placeholder change fields as time comparisons.'
+  );
+});
 
-assert(
-  /await populateDashboardFromConnectedSources\(studentAPI,\s*statsData,\s*chartData\)/.test(content),
-  'student-dashboard.html 应在综合表现接口 unavailable / unsupported 时调用 populateDashboardFromConnectedSources(studentAPI, statsData, chartData)。'
-);
-
-assert(
-  /updateRecentActivities\(activities\.slice\(0,\s*5\)\)/.test(content),
-  'student-dashboard.html 的 connected sources fallback 应补齐最近活动，而不是只刷新统计卡片。'
-);
-
-assert(
-  /function isJwtLikelyExpired\s*\(/.test(apiContent),
-  'api.js 应定义 isJwtLikelyExpired()，用于请求前预判过期 token。'
-);
-
-assert(
-  /await tryRefreshAuthSession\(\);/.test(apiContent),
-  'api.js 应在请求前对即将过期的 JWT 执行预刷新，减少控制台 401 噪音。'
-);
-
-console.log('student-dashboard contract OK');
+console.log('student dashboard contract OK');

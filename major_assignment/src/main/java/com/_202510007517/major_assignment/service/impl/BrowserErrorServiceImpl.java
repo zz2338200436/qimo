@@ -1,8 +1,10 @@
 package com._202510007517.major_assignment.service.impl;
 
 import com._202510007517.major_assignment.entity.BrowserError;
+import com._202510007517.major_assignment.entity.dto.PageResult;
 import com._202510007517.major_assignment.mapper.BrowserErrorMapper;
 import com._202510007517.major_assignment.service.BrowserErrorService;
+import com._202510007517.major_assignment.utils.PageUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -38,20 +40,16 @@ public class BrowserErrorServiceImpl implements BrowserErrorService {
     }
 
     @Override
-    public List<BrowserError> getBrowserErrorList(Map<String, String> params, int page, int size) {
+    public PageResult<BrowserError> getBrowserErrorList(Map<String, String> params, int page, int size) {
         // 转换为Map<String, Object>以便添加分页参数
         Map<String, Object> queryParams = new HashMap<>(params);
-        // 计算分页参数
-        queryParams.put("offset", (page - 1) * size);
-        queryParams.put("limit", size);
-        return browserErrorMapper.selectByParams(queryParams);
-    }
+        int total = browserErrorMapper.countByParams(queryParams);
+        PageUtils.PageWindow window = PageUtils.resolvePageWindow(page, size, total);
+        queryParams.put("offset", window.offset());
+        queryParams.put("limit", window.size());
 
-    @Override
-    public int getBrowserErrorCount(Map<String, String> params) {
-        // 转换为Map<String, Object>以便传递给Mapper
-        Map<String, Object> queryParams = new HashMap<>(params);
-        return browserErrorMapper.countByParams(queryParams);
+        List<BrowserError> errors = browserErrorMapper.selectByParams(queryParams);
+        return PageUtils.buildPageResult(errors, window.page(), window.size(), total);
     }
 
     @Override

@@ -3417,4 +3417,246 @@ body {
         max-width: none;
     }
 }
+
+/* Teacher console shared shell */
+.teacher-shell-body {
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f8fafc;
+    color: #334155;
+    min-height: 100vh;
+}
+
+.teacher-shell-main {
+    margin-left: 280px;
+    min-height: 100vh;
+    transition: margin-left 0.3s ease;
+}
+
+.teacher-shell-main.collapsed {
+    margin-left: 80px;
+}
+
+.teacher-topbar {
+    background: rgba(255, 255, 255, 0.96);
+    border-bottom: 1px solid #e2e8f0;
+    padding: 16px 24px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.teacher-content {
+    padding: 24px;
+}
+
+.teacher-page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.teacher-page-header-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.teacher-page-header-copy p {
+    margin: 0;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.teacher-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.teacher-panel {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+}
+
+.teacher-section {
+    padding: 24px;
+}
+
+.teacher-section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 6px;
+}
+
+.teacher-section-description {
+    margin: 0;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.teacher-filter-panel,
+.teacher-tab-panel,
+.teacher-table-panel,
+.teacher-stat-panel {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+}
+
+.teacher-filter-panel {
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.teacher-filter-panel .search-filter {
+    margin-bottom: 0;
+}
+
+.teacher-tab-panel {
+    padding: 0;
+}
+
+.teacher-table-panel {
+    overflow: hidden;
+}
+
+.teacher-table-panel .table {
+    margin-bottom: 0;
+}
+
+.teacher-table-panel .table th {
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0;
+    border-bottom-color: #e2e8f0;
+}
+
+.teacher-table-panel .table td {
+    vertical-align: middle;
+    border-bottom-color: #f1f5f9;
+}
+
+.teacher-inline-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.teacher-empty-state,
+.teacher-info-state,
+.teacher-error-state {
+    border-radius: 12px;
+    padding: 16px 18px;
+    border: 1px solid #e2e8f0;
+}
+
+.teacher-empty-state {
+    background: #f8fafc;
+    color: #64748b;
+}
+
+.teacher-info-state {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
+
+.teacher-error-state {
+    background: #fef2f2;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+
+.teacher-muted-action {
+    background: #f8fafc;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+}
+
+.teacher-muted-action:hover {
+    background: #eef2ff;
+    color: #334155;
+    border-color: #94a3b8;
+    transform: none;
+    box-shadow: none;
+}
+
+.teacher-muted-action[disabled],
+.teacher-muted-action.is-disabled {
+    opacity: 0.72;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.teacher-settings-panel {
+    padding: 28px;
+    margin-bottom: 24px;
+}
+
+.teacher-settings-panel h2,
+.teacher-settings-panel h3 {
+    margin: 0 0 8px;
+    font-size: 22px;
+    color: #0f172a;
+}
+
+.teacher-settings-panel p {
+    color: #64748b;
+}
+
+@media (max-width: 992px) {
+    .teacher-page-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .teacher-toolbar {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 768px) {
+    .teacher-shell-main,
+    .teacher-shell-main.collapsed {
+        margin-left: 0;
+    }
+
+    .teacher-topbar {
+        padding: 14px 16px;
+    }
+
+    .teacher-content {
+        padding: 16px;
+    }
+
+    .teacher-filter-panel,
+    .teacher-settings-panel,
+    .teacher-section {
+        padding: 18px;
+    }
+}
+
+/* Font Awesome 4 compatibility for pages still using Font Awesome 5 prefixes */
+.fas,
+.far,
+.fab {
+    display: inline-block;
+    font: normal normal normal 14px/1 FontAwesome;
+    font-size: inherit;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }

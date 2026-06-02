@@ -103,6 +103,21 @@ public class TeacherCourseAdminController {
                 200);
     }
 
+    @PostMapping("/classes/{classId}/students")
+    public ResponseResult<Map<String, Object>> addStudentToClass(
+            @PathVariable Long classId,
+            @RequestHeader(value = CommonTraceConstants.USER_ID_HEADER, required = false) String userIdHeader,
+            @RequestParam(value = "teacherId", required = false) Long teacherId,
+            @RequestBody Map<String, Object> request) {
+        return ResponseResult.success(
+                courseApplicationService.addStudentToClass(
+                        CourseController.resolveTeacherId(userIdHeader, teacherId),
+                        classId,
+                        request),
+                "学生已添加到班级",
+                200);
+    }
+
     @GetMapping("/check-class-name")
     public ResponseResult<Map<String, Boolean>> checkClassName(
             @RequestParam String className,

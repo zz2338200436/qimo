@@ -6,13 +6,9 @@ import java.util.List;
 @Data
 public class StudentDashboardDTO {
     private Integer courseCount;
-    private Integer courseCountChange;
     private Integer pendingAssignments;
-    private Integer pendingAssignmentsChange;
     private Integer upcomingExams;
-    private Integer upcomingExamsChange;
     private Double overallProgress;
-    private Double overallProgressChange;
     private List<CourseDTO> courses;
     private List<String> learningProgressWeeks;
     private List<Integer> learningProgressData;

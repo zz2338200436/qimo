@@ -3,12 +3,17 @@ package com._202510007517.major_assignment.controller;
 import com._202510007517.major_assignment.config.MultiRoleSessionFilter;
 import com._202510007517.major_assignment.config.MultiRoleSessionFilter.AuthUser;
 import com._202510007517.major_assignment.config.MultiRoleSessionManager;
+import com._202510007517.major_assignment.entity.Course;
+import com._202510007517.major_assignment.entity.dto.PageResult;
+import com._202510007517.major_assignment.utils.PageUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * Controller 公共基类，提供<b>唯一</b>登录态读取入口。
@@ -167,10 +172,10 @@ public abstract class BaseController {
     // ============================================================
 
     /** 单页条数默认值。 */
-    protected static final int DEFAULT_PAGE_SIZE = 10;
+    protected static final int DEFAULT_PAGE_SIZE = PageUtils.DEFAULT_PAGE_SIZE;
 
     /** 单页条数上限，对齐 Requirement 5.5。 */
-    protected static final int MAX_PAGE_SIZE = 100;
+    protected static final int MAX_PAGE_SIZE = PageUtils.MAX_PAGE_SIZE;
 
     /**
      * 将 {@code pageSize} 夹紧到合法区间 {@code [1, 100]}。
@@ -189,13 +194,7 @@ public abstract class BaseController {
      *         {@code pageSize > 100} 时返回 {@link #MAX_PAGE_SIZE}；否则原样返回。
      */
     protected int clampPageSize(int pageSize) {
-        if (pageSize <= 0) {
-            return DEFAULT_PAGE_SIZE;
-        }
-        if (pageSize > MAX_PAGE_SIZE) {
-            return MAX_PAGE_SIZE;
-        }
-        return pageSize;
+        return PageUtils.clampPageSize(pageSize);
     }
 
     /**
@@ -207,7 +206,198 @@ public abstract class BaseController {
      * @return {@code pageNum <= 0} 时返回 {@code 1}；否则原样返回。
      */
     protected int clampPageNum(int pageNum) {
-        return pageNum <= 0 ? 1 : pageNum;
+        return PageUtils.clampPageNum(pageNum);
+    }
+
+    /**
+     * 根据总记录数与单页条数计算总页数。
+     *
+     * <p>空结果集返回 {@code 0}，其余情况至少返回 {@code 1}。</p>
+     */
+    protected int calculateTotalPages(int totalElements, int pageSize) {
+        return PageUtils.calculateTotalPages(totalElements, pageSize);
+    }
+
+    /**
+     * 将页码夹紧到当前结果集可用范围内。
+     *
+     * <p>当结果集为空时，统一返回第一页 {@code 1}，避免上层出现负偏移或越界分页。</p>
+     */
+    protected int boundPageNum(int pageNum, int totalElements, int pageSize) {
+        return PageUtils.boundPageNum(pageNum, totalElements, pageSize);
+    }
+
+    protected PageUtils.PageWindow resolvePageWindow(int pageNum, int pageSize, int totalElements) {
+        return PageUtils.resolvePageWindow(pageNum, pageSize, totalElements);
+    }
+
+    /**
+     * 构建与 Spring Data Page JSON 结构兼容的分页响应。
+     */
+    protected Map<String, Object> buildSpringPageResponse(List<?> content, int pageNum, int pageSize, int totalElements) {
+        return PageUtils.buildPageResponse(content, pageNum, pageSize, totalElements);
+    }
+
+    protected Map<String, Object> buildSpringPageResponseFromInMemoryList(List<?> content, int pageNum, int pageSize) {
+        List<?> safeContent = content != null ? content : List.of();
+        int totalElements = safeContent.size();
+        int safePageSize = clampPageSize(pageSize);
+        int safePageNum = boundPageNum(pageNum, totalElements, safePageSize);
+        List<?> pagedContent = PageUtils.paginate(safeContent, safePageNum, safePageSize);
+        return buildSpringPageResponse(pagedContent, safePageNum, safePageSize, totalElements);
+    }
+
+    protected <T> PageResult<T> buildPageResultFromInMemoryList(List<T> content, int pageNum, int pageSize) {
+        List<T> safeContent = content != null ? content : List.of();
+        int totalElements = safeContent.size();
+        int safePageSize = clampPageSize(pageSize);
+        int safePageNum = boundPageNum(pageNum, totalElements, safePageSize);
+        List<T> pagedContent = PageUtils.paginate(safeContent, safePageNum, safePageSize);
+        return PageUtils.buildPageResult(pagedContent, safePageNum, safePageSize, totalElements);
+    }
+
+    /**
+     * 归一化教师端作业状态筛选值，兼容中英文别名与大小写。
+     */
+    protected String normalizeAssignmentStatusFilter(String rawStatus) {
+        if (rawStatus == null || rawStatus.isBlank()) {
+            return null;
+        }
+
+        String normalized = rawStatus.trim().toLowerCase(Locale.ROOT);
+        switch (normalized) {
+            case "pending":
+            case "待提交":
+            case "待完成":
+                return "pending";
+            case "submitted":
+            case "已提交":
+                return "submitted";
+            case "graded":
+            case "已批改":
+            case "已评分":
+                return "graded";
+            case "closed":
+            case "已截止":
+            case "已结束":
+                return "closed";
+            default:
+                return normalized;
+        }
+    }
+
+    /**
+     * 根据作业状态筛选值推导 isActive 过滤条件；未知状态回退到调用方原始值。
+     */
+    protected Boolean resolveAssignmentActiveFilter(String rawStatus, Boolean fallbackIsActive) {
+        String normalizedStatus = normalizeAssignmentStatusFilter(rawStatus);
+        if (normalizedStatus == null) {
+            return fallbackIsActive;
+        }
+
+        switch (normalizedStatus) {
+            case "pending":
+            case "submitted":
+            case "graded":
+                return true;
+            case "closed":
+                return false;
+            default:
+                return fallbackIsActive;
+        }
+    }
+
+    /**
+     * 归一化教师端考试状态筛选值，兼容中英文别名与大小写。
+     */
+    protected String normalizeExamStatusFilter(String rawStatus) {
+        if (rawStatus == null || rawStatus.isBlank()) {
+            return null;
+        }
+
+        String normalized = rawStatus.trim().toLowerCase(Locale.ROOT);
+        switch (normalized) {
+            case "upcoming":
+            case "即将开始":
+            case "scheduled":
+                return "upcoming";
+            case "ongoing":
+            case "进行中":
+            case "in_progress":
+                return "ongoing";
+            case "completed":
+            case "已结束":
+            case "已完成":
+            case "closed":
+                return "completed";
+            case "graded":
+            case "已评分":
+            case "reviewed":
+                return "graded";
+            default:
+                return normalized;
+        }
+    }
+
+    /**
+     * 解析教师端传入的课程标识。
+     *
+     * <p>兼容两种输入：</p>
+     * <ol>
+     *   <li>纯数字课程 ID，例如 {@code "42"}</li>
+     *   <li>课程代码，例如 {@code "CS101"}</li>
+     * </ol>
+     *
+     * <p>课程代码模式下，调用方需传入当前教师可见课程列表用于匹配；
+     * 未匹配到时返回 {@code null} 交由上层决定响应。</p>
+     */
+    protected Long resolveTeacherCourseId(String rawValue, List<Course> teacherCourses) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return null;
+        }
+
+        try {
+            return Long.parseLong(rawValue);
+        } catch (NumberFormatException ignored) {
+            if (teacherCourses == null) {
+                return null;
+            }
+        }
+
+        for (Course course : teacherCourses) {
+            if (course != null && course.getCourseCode() != null && course.getCourseCode().equals(rawValue)) {
+                return course.getId();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 从教师端请求体中解析课程标识。
+     *
+     * <p>兼容前端可能发送的两种键名：</p>
+     * <ul>
+     *   <li>{@code courseId}</li>
+     *   <li>{@code course_id}</li>
+     * </ul>
+     *
+     * <p>值兼容数字型课程 ID 与字符串课程代码。</p>
+     */
+    protected Long resolveTeacherCourseIdFromPayload(Map<String, Object> payload, List<Course> teacherCourses) {
+        if (payload == null) {
+            return null;
+        }
+
+        Object rawValue = payload.containsKey("courseId")
+                ? payload.get("courseId")
+                : payload.get("course_id");
+        if (rawValue instanceof Number) {
+            return ((Number) rawValue).longValue();
+        }
+        if (rawValue instanceof String) {
+            return resolveTeacherCourseId((String) rawValue, teacherCourses);
+        }
+        return null;
     }
 
     // ============================================================

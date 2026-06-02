@@ -109,8 +109,8 @@ public class AssignmentServiceImpl implements AssignmentService {
     public Map<String, Object> getAssignmentsWithPagination(Long studentId, Integer page, Integer size, String sortBy, String order, 
                                                          Long courseId, Boolean submitted, Boolean isActive) {
         // 安全处理分页参数
-        int safePage = PageUtils.safePage(page, 1);
-        int safeSize = PageUtils.safeSize(size, 10, 100);
+        int requestedPage = page == null ? 1 : page;
+        int requestedSize = size == null ? PageUtils.DEFAULT_PAGE_SIZE : size;
         
         // 直接基于学生ID查询其关联到的所有作业（通过班级和课程关联）
         List<Assignment> studentAssignments = assignmentMapper.getAssignmentsByStudentId(studentId);
@@ -173,12 +173,15 @@ public class AssignmentServiceImpl implements AssignmentService {
         
         // 计算总数
         int totalElements = filteredAssignments.size();
+        PageUtils.PageWindow window = PageUtils.resolvePageWindow(requestedPage, requestedSize, totalElements);
         
         // 应用分页
-        List<Assignment> pagedAssignments = PageUtils.paginate(filteredAssignments, safePage, safeSize);
+        List<Assignment> pagedAssignments = PageUtils.paginate(filteredAssignments, window.page(), window.size());
         
         // 为每个作业添加学生的提交信息
         List<Map<String, Object>> assignmentsWithSubmissions = new ArrayList<>();
+        Map<Long, Course> courseCache = new HashMap<>();
+        Map<Long, User> teacherCache = new HashMap<>();
         for (Assignment assignment : pagedAssignments) {
             Map<String, Object> assignmentWithSubmission = new HashMap<>();
             assignmentWithSubmission.put("id", assignment.getId());
@@ -190,11 +193,17 @@ public class AssignmentServiceImpl implements AssignmentService {
             assignmentWithSubmission.put("teacherId", assignment.getTeacherId());
             assignmentWithSubmission.put("isActive", assignment.getIsActive());
             // 课程与教师名称用于前端展示
-            Course course = courseService.findById(assignment.getCourseId());
+            Course course = null;
+            if (assignment.getCourseId() != null) {
+                course = courseCache.computeIfAbsent(assignment.getCourseId(), courseService::findById);
+            }
             if (course != null) {
                 assignmentWithSubmission.put("courseName", course.getCourseName());
             }
-            User teacher = userService.findById(assignment.getTeacherId());
+            User teacher = null;
+            if (assignment.getTeacherId() != null) {
+                teacher = teacherCache.computeIfAbsent(assignment.getTeacherId(), userService::findById);
+            }
             if (teacher != null) {
                 assignmentWithSubmission.put("teacherName", teacher.getName());
             }
@@ -207,7 +216,7 @@ public class AssignmentServiceImpl implements AssignmentService {
         }
         
         // 使用工具类构建分页响应
-        return PageUtils.buildPageResponse(assignmentsWithSubmissions, safePage, safeSize, totalElements);
+        return PageUtils.buildPageResponse(assignmentsWithSubmissions, window.page(), window.size(), totalElements);
     }
     
     @Override

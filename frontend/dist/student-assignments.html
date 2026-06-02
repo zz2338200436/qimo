@@ -5,22 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>作业与考试 - 智能学习辅助系统</title>
     <!-- jQuery CDN -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome CSS -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <script src="lib/jquery-3.6.0.min.js"></script>
+    <link href="lib/bootstrap.min.css" rel="stylesheet">
+    <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- 全局样式文件 -->
-    <link href="styles.css" rel="stylesheet">
+        <!-- 全局样式文件 -->
+    <link href="styles.css?v=20260523-1" rel="stylesheet">
 </head>
 <body>
 <!-- 侧边栏导航组件 -->
 <div id="sidebar-container"></div>
 <script>
     $(function() {
-        $('#sidebar-container').load('components/sidebar-nav.html', function() {
+        $('#sidebar-container').load('components/sidebar-nav.html?v=20260523-1', function() {
             highlightActiveNavItem();
         });
     });
@@ -148,10 +145,10 @@
 </main>
 
 <!-- Bootstrap 5 JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="lib/bootstrap.bundle.min.js"></script>
 
 <!-- API服务 -->
-<script src="api.js?v=20260517-1"></script>
+<script src="api.js?v=20260523-1"></script>
 
 <!-- 页面功能脚本 -->
 <script>
@@ -912,13 +909,13 @@
         const user = sessionStorage.getItem('user');
         const sessionContext = window.getStudentSessionContext ? window.getStudentSessionContext() : null;
         if (!user && !(sessionContext && sessionContext.canRender)) {
-            window.location.href = 'student-login.html?v=20260516-2';
+            window.location.href = 'student-login.html?v=20260523-1';
             return false;
         }
         
         // 加载用户下拉组件
         if ($('#userDropdownContainer').length > 0) {
-            $('#userDropdownContainer').load('components/user-dropdown.html', function() {
+        $('#userDropdownContainer').load('components/user-dropdown.html?v=20260523-1', function() {
                 if (typeof UserDropdown !== 'undefined') {
                     new UserDropdown('userDropdownContainer');
                 }
@@ -1415,7 +1412,7 @@
     // 进入/开始考试
     function startExam(examId) {
         // 这里可以跳转到考试页面或显示考试内容
-        showMessage(`考试 ${examId} 可先通过“查看”进入详情，当前页面不再跳转到未实现的独立考试页。`, 'info');
+        showMessage(`考试 ${examId} 可先通过“查看”进入详情，当前页面会保留在考试列表中继续操作。`, 'info');
         // 实际应用中可以跳转到考试页面，如：window.location.href = `student-exam.html?id=${examId}`;
     }
     
@@ -1439,7 +1436,7 @@
         // 绑定选项卡事件
         bindTabEvents();
         
-        // 初始仅加载当前默认打开的作业标签，避免未切通的考试/成绩链路制造噪音
+        // 首屏先只加载默认打开的作业标签，考试和成绩在切换到对应 tab 时按需取数
         fetchAssignments();
     });
 </script>

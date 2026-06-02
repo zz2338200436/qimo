@@ -5,6 +5,8 @@ import com._202510007517.platform.course.api.dto.CourseAssignmentRequestDTO;
 import com._202510007517.platform.course.api.dto.CourseUpsertRequestDTO;
 import com._202510007517.platform.course.api.dto.MajorDTO;
 import com._202510007517.platform.course.api.dto.TeacherClassDTO;
+import com._202510007517.platform.common.exception.ForbiddenException;
+import com._202510007517.platform.common.exception.RemoteClientException;
 import com._202510007517.platform.course.domain.CourseRecord;
 import com._202510007517.platform.course.repository.CourseRepository;
 import com._202510007517.platform.course.repository.TeacherKnowledgePointRepository;
@@ -320,6 +322,75 @@ class CourseApplicationServiceTest {
         assertThat(repository.insertedStudentId).isNull();
     }
 
+    @Test
+    void addStudentToClassAllowsUnassignedStudentResolvedByUsername() {
+        FakeCourseRepository repository = new FakeCourseRepository();
+        FakeUserFeignClient userClient = new FakeUserFeignClient();
+        CourseApplicationService service = new CourseApplicationService(repository, userClient);
+
+        Map<String, Object> result = service.addStudentToClass(7L, 501L, Map.of(
+                "studentIdentifier", "20240088"
+        ));
+
+        assertThat(result)
+                .containsEntry("studentId", 88L)
+                .containsEntry("classId", 501L);
+        assertThat(repository.deletedStudentClassId).isEqualTo(88L);
+        assertThat(repository.insertedStudentId).isEqualTo(88L);
+        assertThat(repository.insertedClassId).isEqualTo(501L);
+    }
+
+    @Test
+    void addStudentToClassReturnsNeedConfirmBeforeReplacingManagedClass() {
+        FakeCourseRepository repository = new FakeCourseRepository() {
+            @Override
+            public List<Long> findClassIdsByStudentId(Long studentId) {
+                return List.of(502L);
+            }
+        };
+        FakeUserFeignClient userClient = new FakeUserFeignClient();
+        CourseApplicationService service = new CourseApplicationService(repository, userClient);
+
+        Map<String, Object> result = service.addStudentToClass(7L, 501L, Map.of(
+                "studentIdentifier", "20240088"
+        ));
+
+        assertThat(result)
+                .containsEntry("needConfirm", true)
+                .containsEntry("studentId", 88L)
+                .containsEntry("classId", 501L);
+        assertThat(result.get("message")).isEqualTo("该学生已在其他班级中，是否要移动到当前班级？");
+        assertThat(repository.deletedStudentClassId).isNull();
+        assertThat(repository.insertedClassId).isNull();
+        assertThat(repository.insertedStudentId).isNull();
+    }
+
+    @Test
+    void addStudentToClassRejectsStudentAlreadyAssignedToUnmanagedClass() {
+        FakeCourseRepository repository = new FakeCourseRepository() {
+            @Override
+            public List<Long> findClassIdsByStudentId(Long studentId) {
+                return List.of(999L);
+            }
+
+            @Override
+            public boolean teacherCanAccessClass(Long teacherId, Long classId) {
+                return classId != 999L;
+            }
+        };
+        FakeUserFeignClient userClient = new FakeUserFeignClient();
+        CourseApplicationService service = new CourseApplicationService(repository, userClient);
+
+        assertThatThrownBy(() -> service.addStudentToClass(7L, 501L, Map.of(
+                "studentIdentifier", "20240088"
+        )))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("无权移动该学生所在班级");
+        assertThat(repository.deletedStudentClassId).isNull();
+        assertThat(repository.insertedClassId).isNull();
+        assertThat(repository.insertedStudentId).isNull();
+    }
+
     private static class FakeCourseRepository implements CourseRepository {
         Long deletedStudentClassId;
         Long insertedClassId;
@@ -549,11 +620,33 @@ class CourseApplicationServiceTest {
 
         @Override
         public UserProfileDTO getProfile(Long userId) {
-            UserProfileDTO dto = new UserProfileDTO();
-            dto.setId(userId);
-            dto.setUsername("teacher" + userId);
-            dto.setName(userId == 7L ? "Teacher Seven" : "User " + userId);
-            return dto;
+            if (userId == 88L) {
+                UserProfileDTO dto = new UserProfileDTO();
+                dto.setId(userId);
+                dto.setUsername("20240088");
+                dto.setName("学生八八");
+                dto.setEmail("student88@example.com");
+                dto.setPhone("13800000088");
+                dto.setRoles(List.of("STUDENT"));
+                return dto;
+            }
+            if (userId == 7L) {
+                UserProfileDTO dto = new UserProfileDTO();
+                dto.setId(userId);
+                dto.setUsername("teacher7");
+                dto.setName("Teacher Seven");
+                dto.setRoles(List.of("TEACHER"));
+                return dto;
+            }
+            if (userId == 42L || userId == 43L) {
+                UserProfileDTO dto = new UserProfileDTO();
+                dto.setId(userId);
+                dto.setUsername("student" + userId);
+                dto.setName(userId == 42L ? "Student Forty Two" : "Student Forty Three");
+                dto.setRoles(List.of("STUDENT"));
+                return dto;
+            }
+            throw new RemoteClientException(404, "用户不存在", "{\"message\":\"用户不存在\"}");
         }
 
         @Override
@@ -563,7 +656,17 @@ class CourseApplicationServiceTest {
 
         @Override
         public UserProfileDTO getProfileByUsername(String username) {
-            throw new UnsupportedOperationException();
+            if ("20240088".equals(username)) {
+                UserProfileDTO dto = new UserProfileDTO();
+                dto.setId(88L);
+                dto.setUsername("20240088");
+                dto.setName("学生八八");
+                dto.setEmail("student88@example.com");
+                dto.setPhone("13800000088");
+                dto.setRoles(List.of("STUDENT"));
+                return dto;
+            }
+            throw new RemoteClientException(404, "用户不存在", "{\"message\":\"用户不存在\"}");
         }
 
         @Override

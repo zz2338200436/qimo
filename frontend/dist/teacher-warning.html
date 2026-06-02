@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>学情预警 - 智能学习辅助系统</title>
+    <link rel="icon" href="data:,">
     <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="lib/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <script src="lib/chart.umd.min.js"></script>
+    <link href="styles.css?v=20260523-1" rel="stylesheet">
     <style>
         /* 全局样式 */
         body {
@@ -567,12 +569,12 @@
         }
     </style>
 </head>
-<body>
+<body class="teacher-shell-body">
     <!-- 侧边栏导航组件 -->
     <div id="sidebar-container"></div>
     <script>
         // 加载侧边栏组件
-        fetch('components/teacher-sidebar-nav.html')
+        fetch('components/teacher-sidebar-nav.html?v=20260523-1')
             .then(response => response.text())
             .then(data => {
                 document.getElementById('sidebar-container').innerHTML = data;
@@ -587,9 +589,9 @@
     </script>
     
     <!-- 主内容区 -->
-    <main class="main-content" id="mainContent">
+    <main class="main-content teacher-shell-main" id="mainContent">
         <!-- 顶部导航栏 -->
-        <nav class="top-navbar">
+        <nav class="top-navbar teacher-topbar">
             <div style="display: flex; align-items: center;">
                 <button class="toggle-btn"><i class="fa fa-bars"></i></button>
                 <h2 class="page-title">学情预警</h2>
@@ -599,7 +601,7 @@
         </nav>
         
         <!-- 内容区域 -->
-        <div class="content-container">
+        <div class="content-container teacher-content">
             <!-- 筛选区域 -->
             <div class="filter-section">
                 <div class="filter-row">
@@ -658,10 +660,7 @@
                     <div class="stat-card-body">
                         <p class="stat-card-value"><i class="fa fa-spinner fa-spin"></i></p>
                     </div>
-                    <div class="stat-card-change positive">
-                        <i class="fa fa-arrow-up"></i>
-                        <span>加载中...</span>
-                    </div>
+                    <div class="stat-card-change" id="totalWarningsMetaLabel">当前筛选预警统计</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-card-header">
@@ -673,10 +672,7 @@
                     <div class="stat-card-body">
                         <p class="stat-card-value"><i class="fa fa-spinner fa-spin"></i></p>
                     </div>
-                    <div class="stat-card-change negative">
-                        <i class="fa fa-arrow-down"></i>
-                        <span>加载中...</span>
-                    </div>
+                    <div class="stat-card-change" id="pendingWarningsMetaLabel">当前未处理预警统计</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-card-header">
@@ -688,10 +684,7 @@
                     <div class="stat-card-body">
                         <p class="stat-card-value"><i class="fa fa-spinner fa-spin"></i></p>
                     </div>
-                    <div class="stat-card-change positive">
-                        <i class="fa fa-arrow-up"></i>
-                        <span>加载中...</span>
-                    </div>
+                    <div class="stat-card-change" id="processingWarningsMetaLabel">当前处理中预警统计</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-card-header">
@@ -703,34 +696,31 @@
                     <div class="stat-card-body">
                         <p class="stat-card-value"><i class="fa fa-spinner fa-spin"></i></p>
                     </div>
-                    <div class="stat-card-change positive">
-                        <i class="fa fa-arrow-up"></i>
-                        <span>加载中...</span>
-                    </div>
+                    <div class="stat-card-change" id="resolvedWarningsMetaLabel">当前已解决预警统计</div>
                 </div>
             </div>
             
             <!-- 图表区域 -->
             <div class="charts-section">
-                <div class="chart-card">
+                <div class="chart-card" data-chart-kind="warning-type">
                     <div class="chart-card-header">
                         <h4 class="chart-card-title">预警类型分布</h4>
                         <div class="chart-card-actions">
-                            <button class="active">柱状图</button>
-                            <button>饼图</button>
+                            <button class="active" data-chart-view="bar">柱状图</button>
+                            <button data-chart-view="pie">饼图</button>
                         </div>
                     </div>
                     <div class="chart-container">
                         <canvas id="warningTypeChart"></canvas>
                     </div>
                 </div>
-                <div class="chart-card">
+                <div class="chart-card" data-chart-kind="warning-trend">
                     <div class="chart-card-header">
                         <h4 class="chart-card-title">预警趋势</h4>
                         <div class="chart-card-actions">
-                            <button class="active">周</button>
-                            <button>月</button>
-                            <button>学期</button>
+                            <button class="active" data-time-range="week">周</button>
+                            <button data-time-range="month">月</button>
+                            <button data-time-range="semester">学期</button>
                         </div>
                     </div>
                     <div class="chart-container">
@@ -875,7 +865,7 @@
     </div>
     
     <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="lib/bootstrap.bundle.min.js"></script>
     
     <!-- 页面脚本 -->
     <script>
@@ -985,52 +975,43 @@
             return /403|401|500|Forbidden|权限不足|未授权|服务器内部错误|暂不可用/.test(message);
         }
 
-        // 生成预警数据 - 支持分页
-        async function generateWarnings(page = 1, filters = {}) {
-            try {
-                const params = new URLSearchParams();
-                params.append('page', page.toString());
-                params.append('size', pageSize.toString());
-                if (filters.classId && filters.classId !== 'all') {
-                    params.append('classId', filters.classId);
-                }
-                if (filters.courseId && filters.courseId !== 'all') {
-                    params.append('courseId', filters.courseId);
-                }
-                if (filters.warningType && filters.warningType !== 'all') {
-                    // 转换前端类型值为后端期望的类型值
-                    const typeMap = {
-                        'score': 'low_score',
-                        'attendance': 'low_attendance',
-                        'homework': 'late_submission',
-                        'progress': 'progress'
-                    };
-                    params.append('warningType', typeMap[filters.warningType] || filters.warningType);
-                }
-                if (filters.status && filters.status !== 'all') {
-                    params.append('status', filters.status);
-                }
-                
-                // 调用真实API获取预警数据
-                const response = await fetchAPI(`/early-warnings/teacher/list?${params.toString()}`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                // 更新分页信息
-                totalPages = response.data.totalPages || 1;
-                totalWarnings = response.data.totalElements || 0;
-                currentPage = page;
-                
-                return response.data.content || [];
-            } catch (error) {
-                console.error('获取预警数据失败:', error);
-                return [];
-            }
+        const warningStatMetaLabelText = {
+            totalWarnings: '当前筛选预警统计',
+            pendingWarnings: '当前未处理预警统计',
+            processingWarnings: '当前处理中预警统计',
+            resolvedWarnings: '当前已解决预警统计'
+        };
+
+        function buildWarningStatCardMarkup(title, iconColor, iconClass, valueMarkup, metaKey) {
+            return `
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <h4 class="stat-card-title">${title}</h4>
+                        <div class="stat-card-icon" style="background-color: ${iconColor};">
+                            <i class="fa ${iconClass}"></i>
+                        </div>
+                    </div>
+                    <div class="stat-card-body">
+                        <p class="stat-card-value">${valueMarkup}</p>
+                    </div>
+                    <div class="stat-card-change" id="${metaKey}MetaLabel">${warningStatMetaLabelText[metaKey]}</div>
+                </div>
+            `;
         }
-        
+
+        function buildWarningStatsCardsMarkup(stats = {}, options = {}) {
+            const { loading = false } = options;
+            const loadingMarkup = '<i class="fa fa-spinner fa-spin"></i>';
+            const statValue = key => (loading ? loadingMarkup : String(stats[key] || 0));
+
+            return `
+                ${buildWarningStatCardMarkup('总预警数', '#dc3545', 'fa-exclamation-circle', statValue('totalWarnings'), 'totalWarnings')}
+                ${buildWarningStatCardMarkup('未处理预警', '#ffc107', 'fa-clock-o', statValue('pendingWarnings'), 'pendingWarnings')}
+                ${buildWarningStatCardMarkup('处理中预警', '#0d6efd', 'fa-spinner', statValue('processingWarnings'), 'processingWarnings')}
+                ${buildWarningStatCardMarkup('已解决预警', '#198754', 'fa-check-circle', statValue('resolvedWarnings'), 'resolvedWarnings')}
+            `;
+        }
+
         // 加载班级数据
         async function loadClasses() {
             try {
@@ -1160,68 +1141,7 @@
             try {
                 // 显示加载状态
                 const statsCards = document.querySelector('.stats-cards');
-                statsCards.innerHTML = `
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h4 class="stat-card-title">总预警数</h4>
-                            <div class="stat-card-icon" style="background-color: #dc3545;">
-                                <i class="fa fa-exclamation-circle"></i>
-                            </div>
-                        </div>
-                        <div class="stat-card-body">
-                            <p class="stat-card-value"><i class="fa fa-spinner fa-spin"></i></p>
-                        </div>
-                        <div class="stat-card-change positive">
-                            <i class="fa fa-arrow-up"></i>
-                            <span>加载中...</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h4 class="stat-card-title">未处理预警</h4>
-                            <div class="stat-card-icon" style="background-color: #ffc107;">
-                                <i class="fa fa-clock-o"></i>
-                            </div>
-                        </div>
-                        <div class="stat-card-body">
-                            <p class="stat-card-value"><i class="fa fa-spinner fa-spin"></i></p>
-                        </div>
-                        <div class="stat-card-change negative">
-                            <i class="fa fa-arrow-down"></i>
-                            <span>加载中...</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h4 class="stat-card-title">处理中预警</h4>
-                            <div class="stat-card-icon" style="background-color: #0d6efd;">
-                                <i class="fa fa-spinner"></i>
-                            </div>
-                        </div>
-                        <div class="stat-card-body">
-                            <p class="stat-card-value"><i class="fa fa-spinner fa-spin"></i></p>
-                        </div>
-                        <div class="stat-card-change positive">
-                            <i class="fa fa-arrow-up"></i>
-                            <span>加载中...</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h4 class="stat-card-title">已解决预警</h4>
-                            <div class="stat-card-icon" style="background-color: #198754;">
-                                <i class="fa fa-check-circle"></i>
-                            </div>
-                        </div>
-                        <div class="stat-card-body">
-                            <p class="stat-card-value"><i class="fa fa-spinner fa-spin"></i></p>
-                        </div>
-                        <div class="stat-card-change positive">
-                            <i class="fa fa-arrow-up"></i>
-                            <span>加载中...</span>
-                        </div>
-                    </div>
-                `;
+                statsCards.innerHTML = buildWarningStatsCardsMarkup({}, { loading: true });
                 
                 // 调用API获取统计数据
                 let stats = {
@@ -1259,28 +1179,12 @@
                     console.error('获取统计数据失败:', error);
                     // 如果统计API失败，尝试从列表计算（作为备选方案）
                     try {
-                        const params = new URLSearchParams();
-                        params.append('page', '1');
-                        params.append('size', '100');
-                        if (filters.classId && filters.classId !== 'all') {
-                            params.append('classId', filters.classId);
-                        }
-                        if (filters.courseId && filters.courseId !== 'all') {
-                            params.append('courseId', filters.courseId);
-                        }
-                        
-                        const listResponse = await fetchAPI(`/early-warnings/teacher/list?${params.toString()}`, {
-                            method: 'GET',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            }
-                        });
-                        const warnings = listResponse.data?.content || [];
+                        const analyticsWarnings = await fetchWarningAnalyticsList(filters, { syncCache: false });
                         stats = {
-                            totalWarnings: listResponse.data?.totalElements || warnings.length,
-                            pendingWarnings: warnings.filter(w => !w.isResolved).length,
+                            totalWarnings: analyticsWarnings.length,
+                            pendingWarnings: analyticsWarnings.filter(w => !w.isResolved).length,
                             processingWarnings: 0,
-                            resolvedWarnings: warnings.filter(w => w.isResolved).length
+                            resolvedWarnings: analyticsWarnings.filter(w => w.isResolved).length
                         };
                     } catch (listError) {
                         console.error('从列表计算统计数据也失败:', listError);
@@ -1289,149 +1193,20 @@
                 
                 console.log('统计数据:', stats);
                 
-                // 计算变化百分比（实际项目中应从API获取，这里暂时使用相对变化）
-                // 假设使用上周数据作为比较基准（实际应从API获取）
-                const totalWarnings = stats.totalWarnings || 0;
-                const pendingWarnings = stats.pendingWarnings || 0;
-                const processingWarnings = stats.processingWarnings || 0;
-                const resolvedWarnings = stats.resolvedWarnings || 0;
-                
-                const totalChange = `+${Math.floor(totalWarnings * 0.1)} 条 (${Math.floor(totalWarnings * 0.15)}%)`;
-                const pendingChange = `+${Math.floor(pendingWarnings * 0.1)} 条 (${Math.floor(pendingWarnings * 0.18)}%)`;
-                const processingChange = `+${Math.floor(processingWarnings * 0.1)} 条 (${Math.floor(processingWarnings * 0.18)}%)`;
-                const resolvedChange = `+${Math.floor(resolvedWarnings * 0.15)} 条 (${Math.floor(resolvedWarnings * 0.2)}%)`;
-                
                 // 更新统计卡片，显示真实数据
-                statsCards.innerHTML = `
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h4 class="stat-card-title">总预警数</h4>
-                            <div class="stat-card-icon" style="background-color: #dc3545;">
-                                <i class="fa fa-exclamation-circle"></i>
-                            </div>
-                        </div>
-                        <div class="stat-card-body">
-                            <p class="stat-card-value">${stats.totalWarnings || 0}</p>
-                        </div>
-                        <div class="stat-card-change positive">
-                            <i class="fa fa-arrow-up"></i>
-                            <span>${totalChange}</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h4 class="stat-card-title">未处理预警</h4>
-                            <div class="stat-card-icon" style="background-color: #ffc107;">
-                                <i class="fa fa-clock-o"></i>
-                            </div>
-                        </div>
-                        <div class="stat-card-body">
-                            <p class="stat-card-value">${stats.pendingWarnings || 0}</p>
-                        </div>
-                        <div class="stat-card-change negative">
-                            <i class="fa fa-arrow-down"></i>
-                            <span>${pendingChange}</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h4 class="stat-card-title">处理中预警</h4>
-                            <div class="stat-card-icon" style="background-color: #0d6efd;">
-                                <i class="fa fa-spinner"></i>
-                            </div>
-                        </div>
-                        <div class="stat-card-body">
-                            <p class="stat-card-value">${stats.processingWarnings || 0}</p>
-                        </div>
-                        <div class="stat-card-change positive">
-                            <i class="fa fa-arrow-up"></i>
-                            <span>${processingChange}</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h4 class="stat-card-title">已解决预警</h4>
-                            <div class="stat-card-icon" style="background-color: #198754;">
-                                <i class="fa fa-check-circle"></i>
-                            </div>
-                        </div>
-                        <div class="stat-card-body">
-                            <p class="stat-card-value">${stats.resolvedWarnings || 0}</p>
-                        </div>
-                        <div class="stat-card-change positive">
-                            <i class="fa fa-arrow-up"></i>
-                            <span>${resolvedChange}</span>
-                        </div>
-                    </div>
-                `;
+                statsCards.innerHTML = buildWarningStatsCardsMarkup(stats);
                 
                 // 记录真实数据到控制台
                 console.log('统计卡片数据:', stats);
             } catch (error) {
                 console.error('加载统计数据失败:', error);
                 // 恢复默认统计卡片内容
-                document.querySelector('.stats-cards').innerHTML = `
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h4 class="stat-card-title">总预警数</h4>
-                            <div class="stat-card-icon" style="background-color: #dc3545;">
-                                <i class="fa fa-exclamation-circle"></i>
-                            </div>
-                        </div>
-                        <div class="stat-card-body">
-                            <p class="stat-card-value">0</p>
-                        </div>
-                        <div class="stat-card-change positive">
-                            <i class="fa fa-arrow-up"></i>
-                            <span>0 条 (0%)</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h4 class="stat-card-title">未处理预警</h4>
-                            <div class="stat-card-icon" style="background-color: #ffc107;">
-                                <i class="fa fa-clock-o"></i>
-                            </div>
-                        </div>
-                        <div class="stat-card-body">
-                            <p class="stat-card-value">0</p>
-                        </div>
-                        <div class="stat-card-change negative">
-                            <i class="fa fa-arrow-down"></i>
-                            <span>0 条 (0%)</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h4 class="stat-card-title">处理中预警</h4>
-                            <div class="stat-card-icon" style="background-color: #0d6efd;">
-                                <i class="fa fa-spinner"></i>
-                            </div>
-                        </div>
-                        <div class="stat-card-body">
-                            <p class="stat-card-value">0</p>
-                        </div>
-                        <div class="stat-card-change positive">
-                            <i class="fa fa-arrow-up"></i>
-                            <span>0 条 (0%)</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <h4 class="stat-card-title">已解决预警</h4>
-                            <div class="stat-card-icon" style="background-color: #198754;">
-                                <i class="fa fa-check-circle"></i>
-                            </div>
-                        </div>
-                        <div class="stat-card-body">
-                            <p class="stat-card-value">0</p>
-                        </div>
-                        <div class="stat-card-change positive">
-                            <i class="fa fa-arrow-up"></i>
-                            <span>0 条 (0%)</span>
-                        </div>
-                    </div>
-                `;
+                document.querySelector('.stats-cards').innerHTML = buildWarningStatsCardsMarkup({
+                    totalWarnings: 0,
+                    pendingWarnings: 0,
+                    processingWarnings: 0,
+                    resolvedWarnings: 0
+                });
                 if (!isPermissionOrServerError(error)) {
                     showNotification('加载统计数据失败: ' + error.message, 'error');
                 }
@@ -1529,9 +1304,9 @@
                 
                 // 渲染预警列表
                 warningList.innerHTML = warnings.map(warning => {
-                    // 获取状态文本和颜色
-                    const statusText = warning.isResolved ? '已解决' : '未处理';
-                    const statusColor = warning.isResolved ? 'success' : 'warning';
+                    const warningStatus = normalizeWarningStatus(warning.status, warning.isResolved);
+                    const statusText = getStatusText(warningStatus);
+                    const statusColor = getStatusColor(warningStatus);
                     
                     // 获取预警类型颜色
                     const typeColor = getWarningTypeColor(warning.warningType);
@@ -1556,8 +1331,8 @@
                                     <span class="badge badge-${typeColor}">${warning.warningType}</span>
                                 </div>
                                 <div class="warning-card-actions">
-                                    <button onclick="viewWarningDetail('${warning.id}', '${warning.studentId}', '${warning.studentName}', '${warning.warningType}')">查看详情</button>
-                                    ${!warning.isResolved ? `
+                                    <button onclick="viewWarningDetail('${warning.id}', '${warning.studentId}', '${warning.studentName}', '${warning.warningType}', '${warning.status || ''}', '${warning.isResolved ? 'true' : 'false'}')">查看详情</button>
+                                    ${warningStatus !== 'resolved' ? `
                                     <button onclick="resolveWarning('${warning.id}')">标记为已解决</button>
                                     ` : ''}
                                 </div>
@@ -1691,77 +1466,222 @@
             };
             return colorMap[type] || 'secondary';
         }
+
+        function normalizeWarningStatus(status, isResolved = false) {
+            if (status === 'resolved' || isResolved === true || isResolved === 'true') {
+                return 'resolved';
+            }
+            if (status === 'processing') {
+                return 'processing';
+            }
+            return 'pending';
+        }
         
         // 全局图表实例引用，用于动态更新
         let warningTypeChart = null;
         let warningTrendChart = null;
         let cachedWarningList = []; // 缓存预警数据用于图表切换
+        let warningAnalyticsListState = [];
         let currentTimeRange = 'week'; // 当前时间范围
-        
+        let currentWarningTypeChartType = 'bar';
+
+        function buildWarningAnalyticsListParams(filters = {}, size = 100) {
+            const params = new URLSearchParams();
+            params.append('page', '1');
+            params.append('size', String(size));
+
+            if (filters.classId && filters.classId !== 'all') {
+                params.append('classId', filters.classId);
+            }
+            if (filters.courseId && filters.courseId !== 'all') {
+                params.append('courseId', filters.courseId);
+            }
+            if (filters.warningType && filters.warningType !== 'all') {
+                const typeMap = {
+                    'score': 'low_score',
+                    'attendance': 'low_attendance',
+                    'homework': 'late_submission',
+                    'progress': 'progress'
+                };
+                params.append('warningType', typeMap[filters.warningType] || filters.warningType);
+            }
+            if (filters.status && filters.status !== 'all') {
+                params.append('status', filters.status);
+            }
+
+            return params;
+        }
+
+        async function fetchWarningAnalyticsList(filters = {}, options = {}) {
+            const { syncCache = true } = options;
+            const params = buildWarningAnalyticsListParams(filters, 100);
+            const response = await fetchAPI(`/early-warnings/teacher/list?${params.toString()}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const warnings = response.data?.content || [];
+            const uniqueWarnings = [];
+            const seenIds = new Set();
+
+            warnings.forEach(warning => {
+                if (!seenIds.has(warning.id)) {
+                    seenIds.add(warning.id);
+                    uniqueWarnings.push(warning);
+                }
+            });
+
+            if (syncCache) {
+                warningAnalyticsListState = uniqueWarnings;
+                cachedWarningList = uniqueWarnings;
+            }
+
+            return uniqueWarnings;
+        }
+
+        function destroyWarningCharts() {
+            if (warningTypeChart) {
+                warningTypeChart.destroy();
+                warningTypeChart = null;
+            }
+            if (warningTrendChart) {
+                warningTrendChart.destroy();
+                warningTrendChart = null;
+            }
+        }
+
+        function buildWarningChartsCanvasMarkup() {
+            return `
+                <div class="chart-card" data-chart-kind="warning-type">
+                    <div class="chart-card-header">
+                        <h4 class="chart-card-title">预警类型分布</h4>
+                        <div class="chart-card-actions">
+                            <button class="${currentWarningTypeChartType === 'bar' ? 'active' : ''}" data-chart-view="bar">柱状图</button>
+                            <button class="${currentWarningTypeChartType === 'pie' ? 'active' : ''}" data-chart-view="pie">饼图</button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="warningTypeChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card" data-chart-kind="warning-trend">
+                    <div class="chart-card-header">
+                        <h4 class="chart-card-title">预警趋势</h4>
+                        <div class="chart-card-actions">
+                            <button class="${currentTimeRange === 'week' ? 'active' : ''}" data-time-range="week">周</button>
+                            <button class="${currentTimeRange === 'month' ? 'active' : ''}" data-time-range="month">月</button>
+                            <button class="${currentTimeRange === 'semester' ? 'active' : ''}" data-time-range="semester">学期</button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="warningTrendChart"></canvas>
+                    </div>
+                </div>
+            `;
+        }
+
+        function buildWarningChartsEmptyStateMarkup(typeMessage = '暂无图表数据', trendMessage = '暂无图表数据') {
+            return `
+                <div class="chart-card" data-chart-kind="warning-type">
+                    <div class="chart-card-header">
+                        <h4 class="chart-card-title">预警类型分布</h4>
+                    </div>
+                    <div class="chart-card-body d-flex align-items-center justify-content-center text-muted" style="min-height: 320px;">
+                        ${typeMessage}
+                    </div>
+                </div>
+                <div class="chart-card" data-chart-kind="warning-trend">
+                    <div class="chart-card-header">
+                        <h4 class="chart-card-title">预警趋势</h4>
+                    </div>
+                    <div class="chart-card-body d-flex align-items-center justify-content-center text-muted" style="min-height: 320px;">
+                        ${trendMessage}
+                    </div>
+                </div>
+            `;
+        }
+
+        function bindWarningChartControls() {
+            document.querySelectorAll('.chart-card-actions button').forEach(button => {
+                button.addEventListener('click', function() {
+                    this.parentElement.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+
+                    const chartCard = this.closest('.chart-card');
+                    const chartKind = chartCard?.dataset.chartKind;
+
+                    if (chartKind === 'warning-type') {
+                        const chartView = this.dataset.chartView || 'bar';
+                        currentWarningTypeChartType = chartView;
+                        if (cachedWarningList.length > 0) {
+                            initWarningTypeChart(cachedWarningList, chartView);
+                        }
+                        return;
+                    }
+
+                    if (chartKind === 'warning-trend') {
+                        const rangeKey = this.dataset.timeRange || 'week';
+                        currentTimeRange = rangeKey;
+                        if (cachedWarningList.length > 0) {
+                            initWarningTrendChart(cachedWarningList, rangeKey);
+                        }
+                    }
+                });
+            });
+        }
+
+        function renderWarningChartsCanvasState() {
+            destroyWarningCharts();
+            const chartsSection = document.querySelector('.charts-section');
+            if (!chartsSection) {
+                return;
+            }
+            chartsSection.innerHTML = buildWarningChartsCanvasMarkup();
+            bindWarningChartControls();
+        }
+
+        function renderWarningChartsEmptyState(typeMessage = '暂无图表数据', trendMessage = '暂无图表数据') {
+            destroyWarningCharts();
+            const chartsSection = document.querySelector('.charts-section');
+            if (!chartsSection) {
+                return;
+            }
+            chartsSection.innerHTML = buildWarningChartsEmptyStateMarkup(typeMessage, trendMessage);
+        }
+
         // 初始化图表
         async function initCharts() {
             try {
-                // 调用API获取预警列表数据，不依赖课程ID
-                let listData = [];
-                
                 try {
-                    // 使用正确的API端点获取预警数据
-                    const response = await fetchAPI('/early-warnings/teacher/list?page=1&size=100', {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    listData = response.data.content || [];
+                    const listData = await fetchWarningAnalyticsList({}, { syncCache: true });
+
+                    console.log('图表初始化数据:', { listData });
+
+                    if (listData.length === 0) {
+                        renderWarningChartsEmptyState('暂无预警类型数据', '暂无预警趋势数据');
+                        return;
+                    }
+
+                    renderWarningChartsCanvasState();
+                    
+                    // 1. 初始化预警类型分布图表
+                    initWarningTypeChart(listData, currentWarningTypeChartType);
+                    
+                    // 2. 初始化预警趋势图表（默认按周）
+                    initWarningTrendChart(listData, currentTimeRange);
                 } catch (apiError) {
                     console.error('获取图表数据失败:', apiError);
-                    // 如果API调用失败，使用默认数据
-                    listData = [
-                        { warningType: '成绩预警', triggerDate: new Date().toISOString() },
-                        { warningType: '考勤预警', triggerDate: new Date().toISOString() },
-                        { warningType: '作业预警', triggerDate: new Date().toISOString() },
-                        { warningType: '进度预警', triggerDate: new Date().toISOString() },
-                        { warningType: '成绩预警', triggerDate: new Date().toISOString() },
-                        { warningType: '作业预警', triggerDate: new Date().toISOString() },
-                        { warningType: '进度预警', triggerDate: new Date().toISOString() }
-                    ];
+                    renderWarningChartsEmptyState('预警图表加载失败', '预警图表加载失败');
+                    if (!isPermissionOrServerError(apiError)) {
+                        showNotification('初始化图表失败: ' + apiError.message, 'error');
+                    }
+                    return;
                 }
-                
-                console.log('图表初始化数据:', { listData });
-                
-                // 缓存预警数据用于图表切换
-                cachedWarningList = listData;
-                
-                // 1. 初始化预警类型分布图表
-                initWarningTypeChart(listData);
-                
-                // 2. 初始化预警趋势图表（默认按周）
-                currentTimeRange = 'week';
-                initWarningTrendChart(listData, 'week');
-                
             } catch (error) {
                 console.error('初始化图表失败:', error);
-                const chartsSection = document.querySelector('.charts-section');
-                if (chartsSection) {
-                    chartsSection.innerHTML = `
-                        <div class="chart-card">
-                            <div class="chart-card-header">
-                                <h4 class="chart-card-title">预警类型分布</h4>
-                            </div>
-                            <div class="chart-card-body d-flex align-items-center justify-content-center text-muted" style="min-height: 320px;">
-                                暂无图表数据
-                            </div>
-                        </div>
-                        <div class="chart-card">
-                            <div class="chart-card-header">
-                                <h4 class="chart-card-title">预警趋势</h4>
-                            </div>
-                            <div class="chart-card-body d-flex align-items-center justify-content-center text-muted" style="min-height: 320px;">
-                                暂无图表数据
-                            </div>
-                        </div>
-                    `;
-                }
+                renderWarningChartsEmptyState();
                 if (!isPermissionOrServerError(error)) {
                     showNotification('初始化图表失败: ' + error.message, 'error');
                 }
@@ -1770,6 +1690,7 @@
         
         // 初始化预警类型分布图表
         function initWarningTypeChart(warningList, chartType = 'bar') {
+            currentWarningTypeChartType = chartType;
             // 统计不同类型的预警数量
             const typeCounts = {};
             
@@ -2046,59 +1967,26 @@
         async function updateCharts(filters = {}) {
             try {
                 console.log('更新图表数据...', filters);
-                
-                // 构建查询参数
-                const params = new URLSearchParams();
-                params.append('page', '1');
-                params.append('size', '100'); // 获取足够的数据用于图表
-                if (filters.classId && filters.classId !== 'all') {
-                    params.append('classId', filters.classId);
-                }
-                if (filters.courseId && filters.courseId !== 'all') {
-                    params.append('courseId', filters.courseId);
-                }
-                if (filters.warningType && filters.warningType !== 'all') {
-                    // 转换前端类型值为后端期望的类型值
-                    const typeMap = {
-                        'score': 'low_score',
-                        'attendance': 'low_attendance',
-                        'homework': 'late_submission',
-                        'progress': 'progress'
-                    };
-                    params.append('warningType', typeMap[filters.warningType] || filters.warningType);
-                }
-                if (filters.status && filters.status !== 'all') {
-                    params.append('status', filters.status);
-                }
-                
-                // 获取最新数据
-                const response = await fetchAPI(`/early-warnings/teacher/list?${params.toString()}`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const listData = response.data.content || [];
+                const listData = await fetchWarningAnalyticsList(filters, { syncCache: true });
                 
                 console.log('更新图表数据:', { listData });
-                
-                // 更新缓存的预警数据
-                cachedWarningList = listData;
+
+                if (listData.length === 0) {
+                    renderWarningChartsEmptyState('暂无预警类型数据', '暂无预警趋势数据');
+                    return;
+                }
+
+                renderWarningChartsCanvasState();
                 
                 // 更新预警类型分布图表
-                if (warningTypeChart) {
-                    // 获取当前图表类型
-                    const currentChartType = warningTypeChart.config.type;
-                    // 重新初始化图表，保持当前图表类型
-                    initWarningTypeChart(listData, currentChartType);
-                }
+                initWarningTypeChart(listData, currentWarningTypeChartType);
                 
                 // 更新预警趋势图表，保持当前时间范围
                 initWarningTrendChart(listData, currentTimeRange);
                 
             } catch (error) {
                 console.error('更新图表失败:', error);
+                renderWarningChartsEmptyState('预警图表加载失败', '预警图表加载失败');
                 showNotification('更新图表数据失败: ' + error.message, 'error');
             }
         }
@@ -2166,6 +2054,40 @@
                 alert.close();
             }, 3000);
         }
+
+        function updateWarningDetailStatusBadge(status) {
+            const statusBadge = document.getElementById('warningDetailStatusBadge');
+            if (!statusBadge) {
+                return;
+            }
+
+            statusBadge.className = `badge badge-${getStatusColor(status)}`;
+            statusBadge.textContent = getStatusText(status);
+        }
+
+        function updateWarningDetailActionState(status) {
+            const processingBtn = document.getElementById('markAsProcessingBtn');
+            const resolvedBtn = document.getElementById('markAsResolvedBtn');
+
+            if (!processingBtn || !resolvedBtn) {
+                return;
+            }
+
+            if (status === 'resolved') {
+                processingBtn.style.display = 'none';
+                resolvedBtn.style.display = 'none';
+                return;
+            }
+
+            if (status === 'processing') {
+                processingBtn.style.display = 'none';
+                resolvedBtn.style.display = 'inline-block';
+                return;
+            }
+
+            processingBtn.style.display = 'inline-block';
+            resolvedBtn.style.display = 'none';
+        }
         
 
         
@@ -2190,21 +2112,11 @@
 
         
         // 查看预警详情
-        async function viewWarningDetail(warningId, studentId, studentName, warningType) {
+        async function viewWarningDetail(warningId, studentId, studentName, warningType, initialStatus = '', initialResolved = 'false') {
             try {
-                // 从API获取预警详情数据
-                let studentDashboard = {
-                    studentName: studentName,
-                    studentId: studentId,
-                    averageScore: 0,
-                    assignmentCompletionRate: 0,
-                    recentScores: [],
-                    courseProgress: { inProgressCourses: 0 }
-                };
-                
-                // 尝试获取学生仪表盘数据，如果失败则使用默认值
+                let warningDetail = {};
+
                 try {
-                    // 使用正确的API端点获取预警详情
                     const warningResponse = await fetchAPI(`/early-warnings/teacher/detail/${warningId}`, {
                         method: 'GET',
                         headers: {
@@ -2212,21 +2124,12 @@
                         }
                     });
                     
-                    const warningDetail = warningResponse.data || {};
-                    // 可以从预警详情中提取更多信息
+                    warningDetail = warningResponse.data || {};
                     console.log('预警详情数据:', warningDetail);
                 } catch (error) {
-                    console.error('获取预警详情失败，使用默认学生数据:', error);
+                    console.error('获取预警详情失败，使用基础预警数据:', error);
                 }
-                
-                console.log('学生仪表盘数据:', studentDashboard);
-                
-                // 计算作业完成率
-                const assignmentCompletionRate = studentDashboard.assignmentCompletionRate;
-                
-                // 计算平均成绩
-                const averageScore = studentDashboard.averageScore;
-                
+
                 // 准备预警建议
                 let suggestions = [];
                 if (warningType === '成绩预警') {
@@ -2258,6 +2161,13 @@
                         '定期跟踪学习进度'
                     ];
                 }
+
+                const warningStatus = normalizeWarningStatus(initialStatus, initialResolved);
+                const warningStudentName = warningDetail.studentName || studentName;
+                const warningCourseName = warningDetail.courseName || '未关联课程';
+                const warningLevel = warningDetail.warningLevel || '未设置';
+                const warningReason = warningDetail.reason || warningDetail.warningMessage || '暂无预警原因说明';
+                const warningSuggestion = warningDetail.suggestion || getSuggestionByWarningType(warningType);
                 
                 // 渲染预警详情内容
                 const warningDetailContent = document.getElementById('warningDetailContent');
@@ -2271,12 +2181,12 @@
                                         <div class="col-md-6">
                                             <p><strong>预警ID：</strong>${warningId}</p>
                                             <p><strong>预警类型：</strong><span class="badge badge-${getWarningTypeColor(warningType)}">${warningType}</span></p>
-                                            <p><strong>预警时间：</strong>${new Date().toLocaleString()}</p>
+                                            <p><strong>预警时间：</strong>${warningDetail.triggerDate ? new Date(warningDetail.triggerDate).toLocaleString() : '暂无触发时间'}</p>
                                         </div>
                                         <div class="col-md-6">
-                                            <p><strong>处理状态：</strong><span class="badge badge-warning">未处理</span></p>
-                                            <p><strong>预警级别：</strong>一级</p>
-                                            <p><strong>触发规则：</strong>基于学生学习数据自动生成</p>
+                                            <p><strong>处理状态：</strong><span class="badge badge-${getStatusColor(warningStatus)}" id="warningDetailStatusBadge">${getStatusText(warningStatus)}</span></p>
+                                            <p><strong>预警级别：</strong>${warningLevel}</p>
+                                            <p><strong>关联类型：</strong>${warningDetail.assessmentType || '未关联测评'}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -2284,18 +2194,9 @@
                             <div class="card mb-3">
                                 <div class="card-body">
                                     <h6 class="card-title">学生信息</h6>
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <p><strong>学号：</strong>${studentId}</p>
-                                            <p><strong>姓名：</strong>${studentName}</p>
-                                            <p><strong>班级：</strong>计算机科学与技术1班</p>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <p><strong>联系方式：</strong>13800138000</p>
-                                            <p><strong>家长联系方式：</strong>13900139000</p>
-                                            <p><strong>辅导员：</strong>李老师</p>
-                                        </div>
-                                    </div>
+                                    <p><strong>学号：</strong>${studentId}</p>
+                                    <p><strong>姓名：</strong>${warningStudentName}</p>
+                                    <p><strong>课程：</strong>${warningCourseName}</p>
                                 </div>
                             </div>
                         </div>
@@ -2303,95 +2204,27 @@
                             <div class="card mb-3">
                                 <div class="card-body">
                                     <h6 class="card-title">预警原因</h6>
-                                    <p>基于学生最近的学习数据，系统自动生成以下预警：</p>
-                                    <ul>
-                                        <li>课程平均成绩：${averageScore.toFixed(1)}分</li>
-                                        <li>作业完成率：${(assignmentCompletionRate * 100).toFixed(1)}%</li>
-                                        <li>考勤率：${studentDashboard.courseProgress.inProgressCourses > 0 ? '90%' : '100%'}</li>
-                                        <li>学习进度：${studentDashboard.courseProgress.inProgressCourses > 0 ? '70%' : '100%'}</li>
-                                    </ul>
+                                    <p>${warningReason}</p>
                                 </div>
                             </div>
                             <div class="card mb-3">
                                 <div class="card-body">
                                     <h6 class="card-title">预警建议</h6>
+                                    <p>${warningSuggestion}</p>
                                     <ol>
                                         ${suggestions.map(suggestion => `<li>${suggestion}</li>`).join('')}
                                     </ol>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h6 class="card-title">学习数据</h6>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <p><strong>课程平均成绩：</strong>${averageScore.toFixed(1)}分</p>
-                                    <p><strong>作业完成率：</strong>${(assignmentCompletionRate * 100).toFixed(1)}%</p>
-                                    <p><strong>考勤率：</strong>${studentDashboard.courseProgress.inProgressCourses > 0 ? '90%' : '100%'}</p>
-                                    <p><strong>学习进度：</strong>${studentDashboard.courseProgress.inProgressCourses > 0 ? '70%' : '100%'}</p>
-                                </div>
-                                <div class="col-md-6">
-                                    <canvas id="studentScoreChart" height="150"></canvas>
-                                </div>
-                            </div>
                         </div>
                     </div>
                     <div class="card">
                         <div class="card-body">
                             <h6 class="card-title">处理记录</h6>
                             <div class="processing-record">
-                                <p class="text-muted">暂无处理记录</p>
+                                <p class="text-muted">${warningDetail.resolvedNote || '暂无处理记录'}</p>
                             </div>
                         </div>
                     </div>
                 `;
-                
-                // 初始化学生成绩图表
-                const studentScoreCtx = document.getElementById('studentScoreChart').getContext('2d');
-                new Chart(studentScoreCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: studentDashboard.recentScores.map(score => score.examName),
-                        datasets: [{
-                            label: '测验成绩',
-                            data: studentDashboard.recentScores.map(score => score.score),
-                            backgroundColor: '#dc3545',
-                            borderWidth: 0
-                        }, {
-                            label: '班级平均成绩',
-                            data: studentDashboard.recentScores.map(score => score.classAverage || 0),
-                            backgroundColor: '#0d6efd',
-                            borderWidth: 0
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                max: 100,
-                                title: {
-                                    display: true,
-                                    text: '成绩'
-                                }
-                            },
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: '考试名称'
-                                }
-                            }
-                        },
-                        plugins: {
-                            legend: {
-                                position: 'top'
-                            }
-                        }
-                    }
-                });
                 
                 // 显示模态框
                 const modal = new bootstrap.Modal(document.getElementById('warningDetailModal'));
@@ -2400,9 +2233,8 @@
                 // 设置当前预警ID
                 currentWarningId = warningId;
                 
-                // 显示/隐藏处理按钮
-                document.getElementById('markAsProcessingBtn').style.display = 'block';
-                document.getElementById('markAsResolvedBtn').style.display = 'none';
+                updateWarningDetailStatusBadge(warningStatus);
+                updateWarningDetailActionState(warningStatus);
             } catch (error) {
                 console.error('获取预警详情失败:', error);
                 const warningDetailContent = document.getElementById('warningDetailContent');
@@ -2447,6 +2279,8 @@
                 await loadWarnings(currentPage, currentFilters);
                 await loadStats(currentFilters);
                 await updateCharts(currentFilters); // 更新图表数据
+                updateWarningDetailStatusBadge('processing');
+                updateWarningDetailActionState('processing');
                 showNotification('预警已标记为处理中', 'success');
             } catch (error) {
                 console.error('标记预警状态失败:', error);
@@ -2490,6 +2324,8 @@
                 await loadWarnings(currentPage, currentFilters);
                 await loadStats(currentFilters);
                 await updateCharts(currentFilters); // 更新图表数据
+                updateWarningDetailStatusBadge('resolved');
+                updateWarningDetailActionState('resolved');
                 showNotification('预警已标记为已解决', 'success');
             } catch (error) {
                 console.error('标记预警状态失败:', error);
@@ -2791,7 +2627,7 @@
             if (!container) return;
 
             try {
-                const resp = await fetch('components/user-dropdown.html');
+            const resp = await fetch('components/user-dropdown.html?v=20260523-1');
                 if (!resp.ok) {
                     console.error('加载用户下拉组件失败:', resp.status, resp.statusText);
                     return;
@@ -2864,48 +2700,6 @@
             // 初始化图表
             await initCharts();
             
-            // 图表类型切换
-            document.querySelectorAll('.chart-card-actions button').forEach(button => {
-                button.addEventListener('click', function() {
-                    // 移除所有按钮的active类
-                    this.parentElement.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
-                    // 添加当前按钮的active类
-                    this.classList.add('active');
-                    
-                    // 图表类型切换逻辑
-                    const chartCard = this.closest('.chart-card');
-                    const chartTitle = chartCard.querySelector('.chart-card-title').textContent;
-                    
-                    if (chartTitle === '预警类型分布') {
-                        // 切换预警类型分布图表类型
-                        const chartType = this.textContent;
-                        const warningTypeCtx = document.getElementById('warningTypeChart').getContext('2d');
-                        const existingChart = Chart.getChart(warningTypeCtx);
-                        
-                        if (existingChart) {
-                            // 更新图表类型
-                            existingChart.config.type = chartType === '柱状图' ? 'bar' : 'pie';
-                            existingChart.update();
-                        }
-                    } else if (chartTitle === '预警趋势') {
-                        // 切换预警趋势图表时间范围
-                        const timeRange = this.textContent;
-                        let rangeKey = 'week';
-                        if (timeRange === '周') {
-                            rangeKey = 'week';
-                        } else if (timeRange === '月') {
-                            rangeKey = 'month';
-                        } else if (timeRange === '学期') {
-                            rangeKey = 'semester';
-                        }
-                        
-                        // 使用缓存的数据重新初始化图表
-                        currentTimeRange = rangeKey;
-                        initWarningTrendChart(cachedWarningList, rangeKey);
-                    }
-                });
-            });
-            
             // 页面初始化完成后，再为四个下拉框添加change事件监听，实现实时查询
             // 这样可以确保下拉框的初始值不会触发change事件，避免重复加载数据
             setTimeout(() => {
@@ -2962,6 +2756,20 @@
             
             // 保存预警按钮点击事件
             document.getElementById('saveWarningBtn').addEventListener('click', saveWarning);
+
+            document.getElementById('markAsProcessingBtn').addEventListener('click', async function() {
+                if (!currentWarningId) {
+                    return;
+                }
+                await markAsProcessing(currentWarningId);
+            });
+
+            document.getElementById('markAsResolvedBtn').addEventListener('click', async function() {
+                if (!currentWarningId) {
+                    return;
+                }
+                await resolveWarning(currentWarningId);
+            });
         });
     </script>
 </body>

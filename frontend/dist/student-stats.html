@@ -4,16 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>学习数据 - 智能学习辅助系统</title>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome CSS -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <link href="lib/bootstrap.min.css" rel="stylesheet">
+    <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="lib/jquery-3.6.0.min.js"></script>
     <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="lib/chart.umd.min.js"></script>
     <!-- 全局样式文件 -->
-    <link href="styles.css" rel="stylesheet">
+    <link href="styles.css?v=20260523-1" rel="stylesheet">
+    <link rel="icon" href="data:,">
     <style>
         /* 页面优化样式 */
         .content-container {
@@ -593,61 +592,17 @@
     <script>
         // 高亮当前导航项
         function highlightActiveNavItem() {
-            // 获取当前页面URL
-            const currentPage = window.location.pathname.split('/').pop() || 'index.html';
-            
-            // 移除所有导航项的active类
-            document.querySelectorAll('.menu-item').forEach(link => {
-                link.classList.remove('active');
-            });
-            
-            // 高亮当前页面的导航项
-            const activeLink = document.querySelector(`.menu-item[href="${currentPage}"]`);
-            if (activeLink) {
-                activeLink.classList.add('active');
-            }
+            CommonUI.highlightActiveNavItem({ selector: '.sidebar .menu-item, .menu-item' });
         }
         
         // 侧边栏折叠/展开功能
         window.toggleSidebar = function() {
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('mainContent');
-            
-            if (sidebar) {
-                sidebar.classList.toggle('collapsed');
-                
-                // 保存状态到localStorage
-                const isCollapsed = sidebar.classList.contains('collapsed');
-                localStorage.setItem('sidebarCollapsed', isCollapsed);
-                
-                // 同时调整主内容区的margin-left
-                if (mainContent) {
-                    if (isCollapsed) {
-                        mainContent.classList.add('collapsed');
-                    } else {
-                        mainContent.classList.remove('collapsed');
-                    }
-                }
-            }
+            return CommonUI.toggleSidebar();
         }
         
         // 初始化侧边栏状态
         function initializeSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('mainContent');
-            
-            // 从localStorage获取侧边栏状态
-            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-            
-            if (sidebar && mainContent) {
-                if (isCollapsed) {
-                    sidebar.classList.add('collapsed');
-                    mainContent.classList.add('collapsed');
-                } else {
-                    sidebar.classList.remove('collapsed');
-                    mainContent.classList.remove('collapsed');
-                }
-            }
+            CommonUI.initializeSidebar();
         }
     </script>
 </head>
@@ -658,7 +613,7 @@
     <!-- 加载侧边栏组件 -->
     <script>
         $(function() {
-            $('#sidebar-container').load('components/sidebar-nav.html', function() {
+        $('#sidebar-container').load('components/sidebar-nav.html?v=20260523-1', function() {
                 highlightActiveNavItem();
                 // 初始化侧边栏状态
                 setTimeout(initializeSidebar, 100); // 延迟执行，确保侧边栏已经加载
@@ -739,8 +694,8 @@
                         </div>
                     </div>
                     <div class="stat-value" id="studyTime">0h</div>
-                    <div class="stat-change" id="studyTimeChange">
-                        <span style="color: #64748b;">加载中...</span>
+                    <div class="stat-change" id="studyTimeMeta">
+                        <span style="color: #64748b;">当前筛选学习时长</span>
                     </div>
                 </div>
                 
@@ -752,8 +707,8 @@
                         </div>
                     </div>
                     <div class="stat-value" id="completedTasks">0</div>
-                    <div class="stat-change" id="completedTasksChange">
-                        <span style="color: #64748b;">加载中...</span>
+                    <div class="stat-change" id="completedTasksMeta">
+                        <span style="color: #64748b;">当前筛选完成任务数</span>
                     </div>
                 </div>
                 
@@ -765,8 +720,8 @@
                         </div>
                     </div>
                     <div class="stat-value" id="averageScore">0.0</div>
-                    <div class="stat-change" id="averageScoreChange">
-                        <span style="color: #64748b;">加载中...</span>
+                    <div class="stat-change" id="averageScoreMeta">
+                        <span style="color: #64748b;">当前筛选平均成绩</span>
                     </div>
                 </div>
                 
@@ -778,8 +733,8 @@
                         </div>
                     </div>
                     <div class="stat-value" id="knowledgeMastery">0.0%</div>
-                    <div class="stat-change" id="knowledgeMasteryChange">
-                        <span style="color: #64748b;">加载中...</span>
+                    <div class="stat-change" id="knowledgeMasteryMeta">
+                        <span style="color: #64748b;">当前筛选知识点掌握</span>
                     </div>
                 </div>
             </div>
@@ -875,11 +830,12 @@
     </main>
     
     <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="lib/bootstrap.bundle.min.js"></script>
     <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
     <!-- API服务文件 -->
-    <script src="api.js"></script>
+<script src="api.js?v=20260523-1"></script>
+<script src="common-ui.js?v=20260523-1"></script>
     
     <!-- 页面脚本 -->
     <script>
@@ -926,10 +882,6 @@
             
             // 先放入默认项，避免空白
             courseSelect.innerHTML = '<option value="all">全部课程</option>';
-
-            if (isJwtStatsOnlyMode()) {
-                return;
-            }
             
             try {
                 const response = await studentAPI.getStudentCourses({ page: 1, size: 100 });
@@ -1286,18 +1238,14 @@
                 } else if (response && response.success === false) {
                     // API返回了错误
                     console.error('API返回错误:', response.message || '未知错误');
-                    // 显示错误信息，但不使用模拟数据
+                    // 显示错误信息，但继续回落到默认值
                     showErrorMessage('获取统计数据失败: ' + (response.message || '未知错误'));
-                    // 使用默认值（0）而不是模拟数据
+                    // 使用默认值（0）
                     updateStatsCards({
                         studyTime: 0,
-                        studyTimeChange: 0,
                         completedTasks: 0,
-                        completedTasksChange: 0,
                         averageScore: 0.0,
-                        averageScoreChange: 0.0,
-                        knowledgeMastery: 0.0,
-                        knowledgeMasteryChange: 0.0
+                        knowledgeMastery: 0.0
                     }, filters);
                 } else {
                     // 响应格式不正确
@@ -1306,28 +1254,20 @@
                     // 使用默认值
                     updateStatsCards({
                         studyTime: 0,
-                        studyTimeChange: 0,
                         completedTasks: 0,
-                        completedTasksChange: 0,
                         averageScore: 0.0,
-                        averageScoreChange: 0.0,
-                        knowledgeMastery: 0.0,
-                        knowledgeMasteryChange: 0.0
+                        knowledgeMastery: 0.0
                     }, filters);
                 }
             } catch (error) {
                 console.error('获取学生统计数据失败:', error);
                 showErrorMessage('获取统计数据失败: ' + error.message);
-                // 使用默认值而不是模拟数据
+                // 使用默认值
                 updateStatsCards({
                     studyTime: 0,
-                    studyTimeChange: 0,
                     completedTasks: 0,
-                    completedTasksChange: 0,
                     averageScore: 0.0,
-                    averageScoreChange: 0.0,
-                    knowledgeMastery: 0.0,
-                    knowledgeMasteryChange: 0.0
+                    knowledgeMastery: 0.0
                 }, filters);
             }
         }
@@ -1346,13 +1286,9 @@
         function buildEmptyStatsPayload() {
             return {
                 studyTime: 0,
-                studyTimeChange: 0,
                 completedTasks: 0,
-                completedTasksChange: 0,
                 averageScore: 0.0,
-                averageScoreChange: 0.0,
-                knowledgeMastery: 0.0,
-                knowledgeMasteryChange: 0.0
+                knowledgeMastery: 0.0
             };
         }
 
@@ -1403,10 +1339,6 @@
         }
 
         async function applyJwtStatsOnlyFallback(filters = {}) {
-            updateStatsCards(buildEmptyStatsPayload(), filters);
-            initScoreChart(buildEmptyScoreChartData(filters.timeRange));
-            initStudyTimeChart(buildEmptyStudyTimeChartData());
-            renderKnowledgeList([]);
             await generateStudyPlanFromCourses(filters);
         }
 
@@ -1419,22 +1351,10 @@
             if (studyTimeEl) {
                 studyTimeEl.textContent = `${stats.studyTime || 0}h`;
             }
-            const studyTimeChange = document.getElementById('studyTimeChange');
-            if (studyTimeChange) {
-                if (stats.studyTimeChange !== undefined && stats.studyTimeChange !== 0) {
-                    const isPositive = stats.studyTimeChange > 0;
-                    studyTimeChange.innerHTML = `
-                        <i class="fa fa-arrow-${isPositive ? 'up' : 'down'}"></i> 
-                        比上周${isPositive ? '增加' : '减少'} ${Math.abs(stats.studyTimeChange)}%
-                    `;
-                    studyTimeChange.className = `stat-change ${isPositive ? 'positive' : 'negative'}`;
-                } else if (stats.studyTimeChange === 0) {
-                    studyTimeChange.innerHTML = '<span style="color: #64748b;"><i class="fa fa-minus"></i> 与上周持平</span>';
-                    studyTimeChange.className = 'stat-change';
-                } else {
-                    studyTimeChange.innerHTML = '<span style="color: #64748b;">暂无对比数据</span>';
-                    studyTimeChange.className = 'stat-change';
-                }
+            const studyTimeMeta = document.getElementById('studyTimeMeta');
+            if (studyTimeMeta) {
+                studyTimeMeta.innerHTML = '<span style="color: #64748b;">当前筛选学习时长</span>';
+                studyTimeMeta.className = 'stat-change';
             }
             
             // 更新完成任务数
@@ -1442,22 +1362,10 @@
             if (completedTasksEl) {
                 completedTasksEl.textContent = stats.completedTasks || stats.completedAssignments || 0;
             }
-            const completedTasksChange = document.getElementById('completedTasksChange');
-            if (completedTasksChange) {
-                if (stats.completedTasksChange !== undefined && stats.completedTasksChange !== 0) {
-                    const isPositive = stats.completedTasksChange > 0;
-                    completedTasksChange.innerHTML = `
-                        <i class="fa fa-arrow-${isPositive ? 'up' : 'down'}"></i> 
-                        比上周${isPositive ? '增加' : '减少'} ${Math.abs(stats.completedTasksChange)}
-                    `;
-                    completedTasksChange.className = `stat-change ${isPositive ? 'positive' : 'negative'}`;
-                } else if (stats.completedTasksChange === 0) {
-                    completedTasksChange.innerHTML = '<span style="color: #64748b;"><i class="fa fa-minus"></i> 与上周持平</span>';
-                    completedTasksChange.className = 'stat-change';
-                } else {
-                    completedTasksChange.innerHTML = '<span style="color: #64748b;">暂无对比数据</span>';
-                    completedTasksChange.className = 'stat-change';
-                }
+            const completedTasksMeta = document.getElementById('completedTasksMeta');
+            if (completedTasksMeta) {
+                completedTasksMeta.innerHTML = '<span style="color: #64748b;">当前筛选完成任务数</span>';
+                completedTasksMeta.className = 'stat-change';
             }
             
             // 更新平均成绩
@@ -1466,22 +1374,10 @@
                 const score = stats.averageScore || 0.0;
                 averageScoreEl.textContent = score.toFixed(1);
             }
-            const averageScoreChange = document.getElementById('averageScoreChange');
-            if (averageScoreChange) {
-                if (stats.averageScoreChange !== undefined && stats.averageScoreChange !== 0) {
-                    const isPositive = stats.averageScoreChange > 0;
-                    averageScoreChange.innerHTML = `
-                        <i class="fa fa-arrow-${isPositive ? 'up' : 'down'}"></i> 
-                        比上周${isPositive ? '提升' : '下降'} ${Math.abs(stats.averageScoreChange).toFixed(1)}
-                    `;
-                    averageScoreChange.className = `stat-change ${isPositive ? 'positive' : 'negative'}`;
-                } else if (stats.averageScoreChange === 0) {
-                    averageScoreChange.innerHTML = '<span style="color: #64748b;"><i class="fa fa-minus"></i> 与上周持平</span>';
-                    averageScoreChange.className = 'stat-change';
-                } else {
-                    averageScoreChange.innerHTML = '<span style="color: #64748b;">暂无对比数据</span>';
-                    averageScoreChange.className = 'stat-change';
-                }
+            const averageScoreMeta = document.getElementById('averageScoreMeta');
+            if (averageScoreMeta) {
+                averageScoreMeta.innerHTML = '<span style="color: #64748b;">当前筛选平均成绩</span>';
+                averageScoreMeta.className = 'stat-change';
             }
             
             // 更新知识点掌握
@@ -1490,22 +1386,10 @@
                 const mastery = stats.knowledgeMastery || 0.0;
                 knowledgeMasteryEl.textContent = `${mastery.toFixed(1)}%`;
             }
-            const knowledgeMasteryChange = document.getElementById('knowledgeMasteryChange');
-            if (knowledgeMasteryChange) {
-                if (stats.knowledgeMasteryChange !== undefined && stats.knowledgeMasteryChange !== 0) {
-                    const isPositive = stats.knowledgeMasteryChange > 0;
-                    knowledgeMasteryChange.innerHTML = `
-                        <i class="fa fa-arrow-${isPositive ? 'up' : 'down'}"></i> 
-                        比上周${isPositive ? '提升' : '下降'} ${Math.abs(stats.knowledgeMasteryChange).toFixed(1)}%
-                    `;
-                    knowledgeMasteryChange.className = `stat-change ${isPositive ? 'positive' : 'negative'}`;
-                } else if (stats.knowledgeMasteryChange === 0) {
-                    knowledgeMasteryChange.innerHTML = '<span style="color: #64748b;"><i class="fa fa-minus"></i> 与上周持平</span>';
-                    knowledgeMasteryChange.className = 'stat-change';
-                } else {
-                    knowledgeMasteryChange.innerHTML = '<span style="color: #64748b;">暂无对比数据</span>';
-                    knowledgeMasteryChange.className = 'stat-change';
-                }
+            const knowledgeMasteryMeta = document.getElementById('knowledgeMasteryMeta');
+            if (knowledgeMasteryMeta) {
+                knowledgeMasteryMeta.innerHTML = '<span style="color: #64748b;">当前筛选知识点掌握</span>';
+                knowledgeMasteryMeta.className = 'stat-change';
             }
         }
         
@@ -1844,10 +1728,6 @@
         
         // 从API获取知识点掌握数据
         async function fetchKnowledgeData(filters = {}) {
-            if (isJwtStatsOnlyMode()) {
-                renderKnowledgeList([]);
-                return;
-            }
             try {
                 // 构建查询参数
                 const params = {};
@@ -2201,10 +2081,6 @@
             return 'weekly';
         }
 
-        function applyJwtStudyTimeChartFallback() {
-            initStudyTimeChart(buildEmptyStudyTimeChartData());
-        }
-        
         // 改变学习时长图表类型
         function changeTimeChartType(type, eventElement) {
             // 移除所有按钮的激活状态
@@ -2216,11 +2092,6 @@
             const targetBtn = eventElement || document.querySelector(`[onclick*="changeTimeChartType('${type}')"]`);
             if (targetBtn) {
                 targetBtn.classList.add('active');
-            }
-            
-            if (isJwtStatsOnlyMode()) {
-                applyJwtStudyTimeChartFallback();
-                return;
             }
 
             // 重新获取数据并渲染图表
@@ -2290,6 +2161,10 @@
             try {
                 if (isJwtStatsOnlyMode()) {
                     await applyJwtStatsOnlyFallback(filters);
+                    await fetchStudentStats(filters);
+                    await fetchScoreTrend(filters);
+                    await fetchStudyTimeData(filters);
+                    await fetchKnowledgeData(filters);
                     showNotification('当前 JWT 微服务环境仅展示已接通的学习数据。', 'info');
                     return;
                 }
@@ -2338,12 +2213,6 @@
         // 刷新知识点数据
         async function refreshKnowledgeData() {
             const filters = getCurrentFilters();
-
-            if (isJwtStatsOnlyMode()) {
-                renderKnowledgeList([]);
-                showNotification('当前 JWT 微服务环境暂未接通知识点统计接口。', 'info');
-                return;
-            }
             
             // 显示加载状态
             const knowledgeList = document.getElementById('knowledgeList');
@@ -2418,45 +2287,30 @@
         
         // 检查登录状态
         function checkLoginStatus() {
-            const user = sessionStorage.getItem('user');
-            const sessionContext = window.getStudentSessionContext ? window.getStudentSessionContext() : null;
-            if (!user && !(sessionContext && sessionContext.canRender)) {
-                window.location.href = 'student-login.html';
+            if (!CommonUI.requireStudentSession({ redirectUrl: 'student-login.html' })) {
                 return false;
             }
-            // 加载用户下拉组件
-            $('#userDropdownContainer').load('components/user-dropdown.html', function(response, status, xhr) {
-                if (status == 'error') {
-                    console.error('加载用户下拉组件失败:', xhr.status, xhr.statusText);
-                } else {
-                    // 组件加载成功后初始化
-                    if (typeof UserDropdown !== 'undefined') {
-                        new UserDropdown('userDropdownContainer');
-                    }
-                }
-            });
+            CommonUI.loadUserDropdown('userDropdownContainer', 'student')
+                .catch(error => {
+                    console.error('加载用户下拉组件失败:', error);
+                });
             return true;
         }
 
         // 设置导航菜单激活状态
         function setActiveMenu() {
-            const currentPath = window.location.pathname;
-            const menuItems = document.querySelectorAll('.menu-item');
-            
-            menuItems.forEach(item => {
-                const href = item.getAttribute('href');
-                if (currentPath.includes(href)) {
-                    item.classList.add('active');
-                } else {
-                    item.classList.remove('active');
-                }
-            });
+            CommonUI.highlightActiveNavItem({ selector: '.sidebar .menu-item, .menu-item' });
         }
 
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', async function() {
-            checkLoginStatus();
+            if (!checkLoginStatus()) {
+                return;
+            }
             setActiveMenu();
+            if (window.loadFrontendCapabilities) {
+                window.loadFrontendCapabilities();
+            }
             
             // 初始化API服务
             initAPIService();
@@ -2479,6 +2333,10 @@
 
             if (isJwtStatsOnlyMode()) {
                 await applyJwtStatsOnlyFallback(initialFilters);
+                await fetchStudentStats(initialFilters);
+                await fetchScoreTrend(initialFilters);
+                await fetchStudyTimeData(initialFilters);
+                await fetchKnowledgeData(initialFilters);
             } else {
                 // 并行加载所有数据
                 await Promise.all([

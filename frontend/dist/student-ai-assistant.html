@@ -4,14 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智能后台学习辅助系统 - AI学习助手</title>
-    <!-- Bootstrap 5 CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome CDN -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <link href="lib/bootstrap.min.css" rel="stylesheet">
+    <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- 全局样式文件 -->
-    <link href="styles.css" rel="stylesheet">
+        <!-- 全局样式文件 -->
+    <link href="styles.css?v=20260523-1" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -367,12 +364,12 @@
             <div class="ai-assistant-container">
                 <div class="assistant-header">
                     <div class="assistant-icon">
-                        <i class="fas fa-robot"></i>
+                        <i class="fas fa-magic"></i>
                     </div>
                     <h1>AI学习助手</h1>
                     <p>随时随地为您解答学习问题，提供个性化学习建议</p>
                     <div class="assistant-mode-banner" id="assistantModeBanner">
-                        当前页面为演示模式：会展示本地模拟回复，不会调用真实 AI 服务。
+                        当前已接通：AI学习建议。自由问答暂不可用，请先使用学习建议能力。
                     </div>
                 </div>
                 
@@ -381,23 +378,23 @@
                         <!-- 欢迎消息 -->
                         <div class="message ai">
                             <div class="message-avatar">
-                                    <i class="fas fa-robot"></i>
+                            <i class="fas fa-magic"></i>
                                 </div>
                             <div class="message-content">
-                                <p>你好！我是你的AI学习助手。有什么学习问题需要我帮助解答的吗？</p>
+                                <p>你好！我是你的AI学习助手。目前我可以基于你的学生身份生成学习建议；通用自由问答还未接通。</p>
                             </div>
                         </div>
                     </div>
                     
                     <div class="chat-input-container">
                         <div class="quick-questions">
-                            <button class="quick-question-btn" onclick="sendQuickQuestion('Python的面向对象编程怎么理解？')">Python的面向对象编程怎么理解？</button>
-                            <button class="quick-question-btn" onclick="sendQuickQuestion('数据库索引的作用是什么？')">数据库索引的作用是什么？</button>
-                            <button class="quick-question-btn" onclick="sendQuickQuestion('数据结构中链表和数组的区别？')">数据结构中链表和数组的区别？</button>
+                            <button class="quick-question-btn" onclick="sendQuickQuestion('生成我的学习建议')">生成我的学习建议</button>
+                            <button class="quick-question-btn" onclick="sendQuickQuestion('给我本周复习建议')">给我本周复习建议</button>
+                            <button class="quick-question-btn" onclick="sendQuickQuestion('帮我梳理当前学习重点')">帮我梳理当前学习重点</button>
                         </div>
                         
                         <form class="chat-input-form" id="chatForm">
-                            <textarea class="chat-input" id="chatInput" placeholder="请输入你的问题..." rows="3"></textarea>
+                            <textarea class="chat-input" id="chatInput" placeholder="可输入“生成学习建议”或“复习建议”，当前暂不支持通用问答..." rows="3"></textarea>
                             <button type="submit" class="send-btn">
                                 <i class="fas fa-paper-plane"></i> 发送
                             </button>
@@ -409,10 +406,10 @@
     </main>
 
     <!-- jQuery CDN -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="lib/jquery-3.6.0.min.js"></script>
     
     <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="lib/bootstrap.bundle.min.js"></script>
     <script>
         // 高亮当前导航项
         function highlightActiveNavItem() {
@@ -480,7 +477,7 @@
             
             // 初始化组件加载
             $(function() {
-                $('#sidebar-container').load('components/sidebar-nav.html', function() {
+                $('#sidebar-container').load('components/sidebar-nav.html?v=20260523-1', function() {
                     highlightActiveNavItem();
                     // 初始化侧边栏状态
                     setTimeout(initializeSidebar, 100); // 延迟执行，确保侧边栏已经加载
@@ -500,22 +497,17 @@
             const assistantModeBanner = document.getElementById('assistantModeBanner');
 
             if (assistantModeBanner && window.isJwtOnlyStudentSession && window.isJwtOnlyStudentSession()) {
-                assistantModeBanner.textContent = '当前 JWT 微服务联调环境下，AI 助手仍处于前端演示模式：消息会显示本地模拟回复，不会调用真实 AI 服务。';
+                assistantModeBanner.textContent = '当前 JWT 微服务环境已接通：AI学习建议。自由问答暂不可用，请先使用学习建议能力。';
             }
             
-            chatForm.addEventListener('submit', function(e) {
+            chatForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const message = chatInput.value.trim();
                 
                 if (message) {
-                    // 添加用户消息
                     addMessage('user', message);
                     chatInput.value = '';
-                    
-                    // 模拟AI回复
-                    setTimeout(() => {
-                        addMessage('ai', getAIMockResponse(message));
-                    }, 1000);
+                    await handleStudentAiRequest(message);
                 }
             });
         });
@@ -530,7 +522,7 @@
             
             // 加载用户下拉组件
             if ($('#userDropdownContainer').length > 0) {
-                $('#userDropdownContainer').load('components/user-dropdown.html', function() {
+                $('#userDropdownContainer').load('components/user-dropdown.html?v=20260523-1', function() {
                     // 组件加载完成后初始化
                     if (typeof UserDropdown !== 'undefined') {
                         new UserDropdown('userDropdownContainer');
@@ -547,7 +539,7 @@
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}`;
             
-            const avatarIcon = type === 'user' ? 'fas fa-user' : 'fas fa-robot';
+            const avatarIcon = type === 'user' ? 'fas fa-user' : 'fas fa-magic';
             const avatarClass = type === 'user' ? 'user-avatar' : 'ai-avatar';
             
             messageDiv.innerHTML = `
@@ -555,12 +547,114 @@
                     <i class="${avatarIcon}"></i>
                 </div>
                 <div class="message-content">
-                    <p>${content}</p>
+                    ${content}
                 </div>
             `;
             
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function getStudentAiCsrfToken() {
+            if (typeof window !== 'undefined' && typeof window.getCsrfToken === 'function') {
+                return window.getCsrfToken();
+            }
+            if (typeof document === 'undefined' || !document.cookie) {
+                return null;
+            }
+            const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+            return match ? decodeURIComponent(match[1]) : null;
+        }
+
+        async function requestStudentLearningSuggestions(context = {}) {
+            const accessToken = sessionStorage.getItem('token');
+            if (!accessToken) {
+                throw new Error('当前登录状态已失效，请重新登录后再试。');
+            }
+
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+            };
+            const csrfToken = getStudentAiCsrfToken();
+            if (csrfToken) {
+                headers['X-XSRF-TOKEN'] = csrfToken;
+            }
+
+            const response = await fetch('/api/ai/learning-suggestions', {
+                method: 'POST',
+                credentials: 'include',
+                headers,
+                body: JSON.stringify({})
+            });
+
+            const result = await response.json().catch(() => null);
+            if (!response.ok || !result?.success) {
+                throw new Error(result?.message || `AI 请求失败（${response.status}）`);
+            }
+            return result.data || {};
+        }
+
+        function classifyAssistantRequest(message) {
+            const normalizedMessage = (message || '').trim().toLowerCase();
+            const learningSuggestionKeywords = [
+                '学习建议',
+                '复习建议',
+                '学习重点',
+                '复习重点',
+                '学习计划',
+                '帮我复习',
+                '生成建议'
+            ];
+            return learningSuggestionKeywords.some(keyword => normalizedMessage.includes(keyword.toLowerCase()))
+                ? 'learning-suggestions'
+                : 'unsupported-chat';
+        }
+
+        function buildLearningSuggestionMessage(payload, context = {}) {
+            const suggestions = Array.isArray(payload?.suggestions) ? payload.suggestions : [];
+            const title = context.title || 'AI学习建议';
+            const items = suggestions.length > 0
+                ? `<ul>${suggestions.map(item => `<li>${item}</li>`).join('')}</ul>`
+                : '<p>当前没有可展示的学习建议。</p>';
+            return `
+                <p><strong>${title}</strong></p>
+                <p>以下建议基于你当前的学生身份生成：</p>
+                ${items}
+            `;
+        }
+
+        function buildUnsupportedChatMessage(question) {
+            const safeQuestion = question
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+            return `
+                <p><strong>自由问答暂不可用</strong></p>
+                <p>当前运行时仅支持学习建议，暂不支持通用聊天问答。</p>
+                <p>你刚才的问题是：${safeQuestion}</p>
+                <p>可以试试“生成我的学习建议”或“给我本周复习建议”。</p>
+            `;
+        }
+
+        async function handleStudentAiRequest(message, context = {}) {
+            const requestType = classifyAssistantRequest(message);
+            if (requestType === 'learning-suggestions') {
+                try {
+                    const result = await requestStudentLearningSuggestions(context);
+                    addMessage('ai', buildLearningSuggestionMessage(result, context));
+                } catch (error) {
+                    addMessage('ai', `
+                        <p><strong>学习建议暂不可用</strong></p>
+                        <p>${error.message || '当前无法生成学习建议，请稍后再试。'}</p>
+                    `);
+                }
+                return;
+            }
+
+            addMessage('ai', buildUnsupportedChatMessage(message));
         }
         
         // 快速提问
@@ -569,32 +663,8 @@
             chatInput.value = question;
             document.getElementById('chatForm').dispatchEvent(new Event('submit'));
         }
-        
-        // AI模拟回复
-        function getAIMockResponse(question) {
-            // 简单的模拟回复逻辑
-            const responses = {
-                'python': 'Python是一种解释型、面向对象、动态数据类型的高级程序设计语言...',
-                '面向对象': '面向对象编程是一种编程范式，它将数据和操作数据的方法封装在一起...',
-                '数据库': '数据库是按照数据结构来组织、存储和管理数据的仓库...',
-                '索引': '索引是对数据库表中一列或多列的值进行排序的一种结构...',
-                '数据结构': '数据结构是计算机中组织数据的方式，以及作用于这些数据的算法...',
-                '链表': '链表是一种物理存储单元上非连续、非顺序的存储结构...',
-                '数组': '数组是一种线性表数据结构，它用一组连续的内存空间，来存储一组具有相同类型的数据...'
-            };
-            
-            const lowerQuestion = question.toLowerCase();
-            
-            for (const [key, response] of Object.entries(responses)) {
-                if (lowerQuestion.includes(key)) {
-                    return response;
-                }
-            }
-            
-            return '感谢你的提问！我正在努力学习相关知识，以便更好地回答你的问题。';
-        }
     </script>
     <!-- API服务 -->
-    <script src="api.js"></script>
+    <script src="api.js?v=20260523-1"></script>
 </body>
 </html>

@@ -5,9 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智能后台学习辅助系统 - 学生登录</title>
     <link href="lib/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
+    <link href="lib/font-awesome.min.css" rel="stylesheet">
+        <style>
         body {
             font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -103,6 +102,7 @@
             <p data-i18n="login.student.subtitle">智能后台学习辅助系统</p>
         </div>
         <div class="login-body">
+            <div id="loginMessage" style="display: none; margin-bottom: 16px;"></div>
             <form id="loginForm">
                 <div class="form-group">
                     <label for="username" data-i18n="login.form.username">用户名</label>
@@ -132,7 +132,7 @@
             </div>
         </div>
         <div class="toggle-auth">
-            <p><span data-i18n="login.links.switch_to_teacher">您是教师？</span><a href="teacher-login.html?v=20260516-2" data-i18n="login.links.click_to_login">点击登录</a></p>
+            <p><span data-i18n="login.links.switch_to_teacher">您是教师？</span><a href="teacher-login.html?v=20260523-1" data-i18n="login.links.click_to_login">点击登录</a></p>
         </div>
         <div class="language-switcher">
             <a href="#" class="lang-btn active" data-lang="zh-CN">中文</a>
@@ -142,12 +142,27 @@
             <a href="#" class="lang-btn" data-lang="ja-JP">日本語</a>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="i18n.js?v=20260516-2"></script>
-<script src="api.js?v=20260516-2"></script>
+    <script src="lib/bootstrap.bundle.min.js"></script>
+<script src="i18n.js?v=20260523-1"></script>
+<script src="api.js?v=20260523-1"></script>
 
     <script>
         var studentCaptchaKey = '';
+
+        function showLoginMessage(message, type) {
+            var container = document.getElementById('loginMessage');
+            if (!container) return;
+            var alertType = type === 'success' ? 'alert-success' : 'alert-danger';
+            container.innerHTML = '<div class="alert ' + alertType + ' mb-0" role="alert">' + message + '</div>';
+            container.style.display = 'block';
+        }
+
+        function clearLoginMessage() {
+            var container = document.getElementById('loginMessage');
+            if (!container) return;
+            container.innerHTML = '';
+            container.style.display = 'none';
+        }
 
         async function refreshStudentCaptcha() {
             var captchaImage = document.getElementById('captchaImage');
@@ -164,7 +179,7 @@
             } catch (error) {
                 console.error('Captcha load error:', error);
                 captchaImage.removeAttribute('src');
-                alert(I18nManager.t('login.errors.request_failed'));
+                showLoginMessage(I18nManager.t('login.errors.request_failed'), 'error');
             }
         }
 
@@ -178,13 +193,14 @@
         
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+            clearLoginMessage();
             var formData = new FormData(this);
             var username = formData.get('username');
             var password = formData.get('password');
             var captcha = formData.get('captcha');
             
             if (!username || !password) {
-                alert(I18nManager.t('login.errors.empty_fields'));
+                showLoginMessage(I18nManager.t('login.errors.empty_fields'), 'error');
                 return;
             }
             
@@ -198,14 +214,14 @@
                     }
                     var result = await window.authAPI.login(username, password, captcha, studentCaptchaKey);
                     if (!result || result.success === false) {
-                        alert(result && result.message ? result.message : I18nManager.t('login.errors.request_failed'));
+                        showLoginMessage(result && result.message ? result.message : I18nManager.t('login.errors.request_failed'), 'error');
                     await refreshStudentCaptcha();
                     loginBtn.disabled = false;
                     loginBtn.textContent = I18nManager.t('login.form.submit');
                     return;
                 }
                 if (!result.data) {
-                    alert(I18nManager.t('login.errors.no_user_info'));
+                    showLoginMessage(I18nManager.t('login.errors.no_user_info'), 'error');
                     await refreshStudentCaptcha();
                     loginBtn.disabled = false;
                         loginBtn.textContent = I18nManager.t('login.form.submit');
@@ -217,14 +233,14 @@
                     if (result.data.user && result.data.user.roles && result.data.user.roles.includes('STUDENT')) {
                         window.location.href = 'student-dashboard.html';
                     } else {
-                        alert(I18nManager.t('login.errors.not_student'));
+                        showLoginMessage(I18nManager.t('login.errors.not_student'), 'error');
                         await refreshStudentCaptcha();
                         loginBtn.disabled = false;
                         loginBtn.textContent = I18nManager.t('login.form.submit');
                     }
                 } catch (error) {
                 console.error('Login error:', error);
-                alert(error.message || I18nManager.t('login.errors.invalid_credentials'));
+                showLoginMessage(error.message || I18nManager.t('login.errors.invalid_credentials'), 'error');
                 await refreshStudentCaptcha();
                 loginBtn.disabled = false;
                 loginBtn.textContent = I18nManager.t('login.form.submit');

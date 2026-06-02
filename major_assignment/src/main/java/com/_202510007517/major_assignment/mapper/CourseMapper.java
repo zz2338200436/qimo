@@ -39,6 +39,9 @@ public interface CourseMapper {
     // UNION ALL 子查询 → 见 CourseMapper.xml
     Double getCourseAverageScore(Long courseId);
 
+    // foreach + UNION ALL 子查询 → 见 CourseMapper.xml
+    List<Map<String, Object>> batchGetCourseAverageScoresByCourseIds(@Param("courseIds") List<Long> courseIds);
+
     // UNION ALL 子查询 → 见 CourseMapper.xml
     List<Double> getCourseScores(Long courseId);
 

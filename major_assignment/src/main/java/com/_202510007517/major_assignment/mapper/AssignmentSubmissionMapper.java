@@ -58,6 +58,7 @@ public interface AssignmentSubmissionMapper {
     List<Map<String, Object>> getAssignmentScoreTrend(@Param("teacherId") Long teacherId,
                                                       @Param("classId") Long classId,
                                                       @Param("courseId") Long courseId,
+                                                      @Param("studentId") Long studentId,
                                                       @Param("startDate") java.util.Date startDate,
                                                       @Param("endDate") java.util.Date endDate);
 

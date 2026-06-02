@@ -59,6 +59,31 @@
         ) AS all_scores
     </select>
 
+    <!-- 批量获取多个课程的平均分：foreach + UNION ALL 子查询 → XML -->
+    <select id="batchGetCourseAverageScoresByCourseIds" resultType="java.util.Map">
+        SELECT c.id as courseId,
+               (
+                   SELECT AVG(score) FROM (
+                       SELECT asub.score
+                       FROM assignment_submissions asub
+                       WHERE asub.assignment_id IN (SELECT id FROM assignments WHERE course_id = c.id)
+                         AND CAST(asub.graded AS UNSIGNED) = 1
+                         AND asub.score IS NOT NULL AND asub.score &gt; 0
+                       UNION ALL
+                       SELECT es.score
+                       FROM exam_submissions es
+                       WHERE es.exam_id IN (SELECT id FROM exams WHERE course_id = c.id)
+                         AND CAST(es.graded AS UNSIGNED) = 1
+                         AND es.score IS NOT NULL AND es.score &gt; 0
+                   ) AS all_scores
+               ) as averageScore
+        FROM courses c
+        WHERE c.id IN
+        <foreach item="id" collection="courseIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
     <!-- 课程所有分数：UNION ALL 子查询 → XML -->
     <select id="getCourseScores" resultType="java.lang.Double">
         SELECT score

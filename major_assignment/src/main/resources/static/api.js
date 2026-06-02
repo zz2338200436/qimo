@@ -231,7 +231,7 @@ function getStudentSessionContext() {
     };
 }
 
-const STUDENT_MICROSERVICE_CAPABILITIES = Object.freeze({
+const DEFAULT_STUDENT_MICROSERVICE_CAPABILITIES = Object.freeze({
     dashboardPerformance: false,
     courses: true,
     courseDetail: true,
@@ -248,12 +248,49 @@ const STUDENT_MICROSERVICE_CAPABILITIES = Object.freeze({
     studentProfile: true,
     studentProfileUpdate: true,
     changePassword: true,
-    notificationSettings: true,
-    privacySettings: true,
+    notificationSettings: false,
+    privacySettings: false,
     exportData: true,
-    avatarUpload: false,
+    avatarUpload: true,
     activities: false
 });
+
+let runtimeStudentCapabilities = null;
+let frontendCapabilitiesPromise = null;
+
+function getStudentCapabilities() {
+    return runtimeStudentCapabilities || DEFAULT_STUDENT_MICROSERVICE_CAPABILITIES;
+}
+
+async function loadFrontendCapabilities(forceRefresh = false) {
+    if (frontendCapabilitiesPromise && !forceRefresh) {
+        return frontendCapabilitiesPromise;
+    }
+
+    frontendCapabilitiesPromise = (async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/frontend/capabilities`, {
+                method: 'GET',
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                return null;
+            }
+
+            const payload = await response.json().catch(() => null);
+            const studentCapabilities = payload?.data?.student;
+            if (studentCapabilities && typeof studentCapabilities === 'object') {
+                runtimeStudentCapabilities = Object.assign({}, DEFAULT_STUDENT_MICROSERVICE_CAPABILITIES, studentCapabilities);
+            }
+            return payload?.data || null;
+        } catch (error) {
+            return null;
+        }
+    })();
+
+    return frontendCapabilitiesPromise;
+}
 
 function studentCapabilitySupported(capability) {
     if (!capability) {
@@ -262,17 +299,14 @@ function studentCapabilitySupported(capability) {
     if (!isJwtOnlyStudentSession()) {
         return true;
     }
-    return STUDENT_MICROSERVICE_CAPABILITIES[capability] !== false;
+    return getStudentCapabilities()[capability] !== false;
 }
 
 function getStudentCapabilityMessage(capability, fallbackMessage) {
     const capabilityMessages = {
         dashboardPerformance: '当前 JWT 微服务环境暂未提供学生综合表现接口，页面将改用已接通的数据源进行统计。',
-        exams: '当前 JWT 微服务环境暂未提供考试列表接口，相关入口会以空态方式展示。',
-        examDetail: '当前 JWT 微服务环境暂未提供考试详情接口，请先使用已接通的作业与课程能力。',
-        examSubmit: '当前 JWT 微服务环境暂未提供考试提交接口，请先使用已接通的作业能力。',
         activities: '当前 JWT 微服务环境暂未提供学生活动流接口，已仅展示可用数据。',
-        avatarUpload: '当前 JWT 微服务环境暂未提供头像上传接口，请先使用其它资料编辑项。'
+        avatarUpload: '当前 JWT 微服务环境已接通头像上传接口。'
     };
     return capabilityMessages[capability] || fallbackMessage || '当前环境暂未提供该学生功能。';
 }
@@ -371,13 +405,16 @@ function shouldIncludeEarlyWarningsForTeacherStats(options = {}) {
 
     window.fetch = function patchedFetch(input, init) {
         try {
-            const url = typeof input === 'string' ? input : (input && input.url);
+            const originalUrl = typeof input === 'string' ? input : (input && input.url);
+            const url = toBackendUrl(originalUrl);
             const method = (init && init.method) || (input && input.method) || 'GET';
+            const isLoginRequest = isAuthLoginRequest(originalUrl || url);
 
             if (isSameBackend(url)) {
                 const roleContext = getRoleContext();
+                const accessToken = isLoginRequest ? null : getAccessToken();
                 const token = needsCsrf(method) ? getCsrfToken() : null;
-                if (token || roleContext) {
+                if (token || roleContext || accessToken) {
                     const headers = new Headers((init && init.headers) || (input && input.headers) || undefined);
                     if (token && !headers.has('X-XSRF-TOKEN')) {
                         headers.set('X-XSRF-TOKEN', token);
@@ -385,8 +422,16 @@ function shouldIncludeEarlyWarningsForTeacherStats(options = {}) {
                     if (roleContext && !headers.has('X-Role-Context')) {
                         headers.set('X-Role-Context', roleContext);
                     }
+                    if (accessToken && !headers.has('Authorization')) {
+                        headers.set('Authorization', `Bearer ${accessToken}`);
+                    }
                     init = Object.assign({}, init, { headers });
                 }
+            }
+            if (typeof input === 'string') {
+                input = url;
+            } else if (input && input.url && url !== input.url) {
+                input = new Request(url, input);
             }
         } catch (e) {
             // 不影响主流程
@@ -403,21 +448,32 @@ class APIService {
         this.baseUrl = API_BASE_URL;
     }
     
-    async request(url, options = {}) {
+    async request(url, options = {}, retryState = { attemptedRefresh: false }) {
         try {
             // 后端使用基于Session的认证，不需要Token
             console.log('API请求URL:', url);
             const csrfToken = getCsrfToken();
             const roleContext = getRoleContext();
+            const isLoginRequest = isAuthLoginRequest(url);
+            if (!isLoginRequest && !retryState.attemptedRefresh) {
+                const currentToken = getAccessToken();
+                if (currentToken && isJwtLikelyExpired(currentToken)) {
+                    await tryRefreshAuthSession();
+                }
+            }
             const headers = {
                 ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
                 ...options.headers
             };
+            const accessToken = isLoginRequest ? null : getAccessToken();
             if (csrfToken && !headers['X-XSRF-TOKEN']) {
                 headers['X-XSRF-TOKEN'] = csrfToken;
             }
             if (roleContext && !headers['X-Role-Context']) {
                 headers['X-Role-Context'] = roleContext;
+            }
+            if (accessToken && !headers['Authorization']) {
+                headers['Authorization'] = `Bearer ${accessToken}`;
             }
             
             const response = await fetch(`${this.baseUrl}${url}`, {
@@ -480,7 +536,17 @@ class APIService {
                 data?.code === 403
             );
             if (unauthorized) {
-                console.error('未授权或权限不足，请重新登录');
+                const tokenExpired = typeof (data?.message || data?.error) === 'string'
+                    && (data.message || data.error).includes('JWT 已过期');
+                if (!retryState.attemptedRefresh && tokenExpired) {
+                    const refreshed = await tryRefreshAuthSession();
+                    if (refreshed) {
+                        return this.request(url, options, { attemptedRefresh: true });
+                    }
+                }
+                if (!shouldSilenceUnauthorizedLog(url)) {
+                    console.error('未授权或权限不足，请重新登录');
+                }
                 return {
                     success: false,
                     code: response.status || data?.code || 401,
@@ -574,6 +640,9 @@ class APIService {
 
 // 全局错误捕获
 window.addEventListener('error', function(errorEvent) {
+    if (!window.__ENABLE_BROWSER_ERROR_REPORTING__) {
+        return;
+    }
     const error = {
         errorType: 'JavaScript Error',
         errorMessage: errorEvent.message,
@@ -593,6 +662,9 @@ window.addEventListener('error', function(errorEvent) {
 
 // 全局未处理Promise拒绝捕获
 window.addEventListener('unhandledrejection', function(promiseRejectionEvent) {
+    if (!window.__ENABLE_BROWSER_ERROR_REPORTING__) {
+        return;
+    }
     const error = {
         errorType: 'Unhandled Promise Rejection',
         errorMessage: promiseRejectionEvent.reason ? 
@@ -617,12 +689,19 @@ class AuthAPI {
         this.apiService = apiService;
     }
     
-    async login(username, password, captcha) {
-        return this.apiService.post('/api/auth/login', {
+    async login(username, password, captcha, captchaKey) {
+        const result = await this.apiService.post('/api/auth/login', {
             username,
             password,
-            captcha
+            captcha,
+            captchaKey
         });
+
+        if (result?.success && result?.data) {
+            persistAuthSession(result.data);
+        }
+
+        return result;
     }
     
     async getCurrentUser() {
@@ -631,9 +710,7 @@ class AuthAPI {
     
     logout() {
         // 清除sessionStorage中的用户信息（每个标签页独立）
-        sessionStorage.removeItem('user');
-        sessionStorage.removeItem('token');
-        sessionStorage.removeItem('userId');
+        clearAuthSession();
         // 跳转到登录页面
         window.location.href = 'index.html';
     }
@@ -673,24 +750,21 @@ class StudentAPI {
     getExams(params = {}) {
         return guardStudentCapability(
             'exams',
-            () => this.apiService.get('/api/student/exams', params),
-            '当前 JWT 微服务环境暂未提供考试列表接口。'
+            () => this.apiService.get('/api/student/exams', params)
         );
     }
     
     getExamDetail(examId) {
         return guardStudentCapability(
             'examDetail',
-            () => this.apiService.get(`/api/student/exams/${examId}`),
-            '当前 JWT 微服务环境暂未提供考试详情接口。'
+            () => this.apiService.get(`/api/student/exams/${examId}`)
         );
     }
     
     getScores() {
         return guardStudentCapability(
             'scores',
-            () => this.apiService.get('/api/student/scores'),
-            '当前 JWT 微服务环境暂未提供成绩查询接口。'
+            () => this.apiService.get('/api/student/scores')
         );
     }
     
@@ -726,8 +800,7 @@ class StudentAPI {
     getExamSubmissions() {
         return guardStudentCapability(
             'examSubmit',
-            () => this.apiService.get('/api/student/exam-submissions'),
-            '当前 JWT 微服务环境暂未提供考试提交记录接口。'
+            () => this.apiService.get('/api/student/exam-submissions')
         );
     }
     
@@ -750,8 +823,7 @@ class StudentAPI {
                 method: 'POST',
                 body: formData,
                 headers: {}
-            }),
-            '当前 JWT 微服务环境暂未提供考试提交接口。'
+            })
         );
     }
     
@@ -759,14 +831,15 @@ class StudentAPI {
     submitExamJson(examId, data) {
         return guardStudentCapability(
             'examSubmit',
-            () => this.apiService.post(`/api/student/exams/${examId}/submit`, data),
-            '当前 JWT 微服务环境暂未提供考试提交接口。'
+            () => this.apiService.post(`/api/student/exams/${examId}/submit`, data)
         );
     }
     
     // 通知相关API方法
     getNotifications(page = 1, size = 10, filter = 'all') {
+        const studentId = getCurrentUserId();
         return this.apiService.get(`/api/notifications/student`, {
+            studentId,
             page,
             size,
             filter
@@ -774,27 +847,41 @@ class StudentAPI {
     }
     
     getAllNotifications() {
-        return this.apiService.get(`/api/notifications/student/all`);
+        const studentId = getCurrentUserId();
+        return this.apiService.get(`/api/notifications/student/all`, {
+            studentId
+        });
     }
     
     getUnreadNotificationCount() {
-        return this.apiService.get(`/api/notifications/student/unread-count`);
+        const studentId = getCurrentUserId();
+        return this.apiService.get(`/api/notifications/student/unread-count`, {
+            studentId
+        });
     }
     
     markNotificationAsRead(notificationId) {
-        return this.apiService.put(`/api/notifications/${notificationId}/read`);
+        const studentId = getCurrentUserId();
+        const query = studentId ? `?studentId=${encodeURIComponent(studentId)}` : '';
+        return this.apiService.put(`/api/notifications/${notificationId}/read${query}`);
     }
     
     markAllNotificationsAsRead() {
-        return this.apiService.put(`/api/notifications/read-all`);
+        const studentId = getCurrentUserId();
+        const query = studentId ? `?studentId=${encodeURIComponent(studentId)}` : '';
+        return this.apiService.put(`/api/notifications/read-all${query}`);
     }
     
     deleteNotification(notificationId) {
-        return this.apiService.delete(`/api/notifications/${notificationId}`);
+        const studentId = getCurrentUserId();
+        const query = studentId ? `?studentId=${encodeURIComponent(studentId)}` : '';
+        return this.apiService.delete(`/api/notifications/${notificationId}${query}`);
     }
     
     deleteAllReadNotifications() {
-        return this.apiService.delete(`/api/notifications/delete-all-read`);
+        const studentId = getCurrentUserId();
+        const query = studentId ? `?studentId=${encodeURIComponent(studentId)}` : '';
+        return this.apiService.delete(`/api/notifications/delete-all-read${query}`);
     }
     
     // 设置相关API方法
@@ -811,10 +898,9 @@ class StudentAPI {
     
     // 修改学生密码
     changePassword(currentPassword, newPassword, confirmPassword) {
-        return this.apiService.post('/api/student/change-password', {
+        return this.apiService.post('/api/auth/change-password', {
             currentPassword,
-            newPassword,
-            confirmPassword
+            newPassword
         });
     }
     
@@ -839,15 +925,11 @@ class StudentAPI {
     }
     
     // 上传学生头像
-    uploadAvatar(formData) {
+    uploadAvatar(avatarData) {
         return guardStudentCapability(
             'avatarUpload',
-            () => this.apiService.request('/api/student/upload-avatar', {
-                method: 'POST',
-                body: formData,
-                headers: {}
-            }),
-            '当前 JWT 微服务环境暂未提供头像上传接口。'
+            () => this.apiService.post('/api/student/upload-avatar', avatarData),
+            '当前 JWT 微服务环境已接通头像上传接口。'
         );
     }
     
@@ -927,7 +1009,7 @@ class TeacherAPI {
     }
     
     getTeacherDashboard() {
-        return this.apiService.get('/api/teacher/dashboard');
+        return buildTeacherDashboardResponse();
     }
     
     // 新增方法：创建作业
@@ -971,15 +1053,18 @@ class TeacherAPI {
         const requestData = {
             title: data.title,
             description: data.description,
-            course_id: data.courseId, // 使用下划线命名，与数据库字段一致
-            start_time: data.startTime, // 使用下划线命名，与数据库字段一致
-            end_time: data.endTime, // 使用下划线命名，与数据库字段一致
-            publish_date: data.publishDate, // 使用下划线命名，与数据库字段一致
+            courseId: data.courseId,
+            startTime: data.startTime,
+            endTime: data.endTime,
+            publishDate: data.publishDate,
             duration: data.duration,
-            is_active: data.isActive, // 使用下划线命名，与数据库字段一致
-            is_online: data.isOnline, // 使用下划线命名，与数据库字段一致
+            isActive: data.isActive,
+            isOnline: data.isOnline,
             location: data.location
         };
+        if (Array.isArray(data.knowledgePointIds)) {
+            requestData.knowledgePointIds = data.knowledgePointIds;
+        }
         return this.apiService.post('/api/teacher/exams', requestData);
     }
     
@@ -1018,7 +1103,9 @@ class TeacherAPI {
     
     // 新增方法：发送通知
     sendNotification(data) {
-        return this.apiService.post('/api/notifications/teacher/send', data);
+        const teacherId = getCurrentUserId();
+        const query = teacherId ? `?teacherId=${encodeURIComponent(teacherId)}` : '';
+        return this.apiService.post(`/api/notifications/teacher/send${query}`, data);
     }
     
     // 新增方法：批量发送通知
@@ -1057,6 +1144,10 @@ class TeacherAPI {
     getKnowledgePoints(params = {}) {
         return this.apiService.get('/api/teacher/knowledge-points', params);
     }
+
+    getKnowledgePointsByCourse(courseId) {
+        return this.apiService.get(`/api/teacher/knowledge-points/course/${courseId}`);
+    }
     
     // 新增方法：获取知识点分析数据
     getKnowledgePointAnalysis(params = {}) {
@@ -1067,10 +1158,15 @@ class TeacherAPI {
     updateStudent(studentId, data) {
         return this.apiService.put(`/api/teacher/students/${studentId}`, data);
     }
+
+    // 新增方法：向班级添加学生（支持学生ID或用户名）
+    addStudentToClass(classId, data) {
+        return this.apiService.post(`/api/teacher/classes/${classId}/students`, data);
+    }
     
     // 新增方法：获取教师仪表盘数据
     getDashboard(params = {}) {
-        return this.apiService.get('/api/teacher/dashboard', params);
+        return buildTeacherDashboardResponse(params);
     }
     
     // 新增方法：获取学情预警列表
@@ -1127,8 +1223,8 @@ async function fetchAPI(url, options = {}) {
         console.log('3. API_BASE_URL:', API_BASE_URL);
         console.log('4. 完整请求URL:', apiUrl);
         
-        // 后端使用基于Session的认证，不需要Token
-        console.log('5. 基于Session的认证，不需要Token');
+        const accessToken = getAccessToken();
+        console.log('5. 当前Token状态:', accessToken ? '已获取' : '未获取');
         
         // 发送请求
         console.log('6. 发送请求...');
@@ -1137,6 +1233,7 @@ async function fetchAPI(url, options = {}) {
             ...options,
             headers: {
                 'Content-Type': 'application/json',
+                ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
                 ...options.headers
             }
         });
@@ -1281,6 +1378,8 @@ async function loadCourses() {
 
 // 更新课程选择器
 function updateCourseSelectors(courses) {
+    const pageName = getCurrentPageName();
+    const shouldWarnMissingSelector = !['teacher-notifications.html', 'teacher-settings.html'].includes(pageName);
     const courseSelectors = [
         '#assignment-course',
         '#exam-course',
@@ -1323,7 +1422,9 @@ function updateCourseSelectors(courses) {
                 select.appendChild(option);
             }
         } else {
-            console.warn('12. 课程选择器未找到:', selector);
+            if (shouldWarnMissingSelector) {
+                console.warn('12. 课程选择器未找到:', selector);
+            }
         }
     });
 }
@@ -1332,6 +1433,7 @@ function updateCourseSelectors(courses) {
 async function loadClasses() {
     try {
         console.log('=== 开始加载班级流程 ===');
+        const accessToken = getAccessToken();
         // 尝试获取班级数据
         let classes = [];
         try {
@@ -1343,7 +1445,8 @@ async function loadClasses() {
                 method: 'GET',
                 credentials: 'include',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
                 }
             });
             
@@ -1370,7 +1473,8 @@ async function loadClasses() {
                     method: 'GET',
                     credentials: 'include',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
                     }
                 });
                 
@@ -1463,1163 +1567,11 @@ async function loadClasses() {
     }
 }
 
-// 加载作业列表
-async function loadAssignments(page = 1, params = {}) {
-    try {
-        const tbody = document.getElementById('assignments-table-body');
-        if (!tbody) return;
-        
-        // 显示加载状态
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">加载中...</td></tr>';
-        
-        // 合并参数
-        const requestParams = {
-            page: page,
-            size: 10,
-            ...params
-        };
-        
-        // 调用API获取作业列表
-        const data = await window.teacherAPI.getAssignments(requestParams);
-        console.log('作业列表响应数据:', data);
-        
-        // 处理API返回null的情况
-        if (!data) {
-            throw new Error('API请求失败，未返回数据');
-        }
-        
-        // 检查API返回的success字段
-        if (data.success === false) {
-            throw new Error(data.message || 'API请求失败');
-        }
-        
-        // 获取作业列表和分页信息
-        const responseData = data.data || {};
-        let assignments = responseData.content || [];
-        const pageInfo = {
-            pageNumber: page,
-            totalPages: responseData.totalPages || 1,
-            totalElements: responseData.totalElements || assignments.length,
-            pageSize: responseData.size || 10
-        };
-        
-        // 渲染作业列表
-        renderAssignments(assignments);
-        
-        // 渲染分页控件
-        const paginationContainer = document.getElementById('assignments-pagination');
-        if (paginationContainer) {
-            // 保存当前筛选条件到分页容器的dataset中，以便生成分页链接时使用
-            paginationContainer.dataset.currentParams = JSON.stringify(params);
-            renderPagination(paginationContainer, pageInfo, 'loadAssignments');
-        }
-    } catch (error) {
-        console.error('Failed to load assignments:', error);
-        const tbody = document.getElementById('assignments-table-body');
-        if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">加载失败: ${error.message}</td></tr>`;
-        }
-    }
-}
-
-// 渲染分页控件
-function renderPagination(container, pageInfo, loadFunction) {
-    // 支持传入containerId或DOM元素
-    if (typeof container === 'string') {
-        container = document.getElementById(container);
-    }
-    
-    if (!container || !pageInfo) return;
-    
-    const { pageNumber, totalPages, totalElements, pageSize } = pageInfo;
-    
-    // 获取保存的当前筛选条件
-    const savedParams = container.dataset.currentParams || '{}';
-    const params = JSON.parse(savedParams);
-    // 将筛选条件转换为字符串形式，用于onclick事件
-    const paramsStr = JSON.stringify(params).replace(/"/g, '&quot;');
-    
-    // 创建分页HTML
-    let paginationHTML = `
-            <li class="page-item ${pageNumber === 1 ? 'disabled' : ''}">
-                <a class="page-link" onclick="${loadFunction}(${pageNumber - 1}, ${paramsStr})" aria-label="Previous">
-                    <span aria-hidden="true">&laquo;</span>
-                </a>
-            </li>
-    `;
-    
-    // 计算显示的页码范围
-    let startPage = Math.max(1, pageNumber - 2);
-    let endPage = Math.min(totalPages, pageNumber + 2);
-    
-    // 确保显示5个页码
-    if (endPage - startPage < 4) {
-        if (startPage === 1) {
-            endPage = Math.min(totalPages, startPage + 4);
-        } else if (endPage === totalPages) {
-            startPage = Math.max(1, endPage - 4);
-        }
-    }
-    
-    // 添加页码
-    for (let i = startPage; i <= endPage; i++) {
-        paginationHTML += `
-            <li class="page-item ${i === pageNumber ? 'active' : ''}">
-                <a class="page-link" onclick="${loadFunction}(${i}, ${paramsStr})">${i}</a>
-            </li>
-        `;
-    }
-    
-    paginationHTML += `
-            <li class="page-item ${pageNumber === totalPages ? 'disabled' : ''}">
-                <a class="page-link" onclick="${loadFunction}(${pageNumber + 1}, ${paramsStr})" aria-label="Next">
-                    <span aria-hidden="true">&raquo;</span>
-                </a>
-            </li>
-    `;
-    
-    container.innerHTML = paginationHTML;
-}
-
-// 渲染作业列表
-function renderAssignments(assignmentsData) {
-    const tbody = document.getElementById('assignments-table-body');
-    if (!tbody) return;
-    
-    // 确保assignments是数组
-    let assignments;
-    if (Array.isArray(assignmentsData)) {
-        assignments = assignmentsData;
-    } else if (assignmentsData && Array.isArray(assignmentsData.content)) {
-        // 处理分页格式的数据
-        assignments = assignmentsData.content;
-    } else {
-        // 如果不是数组，默认为空数组
-        assignments = [];
-    }
-    
-    if (assignments.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">暂无作业数据</td></tr>';
-        return;
-    }
-    
-    tbody.innerHTML = assignments.map(assignment => {
-        // 计算作业状态
-        let statusBadge = '';
-        
-        // 根据后端返回的status字段显示状态，确保与后端状态一致
-        switch (assignment.status) {
-            case 'pending':
-                statusBadge = '<span class="badge badge-warning">待提交</span>';
-                break;
-            case 'submitted':
-                statusBadge = '<span class="badge badge-primary">已提交</span>';
-                break;
-            case 'graded':
-                statusBadge = '<span class="badge badge-success">已批改</span>';
-                break;
-            case 'closed':
-                statusBadge = '<span class="badge badge-danger">已截止</span>';
-                break;
-            default:
-                statusBadge = '<span class="badge badge-secondary">未知</span>';
-        }
-        
-        // 处理课程名称
-        const courseName = assignment.courseName || assignment.course_name || courseMap.get(assignment.courseId || assignment.course_id) || '未知课程';
-        
-        // 处理发布时间
-        let publishDate = '未知';
-        if (assignment.createdAt) {
-            try {
-                publishDate = new Date(assignment.createdAt).toLocaleDateString();
-            } catch (e) {
-                publishDate = assignment.createdAt;
-            }
-        } else if (assignment.publishDate) {
-            try {
-                publishDate = new Date(assignment.publishDate).toLocaleDateString();
-            } catch (e) {
-                publishDate = assignment.publishDate;
-            }
-        }
-        
-        // 处理截止时间
-        let dueDateStr = '未知';
-        const dueDate = assignment.dueDate;
-        if (dueDate) {
-            try {
-                dueDateStr = new Date(dueDate).toLocaleDateString();
-            } catch (e) {
-                dueDateStr = dueDate;
-            }
-        }
-        
-        // 处理提交人数
-        const submittedCount = assignment.submittedCount || assignment.submitted_count || 0;
-        const totalStudents = assignment.totalStudents || assignment.total_students || 0;
-        
-        return `
-            <tr>
-                <td>${assignment.title}</td>
-                <td>${courseName}</td>
-                <td>${publishDate}</td>
-                <td>${dueDateStr}</td>
-                <td>${submittedCount}/${totalStudents}</td>
-                <td>${statusBadge}</td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn" onclick="viewAssignment(${assignment.id})" style="background-color: #4f46e5; color: white; padding: 6px 12px; border-radius: 8px; font-size: 12px; border: none; margin-right: 4px;">
-                            <i class="fa fa-eye"></i> 查看
-                        </button>
-                        <button class="btn" onclick="editAssignment(${assignment.id})" style="background-color: #e5e7eb; color: #374151; padding: 6px 12px; border-radius: 8px; font-size: 12px; border: 1px solid #d1d5db; margin-right: 4px;">
-                            <i class="fa fa-edit"></i> 编辑
-                        </button>
-                        <button class="btn" onclick="gradeAssignment(${assignment.id})" style="background-color: #10b981; color: white; padding: 6px 12px; border-radius: 8px; font-size: 12px; border: none; margin-right: 4px;">
-                            <i class="fa fa-check-circle"></i> 批改
-                        </button>
-                        <button class="btn" onclick="deleteAssignment(${assignment.id})" style="background-color: #ef4444; color: white; padding: 6px 12px; border-radius: 8px; font-size: 12px; border: none;">
-                            <i class="fa fa-trash"></i> 删除
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
-// 加载考试列表
-async function loadExams(page = 1, params = {}) {
-    try {
-        const tbody = document.getElementById('exams-table-body');
-        if (!tbody) return;
-        
-        // 显示加载状态
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">加载中...</td></tr>';
-        
-        // 使用封装好的API服务
-        const apiService = new APIService();
-        const teacherAPI = new TeacherAPI(apiService);
-        
-        // 合并参数
-        const requestParams = {
-            page: page,
-            size: 10,
-            ...params
-        };
-        
-        // 调用API获取考试列表
-        const data = await teacherAPI.getExams(requestParams);
-        console.log('考试列表响应数据:', data);
-        
-        // 处理API返回null的情况
-        if (!data) {
-            throw new Error('API请求失败，未返回数据');
-        }
-        
-        // 获取考试列表和分页信息
-        const responseData = data.data || {};
-        let exams = responseData.content || [];
-        const pageInfo = {
-            pageNumber: page,
-            totalPages: responseData.totalPages || 1,
-            totalElements: responseData.totalElements || exams.length,
-            pageSize: responseData.size || 10
-        };
-        
-        // 渲染考试列表
-        renderExams(exams);
-        
-        // 渲染分页控件
-        const paginationContainer = document.getElementById('exams-pagination');
-        if (paginationContainer) {
-            // 保存当前筛选条件到分页容器的dataset中，以便生成分页链接时使用
-            paginationContainer.dataset.currentParams = JSON.stringify(params);
-            renderPagination(paginationContainer, pageInfo, 'loadExams');
-        }
-    } catch (error) {
-        console.error('Failed to load exams:', error);
-        const tbody = document.getElementById('exams-table-body');
-        if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">加载失败: ${error.message}</td></tr>`;
-        }
-    }
-}
-
-// 渲染考试列表
-function renderExams(examsData) {
-    const tbody = document.getElementById('exams-table-body');
-    if (!tbody) return;
-    
-    // 确保exams是数组
-    let exams;
-    if (Array.isArray(examsData)) {
-        exams = examsData;
-    } else if (examsData && Array.isArray(examsData.content)) {
-        // 处理分页格式的数据
-        exams = examsData.content;
-    } else {
-        // 如果不是数组，默认为空数组
-        exams = [];
-    }
-    
-    if (exams.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">暂无考试数据</td></tr>';
-        return;
-    }
-    
-    tbody.innerHTML = exams.map(exam => {
-        // 计算考试状态
-        let statusBadge = '';
-        const now = new Date();
-        const startTime = new Date(exam.startTime);
-        const endTime = new Date(exam.endTime);
-        
-        if (endTime < now) {
-            statusBadge = '<span class="badge badge-danger">已结束</span>';
-        } else if (startTime <= now && endTime >= now) {
-            statusBadge = '<span class="badge badge-success">进行中</span>';
-        } else {
-            statusBadge = '<span class="badge badge-warning">即将开始</span>';
-        }
-        
-        // 处理课程名称
-        const courseName = exam.courseName || exam.course_name || courseMap.get(exam.courseId || exam.course_id) || '未知课程';
-        
-        // 处理提交人数
-        const submittedCount = exam.submittedCount || exam.submitted_count || 0;
-        const totalStudents = exam.totalStudents || exam.total_students || 0;
-        
-        return `
-            <tr>
-                <td>${exam.title}</td>
-                <td>${courseName}</td>
-                <td>${new Date(exam.startTime).toLocaleDateString()}</td>
-                <td>${exam.duration}分钟</td>
-                <td>${submittedCount}/${totalStudents}</td>
-                <td>${statusBadge}</td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn btn-primary btn-sm" onclick="viewExam(${exam.id})">
-                            <i class="fa fa-eye"></i> 查看
-                        </button>
-                        <button class="btn btn-secondary btn-sm" onclick="editExam(${exam.id})">
-                            <i class="fa fa-edit"></i> 编辑
-                        </button>
-                        <button class="btn btn-success btn-sm" onclick="gradeExam(${exam.id})">
-                            <i class="fa fa-check-circle"></i> 评分
-                        </button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteExam(${exam.id})">
-                            <i class="fa fa-trash"></i> 删除
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
-// 加载提交记录列表
-async function loadSubmissions(page = 1, params = {}) {
-    try {
-        const tbody = document.getElementById('submissions-table-body') || document.querySelector('#submissions-content tbody');
-        if (!tbody) return;
-
-        // 显示加载状态
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">加载中...</td></tr>';
-
-        // 构造请求参数（分页 + 筛选）
-        const requestParams = {
-            page: page,
-            size: 10,
-            ...params
-        };
-
-        // 调用教师提交记录接口，仅返回当前教师下的提交
-        const apiService = new APIService();
-        const teacherAPI = new TeacherAPI(apiService);
-        const data = await teacherAPI.getSubmissions(requestParams);
-
-        if (!data) {
-            throw new Error('API请求失败，未返回数据');
-        }
-        if (data.success === false) {
-            throw new Error(data.message || '加载提交记录失败');
-        }
-
-        const responseData = data.data || data;
-
-        // 解析列表数据（兼容分页/非分页格式）
-        let submissions = [];
-        if (Array.isArray(responseData)) {
-            submissions = responseData;
-        } else if (Array.isArray(responseData.content)) {
-            submissions = responseData.content;
-        } else if (Array.isArray(responseData.submissions)) {
-            submissions = responseData.submissions;
-        }
-
-        // 解析分页信息（兼容后端不同字段）
-        const pageNumber = (responseData.pageable?.pageNumber ?? responseData.number ?? (page - 1)) + 1;
-        const pageInfo = {
-            pageNumber,
-            totalPages: responseData.totalPages ?? responseData.total_pages ?? 1,
-            totalElements: responseData.totalElements ?? responseData.total_elements ?? submissions.length,
-            pageSize: responseData.size ?? responseData.pageSize ?? requestParams.size ?? 10
-        };
-
-        // 渲染表格与分页
-        renderSubmissions(submissions);
-
-        const paginationContainer = document.getElementById('submissions-pagination');
-        if (paginationContainer) {
-            // 保存当前筛选条件（确保下次分页/刷新时保留学生、作业/考试、状态筛选）
-            paginationContainer.dataset.currentParams = JSON.stringify(params);
-            renderPagination(paginationContainer, pageInfo, 'loadSubmissions');
-        }
-    } catch (error) {
-        console.error('Failed to load submissions:', error);
-        const tbody = document.getElementById('submissions-table-body') || document.querySelector('#submissions-content tbody');
-        if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">加载失败: ${error.message}</td></tr>`;
-        }
-        showMessage('加载提交记录失败，请稍后重试：' + error.message, 'error');
-    }
-}
-
-// 渲染提交记录列表
-function renderSubmissions(submissionsData) {
-    const tbody = document.querySelector('#submissions-content tbody');
-    if (!tbody) return;
-    
-    // 确保submissions是数组
-    let submissions;
-    if (Array.isArray(submissionsData)) {
-        submissions = submissionsData;
-    } else if (submissionsData && Array.isArray(submissionsData.content)) {
-        submissions = submissionsData.content;
-    } else if (submissionsData && Array.isArray(submissionsData.submissions)) {
-        submissions = submissionsData.submissions;
-    } else {
-        submissions = [];
-    }
-    
-    tbody.innerHTML = submissions.length > 0 ? submissions.map(submission => {
-        // 统一字段映射，兼容作业/考试提交及不同命名
-        const submissionId = submission.id ?? submission.submissionId;
-        const studentId = submission.studentId || submission.student_id || submission.student?.studentId || submission.userId;
-        // 优先使用后端返回的真实姓名(realName/name/studentName)，保证显示数据库中的姓名
-        const studentName = submission.realName
-            || submission.name
-            || submission.studentName
-            || submission.student_name
-            || submission.student?.name
-            || submission.student?.realName
-            || '-';
-        const title = submission.title
-            || submission.assignmentTitle
-            || submission.assignmentName
-            || submission.examTitle
-            || submission.examName
-            || submission.taskTitle
-            || (submission.assignmentId ? `作业#${submission.assignmentId}` : '')
-            || (submission.examId ? `考试#${submission.examId}` : '-');
-        const submitTime = submission.submissionDate || submission.submittedAt || submission.submitTime || submission.createdAt;
-        const score = submission.score ?? submission.grade ?? submission.mark ?? null;
-        const gradedFlag = submission.graded === true || submission.isGraded === true;
-        const lateFlag = submission.isLate === true || submission.late === true;
-        const normalizedStatus = (submission.status || submission.submissionStatus || (gradedFlag ? 'graded' : (lateFlag ? 'late' : 'submitted'))).toString().toLowerCase();
-
-        let statusBadge = '<span class="badge badge-secondary">未知</span>';
-        switch (normalizedStatus) {
-            case 'submitted':
-                statusBadge = '<span class="badge badge-primary">已提交</span>';
-                break;
-            case 'graded':
-                statusBadge = '<span class="badge badge-success">已批改</span>';
-                break;
-            case 'late':
-                statusBadge = '<span class="badge badge-warning">迟交</span>';
-                break;
-            case 'missing':
-                statusBadge = '<span class="badge badge-danger">未提交</span>';
-                break;
-        }
-
-        const actionButtons = submissionId != null ? `
-            <button class="btn btn-primary btn-sm" onclick="viewSubmission(${submissionId})">
-                <i class="fa fa-eye"></i> 查看
-            </button>
-            ${normalizedStatus !== 'graded' ? `
-                <button class="btn btn-success btn-sm" onclick="gradeSubmission(${submissionId})">
-                    <i class="fa fa-check-circle"></i> 批改
-                </button>
-            ` : `
-                <button class="btn btn-success btn-sm" onclick="regradeSubmission(${submissionId})">
-                    <i class="fa fa-edit"></i> 重新批改
-                </button>
-            `}
-        ` : '<span class="text-muted">无可用操作</span>';
-
-        return `
-            <tr>
-                <td>${studentName}</td>
-                <td>${studentId}</td>
-                <td>${title}</td>
-                <td>${submitTime ? new Date(submitTime).toLocaleString() : '-'}</td>
-                <td>${statusBadge}</td>
-                <td>${score !== null ? score : '-'}</td>
-                <td>
-                    <div class="action-buttons">
-                        ${actionButtons}
-                    </div>
-                </td>
-            </tr>
-        `;
-    }).join('') : `
-        <tr>
-            <td colspan="7" style="text-align: center; color: #64748b;">暂无提交记录</td>
-        </tr>
-    `;
-}
-
-// 作业搜索功能
-function initAssignmentSearch() {
-    // 这个函数已经不再使用，搜索功能已经在teacher-assignments.html中实现
-    console.log('initAssignmentSearch is deprecated');
-}
-
-// 考试搜索功能
-function initExamSearch() {
-    // 这个函数已经不再使用，搜索功能已经在teacher-assignments.html中实现
-    console.log('initExamSearch is deprecated');
-}
-
-// 提交记录搜索功能
-function initSubmissionSearch() {
-    // 这个函数已经不再使用，搜索功能已经在teacher-assignments.html中实现
-    console.log('initSubmissionSearch is deprecated');
-}
-
-// 查看作业详情
-async function viewAssignment(assignmentId) {
-    try {
-        const assignment = await fetchAPI(`/api/teacher/assignments/${assignmentId}`);
-        
-        // 更新模态框标题
-        const modalTitle = document.querySelector('#viewAssignmentModal .modal-title');
-        if (modalTitle) modalTitle.textContent = assignment.title;
-        
-        // 构建作业详情HTML
-        let submissionsHTML = '';
-        if (assignment.submissions && assignment.submissions.length > 0) {
-            submissionsHTML = `
-                <h6>提交记录 (${assignment.submissions.length})</h6>
-                <table class="table table-sm">
-                    <thead>
-                        <tr>
-                            <th>学生姓名</th>
-                            <th>提交时间</th>
-                            <th>是否迟交</th>
-                            <th>分数</th>
-                            <th>评语</th>
-                            <th>状态</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${assignment.submissions.map(submission => `
-                            <tr>
-                                <td>${submission.studentName}</td>
-                                <td>${new Date(submission.submissionDate).toLocaleString()}</td>
-                                <td>${submission.isLate ? '<span class="badge badge-danger">是</span>' : '<span class="badge badge-success">否</span>'}</td>
-                                <td>${submission.score !== null ? submission.score : '-'}</td>
-                                <td>${submission.teacherComment || '-'}</td>
-                                <td>${submission.graded ? '<span class="badge badge-success">已批改</span>' : '<span class="badge badge-warning">未批改</span>'}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
-        } else {
-            submissionsHTML = '<p class="text-muted">暂无提交记录</p>';
-        }
-        
-        // 更新模态框内容
-        const modalBody = document.getElementById('viewAssignmentBody');
-        if (modalBody) {
-            modalBody.innerHTML = `
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h5 class="card-title">作业详情</h5>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p><strong>课程：</strong>${assignment.courseName}</p>
-                                <p><strong>发布时间：</strong>${new Date(assignment.publishDate).toLocaleString()}</p>
-                                <p><strong>截止时间：</strong>${new Date(assignment.dueDate).toLocaleString()}</p>
-                                <p><strong>状态：</strong>${assignment.isActive ? '<span class="badge badge-primary">激活</span>' : '<span class="badge badge-secondary">未激活</span>'}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <p><strong>发布者：</strong>${assignment.teacherName}</p>
-                                <p><strong>提交人数：</strong>${assignment.submissions ? assignment.submissions.length : 0}</p>
-                                <p><strong>已批改：</strong>${assignment.submissions ? assignment.submissions.filter(s => s.graded).length : 0}</p>
-                            </div>
-                        </div>
-                        <div class="mt-3">
-                            <h6>作业描述</h6>
-                            <p>${assignment.description}</p>
-                        </div>
-                    </div>
-                </div>
-                ${submissionsHTML}
-            `;
-        }
-        
-        // 显示模态框
-        const modal = new bootstrap.Modal(document.getElementById('viewAssignmentModal'));
-        modal.show();
-    } catch (error) {
-        console.error('Failed to view assignment:', error);
-    }
-}
-
-// 编辑作业
-async function editAssignment(assignmentId) {
-    try {
-        const assignment = await fetchAPI(`/api/teacher/assignments/${assignmentId}`);
-        
-        // 填充表单数据
-        document.getElementById('edit-assignment-id').value = assignment.id;
-        document.getElementById('edit-assignment-title').value = assignment.title;
-        document.getElementById('edit-assignment-course').value = assignment.courseId;
-        document.getElementById('edit-assignment-description').value = assignment.description;
-        document.getElementById('edit-assignment-start').value = new Date(assignment.publishDate).toISOString().slice(0, 16);
-        document.getElementById('edit-assignment-end').value = new Date(assignment.dueDate).toISOString().slice(0, 16);
-        document.getElementById('edit-assignment-is-active').checked = assignment.isActive;
-        
-        // 显示模态框
-        const modal = new bootstrap.Modal(document.getElementById('editAssignmentModal'));
-        modal.show();
-    } catch (error) {
-        console.error('Failed to edit assignment:', error);
-    }
-}
-
-// 批改作业
-async function gradeAssignment(assignmentId) {
-    try {
-        // 保存assignmentId到模态框
-        const modalElement = document.getElementById('gradeAssignmentModal');
-        if (modalElement) {
-            modalElement.dataset.assignmentId = assignmentId;
-        }
-        
-        // 复用已存在的实例，避免重复创建多层遮罩
-        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
-        if (!modalElement.classList.contains('show')) {
-            modal.show();
-        }
-        
-        // 隐藏所有状态容器
-        document.getElementById('grade-assignment-loading').style.display = 'block';
-        document.getElementById('grade-assignment-error').style.display = 'none';
-        document.getElementById('grade-assignment-content').style.display = 'none';
-        
-        // 调用API获取作业的所有提交记录
-        const response = await fetch(`/api/teacher/assignments/${assignmentId}/submissions`, {
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        // 隐藏加载状态
-        document.getElementById('grade-assignment-loading').style.display = 'none';
-        
-        if (data.success && data.data) {
-            const submissions = data.data;
-            
-            if (submissions.length === 0) {
-                document.getElementById('grade-assignment-error-message').textContent = '该作业暂无提交记录';
-                document.getElementById('grade-assignment-error').style.display = 'block';
-            } else {
-                // 渲染提交列表
-                renderAssignmentSubmissions(submissions);
-                document.getElementById('grade-assignment-content').style.display = 'block';
-            }
-        } else {
-            throw new Error(data.message || '获取提交记录失败');
-        }
-    } catch (error) {
-        // 隐藏加载状态
-        document.getElementById('grade-assignment-loading').style.display = 'none';
-        
-        // 显示错误信息
-        const errorContainer = document.getElementById('grade-assignment-error');
-        const errorMessage = document.getElementById('grade-assignment-error-message');
-        errorMessage.textContent = `获取提交记录失败: ${error.message}`;
-        errorContainer.style.display = 'block';
-        console.error('获取提交记录错误:', error);
-    }
-}
-
-// 渲染作业提交列表
-function renderAssignmentSubmissions(submissions) {
-    const tbody = document.getElementById('grade-assignment-table-body');
-    tbody.innerHTML = '';
-    
-    submissions.forEach(submission => {
-        const row = document.createElement('tr');
-        const submissionDate = submission.submissionDate ? new Date(submission.submissionDate).toLocaleString('zh-CN') : '-';
-        const status = submission.graded ? '<span class="badge bg-success">已批改</span>' : '<span class="badge bg-warning">待批改</span>';
-        const score = submission.graded ? (submission.score !== null ? submission.score + '分' : '-') : '-';
-        const content = submission.content || '-';
-        const contentPreview = content.length > 50 ? content.substring(0, 50) + '...' : content;
-        const studentName = submission.studentName || `学生${submission.studentId || '-'}`;
-        
-        row.innerHTML = `
-            <td>${studentName}</td>
-            <td>${submissionDate}</td>
-            <td>${contentPreview}</td>
-            <td>${status}</td>
-            <td>${score}</td>
-            <td>
-                <button class="btn btn-sm btn-primary" onclick="openGradeSubmissionModal(${submission.id})">
-                    ${submission.graded ? '重新批改' : '批改'}
-                </button>
-            </td>
-        `;
-        tbody.appendChild(row);
-    });
-}
-
-// 打开批改提交模态框
-async function openGradeSubmissionModal(submissionId) {
-    try {
-        // 获取提交详情
-        const response = await fetch(`/api/teacher/assignments/submissions/${submissionId}`, {
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        if (!data.success || !data.data) {
-            throw new Error(data.message || '获取提交详情失败');
-        }
-        
-        const submission = data.data;
-        
-        // 填充表单
-        document.getElementById('grade-submission-id').value = submissionId;
-        document.getElementById('grade-submission-content').value = submission.content || '';
-        document.getElementById('grade-score').value = submission.score || '';
-        document.getElementById('grade-comment').value = submission.teacherComment || '';
-        
-        // 显示模态框
-        const modal = new bootstrap.Modal(document.getElementById('gradeSubmissionModal'));
-        modal.show();
-    } catch (error) {
-        console.error('打开批改模态框失败:', error);
-        alert('打开批改模态框失败: ' + error.message);
-    }
-}
-
-// 提交批改
-async function submitGradeSubmission() {
-    try {
-        const submissionId = document.getElementById('grade-submission-id').value;
-        const scoreInput = document.getElementById('grade-score').value;
-        const comment = document.getElementById('grade-comment').value || '';
-        
-        if (!submissionId || !scoreInput) {
-            alert('请输入分数');
-            return;
-        }
-        
-        const score = parseInt(scoreInput);
-        if (isNaN(score) || score < 0 || score > 100) {
-            alert('请输入有效的分数（0-100）');
-            return;
-        }
-        
-        // 调用API批改作业 - 确保score是Number类型
-        const response = await fetch(`/api/teacher/assignments/grade/${submissionId}`, {
-            method: 'PUT',
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                score: score,  // 确保是Number类型
-                teacherComment: comment || ''
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.success || data.code === 200) {
-            alert('批改成功！');
-            // 关闭模态框
-            const modal = bootstrap.Modal.getInstance(document.getElementById('gradeSubmissionModal'));
-            if (modal) {
-                modal.hide();
-            }
-            // 重新加载提交列表
-            const assignmentModal = document.getElementById('gradeAssignmentModal');
-            const assignmentId = assignmentModal?.dataset.assignmentId;
-            if (assignmentId) {
-                await gradeAssignment(assignmentId);
-            }
-        } else {
-            throw new Error(data.message || '批改失败');
-        }
-    } catch (error) {
-        console.error('批改失败:', error);
-        alert('批改失败: ' + error.message);
-    }
-}
-
-// 加载统计数据
-async function loadStats() {
-    try {
-        console.log('=== 开始加载统计数据 ===');
-        
-        // 使用封装好的API服务
-        const apiService = new APIService();
-        const teacherAPI = new TeacherAPI(apiService);
-        
-        // 调用API获取仪表盘数据
-        const dashboardData = await teacherAPI.getDashboard();
-        console.log('仪表盘数据:', dashboardData);
-        
-        // 获取统计数据
-        const data = dashboardData.data || {};
-        const stats = {
-            pendingGrades: data.pendingGrades || 0,
-            upcomingExams: data.upcomingExams || 0,
-            missingSubmissions: data.missingSubmissions || 0,
-            upcomingDeadlines: data.upcomingDeadlines || 0,
-            pendingGradesChange: data.pendingGradesChange || 0,
-            upcomingExamsChange: data.upcomingExamsChange || 0,
-            missingSubmissionsChange: data.missingSubmissionsChange || 0,
-            upcomingDeadlinesChange: data.upcomingDeadlinesChange || 0
-        };
-        
-        console.log('统计数据:', stats);
-        
-        // 更新统计卡片
-        updateStatCard('pendingGrades', stats.pendingGrades, stats.pendingGradesChange);
-        updateStatCard('upcomingExams', stats.upcomingExams, stats.upcomingExamsChange);
-        updateStatCard('missingSubmissions', stats.missingSubmissions, stats.missingSubmissionsChange);
-        updateStatCard('upcomingDeadlines', stats.upcomingDeadlines, stats.upcomingDeadlinesChange);
-        
-        console.log('=== 统计数据加载完成 ===');
-    } catch (error) {
-        console.error('加载统计数据失败:', error);
-        
-        // 加载失败时使用默认数据
-        updateStatCard('pendingGrades', 0, 0);
-        updateStatCard('upcomingExams', 0, 0);
-        updateStatCard('missingSubmissions', 0, 0);
-        updateStatCard('upcomingDeadlines', 0, 0);
-    }
-}
-
-// 更新统计卡片
-function updateStatCard(statKey, value, change = 0) {
-    // 更新数值
-    const valueElement = document.querySelector(`[data-stat="${statKey}"]`);
-    if (valueElement) {
-        valueElement.textContent = value;
-        valueElement.classList.remove('loading-skeleton');
-    }
-    
-    // 更新变化
-    const changeElement = document.querySelector(`[data-stat-change="${statKey}Change"]`);
-    if (changeElement) {
-        const changeIcon = changeElement.querySelector('i');
-        const changeText = changeElement.querySelector('span');
-        
-        if (change > 0) {
-            changeIcon.className = 'fa fa-plus';
-            changeElement.className = 'stat-change positive';
-            changeText.textContent = `较昨日 +${change}`;
-        } else if (change < 0) {
-            changeIcon.className = 'fa fa-minus';
-            changeElement.className = 'stat-change negative';
-            changeText.textContent = `较昨日 ${change}`;
-        } else {
-            changeIcon.className = 'fa fa-minus';
-            changeElement.className = 'stat-change';
-            changeText.textContent = `较昨日 ${change}`;
-        }
-    }
-}
-
-// 作业搜索功能 - 已移至页面内实现，保留兼容性
-async function searchAssignments() {
-    console.log('=== 开始搜索作业 (兼容函数) ===');
-    try {
-        const searchKeyword = document.getElementById('assignment-search')?.value || '';
-        const courseId = document.getElementById('assignment-course')?.value || '';
-        const status = document.getElementById('assignment-status')?.value || '';
-        const submitted = document.getElementById('assignment-submitted')?.value || '';
-        
-        // 确保只传递有效值
-        const params = {};
-        if (searchKeyword.trim() !== '') params.keyword = searchKeyword;
-        if (courseId.trim() !== '') params.courseId = courseId;
-        if (status.trim() !== '') params.status = status;
-        if (submitted.trim() !== '' && submitted !== 'undefined') params.submitted = submitted;
-        
-        console.log('作业搜索参数:', params);
-        
-        // 调用loadAssignments函数，传入搜索参数
-        await loadAssignments(1, params);
-        
-        console.log('=== 作业搜索完成 ===');
-    } catch (error) {
-        console.error('搜索作业失败:', error);
-        showMessage('搜索作业失败: ' + error.message, 'error');
-    }
-}
-
-// 考试搜索功能 - 已移至页面内实现，保留兼容性
-async function searchExams() {
-    console.log('=== 开始搜索考试 (兼容函数) ===');
-    try {
-        const searchKeyword = document.getElementById('exam-search')?.value || '';
-        const courseId = document.getElementById('exam-course')?.value || '';
-        const status = document.getElementById('exam-status')?.value || '';
-        const online = document.getElementById('exam-online')?.value || '';
-        
-        const params = {};
-        if (searchKeyword.trim() !== '') params.keyword = searchKeyword;
-        if (courseId.trim() !== '') params.courseId = courseId;
-        if (status.trim() !== '') params.status = status;
-        if (online.trim() !== '' && online !== 'undefined') params.online = online;
-        
-        console.log('考试搜索参数:', params);
-        
-        // 调用loadExams函数，传入搜索参数
-        await loadExams(1, params);
-        
-        console.log('=== 考试搜索完成 ===');
-    } catch (error) {
-        console.error('搜索考试失败:', error);
-        showMessage('搜索考试失败: ' + error.message, 'error');
-    }
-}
-
-// 提交记录搜索功能 - 已移至页面内实现，保留兼容性
-async function searchSubmissions() {
-    console.log('=== 开始搜索提交记录 (兼容函数) ===');
-    try {
-        const studentId = document.getElementById('submission-student')?.value || '';
-        const type = document.getElementById('submission-type')?.value || '';
-        const assignment = document.getElementById('submission-assignment')?.value || '';
-        const status = document.getElementById('submission-status')?.value || '';
-        const startDate = document.getElementById('submission-date-start')?.value || '';
-        const endDate = document.getElementById('submission-date-end')?.value || '';
-        
-        const params = {};
-        if (studentId.trim() !== '') params.studentId = studentId;
-        if (type.trim() !== '') params.type = type;
-        if (assignment.trim() !== '') params.assignment = assignment;
-        if (status.trim() !== '') params.status = status;
-        if (startDate.trim() !== '') params.startDate = startDate;
-        if (endDate.trim() !== '') params.endDate = endDate;
-        
-        console.log('提交记录搜索参数:', params);
-        
-        // 调用loadSubmissions函数，传入搜索参数
-        await loadSubmissions(1, params);
-        
-        console.log('=== 提交记录搜索完成 ===');
-    } catch (error) {
-        console.error('搜索提交记录失败:', error);
-        showMessage('搜索提交记录失败: ' + error.message, 'error');
-    }
-}
-
-// 重置作业搜索
-function resetAssignmentSearch() {
-    document.getElementById('assignment-search').value = '';
-    document.getElementById('assignment-course').value = '';
-    document.getElementById('assignment-status').value = '';
-    if (document.getElementById('assignment-submitted')) {
-        document.getElementById('assignment-submitted').value = '';
-    }
-    searchAssignments();
-}
-
-// 重置考试搜索
-function resetExamSearch() {
-    document.getElementById('exam-search').value = '';
-    document.getElementById('exam-course').value = '';
-    document.getElementById('exam-status').value = '';
-    if (document.getElementById('exam-online')) {
-        document.getElementById('exam-online').value = '';
-    }
-    searchExams();
-}
-
-// 重置提交记录搜索
-function resetSubmissionSearch() {
-    document.getElementById('submission-student').value = '';
-    document.getElementById('submission-type').value = '';
-    document.getElementById('submission-assignment').value = '';
-    document.getElementById('submission-status').value = '';
-    if (document.getElementById('submission-date-start')) {
-        document.getElementById('submission-date-start').value = '';
-    }
-    if (document.getElementById('submission-date-end')) {
-        document.getElementById('submission-date-end').value = '';
-    }
-    searchSubmissions();
-}
-
 // 导出提交记录
 function exportSubmissions() {
     // 实现导出功能
     console.log('导出提交记录');
-    showMessage('导出功能正在开发中', 'error');
-}
-
-// 页面加载完成后初始化
-window.addEventListener('DOMContentLoaded', async () => {
-    console.log('=== 页面加载完成，开始初始化 ===');
-    
-    // 获取当前页面的文件名
-    const currentPage = window.location.pathname.split('/').pop();
-    console.log('当前页面:', currentPage);
-    
-    // 只在需要的页面执行特定的初始化函数
-    // 定义需要加载课程的页面列表
-    const coursePages = [
-        'teacher-assignments.html',
-        'teacher-courses.html',
-        'teacher-exams.html',
-        'teacher-student-dashboard.html',
-        'teacher-warning.html'
-    ];
-    
-    // 定义需要加载班级的页面列表
-    const classPages = [
-        'teacher-assignments.html',
-        'teacher-courses.html',
-        'teacher-exams.html',
-        'teacher-student-dashboard.html',
-        'teacher-warning.html'
-    ];
-    
-    // 定义需要加载作业的页面列表
-    const assignmentPages = [
-        'teacher-assignments.html'
-    ];
-    
-    // 定义需要加载考试的页面列表
-    const examPages = [
-        'teacher-exams.html'
-    ];
-    
-    // 根据当前页面执行相应的初始化函数
-    if (coursePages.includes(currentPage)) {
-        // 加载课程列表
-        await loadCourses().catch(error => {
-            console.error('加载课程失败:', error);
-        });
-    }
-    
-    if (classPages.includes(currentPage)) {
-        // 加载班级列表
-        await loadClasses().catch(error => {
-            console.error('加载班级失败:', error);
-        });
-    }
-    
-    // 定义需要加载统计数据的页面列表
-    const statsPages = [
-        'teacher-dashboard.html',
-        'teacher-assignments.html',
-        'teacher-exams.html',
-        'teacher-warning.html'
-    ];
-    
-    if (statsPages.includes(currentPage)) {
-        // 加载统计数据
-        await loadStats().catch(error => {
-            console.error('加载统计数据失败:', error);
-        });
-    }
-    
-    if (assignmentPages.includes(currentPage)) {
-        // 加载作业列表
-        await loadAssignments().catch(error => {
-            console.error('加载作业列表失败:', error);
-        });
-    }
-    
-    if (examPages.includes(currentPage)) {
-        // 加载考试列表
-        await loadExams().catch(error => {
-            console.error('加载考试列表失败:', error);
-        });
-    }
-    
-    // 初始化标签页切换
-    initTabs();
-    
-    console.log('=== 页面初始化完成 ===');
-});
-
-// 初始化标签页切换
-function initTabs() {
-    const tabItems = document.querySelectorAll('.tab-item');
-    tabItems.forEach(item => {
-        item.addEventListener('click', () => {
-            // 移除所有active类
-            tabItems.forEach(tab => tab.classList.remove('active'));
-            
-            // 添加当前tab的active类
-            item.classList.add('active');
-            
-            // 隐藏所有tab内容
-            const tabContents = document.querySelectorAll('.tab-content');
-            tabContents.forEach(content => content.style.display = 'none');
-            
-            // 显示当前tab内容
-            const tabId = item.getAttribute('data-tab');
-            const activeContent = document.getElementById(`${tabId}-content`);
-            if (activeContent) {
-                activeContent.style.display = 'block';
-            }
-            
-            // 根据当前标签加载对应数据
-            if (tabId === 'assignments') {
-                loadAssignments();
-            } else if (tabId === 'exams') {
-                loadExams();
-            } else if (tabId === 'submissions') {
-                loadSubmissions();
-            }
-        });
-    });
+    showMessage('当前交付环境暂未开放导出提交记录，请先在列表中完成筛选与批改。', 'success');
 }
 
 // 初始化全局API服务实例
@@ -2634,901 +1586,354 @@ window.authAPI = authAPI;
 window.teacherAPI = teacherAPI;
 window.studentAPI = studentAPI;
 window.getCurrentUserId = getCurrentUserId;
+window.isJwtOnlyStudentSession = isJwtOnlyStudentSession;
+window.getStudentSessionContext = getStudentSessionContext;
 window.clearAuthSession = clearAuthSession;
-
-async function deleteAssignment(assignmentId) {
-    if (confirm('确定要删除这个作业吗？删除后无法恢复！')) {
-        try {
-            // 显示加载状态
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            if (loadingOverlay) {
-                loadingOverlay.style.display = 'flex';
-            }
-            
-            // 直接使用全局的API服务实例
-            const response = await window.teacherAPI.deleteAssignment(assignmentId);
-            
-            // 检查响应
-            if (response && (response.success === false)) {
-                throw new Error(response.message || '删除作业失败');
-            }
-            
-            // 显示成功消息
-            showMessage('作业删除成功！', 'success');
-            
-            // 重新加载作业列表
-            loadAssignments();
-            
-            // 刷新统计卡片数据
-            if (typeof loadDashboardStats === 'function') {
-                loadDashboardStats();
-            }
-        } catch (error) {
-            console.error('Failed to delete assignment:', error);
-            showMessage('作业删除失败：' + error.message, 'error');
-        } finally {
-            // 隐藏加载状态
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            if (loadingOverlay) {
-                loadingOverlay.style.display = 'none';
-            }
-        }
-    }
-}
-
-// 查看考试详情
-async function viewExam(examId) {
-    try {
-        const exam = await fetchAPI(`/api/teacher/exams/${examId}`);
-        
-        // 更新模态框标题
-        const modalTitle = document.querySelector('#viewExamModal .modal-title');
-        if (modalTitle) modalTitle.textContent = exam.title;
-        
-        // 更新模态框内容
-        const modalBody = document.getElementById('viewExamBody');
-        if (modalBody) {
-            modalBody.innerHTML = `
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h5 class="card-title">考试详情</h5>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p><strong>课程：</strong>${exam.courseName}</p>
-                                <p><strong>开始时间：</strong>${new Date(exam.startTime).toLocaleString()}</p>
-                                <p><strong>结束时间：</strong>${new Date(exam.endTime).toLocaleString()}</p>
-                                <p><strong>持续时间：</strong>${exam.duration} 分钟</p>
-                            </div>
-                            <div class="col-md-6">
-                                <p><strong>发布者：</strong>${exam.teacherName}</p>
-                                <p><strong>考试类型：</strong>${exam.isOnline ? '在线考试' : '线下考试'}</p>
-                                <p><strong>状态：</strong>${exam.isActive ? '<span class="badge badge-primary">激活</span>' : '<span class="badge badge-secondary">未激活</span>'}</p>
-                                <p><strong>地点：</strong>${exam.location || '-'}</p>
-                            </div>
-                        </div>
-                        <div class="mt-3">
-                            <h6>考试说明</h6>
-                            <p>${exam.description}</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // 显示模态框
-        const modal = new bootstrap.Modal(document.getElementById('viewExamModal'));
-        modal.show();
-    } catch (error) {
-        console.error('Failed to view exam:', error);
-    }
-}
-
-// 编辑考试
-async function editExam(examId) {
-    try {
-        const exam = await fetchAPI(`/api/teacher/exams/${examId}`);
-        
-        // 填充表单数据
-        document.getElementById('edit-exam-id').value = exam.id;
-        document.getElementById('edit-exam-title').value = exam.title;
-        document.getElementById('edit-exam-course').value = exam.courseId;
-        document.getElementById('edit-exam-description').value = exam.description;
-        document.getElementById('edit-exam-start').value = new Date(exam.startTime).toISOString().slice(0, 16);
-        document.getElementById('edit-exam-duration').value = exam.duration;
-        document.getElementById('edit-exam-score').value = exam.maxScore || exam.totalScore;
-        
-        // 设置考试类型
-        const examTypeSelect = document.getElementById('edit-exam-type');
-        if (examTypeSelect) {
-            examTypeSelect.value = exam.examType || 'unit';
-        }
-        
-        // 显示模态框
-        const modal = new bootstrap.Modal(document.getElementById('editExamModal'));
-        modal.show();
-    } catch (error) {
-        console.error('Failed to edit exam:', error);
-        showMessage('加载考试详情失败：' + error.message, 'error');
-    }
-}
-
-// 评分考试
-async function gradeExam(examId) {
-    try {
-        // 保存examId到模态框
-        const modalElement = document.getElementById('gradeExamModal');
-        if (modalElement) {
-            modalElement.dataset.examId = examId;
-        }
-
-        // 复用已存在的实例，避免重复创建多层遮罩导致页面灰屏
-        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
-        if (!modalElement.classList.contains('show')) {
-            modal.show();
-        }
-        
-        // 隐藏所有状态容器
-        document.getElementById('grade-exam-loading').style.display = 'block';
-        document.getElementById('grade-exam-error').style.display = 'none';
-        document.getElementById('grade-exam-content').style.display = 'none';
-        
-        // 调用API获取考试的所有提交记录
-        const data = await apiService.get(`/api/teacher/exams/${examId}/submissions`);
-        
-        // 隐藏加载状态
-        document.getElementById('grade-exam-loading').style.display = 'none';
-        
-        if (data && data.success && data.data) {
-            const submissions = data.data;
-            
-            if (submissions.length === 0) {
-                document.getElementById('grade-exam-error-message').textContent = '该考试暂无提交记录';
-                document.getElementById('grade-exam-error').style.display = 'block';
-            } else {
-                // 渲染提交列表
-                renderExamSubmissions(submissions);
-                document.getElementById('grade-exam-content').style.display = 'block';
-            }
-        } else {
-            throw new Error(data.message || '获取提交记录失败');
-        }
-    } catch (error) {
-        // 隐藏加载状态
-        document.getElementById('grade-exam-loading').style.display = 'none';
-        
-        // 显示错误信息
-        const errorContainer = document.getElementById('grade-exam-error');
-        const errorMessage = document.getElementById('grade-exam-error-message');
-        errorMessage.textContent = `获取提交记录失败: ${error.message}`;
-        errorContainer.style.display = 'block';
-        console.error('获取提交记录错误:', error);
-    }
-}
-
-// 渲染考试提交列表
-function renderExamSubmissions(submissions) {
-    const tbody = document.getElementById('grade-exam-table-body');
-    tbody.innerHTML = '';
-    
-    submissions.forEach(submission => {
-        const row = document.createElement('tr');
-        const submissionDate = submission.submissionDate ? new Date(submission.submissionDate).toLocaleString('zh-CN') : '-';
-        const status = submission.graded ? '<span class="badge bg-success">已评分</span>' : '<span class="badge bg-warning">待评分</span>';
-        const score = submission.graded ? (submission.score !== null ? submission.score + '分' : '-') : '-';
-        const timeTaken = submission.timeTaken !== null ? submission.timeTaken + '分钟' : '-';
-        const studentName = submission.studentName || `学生${submission.studentId || '-'}`;
-        // 处理提交内容，截取前50个字符显示
-        const content = submission.content || submission.answerContent || '';
-        const contentPreview = content.length > 50 ? content.substring(0, 50) + '...' : (content || '-');
-        
-        row.innerHTML = `
-            <td>${studentName}</td>
-            <td>${submissionDate}</td>
-            <td title="${content.replace(/"/g, '&quot;')}">${contentPreview}</td>
-            <td>${timeTaken}</td>
-            <td>${status}</td>
-            <td>${score}</td>
-            <td>
-                <button class="btn btn-sm btn-primary" onclick="openGradeExamSubmissionModal(${submission.id})">
-                    ${submission.graded ? '重新评分' : '评分'}
-                </button>
-            </td>
-        `;
-        tbody.appendChild(row);
-    });
-}
-
-// 打开评分提交模态框
-async function openGradeExamSubmissionModal(submissionId) {
-    try {
-        // 获取提交详情
-        const data = await apiService.get(`/api/teacher/exams/submissions/${submissionId}`);
-        if (!data || !data.success || !data.data) {
-            throw new Error(data.message || '获取提交详情失败');
-        }
-        
-        const submission = data.data;
-        
-        // 填充表单
-        document.getElementById('grade-exam-submission-id').value = submissionId;
-        document.getElementById('grade-exam-submission-content').value = submission.content || submission.answerContent || '（无提交内容）';
-        document.getElementById('grade-exam-score').value = submission.score || '';
-        document.getElementById('grade-exam-comment').value = submission.teacherComment || '';
-        
-        // 显示模态框
-        const modal = new bootstrap.Modal(document.getElementById('gradeExamSubmissionModal'));
-        modal.show();
-    } catch (error) {
-        console.error('打开评分模态框失败:', error);
-        alert('打开评分模态框失败: ' + error.message);
-    }
-}
-
-// 提交评分
-async function submitGradeExamSubmission() {
-    try {
-        const submissionId = document.getElementById('grade-exam-submission-id').value;
-        const score = parseInt(document.getElementById('grade-exam-score').value);
-        const comment = document.getElementById('grade-exam-comment').value;
-        
-        if (!submissionId || isNaN(score) || score < 0 || score > 100) {
-            alert('请输入有效的分数（0-100）');
-            return;
-        }
-        
-        // 调用API评分考试
-        const data = await apiService.put(`/api/teacher/exams/grade/${submissionId}`, {
-            score: score,
-            teacherComment: comment
-        });
-        
-        if (data && (data.success || data.code === 200)) {
-            showMessage('评分成功！', 'success');
-            // 关闭模态框
-            const modal = bootstrap.Modal.getInstance(document.getElementById('gradeExamSubmissionModal'));
-            if (modal) {
-                modal.hide();
-            }
-            // 重新加载考试提交列表
-            const examModal = document.getElementById('gradeExamModal');
-            const examId = examModal?.dataset.examId;
-            if (examId) {
-                await gradeExam(examId);
-            }
-            // 重新加载全局提交列表，与作业批改体验保持一致
-            loadSubmissions();
-        } else {
-            throw new Error(data.message || '评分失败');
-        }
-    } catch (error) {
-        console.error('评分失败:', error);
-        showMessage('评分失败: ' + error.message, 'error');
-    }
-}
-
-// 删除考试
-async function deleteExam(examId) {
-    if (confirm('确定要删除这个考试吗？删除后无法恢复！')) {
-        try {
-            // 显示加载状态
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            if (loadingOverlay) {
-                loadingOverlay.style.display = 'flex';
-            }
-            
-            // 使用封装好的API服务
-            const apiService = new APIService();
-            const teacherAPI = new TeacherAPI(apiService);
-            
-            // 调用API删除考试
-            await teacherAPI.deleteExam(examId);
-            
-            // 显示成功消息
-            showMessage('考试删除成功！', 'success');
-            
-            // 重新加载考试列表
-            loadExams();
-            
-            // 刷新统计卡片数据
-            loadDashboardStats();
-        } catch (error) {
-            console.error('Failed to delete exam:', error);
-            showMessage('考试删除失败：' + error.message, 'error');
-        } finally {
-            // 隐藏加载状态
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            if (loadingOverlay) {
-                loadingOverlay.style.display = 'none';
-            }
-        }
-    }
-}
-
-// 保存当前查看的提交ID
-let currentSubmissionId = null;
-
-// 查看提交记录
-async function viewSubmission(submissionId) {
-    try {
-        const submission = await fetchAPI(`/api/teacher/submissions/${submissionId}`);
-        console.log('查看提交详情:', submission);
-        
-        // 更新模态框标题
-        const modalTitle = document.querySelector('#viewSubmissionModal .modal-title');
-        if (modalTitle) {
-            modalTitle.textContent = `${submission.studentName}的提交详情`;
-        }
-        
-        // 构建提交详情HTML
-        const submissionHTML = `
-            <div class="card mb-3">
-                <div class="card-body">
-                    <h6 class="card-title">基本信息</h6>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <p><strong>学生姓名：</strong>${submission.studentName}</p>
-                            <p><strong>学号：</strong>${submission.studentId}</p>
-                            <p><strong>作业/考试：</strong>${submission.title}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <p><strong>提交时间：</strong>${new Date(submission.submissionDate).toLocaleString()}</p>
-                            <p><strong>状态：</strong>${submission.status === 'graded' ? '<span class="badge badge-success">已批改</span>' : '<span class="badge badge-warning">未批改</span>'}</p>
-                            <p><strong>分数：</strong>${submission.score !== null ? submission.score : '-'}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="card mb-3">
-                <div class="card-body">
-                    <h6 class="card-title">提交内容</h6>
-                    <div class="submission-content">
-                        ${submission.content || '<p class="text-muted">暂无提交内容</p>'}
-                    </div>
-                </div>
-            </div>
-            ${submission.teacherComment ? `
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-title">评语</h6>
-                    <p>${submission.teacherComment}</p>
-                </div>
-            </div>
-            ` : ''}
-        `;
-        
-        // 更新模态框内容
-        const modalBody = document.getElementById('viewSubmissionBody');
-        if (modalBody) {
-            modalBody.innerHTML = submissionHTML;
-        }
-        
-        // 保存当前提交ID
-        currentSubmissionId = submissionId;
-        
-        // 显示批改按钮（如果未批改）
-        const gradeBtn = document.getElementById('gradeSubmissionBtn');
-        if (gradeBtn) {
-            gradeBtn.style.display = submission.status === 'graded' ? 'none' : 'block';
-        }
-        
-        // 显示模态框
-        const modal = new bootstrap.Modal(document.getElementById('viewSubmissionModal'));
-        modal.show();
-    } catch (error) {
-        console.error('Failed to view submission:', error);
-        showMessage('查看提交详情失败: ' + error.message, 'error');
-    }
-}
-
-// 批改提交
-async function gradeSubmission(submissionId) {
-    try {
-        // 保存当前提交ID
-        currentSubmissionId = submissionId;
-        
-        // 清空表单
-        document.getElementById('gradeSubmissionForm').reset();
-        document.getElementById('grade-submission-id').value = submissionId;
-        
-        // 显示模态框
-        const modal = new bootstrap.Modal(document.getElementById('gradeSubmissionModal'));
-        modal.show();
-    } catch (error) {
-        console.error('Failed to grade submission:', error);
-        showMessage('打开批改模态框失败: ' + error.message, 'error');
-    }
-}
-
-// 重新批改提交
-async function regradeSubmission(submissionId) {
-    try {
-        const submission = await fetchAPI(`/api/teacher/submissions/${submissionId}`);
-        
-        // 填充表单数据
-        document.getElementById('grade-submission-id').value = submissionId;
-        document.getElementById('grade-score').value = submission.score || '';
-        document.getElementById('grade-comment').value = submission.teacherComment || '';
-        
-        // 显示模态框
-        const modal = new bootstrap.Modal(document.getElementById('gradeSubmissionModal'));
-        modal.show();
-    } catch (error) {
-        console.error('Failed to regrade submission:', error);
-        showMessage('打开重新批改模态框失败: ' + error.message, 'error');
-    }
-}
-
-// 提交批改成绩
-async function submitGradeSubmission() {
-    try {
-        const form = document.getElementById('gradeSubmissionForm');
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
-        
-        const submissionId = parseInt(document.getElementById('grade-submission-id').value);
-        const score = parseFloat(document.getElementById('grade-score').value);
-        const teacherComment = document.getElementById('grade-comment').value;
-        
-        const result = await teacherAPI.gradeSubmission({
-            submissionId,
-            score,
-            teacherComment,
-            graded: true
-        });
-        
-        if (!result || result.success === false) {
-            const message = result?.message || '批改失败';
-            throw new Error(message);
-        }
-        
-        showMessage('批改成功！', 'success');
-        
-        // 关闭模态框
-        const modal = bootstrap.Modal.getInstance(document.getElementById('gradeSubmissionModal'));
-        modal.hide();
-        
-        // 刷新当前批改作业弹窗列表（若存在）
-        const assignmentModal = document.getElementById('gradeAssignmentModal');
-        const assignmentId = assignmentModal?.dataset.assignmentId;
-        if (assignmentId) {
-            await gradeAssignment(assignmentId);
-        }
-        
-        // 重新加载提交记录（全局列表）
-        loadSubmissions();
-        
-        // 如果查看模态框打开，更新其内容
-        const viewModal = bootstrap.Modal.getInstance(document.getElementById('viewSubmissionModal'));
-        if (viewModal) {
-            await viewSubmission(submissionId);
-        }
-    } catch (error) {
-        console.error('Failed to submit grade:', error);
-        showMessage('提交批改成绩失败: ' + error.message, 'error');
-    }
-}
-
-// 为查看提交模态框的批改按钮添加事件监听
-document.addEventListener('DOMContentLoaded', function() {
-    const gradeBtn = document.getElementById('gradeSubmissionBtn');
-    if (gradeBtn) {
-        gradeBtn.addEventListener('click', function() {
-            if (currentSubmissionId) {
-                gradeSubmission(currentSubmissionId);
-            }
-        });
-    }
-});
-
-// 提交发布作业
-async function submitAddAssignment() {
-    const form = document.getElementById('addAssignmentForm');
-    if (!form) return;
-    
-    // 验证表单
-    if (!form.checkValidity()) {
-        form.reportValidity();
-        return;
-    }
-    
-    try {
-        // 显示加载状态
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        if (loadingOverlay) {
-            loadingOverlay.style.display = 'flex';
-        }
-        
-        // 获取表单数据
-        const title = document.getElementById('assignment-title').value;
-        const courseIdStr = document.getElementById('add-assignment-course').value;
-        const description = document.getElementById('assignment-description').value;
-        const startDate = document.getElementById('assignment-start').value;
-        const endDate = document.getElementById('assignment-end').value;
-        const maxScore = parseInt(document.getElementById('assignment-score').value);
-        
-        // 转换并验证课程ID
-        console.log('课程选择器原始值(courseIdStr):', courseIdStr, '类型:', typeof courseIdStr);
-        const courseId = parseInt(courseIdStr);
-        console.log('转换后的课程ID(courseId):', courseId, '是否为NaN:', isNaN(courseId));
-        if (isNaN(courseId)) {
-            showMessage('请选择有效的所属课程！', 'error');
-            return;
-        }
-        
-        // 表单验证 - 暂时不验证班级信息，因为后端还没有处理班级关联
-        if (!title) {
-            showMessage('请填写作业标题！', 'error');
-            return;
-        }
-        if (!courseIdStr) {
-            showMessage('请选择所属课程！', 'error');
-            return;
-        }
-        if (!description) {
-            showMessage('请填写作业描述！', 'error');
-            return;
-        }
-        if (!startDate) {
-            showMessage('请选择作业发布时间！', 'error');
-            return;
-        }
-        if (!endDate) {
-            showMessage('请选择作业截止时间！', 'error');
-            return;
-        }
-        if (!maxScore || isNaN(maxScore)) {
-            showMessage('请输入有效的满分值！', 'error');
-            return;
-        }
-        
-        // 暂时不处理班级信息，因为后端还没有处理班级关联的逻辑
-        
-        // 构建请求数据，确保日期格式符合后端期望
-        const formatDate = (dateString) => {
-            // 将datetime-local格式转换为yyyy-MM-dd HH:mm:ss格式
-            const date = new Date(dateString);
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            const seconds = String(date.getSeconds()).padStart(2, '0');
-            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-        };
-        
-        const assignmentData = {
-            title: title,
-            courseId: courseId, // 已转换为数字类型
-            description: description,
-            publishDate: formatDate(startDate),
-            dueDate: formatDate(endDate),
-            isActive: true,
-            maxScore: maxScore
-        };
-        
-        // 获取选中的知识点ID
-        const knowledgePointsSelect = document.getElementById('assignment-knowledge-points');
-        if (knowledgePointsSelect) {
-            const selectedKnowledgePoints = Array.from(knowledgePointsSelect.selectedOptions).map(opt => parseInt(opt.value));
-            if (selectedKnowledgePoints.length > 0) {
-                assignmentData.knowledgePointIds = selectedKnowledgePoints;
-                console.log('选中的知识点ID:', selectedKnowledgePoints);
-            }
-        }
-        
-        console.log('提交的作业数据:', assignmentData);
-        console.log('publishDate格式:', assignmentData.publishDate);
-        console.log('dueDate格式:', assignmentData.dueDate);
-        
-        // 使用封装好的API服务
-        const apiService = new APIService();
-        const teacherAPI = new TeacherAPI(apiService);
-        
-        console.log('调用teacherAPI.createAssignment开始');
-        // 调用API创建作业
-        const result = await teacherAPI.createAssignment(assignmentData);
-        console.log('调用teacherAPI.createAssignment结束，返回结果:', result);
-        
-        // 检查结果
-        if (!result) {
-            console.error('teacherAPI.createAssignment返回null');
-            showMessage('作业发布失败：API返回空结果', 'error');
-            return;
-        }
-        
-        // 检查result.success字段
-        if (result.success === false) {
-            console.error('作业发布失败:', result.message);
-            showMessage('作业发布失败：' + result.message, 'error');
-            return;
-        }
-        
-        console.log('作业发布成功，准备显示消息');
-        // 显示成功消息
-        showMessage('作业发布成功！', 'success');
-        
-        // 关闭模态框
-        const modal = bootstrap.Modal.getInstance(document.getElementById('addAssignmentModal'));
-        if (modal) {
-            modal.hide();
-        }
-        
-        // 重置表单
-        form.reset();
-        
-        console.log('准备调用loadAssignments');
-        // 重新加载作业列表
-        loadAssignments();
-        console.log('调用loadAssignments结束');
-        
-        // 移除对loadDashboardStats的调用，避免可能的冲突
-        // loadDashboardStats();
-    } catch (error) {
-        console.error('Failed to add assignment:', error);
-        showMessage('作业发布失败：' + error.message, 'error');
-    } finally {
-        // 隐藏加载状态
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        if (loadingOverlay) {
-            loadingOverlay.style.display = 'none';
-        }
-    }
-}
+window.persistAuthSession = persistAuthSession;
+window.loadFrontendCapabilities = loadFrontendCapabilities;
 
 // 提交发布考试功能已移至teacher-assignments.html文件中
 
-// 提交编辑作业
-async function submitEditAssignment() {
-    const form = document.getElementById('editAssignmentForm');
-    if (!form) return;
-    
-    // 验证表单
-    if (!form.checkValidity()) {
-        form.reportValidity();
-        return;
+function extractCollectionFromApiResponse(response, collectionKeys = []) {
+    if (!response) {
+        return [];
     }
-    
-    try {
-        // 显示加载状态
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        if (loadingOverlay) {
-            loadingOverlay.style.display = 'flex';
-        }
-        
-        // 获取表单数据
-        const assignmentId = parseInt(document.getElementById('edit-assignment-id').value);
-        const title = document.getElementById('edit-assignment-title').value;
-        const courseId = parseInt(document.getElementById('edit-assignment-course').value);
-        const description = document.getElementById('edit-assignment-description').value;
-        const publishDate = document.getElementById('edit-assignment-start').value;
-        const dueDate = document.getElementById('edit-assignment-end').value;
-        const maxScore = parseInt(document.getElementById('edit-assignment-score').value);
-        
-        // 表单验证
-        if (!assignmentId || isNaN(assignmentId)) {
-            showMessage('作业ID无效！', 'error');
-            return;
-        }
-        if (!title) {
-            showMessage('请填写作业标题！', 'error');
-            return;
-        }
-        if (!courseId || isNaN(courseId)) {
-            showMessage('请选择有效的所属课程！', 'error');
-            return;
-        }
-        if (!dueDate) {
-            showMessage('请选择作业截止时间！', 'error');
-            return;
-        }
-        if (!maxScore || isNaN(maxScore)) {
-            showMessage('请输入有效的满分值！', 'error');
-            return;
-        }
-        
-        // 构建请求数据
-        // 日期需要转换为 ISO 字符串格式
-        const publishDateISO = publishDate ? new Date(publishDate).toISOString() : null;
-        const dueDateISO = dueDate ? new Date(dueDate).toISOString() : null;
-        
-        const assignmentData = {
-            title: title,
-            courseId: courseId,
-            description: description,
-            publishDate: publishDateISO,
-            dueDate: dueDateISO,
-            isActive: true,
-            maxScore: maxScore
-        };
-        
-        // 使用封装好的API服务
-        const apiService = new APIService();
-        const teacherAPI = new TeacherAPI(apiService);
-        
-        // 调用API更新作业 - 需要传递 assignmentId 和 data 两个参数
-        const response = await teacherAPI.updateAssignment(assignmentId, assignmentData);
-        
-        // 检查响应
-        if (!response || (response.success === false)) {
-            throw new Error(response?.message || '更新作业失败');
-        }
-        
-        // 显示成功消息
-        showMessage('作业更新成功！', 'success');
-        
-        // 关闭模态框
-        const modal = bootstrap.Modal.getInstance(document.getElementById('editAssignmentModal'));
-        if (modal) {
-            modal.hide();
-        }
-        
-        // 重新加载作业列表
-        loadAssignments();
-        
-        // 刷新统计卡片数据
-        loadDashboardStats();
-    } catch (error) {
-        console.error('Failed to edit assignment:', error);
-        showMessage('作业更新失败：' + error.message, 'error');
-    } finally {
-        // 隐藏加载状态
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        if (loadingOverlay) {
-            loadingOverlay.style.display = 'none';
+
+    const payload = extractTeacherPayload(response);
+    if (Array.isArray(payload)) {
+        return payload;
+    }
+
+    const defaultKeys = ['content', 'items', 'records', ...collectionKeys];
+    for (const key of defaultKeys) {
+        if (Array.isArray(payload?.[key])) {
+            return payload[key];
         }
     }
+
+    return findFirstArrayInObject(payload);
 }
 
-// 提交编辑考试
-async function submitEditExam() {
-    const form = document.getElementById('editExamForm');
-    if (!form) return;
-    
-    // 验证表单
-    if (!form.checkValidity()) {
-        form.reportValidity();
-        return;
-    }
-    
-    try {
-        // 显示加载状态
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        if (loadingOverlay) {
-            loadingOverlay.style.display = 'flex';
+function extractTeacherPayload(response) {
+    let payload = response;
+    const unwrapKeys = ['data', 'result', 'payload'];
+
+    for (let depth = 0; depth < 5; depth += 1) {
+        if (!payload || Array.isArray(payload) || typeof payload !== 'object') {
+            break;
         }
-        
-        // 获取表单数据
-        const examId = parseInt(document.getElementById('edit-exam-id').value);
-        const title = document.getElementById('edit-exam-title').value;
-        const courseId = parseInt(document.getElementById('edit-exam-course').value);
-        const description = document.getElementById('edit-exam-description').value;
-        const startTime = document.getElementById('edit-exam-start').value;
-        const duration = parseInt(document.getElementById('edit-exam-duration').value);
-        const maxScore = parseInt(document.getElementById('edit-exam-score').value);
-        const examType = document.getElementById('edit-exam-type').value;
-        
-        // 表单验证
-        if (!examId) {
-            showMessage('考试ID无效！', 'error');
-            return;
+
+        let unwrapped = false;
+        for (const key of unwrapKeys) {
+            const candidate = payload[key];
+            if (candidate !== undefined && candidate !== null) {
+                payload = candidate;
+                unwrapped = true;
+                break;
+            }
         }
-        if (!title) {
-            showMessage('请填写考试标题！', 'error');
-            return;
-        }
-        if (!courseId || isNaN(courseId)) {
-            showMessage('请选择有效的所属课程！', 'error');
-            return;
-        }
-        if (!startTime) {
-            showMessage('请选择考试时间！', 'error');
-            return;
-        }
-        if (!duration || isNaN(duration)) {
-            showMessage('请输入有效的考试时长！', 'error');
-            return;
-        }
-        if (!maxScore || isNaN(maxScore)) {
-            showMessage('请输入有效的满分值！', 'error');
-            return;
-        }
-        if (!examType || examType === '') {
-            showMessage('请选择考试类型！', 'error');
-            return;
-        }
-        
-        // 处理时间：datetime-local输入框返回的是本地时间格式（YYYY-MM-DDTHH:mm）
-        // 需要将其转换为正确的ISO格式（考虑时区）
-        // 方法：将本地时间字符串转换为Date对象，然后转换为ISO字符串
-        let startDateTime;
-        if (startTime.includes('T')) {
-            // 如果包含T，说明是datetime-local格式
-            // 直接使用，JavaScript会自动处理为本地时间
-            startDateTime = new Date(startTime);
-        } else {
-            // 否则尝试解析
-            startDateTime = new Date(startTime);
-        }
-        
-        // 计算结束时间
-        const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
-        
-        // 构建请求数据
-        const examData = {
-            title: title,
-            courseId: courseId,
-            description: description,
-            startTime: startDateTime.toISOString(),
-            endTime: endDateTime.toISOString(),
-            duration: duration,
-            isOnline: true, // 默认为线上考试
-            isActive: true,
-            location: '' // 默认为空
-        };
-        
-        // 使用封装好的API服务
-        const apiService = new APIService();
-        const teacherAPI = new TeacherAPI(apiService);
-        
-        // 调用API更新考试，传入examId和examData
-        await teacherAPI.updateExam(examId, examData);
-        
-        // 显示成功消息
-        showMessage('考试更新成功！', 'success');
-        
-        // 关闭模态框
-        const modal = bootstrap.Modal.getInstance(document.getElementById('editExamModal'));
-        if (modal) {
-            modal.hide();
-        }
-        
-        // 重新加载考试列表
-        loadExams();
-        
-        // 刷新统计卡片数据
-        loadDashboardStats();
-    } catch (error) {
-        console.error('Failed to edit exam:', error);
-        showMessage('考试更新失败：' + error.message, 'error');
-    } finally {
-        // 隐藏加载状态
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        if (loadingOverlay) {
-            loadingOverlay.style.display = 'none';
+
+        if (!unwrapped) {
+            break;
         }
     }
+
+    return payload;
 }
 
-// 加载统计数据
-async function loadDashboardStats() {
-    try {
-        // 使用fetchAPI函数获取统计数据
-        const response = await fetchAPI('/api/teacher/dashboard');
-        const stats = response?.data ?? response ?? {};
-        console.log('Dashboard stats:', stats);
-        
-        // 使用data-stat属性统一更新统计卡片，避免依赖DOM顺序
-        const fallbackMap = {
-            pendingAssignments: ['pendingAssignments', 'pendingGrades'],
-            pendingExams: ['pendingExams', 'upcomingExams'],
-            missingSubmissions: ['missingSubmissions'],
-            upcomingDeadlines: ['upcomingDeadlines']
-        };
-        
-        document.querySelectorAll('[data-stat]').forEach(element => {
-            const statKey = element.getAttribute('data-stat');
-            const candidates = fallbackMap[statKey] || [statKey];
-            const value = candidates
-                .map(key => stats?.[key])
-                .find(v => v !== undefined && v !== null);
-            
-            element.textContent = value ?? 0;
-        });
-    } catch (error) {
-        console.error('Failed to load dashboard stats:', error);
+function findFirstArrayInObject(payload) {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        return [];
     }
+
+    for (const value of Object.values(payload)) {
+        if (Array.isArray(value)) {
+            return value;
+        }
+    }
+
+    return [];
+}
+
+function extractTeacherApiList(response, collectionKeys = []) {
+    return extractCollectionFromApiResponse(response, [
+        'list',
+        'rows',
+        'result',
+        'results',
+        'data',
+        ...collectionKeys
+    ]);
+}
+
+function extractTeacherSingleRecord(response) {
+    if (!response) {
+        return null;
+    }
+
+    const payload = extractTeacherPayload(response);
+    if (Array.isArray(payload)) {
+        return payload[0] ?? null;
+    }
+
+    if (payload && typeof payload === 'object') {
+        const nestedKeys = ['record', 'item', 'detail'];
+        for (const key of nestedKeys) {
+            const candidate = payload[key];
+            if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+                return candidate;
+            }
+        }
+        return payload;
+    }
+
+    return null;
+}
+
+function isEndpointUnavailable(error) {
+    const message = String(error?.message || '').toLowerCase();
+    return message.includes('404')
+        || message.includes('405')
+        || message.includes('not found')
+        || message.includes('method not allowed');
+}
+
+function normalizeStatusValue(record) {
+    return String(
+        record?.status ??
+        record?.submissionStatus ??
+        record?.state ??
+        ''
+    ).trim().toLowerCase();
+}
+
+function parseDateValue(value) {
+    if (!value) {
+        return null;
+    }
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isFutureWithinDays(value, days) {
+    const date = parseDateValue(value);
+    if (!date) {
+        return false;
+    }
+    const now = new Date();
+    const diffMs = date.getTime() - now.getTime();
+    return diffMs >= 0 && diffMs <= days * 24 * 60 * 60 * 1000;
+}
+
+function extractTeacherStudentCount(courses) {
+    return courses.reduce((total, course) => {
+        const directCount = Number(
+            course?.studentCount ??
+            course?.student_count ??
+            course?.enrollmentCount ??
+            course?.enrollment_count ??
+            course?.studentTotal ??
+            course?.student_total
+        );
+        if (Number.isFinite(directCount) && directCount >= 0) {
+            return total + directCount;
+        }
+        if (Array.isArray(course?.students)) {
+            return total + course.students.length;
+        }
+        if (Array.isArray(course?.classes)) {
+            return total + course.classes.reduce((classTotal, cls) => {
+                const classCount = Number(
+                    cls?.studentCount ??
+                    cls?.student_count ??
+                    cls?.studentTotal ??
+                    cls?.student_total
+                );
+                if (Number.isFinite(classCount) && classCount >= 0) {
+                    return classTotal + classCount;
+                }
+                if (Array.isArray(cls?.students)) {
+                    return classTotal + cls.students.length;
+                }
+                return classTotal;
+            }, 0);
+        }
+        return total;
+    }, 0);
+}
+
+function extractTeacherNumericValue(record, keys = [], fallback = 0) {
+    for (const key of keys) {
+        const value = Number(record?.[key]);
+        if (Number.isFinite(value)) {
+            return value;
+        }
+    }
+    return fallback;
+}
+
+function buildTeacherRecentActivities(submissions, assignments, exams) {
+    const submissionActivities = submissions.map(item => ({
+        activityType: item?.graded ? '作业批改' : '作业提交',
+        details: `${item?.studentName || '学生'}${item?.graded ? '的提交已批改' : '提交了作业'}：${item?.title || item?.assignmentTitle || '未命名作业'}`,
+        activityDate: item?.submissionDate || item?.updatedAt || item?.createTime || new Date().toISOString()
+    }));
+
+    const assignmentActivities = assignments
+        .filter(item => parseDateValue(item?.dueDate ?? item?.deadline ?? item?.endTime))
+        .map(item => ({
+            activityType: '作业通知',
+            details: `作业「${item?.title || '未命名作业'}」截止时间临近`,
+            activityDate: item?.dueDate ?? item?.deadline ?? item?.endTime
+        }));
+
+    const examActivities = exams
+        .filter(item => parseDateValue(item?.examDate ?? item?.startTime ?? item?.date))
+        .map(item => ({
+            activityType: '考试通知',
+            details: `考试「${item?.title || item?.examTitle || '未命名考试'}」已排期`,
+            activityDate: item?.examDate ?? item?.startTime ?? item?.date
+        }));
+
+    return [...submissionActivities, ...assignmentActivities, ...examActivities]
+        .filter(item => item?.details)
+        .sort((a, b) => new Date(b.activityDate || 0) - new Date(a.activityDate || 0))
+        .slice(0, 5);
+}
+
+function buildTeacherSubmissionTrend(assignments, submissions) {
+    const submissionRateDays = Array.from({ length: 7 }, (_, index) => {
+        const date = new Date();
+        date.setDate(date.getDate() - (6 - index));
+        return `${date.getMonth() + 1}/${date.getDate()}`;
+    });
+
+    const submissionsByDay = new Map(submissionRateDays.map(day => [day, 0]));
+    submissions.forEach(item => {
+        const date = parseDateValue(item?.submissionDate ?? item?.updatedAt ?? item?.createTime);
+        if (!date) {
+            return;
+        }
+        const key = `${date.getMonth() + 1}/${date.getDate()}`;
+        if (submissionsByDay.has(key)) {
+            submissionsByDay.set(key, submissionsByDay.get(key) + 1);
+        }
+    });
+
+    const submissionBase = Math.max(assignments.length, 1);
+    const submissionRates = submissionRateDays.map(day => {
+        const count = submissionsByDay.get(day) || 0;
+        return Math.min(Math.round((count / submissionBase) * 100), 100);
+    });
+
+    return {
+        submissionRateDays,
+        submissionRates
+    };
+}
+
+async function buildTeacherDashboardSnapshot(params = {}, options = {}) {
+    const apiService = new APIService();
+    const teacherAPI = new TeacherAPI(apiService);
+    const includeExams = shouldIncludeExamDataForTeacherStats(options);
+    const includeWarnings = shouldIncludeEarlyWarningsForTeacherStats(options);
+    const [coursesResult, assignmentsResult, examsResult, submissionsResult, warningsResult] = await Promise.allSettled([
+        teacherAPI.getCourses(params),
+        teacherAPI.getAssignments({ page: 1, size: 100 }),
+        includeExams
+            ? teacherAPI.getExams({ page: 1, size: 100 })
+            : Promise.resolve({ success: true, data: { content: [] } }),
+        teacherAPI.getSubmissions({ page: 1, size: 100 }),
+        includeWarnings
+            ? teacherAPI.getEarlyWarnings({ page: 1, size: 100 })
+            : Promise.resolve({ success: true, data: { content: [] } })
+    ]);
+
+    const courses = coursesResult.status === 'fulfilled'
+        ? extractTeacherApiList(coursesResult.value, ['courses'])
+        : [];
+    const assignments = assignmentsResult.status === 'fulfilled'
+        ? extractTeacherApiList(assignmentsResult.value, ['assignments'])
+        : [];
+    const exams = examsResult.status === 'fulfilled'
+        ? extractTeacherApiList(examsResult.value, ['exams'])
+        : [];
+    const submissions = submissionsResult.status === 'fulfilled'
+        ? extractTeacherApiList(submissionsResult.value, ['submissions'])
+        : [];
+    const warnings = warningsResult.status === 'fulfilled'
+        ? extractTeacherApiList(warningsResult.value, ['warnings'])
+        : [];
+
+    const pendingAssignments = assignments.filter(assignment => {
+        const status = normalizeStatusValue(assignment);
+        return !['graded', 'closed', 'completed', 'archived', 'deleted', 'cancelled'].includes(status);
+    }).length;
+
+    const pendingExams = exams.filter(exam => {
+        const status = normalizeStatusValue(exam);
+        if (status) {
+            return ['pending', 'scheduled', 'upcoming', 'published', 'open', 'active'].includes(status);
+        }
+        return !!parseDateValue(exam?.examDate ?? exam?.startTime ?? exam?.date);
+    }).length;
+
+    const missingSubmissions = submissions.filter(submission => {
+        const status = normalizeStatusValue(submission);
+        if (status) {
+            return !['graded', 'completed', 'reviewed'].includes(status);
+        }
+        return !(submission?.graded === true || submission?.score !== null && submission?.score !== undefined);
+    }).length;
+
+    const upcomingDeadlines = assignments.filter(assignment =>
+        isFutureWithinDays(assignment?.dueDate ?? assignment?.deadline ?? assignment?.endTime, 7)
+    ).length;
+    const courseNames = courses.map(course => course?.courseName || course?.name || `课程${course?.id ?? ''}`.trim()).filter(Boolean);
+    const averageScores = courses.map(course => extractTeacherNumericValue(course, [
+        'averageScore',
+        'avgScore',
+        'avg_score',
+        'courseAverageScore'
+    ]));
+    const recentActivities = buildTeacherRecentActivities(submissions, assignments, exams);
+    const { submissionRateDays, submissionRates } = buildTeacherSubmissionTrend(assignments, submissions);
+
+    return {
+        totalCourses: courses.length,
+        totalStudents: extractTeacherStudentCount(courses),
+        pendingAssignments,
+        pendingGrades: missingSubmissions,
+        pendingExams,
+        upcomingExams: pendingExams,
+        missingSubmissions,
+        upcomingDeadlines,
+        warningCount: warnings.length,
+        pendingAssignmentsChange: 0,
+        pendingGradesChange: 0,
+        pendingExamsChange: 0,
+        upcomingExamsChange: 0,
+        missingSubmissionsChange: 0,
+        upcomingDeadlinesChange: 0,
+        totalCoursesChange: 0,
+        totalStudentsChange: 0,
+        warningCountChange: 0,
+        courseNames,
+        averageScores,
+        submissionRateDays,
+        submissionRates,
+        recentActivities
+    };
+}
+
+async function buildTeacherDashboardResponse(params = {}, options = {}) {
+    const data = await buildTeacherDashboardSnapshot(params, options);
+    return {
+        success: true,
+        code: 200,
+        message: '仪表盘数据聚合成功',
+        data
+    };
 }
 
 // 初始化函数
@@ -3536,29 +1941,45 @@ async function init() {
     // 检查当前页面是否是登录页面，如果是，则不调用需要授权的API
     const currentPage = window.location.pathname.split('/').pop();
     const isLoginPage = currentPage.includes('login') || currentPage === 'index.html';
+
+    if (
+        currentPage === 'teacher-assignments.html' ||
+        currentPage === 'teacher-courses.html' ||
+        currentPage === 'teacher-warning.html' ||
+        currentPage === 'teacher-student-dashboard.html' ||
+        currentPage === 'teacher-knowledge.html'
+    ) {
+        return;
+    }
     
-    // 检查是否是教师仪表盘相关页面，如果是，跳过自动加载，因为该页面有自己的初始化逻辑
-    const isTeacherDashboardPage = currentPage === 'teacher-student-dashboard.html' || currentPage === 'teacher-dashboard.html';
+    // 检查是否是已经拥有页面级初始化逻辑的教师页面；这些页面不再走 api.js 的全局自动初始化
+    const isTeacherPageWithOwnInit =
+        currentPage === 'teacher-dashboard.html' ||
+        currentPage === 'teacher-student-dashboard.html' ||
+        currentPage === 'teacher-assignments.html' ||
+        currentPage === 'teacher-courses.html' ||
+        currentPage === 'teacher-notifications.html' ||
+        currentPage === 'teacher-settings.html' ||
+        currentPage === 'teacher-warning.html' ||
+        currentPage === 'teacher-knowledge.html';
     
     // 仅对教师相关页面（文件名以 teacher- 开头）执行自动加载，避免学生页面触发教师接口导致 403
     const isTeacherPage = currentPage.startsWith('teacher-');
     
-    if (!isLoginPage && isTeacherPage && !isTeacherDashboardPage) {
-        // 加载教师端所需数据（会调用 /api/teacher/**）
-        await Promise.all([
+    if (!isLoginPage && isTeacherPage && !isTeacherPageWithOwnInit) {
+        const teacherBootTasks = [
             loadCourses(),
-            loadClasses(),
-            loadAssignments(),
-            loadExams(),
-            loadSubmissions(),
-            loadDashboardStats() // 为教师页面加载统计数据
-        ]);
-        
-        // 注释掉废弃的搜索功能初始化，这些函数已不再使用
-        // initAssignmentSearch();
-        // initExamSearch();
-        // initSubmissionSearch();
-        
+            loadClasses()
+        ];
+
+        if (currentPage === 'teacher-assignments.html') {
+            teacherBootTasks.push(loadAssignments(), loadSubmissions());
+        } else {
+            teacherBootTasks.push(loadAssignments(), loadSubmissions());
+        }
+
+        await Promise.all(teacherBootTasks);
+
         // 初始化考试方式切换（仅教师考试管理页面需要）
         const examTypeSelects = [
             document.getElementById('exam-is-online'),
@@ -3592,29 +2013,6 @@ async function init() {
 
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', init);
-
-// 标签页切换
-function initTabs() {
-    const tabItems = document.querySelectorAll('.tab-item');
-    tabItems.forEach(item => {
-        item.addEventListener('click', () => {
-            const tab = item.dataset.tab;
-            
-            // 移除所有活跃状态
-            tabItems.forEach(i => i.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.style.display = 'none';
-            });
-            
-            // 添加当前活跃状态
-            item.classList.add('active');
-            document.getElementById(`${tab}-content`).style.display = 'block';
-        });
-    });
-}
-
-// 初始化标签页
-initTabs();
 
 // 侧边栏切换
 function initSidebar() {
@@ -3652,135 +2050,3 @@ document.querySelectorAll('.modal form').forEach(form => {
     });
 });
 
-// 作业搜索功能
-function searchAssignments() {
-    // 获取搜索条件
-    const title = document.getElementById('assignment-search')?.value || '';
-    const courseId = document.getElementById('assignment-course')?.value || '';
-    const status = document.getElementById('assignment-status')?.value || '';
-    const submitted = document.getElementById('assignment-submitted')?.value || '';
-    
-    // 构建搜索参数
-    const params = {
-        keyword: title,
-        courseId: courseId,
-        status: status,
-        submitted: submitted
-    };
-    
-    // 加载作业列表
-    loadAssignments(1, params);
-}
-
-// 重置作业搜索条件
-function resetAssignmentSearch() {
-    // 清空搜索输入框
-    const searchInput = document.getElementById('assignment-search');
-    if (searchInput) searchInput.value = '';
-    
-    const courseSelect = document.getElementById('assignment-course');
-    if (courseSelect) courseSelect.value = '';
-    
-    const statusSelect = document.getElementById('assignment-status');
-    if (statusSelect) statusSelect.value = '';
-    
-    const submittedSelect = document.getElementById('assignment-submitted');
-    if (submittedSelect) submittedSelect.value = '';
-    
-    // 重新加载作业列表
-    loadAssignments(1);
-}
-
-// 考试搜索功能
-function searchExams() {
-    // 获取搜索条件
-    const title = document.getElementById('exam-search')?.value || '';
-    const courseId = document.getElementById('exam-course')?.value || '';
-    const status = document.getElementById('exam-status')?.value || '';
-    const isOnline = document.getElementById('exam-online')?.value || '';
-    
-    // 构建搜索参数
-    const params = {
-        keyword: title,
-        courseId: courseId,
-        status: status,
-        isOnline: isOnline
-    };
-    
-    // 加载考试列表
-    loadExams(1, params);
-}
-
-// 重置考试搜索条件
-function resetExamSearch() {
-    // 清空搜索输入框
-    const searchInput = document.getElementById('exam-search');
-    if (searchInput) searchInput.value = '';
-    
-    const courseSelect = document.getElementById('exam-course');
-    if (courseSelect) courseSelect.value = '';
-    
-    const statusSelect = document.getElementById('exam-status');
-    if (statusSelect) statusSelect.value = '';
-    
-    const onlineSelect = document.getElementById('exam-online');
-    if (onlineSelect) onlineSelect.value = '';
-    
-    // 重新加载考试列表
-    loadExams(1);
-}
-
-// 提交记录搜索功能
-function searchSubmissions() {
-    // 获取搜索条件
-    const studentId = document.getElementById('submission-student')?.value || '';
-    const submissionType = document.getElementById('submission-type')?.value || '';
-    const assignmentId = document.getElementById('submission-assignment')?.value || '';
-    const status = document.getElementById('submission-status')?.value || '';
-    const startDate = document.getElementById('submission-date-start')?.value || '';
-    const endDate = document.getElementById('submission-date-end')?.value || '';
-    
-    // 构建搜索参数
-    const params = {
-        studentId: studentId,
-        submissionType: submissionType,
-        assignmentId: assignmentId,
-        status: status,
-        startDate: startDate,
-        endDate: endDate
-    };
-    
-    // 加载提交记录列表
-    loadSubmissions(1, params);
-}
-
-// 重置提交记录搜索条件
-function resetSubmissionSearch() {
-    // 清空搜索输入框
-    const studentSelect = document.getElementById('submission-student');
-    if (studentSelect) studentSelect.value = '';
-    
-    const typeSelect = document.getElementById('submission-type');
-    if (typeSelect) typeSelect.value = '';
-    
-    const assignmentSelect = document.getElementById('submission-assignment');
-    if (assignmentSelect) assignmentSelect.value = '';
-    
-    const statusSelect = document.getElementById('submission-status');
-    if (statusSelect) statusSelect.value = '';
-    
-    const dateStartInput = document.getElementById('submission-date-start');
-    if (dateStartInput) dateStartInput.value = '';
-    
-    const dateEndInput = document.getElementById('submission-date-end');
-    if (dateEndInput) dateEndInput.value = '';
-    
-    // 重新加载提交记录列表
-    loadSubmissions(1);
-}
-
-// 导出提交记录
-function exportSubmissions() {
-    // 实现导出功能
-    console.log('Export submissions');
-}

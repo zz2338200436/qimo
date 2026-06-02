@@ -3,9 +3,12 @@ package com._202510007517.platform.course.controller;
 import com._202510007517.platform.course.api.dto.CourseDTO;
 import com._202510007517.platform.course.api.dto.CourseAssignmentDTO;
 import com._202510007517.platform.course.api.dto.TeacherClassDTO;
+import com._202510007517.platform.common.exception.ForbiddenException;
+import com._202510007517.platform.course.config.CourseServiceExceptionHandler;
 import com._202510007517.platform.course.service.TeacherKnowledgePointService;
 import com._202510007517.platform.course.service.CourseApplicationService;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -57,7 +60,9 @@ class CourseControllerTest {
         cls.setCourseName("Distributed Systems");
         when(service.listTeacherClasses(7L, null, null, null, null, null)).thenReturn(List.of(cls));
 
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new TeacherCourseAdminController(service)).build();
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new TeacherCourseAdminController(service))
+                .setControllerAdvice(new CourseServiceExceptionHandler(new MockEnvironment()))
+                .build();
 
         mockMvc.perform(get("/api/teacher/classes")
                         .header("X-User-Id", "7"))
@@ -108,6 +113,58 @@ class CourseControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].id").value(42))
                 .andExpect(jsonPath("$.data[0].username").value("student42"));
+    }
+
+    @Test
+    void addStudentToClassUsesGatewayUserHeaderAndKeepsLegacyEnvelope() throws Exception {
+        CourseApplicationService service = mock(CourseApplicationService.class);
+        when(service.addStudentToClass(7L, 501L, Map.of("studentIdentifier", "20240088"))).thenReturn(Map.of(
+                "studentId", 88L,
+                "classId", 501L
+        ));
+
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new TeacherCourseAdminController(service)).build();
+
+        mockMvc.perform(post("/api/teacher/classes/{classId}/students", 501L)
+                        .header("X-User-Id", "7")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "studentIdentifier":"20240088"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.message").value("学生已添加到班级"))
+                .andExpect(jsonPath("$.data.studentId").value(88))
+                .andExpect(jsonPath("$.data.classId").value(501));
+
+        verify(service).addStudentToClass(7L, 501L, Map.of("studentIdentifier", "20240088"));
+    }
+
+    @Test
+    void addStudentToClassSurfacesForbiddenMoveAsLegacyEnvelope() throws Exception {
+        CourseApplicationService service = mock(CourseApplicationService.class);
+        when(service.addStudentToClass(7L, 501L, Map.of("studentIdentifier", "20240099")))
+                .thenThrow(new ForbiddenException("无权移动该学生所在班级"));
+
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new TeacherCourseAdminController(service))
+                .setControllerAdvice(new CourseServiceExceptionHandler(new MockEnvironment()))
+                .build();
+
+        mockMvc.perform(post("/api/teacher/classes/{classId}/students", 501L)
+                        .header("X-User-Id", "7")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "studentIdentifier":"20240099"
+                                }
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value(403))
+                .andExpect(jsonPath("$.message").value("无权移动该学生所在班级"));
     }
 
     @Test

@@ -6,19 +6,19 @@ function assertIncludes(content, needle, message) {
   }
 }
 
-const apiJs = fs.readFileSync('frontend/dist/api.js', 'utf8');
+const gradingModule = fs.readFileSync('frontend/dist/teacher-assignments-grading.js', 'utf8');
 const signature = 'async function submitGradeSubmission()';
-const lastStart = apiJs.lastIndexOf(signature);
+const lastStart = gradingModule.lastIndexOf(signature);
 
 if (lastStart === -1) {
-  throw new Error('submitGradeSubmission definition not found in api.js');
+  throw new Error('submitGradeSubmission definition not found in teacher-assignments-grading.js');
 }
 
-const nextMarker = '\n// 为查看提交模态框的批改按钮添加事件监听';
-const endIndex = apiJs.indexOf(nextMarker, lastStart);
+const nextMarker = '\n    function bindGradeSubmissionButton()';
+const endIndex = gradingModule.indexOf(nextMarker, lastStart);
 const activeFunctionBody = endIndex === -1
-  ? apiJs.slice(lastStart)
-  : apiJs.slice(lastStart, endIndex);
+  ? gradingModule.slice(lastStart)
+  : gradingModule.slice(lastStart, endIndex);
 
 assertIncludes(
   activeFunctionBody,

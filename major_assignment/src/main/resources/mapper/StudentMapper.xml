@@ -279,6 +279,147 @@
         LEFT JOIN
             student_performance sp ON sp.student_id = #{studentId}
     </select>
+
+    <select id="getTeacherStudentCoursePerformance" resultType="java.util.Map">
+        SELECT
+            COALESCE(
+                (
+                    SELECT IFNULL(AVG(score), 0)
+                    FROM (
+                        SELECT asub.score
+                        FROM assignment_submissions asub
+                        JOIN assignments a ON asub.assignment_id = a.id
+                        WHERE asub.student_id = #{studentId}
+                          AND a.course_id = #{courseId}
+                          AND asub.score IS NOT NULL
+                          AND CAST(asub.graded AS UNSIGNED) = 1
+                          <if test="timeRange != null and timeRange != ''">
+                              <choose>
+                                  <when test="timeRange == 'week'">
+                                      AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK)
+                                  </when>
+                                  <when test="timeRange == 'month'">
+                                      AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
+                                  </when>
+                                  <when test="timeRange == 'quarter'">
+                                      AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
+                                  </when>
+                                  <when test="timeRange == 'semester'">
+                                      AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 4 MONTH)
+                                  </when>
+                              </choose>
+                          </if>
+                        UNION ALL
+                        SELECT es.score
+                        FROM exam_submissions es
+                        JOIN exams e ON es.exam_id = e.id
+                        WHERE es.student_id = #{studentId}
+                          AND e.course_id = #{courseId}
+                          AND es.score IS NOT NULL
+                          AND CAST(es.graded AS UNSIGNED) = 1
+                          <if test="timeRange != null and timeRange != ''">
+                              <choose>
+                                  <when test="timeRange == 'week'">
+                                      AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK)
+                                  </when>
+                                  <when test="timeRange == 'month'">
+                                      AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
+                                  </when>
+                                  <when test="timeRange == 'quarter'">
+                                      AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
+                                  </when>
+                                  <when test="timeRange == 'semester'">
+                                      AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 4 MONTH)
+                                  </when>
+                              </choose>
+                          </if>
+                    ) AS scoped_scores
+                ),
+                0
+            ) AS averageScore,
+            (
+                SELECT COUNT(DISTINCT a.id)
+                FROM assignments a
+                JOIN assignment_classes ac ON a.id = ac.assignment_id
+                JOIN class_students cs ON ac.class_id = cs.class_id
+                WHERE cs.student_id = #{studentId}
+                  AND a.course_id = #{courseId}
+                  AND a.id NOT IN (
+                      SELECT assignment_id
+                      FROM assignment_submissions
+                      WHERE student_id = #{studentId}
+                  )
+            ) AS pendingAssignments,
+            CASE
+                WHEN (
+                    (SELECT COUNT(*) FROM assignments WHERE course_id = #{courseId}) +
+                    (SELECT COUNT(*) FROM exams WHERE course_id = #{courseId})
+                ) > 0
+                THEN ROUND(
+                    (
+                        COALESCE(
+                            (
+                                SELECT COUNT(*)
+                                FROM assignment_submissions asub
+                                JOIN assignments a ON asub.assignment_id = a.id
+                                WHERE asub.student_id = #{studentId}
+                                  AND a.course_id = #{courseId}
+                                  <if test="timeRange != null and timeRange != ''">
+                                      <choose>
+                                          <when test="timeRange == 'week'">
+                                              AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK)
+                                          </when>
+                                          <when test="timeRange == 'month'">
+                                              AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
+                                          </when>
+                                          <when test="timeRange == 'quarter'">
+                                              AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
+                                          </when>
+                                          <when test="timeRange == 'semester'">
+                                              AND asub.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 4 MONTH)
+                                          </when>
+                                      </choose>
+                                  </if>
+                            ),
+                            0
+                        ) +
+                        COALESCE(
+                            (
+                                SELECT COUNT(*)
+                                FROM exam_submissions es
+                                JOIN exams e ON es.exam_id = e.id
+                                WHERE es.student_id = #{studentId}
+                                  AND e.course_id = #{courseId}
+                                  <if test="timeRange != null and timeRange != ''">
+                                      <choose>
+                                          <when test="timeRange == 'week'">
+                                              AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK)
+                                          </when>
+                                          <when test="timeRange == 'month'">
+                                              AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
+                                          </when>
+                                          <when test="timeRange == 'quarter'">
+                                              AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
+                                          </when>
+                                          <when test="timeRange == 'semester'">
+                                              AND es.submission_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 4 MONTH)
+                                          </when>
+                                      </choose>
+                                  </if>
+                            ),
+                            0
+                        )
+                    ) * 100.0 /
+                    (
+                        (SELECT COUNT(*) FROM assignments WHERE course_id = #{courseId}) +
+                        (SELECT COUNT(*) FROM exams WHERE course_id = #{courseId})
+                    ),
+                    0
+                )
+                ELSE 0
+            END AS overallProgress
+        FROM dual
+    </select>
     
     <!-- 获取课程进度 -->
     <select id="getCourseProgress" resultType="java.lang.Integer">

@@ -1,6 +1,7 @@
 package com._202510007517.major_assignment.service;
 
 import com._202510007517.major_assignment.entity.BrowserError;
+import com._202510007517.major_assignment.entity.dto.PageResult;
 
 import java.util.List;
 import java.util.Map;
@@ -38,14 +39,7 @@ public interface BrowserErrorService {
      * @param size 每页数量
      * @return 浏览器错误日志实体列表
      */
-    List<BrowserError> getBrowserErrorList(Map<String, String> params, int page, int size);
-    
-    /**
-     * 根据条件查询浏览器错误日志数量
-     * @param params 查询条件
-     * @return 错误日志数量
-     */
-    int getBrowserErrorCount(Map<String, String> params);
+    PageResult<BrowserError> getBrowserErrorList(Map<String, String> params, int page, int size);
     
     /**
      * 更新浏览器错误日志

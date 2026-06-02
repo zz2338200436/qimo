@@ -7,20 +7,19 @@
     <!-- Bootstrap 5 CSS -->
     <link href="lib/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome CSS -->
-    <link href="lib/font-awesome-full.css" rel="stylesheet">
+    <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- 全局样式文件 -->
-    <link href="styles.css" rel="stylesheet">
+        <!-- 全局样式文件 -->
+    <link href="styles.css?v=20260523-1" rel="stylesheet">
     <!-- API服务文件 -->
-    <script src="api.js"></script>
+    <script src="api.js?v=20260523-1"></script>
 </head>
-<body>
+<body class="teacher-shell-body">
 <!-- 侧边栏导航组件 -->
 <div id="sidebar-container"></div>
 <script>
     // 加载侧边栏组件
-    fetch('components/teacher-sidebar-nav.html')
+    fetch('components/teacher-sidebar-nav.html?v=20260523-1')
         .then(response => response.text())
         .then(data => {
             document.getElementById('sidebar-container').innerHTML = data;
@@ -43,9 +42,9 @@
 </script>
 
 <!-- 主内容区 -->
-<main class="main-content" id="mainContent">
+<main class="main-content teacher-shell-main" id="mainContent">
     <!-- 顶部导航栏 -->
-    <nav class="top-navbar">
+    <nav class="top-navbar teacher-topbar">
         <div class="navbar-left">
             <button class="toggle-btn" id="toggleBtn">
                 <i class="fa fa-bars"></i>
@@ -60,9 +59,9 @@
     </nav>
     
     <!-- 内容容器 -->
-    <div class="content-container">
+    <div class="content-container teacher-content">
         <!-- 通知管理卡片 -->
-        <div class="card shadow-sm mb-4">
+        <div class="card shadow-sm mb-4 teacher-panel">
             <div class="card-header bg-white py-3">
                 <h3 class="card-title mb-0">发送通知</h3>
             </div>
@@ -118,7 +117,7 @@
         </div>
         
         <!-- 通知历史 -->
-        <div class="card shadow-sm">
+        <div class="card shadow-sm teacher-panel">
             <div class="card-header bg-white py-3">
                 <h3 class="card-title mb-0">通知历史</h3>
             </div>
@@ -148,13 +147,15 @@
 <!-- Bootstrap 5 JS -->
 <script src="lib/bootstrap.bundle.min.js"></script>
 <script>
+    const LOCAL_NOTIFICATION_HISTORY_KEY = 'teacherNotificationHistory';
+
     // 通用函数：为教师端加载右上角用户下拉菜单，并执行组件内脚本
     async function loadUserDropdownForTeacher(containerId) {
         const container = document.getElementById(containerId);
         if (!container) return;
 
         try {
-            const resp = await fetch('components/user-dropdown.html');
+            const resp = await fetch('components/user-dropdown.html?v=20260523-1');
             if (!resp.ok) {
                 console.error('加载用户下拉组件失败:', resp.status, resp.statusText);
                 return;
@@ -189,8 +190,9 @@
     // 页面加载完成后初始化
     document.addEventListener('DOMContentLoaded', async function() {
         const user = sessionStorage.getItem('user');
-        if (!user) {
-            window.location.href = 'teacher-login.html';
+        const token = sessionStorage.getItem('token');
+        if (!user || !token) {
+            window.location.href = 'teacher-login.html?v=20260523-1';
             return;
         }
 
@@ -199,7 +201,71 @@
 
         // 初始化通知表单
         initNotificationForm();
+        renderNotificationHistory();
     });
+
+    function getLocalNotificationHistory() {
+        try {
+            const raw = localStorage.getItem(LOCAL_NOTIFICATION_HISTORY_KEY);
+            const history = raw ? JSON.parse(raw) : [];
+            return Array.isArray(history) ? history : [];
+        } catch (error) {
+            console.warn('读取本地通知历史失败:', error);
+            return [];
+        }
+    }
+
+    function saveLocalNotificationHistory(history) {
+        try {
+            localStorage.setItem(LOCAL_NOTIFICATION_HISTORY_KEY, JSON.stringify(history.slice(0, 20)));
+        } catch (error) {
+            console.warn('保存本地通知历史失败:', error);
+        }
+    }
+
+    function appendLocalNotificationHistory(record) {
+        const history = getLocalNotificationHistory();
+        history.unshift(record);
+        saveLocalNotificationHistory(history);
+    }
+
+    function renderNotificationHistory() {
+        const historyBody = document.getElementById('notificationHistory');
+        if (!historyBody) {
+            return;
+        }
+
+        const history = getLocalNotificationHistory();
+        if (!history.length) {
+            historyBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted">通知历史接口暂未接入，当前仅展示本地发送成功记录。</td>
+                </tr>
+            `;
+            return;
+        }
+
+        historyBody.innerHTML = history.map(item => `
+            <tr>
+                <td>${item.id}</td>
+                <td>${item.typeLabel}</td>
+                <td>${item.title}</td>
+                <td>${item.studentId}</td>
+                <td>${item.sentAt}</td>
+                <td><span class="badge bg-success">已发送</span></td>
+            </tr>
+        `).join('');
+    }
+
+    function getNotificationTypeLabel(type) {
+        const typeMap = {
+            system: '系统通知',
+            course: '课程通知',
+            assignment: '作业通知',
+            exam: '考试通知'
+        };
+        return typeMap[type] || type || '未知类型';
+    }
     
     // 初始化通知表单
     function initNotificationForm() {
@@ -226,10 +292,9 @@
                 isRead: false
             };
             
+            const submitBtn = form.querySelector('button[type="submit"]');
             try {
                 // 显示加载状态
-                const submitBtn = form.querySelector('button[type="submit"]');
-                const originalText = submitBtn.innerHTML;
                 submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 发送中...';
                 submitBtn.disabled = true;
                 
@@ -239,11 +304,28 @@
                 const response = await teacherAPI.sendNotification(notificationData);
                 
                 if (response && response.success) {
+                    const responseRecord = (typeof extractTeacherSingleRecord === 'function'
+                        ? extractTeacherSingleRecord(response)
+                        : null) || {};
+                    appendLocalNotificationHistory({
+                        id: responseRecord.id || `local-${Date.now()}`,
+                        typeLabel: getNotificationTypeLabel(notificationData.type),
+                        title: responseRecord.title || notificationData.title,
+                        studentId: responseRecord.studentId || notificationData.studentId,
+                        sentAt: new Date(
+                            responseRecord.sentAt ||
+                            responseRecord.createTime ||
+                            responseRecord.createdAt ||
+                            Date.now()
+                        ).toLocaleString()
+                    });
+
                     // 显示成功消息
                     showNotification('通知发送成功', 'success');
                     // 重置表单
                     form.reset();
                     form.classList.remove('was-validated');
+                    renderNotificationHistory();
                 } else {
                     throw new Error(response?.message || '发送通知失败');
                 }
@@ -252,7 +334,6 @@
                 showNotification(error.message || '发送通知失败，请稍后重试', 'danger');
             } finally {
                 // 恢复按钮状态
-                const submitBtn = form.querySelector('button[type="submit"]');
                 submitBtn.innerHTML = '<i class="fa fa-paper-plane"></i> 发送通知';
                 submitBtn.disabled = false;
             }

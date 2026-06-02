@@ -1,5 +1,7 @@
 package com._202510007517.major_assignment.controller;
 
+import com._202510007517.major_assignment.annotation.RequireLogin;
+import com._202510007517.major_assignment.constants.RoleConstants;
 import com._202510007517.major_assignment.entity.Course;
 import com._202510007517.major_assignment.entity.Exam;
 import com._202510007517.major_assignment.entity.ExamSubmission;
@@ -13,6 +15,7 @@ import com._202510007517.major_assignment.service.NotificationService;
 import com._202510007517.major_assignment.service.EarlyWarningAnalysisService;
 import com._202510007517.major_assignment.service.KnowledgePointService;
 import com._202510007517.major_assignment.utils.LogUtil;
+import com._202510007517.major_assignment.utils.PageUtils;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.validation.Valid;
@@ -27,6 +30,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/teacher/exams")
+@RequireLogin(roles = {RoleConstants.TEACHER})
 public class ExamController extends BaseController {
     
     private static final Logger logger = LogUtil.getLogger(ExamController.class);
@@ -63,48 +67,24 @@ public class ExamController extends BaseController {
             @RequestParam(value = "isOnline", required = false) Boolean isOnline,
             HttpServletRequest requestContext) {
         LogUtil.logRequest(logger, "GET", "/api/teacher/exams", null, getCurrentUserId(requestContext));
-        
-        if (!isLoggedIn(requestContext)) {
-            LogUtil.logWarning(logger, "未授权访问考试列表", getCurrentUserId(requestContext));
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
-        // 转换courseIdStr为Long类型，支持字符串ID和数字ID
-        Long courseId = null;
-        if (courseIdStr != null && !courseIdStr.isEmpty()) {
-            try {
-                // 尝试直接转换为Long
-                courseId = Long.parseLong(courseIdStr);
-            } catch (NumberFormatException e) {
-                // 如果转换失败，尝试将其作为课程代码处理
-                LogUtil.logDebug(logger, "尝试将课程代码 " + courseIdStr + " 转换为课程ID", getCurrentUserId(requestContext));
-                // 获取当前教师的所有课程
-                List<Course> allCourses = courseService.findByTeacherId(getCurrentUserId(requestContext));
-                // 根据课程代码查找匹配的课程
-                for (Course course : allCourses) {
-                    if (course.getCourseCode() != null && course.getCourseCode().equals(courseIdStr)) {
-                        courseId = course.getId();
-                        LogUtil.logDebug(logger, "找到课程代码 " + courseIdStr + " 对应的课程ID: " + courseId, getCurrentUserId(requestContext));
-                        break;
-                    }
-                }
-                if (courseId == null) {
-                    LogUtil.logWarning(logger, "无效的课程ID或课程代码: " + courseIdStr, getCurrentUserId(requestContext));
-                }
-            }
+
+        Long teacherId = getCurrentUserId(requestContext);
+        List<Course> allCourses = courseService.findByTeacherId(teacherId);
+        Long courseId = resolveTeacherCourseId(courseIdStr, allCourses);
+        if (courseId == null && courseIdStr != null && !courseIdStr.isEmpty()) {
+            LogUtil.logWarning(logger, "无效的课程ID或课程代码: " + courseIdStr, teacherId);
         }
         
         // 将courseId赋值给final变量，用于lambda表达式
         final Long finalCourseId = courseId;
         
+        final String normalizedStatus = normalizeExamStatusFilter(status);
+
         // 获取所有考试
         List<Exam> allExams = examService.getAllExams();
         
         // 获取当前时间
         final Date now = new Date();
-        
-        // 获取当前教师ID
-        Long teacherId = getCurrentUserId(requestContext);
         
         // 统计每个考试的提交数量和预期参与学生数
         Map<Long, Integer> submissionCountMap = new java.util.HashMap<>();
@@ -155,18 +135,16 @@ public class ExamController extends BaseController {
                         }
                     }
                     // 考试状态筛选
-                    if (status != null) {
+                    if (normalizedStatus != null) {
                         // 使用方法外部定义的now变量，无需重新定义
                         
-                        switch (status) {
-                            case "即将开始":
+                        switch (normalizedStatus) {
                             case "upcoming":
                                 // 即将开始：开始时间 > 当前时间
                                 if (exam.getStartTime() != null && exam.getStartTime().after(now)) {
                                     return true;
                                 }
                                 return false;
-                            case "进行中":
                             case "ongoing":
                                 // 进行中：开始时间 <= 当前时间 && 结束时间 >= 当前时间
                                 if (exam.getStartTime() != null && exam.getEndTime() != null && 
@@ -174,14 +152,12 @@ public class ExamController extends BaseController {
                                     return true;
                                 }
                                 return false;
-                            case "已结束":
                             case "completed":
                                 // 已结束：结束时间 < 当前时间
                                 if (exam.getEndTime() != null && exam.getEndTime().before(now)) {
                                     return true;
                                 }
                                 return false;
-                            case "已评分":
                             case "graded":
                                 // 已评分：这里简化处理，实际需要查询评分记录
                                 // 暂时按已结束处理，因为只有结束的考试才能评分
@@ -191,7 +167,7 @@ public class ExamController extends BaseController {
                                 return false;
                             default:
                                 // 未知状态，记录日志但不筛选
-                                LogUtil.logWarning(logger, "未知的考试状态: " + status, getCurrentUserId(requestContext));
+                                LogUtil.logWarning(logger, "未知的考试状态: " + normalizedStatus, getCurrentUserId(requestContext));
                                 return true;
                         }
                     }
@@ -200,14 +176,9 @@ public class ExamController extends BaseController {
                 .collect(java.util.stream.Collectors.toList());
         
         // 计算总数
-        int totalElements = filteredExams.size();
-        int totalPages = (int) Math.ceil((double) totalElements / size);
-        
-        // 应用分页
-        int startIndex = (page - 1) * size;
-        int endIndex = Math.min(startIndex + size, totalElements);
-        // 将SubList转换为普通ArrayList，避免Redis反序列化错误
-        List<Exam> pagedExams = new ArrayList<>(filteredExams.subList(startIndex, endIndex));
+        Map<String, Object> pageMetadata = buildSpringPageResponseFromInMemoryList(filteredExams, page, size);
+        @SuppressWarnings("unchecked")
+        List<Exam> pagedExams = (List<Exam>) pageMetadata.get("content");
         
         // 构建课程ID到课程名称的映射
         Map<Long, String> courseNameMap = new java.util.HashMap<>();
@@ -242,40 +213,10 @@ public class ExamController extends BaseController {
             examMaps.add(examMap);
         }
         
-        // 构建分页响应
-        Map<String, Object> result = new java.util.HashMap<>();
-        
-        // 构建content
-        result.put("content", examMaps);
-        
-        // 构建pageable
-        Map<String, Object> pageable = new java.util.HashMap<>();
-        pageable.put("pageNumber", page - 1); // 前端从1开始，后端从0开始
-        pageable.put("pageSize", size);
-        
-        // 构建sort
-        Map<String, Object> sort = new java.util.HashMap<>();
-        sort.put("empty", false);
-        sort.put("sorted", true);
-        sort.put("unsorted", false);
-        pageable.put("sort", sort);
-        
-        pageable.put("offset", startIndex);
-        pageable.put("paged", true);
-        pageable.put("unpaged", false);
-        
-        result.put("pageable", pageable);
-        
-        // 其他分页字段
-        result.put("totalPages", totalPages);
-        result.put("totalElements", totalElements);
-        result.put("last", page >= totalPages);
-        result.put("size", size);
-        result.put("number", page - 1); // 前端从1开始，后端从0开始
-        result.put("sort", sort);
-        result.put("first", page == 1);
-        result.put("numberOfElements", pagedExams.size());
-        result.put("empty", pagedExams.isEmpty());
+        int safeSize = (Integer) pageMetadata.get("size");
+        int safePage = ((Integer) pageMetadata.get("number")) + 1;
+        int totalElements = ((Number) pageMetadata.get("totalElements")).intValue();
+        Map<String, Object> result = buildSpringPageResponse(examMaps, safePage, safeSize, totalElements);
         
         LogUtil.logResponse(logger, "GET", "/api/teacher/exams", 200, result, getCurrentUserId(requestContext));
         return ResponseResult.success(result, "获取考试列表成功", 200);
@@ -285,49 +226,20 @@ public class ExamController extends BaseController {
     public ResponseResult<Exam> createExam(@RequestBody Map<String, Object> requestBody, HttpServletRequest requestContext) {
         LogUtil.logRequest(logger, "POST", "/api/teacher/exams", requestBody, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(requestContext)) {
-            LogUtil.logWarning(logger, "未授权创建考试", getCurrentUserId(requestContext));
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
         try {
             // 使用session中的teacherId覆盖前端传入的teacherId，确保安全
             Long teacherId = getCurrentUserId(requestContext);
             
-            // 获取当前教师的所有课程，用于课程代码转换
             List<Course> allCourses = courseService.findByTeacherId(teacherId);
             
-            // 处理课程ID，支持字符串课程代码
-            Object courseIdObj = requestBody.getOrDefault("courseId", requestBody.get("course_id"));
-            Long courseId = null;
-            
-            if (courseIdObj != null) {
-                if (courseIdObj instanceof String) {
-                    // 如果是字符串，尝试转换为Long，或者查找对应的课程ID
-                    String courseIdStr = (String) courseIdObj;
-                    try {
-                        // 尝试直接转换为Long
-                        courseId = Long.parseLong(courseIdStr);
-                    } catch (NumberFormatException e) {
-                        // 如果转换失败，尝试作为课程代码查找对应的课程ID
-                        for (Course course : allCourses) {
-                            if (course.getCourseCode() != null && course.getCourseCode().equals(courseIdStr)) {
-                                courseId = course.getId();
-                                break;
-                            }
-                        }
-                        
-                        if (courseId == null) {
-                            LogUtil.logError(logger, "创建考试失败 - 无效的课程代码: " + courseIdStr, null);
-                            return ResponseResult.failure("创建考试失败 - 无效的课程代码", 400);
-                        }
-                    }
-                } else if (courseIdObj instanceof Number) {
-                    // 如果是数字，直接转换为Long
-                    courseId = ((Number) courseIdObj).longValue();
-                }
+            Object rawCourseValue = requestBody.containsKey("courseId")
+                    ? requestBody.get("courseId")
+                    : requestBody.get("course_id");
+            Long courseId = resolveTeacherCourseIdFromPayload(requestBody, allCourses);
+            if (courseId == null && rawCourseValue instanceof String && !((String) rawCourseValue).isBlank()) {
+                LogUtil.logError(logger, "创建考试失败 - 无效的课程代码: " + rawCourseValue, null);
+                return ResponseResult.failure("创建考试失败 - 无效的课程代码", 400);
             }
-            
             if (courseId == null) {
                 LogUtil.logError(logger, "创建考试失败 - 课程ID不能为空", null);
                 return ResponseResult.failure("创建考试失败 - 课程ID不能为空", 400);
@@ -437,47 +349,18 @@ public class ExamController extends BaseController {
     public ResponseResult<Exam> updateExam(@PathVariable Long id, @RequestBody Map<String, Object> requestBody, HttpServletRequest requestContext) {
         LogUtil.logRequest(logger, "PUT", "/api/teacher/exams/" + id, requestBody, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(requestContext)) {
-            LogUtil.logWarning(logger, "未授权更新考试", getCurrentUserId(requestContext));
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
         try {
-            // 获取当前教师的所有课程，用于课程代码转换
             Long teacherId = getCurrentUserId(requestContext);
             List<Course> allCourses = courseService.findByTeacherId(teacherId);
             
-            // 处理课程ID，支持字符串课程代码
-            Object courseIdObj = requestBody.getOrDefault("courseId", requestBody.get("course_id"));
-            Long courseId = null;
-            
-            if (courseIdObj != null) {
-                if (courseIdObj instanceof String) {
-                    // 如果是字符串，尝试转换为Long，或者查找对应的课程ID
-                    String courseIdStr = (String) courseIdObj;
-                    try {
-                        // 尝试直接转换为Long
-                        courseId = Long.parseLong(courseIdStr);
-                    } catch (NumberFormatException e) {
-                        // 如果转换失败，尝试作为课程代码查找对应的课程ID
-                        for (Course course : allCourses) {
-                            if (course.getCourseCode() != null && course.getCourseCode().equals(courseIdStr)) {
-                                courseId = course.getId();
-                                break;
-                            }
-                        }
-                        
-                        if (courseId == null) {
-                            LogUtil.logError(logger, "更新考试失败 - 无效的课程代码: " + courseIdStr, null);
-                            return ResponseResult.failure("更新考试失败 - 无效的课程代码", 400);
-                        }
-                    }
-                } else if (courseIdObj instanceof Number) {
-                    // 如果是数字，直接转换为Long
-                    courseId = ((Number) courseIdObj).longValue();
-                }
+            Object rawCourseValue = requestBody.containsKey("courseId")
+                    ? requestBody.get("courseId")
+                    : requestBody.get("course_id");
+            Long courseId = resolveTeacherCourseIdFromPayload(requestBody, allCourses);
+            if (courseId == null && rawCourseValue instanceof String && !((String) rawCourseValue).isBlank()) {
+                LogUtil.logError(logger, "更新考试失败 - 无效的课程代码: " + rawCourseValue, null);
+                return ResponseResult.failure("更新考试失败 - 无效的课程代码", 400);
             }
-            
             if (courseId == null) {
                 LogUtil.logError(logger, "更新考试失败 - 课程ID不能为空", null);
                 return ResponseResult.failure("更新考试失败 - 课程ID不能为空", 400);
@@ -550,11 +433,6 @@ public class ExamController extends BaseController {
     public ResponseResult<Void> deleteExam(@PathVariable Long id, HttpServletRequest requestContext) {
         LogUtil.logRequest(logger, "DELETE", "/api/teacher/exams/" + id, null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(requestContext)) {
-            LogUtil.logWarning(logger, "未授权删除考试", getCurrentUserId(requestContext));
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
         try {
             examService.delete(id);
             LogUtil.logOperation(logger, "删除考试", "考试ID: " + id, getCurrentUserId(requestContext), true);
@@ -570,11 +448,6 @@ public class ExamController extends BaseController {
     public ResponseResult<Map<String, Object>> getExamById(@PathVariable Long id, HttpServletRequest requestContext) {
         LogUtil.logRequest(logger, "GET", "/api/teacher/exams/" + id, null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(requestContext)) {
-            LogUtil.logWarning(logger, "未授权访问考试详情", getCurrentUserId(requestContext));
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
         Map<String, Object> examDetails = examService.getExamDetailsWithSubmissions(id);
         if (examDetails == null) {
             return ResponseResult.failure("考试不存在", 404);
@@ -589,11 +462,6 @@ public class ExamController extends BaseController {
                                                  @RequestBody Map<String, Object> gradeRequest, 
                                                  HttpServletRequest requestContext) {
         LogUtil.logRequest(logger, "PUT", "/api/teacher/exams/grade/" + submissionId, gradeRequest, getCurrentUserId(requestContext));
-        
-        if (!isLoggedIn(requestContext)) {
-            LogUtil.logWarning(logger, "未授权批改考试", getCurrentUserId(requestContext));
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
         
         try {
             // 处理score的类型转换，支持Integer、Long、String等多种类型
@@ -667,11 +535,6 @@ public class ExamController extends BaseController {
     public ResponseResult<List<ExamSubmission>> getExamSubmissions(@PathVariable Long examId, HttpServletRequest requestContext) {
         LogUtil.logRequest(logger, "GET", "/api/teacher/exams/" + examId + "/submissions", null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(requestContext)) {
-            LogUtil.logWarning(logger, "未授权访问考试提交列表", getCurrentUserId(requestContext));
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
         List<ExamSubmission> submissions = examSubmissionService.getSubmissionsByExamId(examId);
         
         LogUtil.logResponse(logger, "GET", "/api/teacher/exams/" + examId + "/submissions", 200, submissions, getCurrentUserId(requestContext));
@@ -692,22 +555,13 @@ public class ExamController extends BaseController {
             HttpServletRequest requestContext) {
         LogUtil.logRequest(logger, "GET", "/api/teacher/exams/submissions", null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(requestContext)) {
-            LogUtil.logWarning(logger, "未授权访问考试提交记录", getCurrentUserId(requestContext));
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
-        List<ExamSubmission> submissions = examSubmissionService.getSubmissionsWithPagination(
-                page, size, sortBy, order, examId, studentId, graded);
         Integer total = examSubmissionService.countSubmissions(examId, studentId, graded);
-        
-        Map<String, Object> result = new java.util.HashMap<>();
-        result.put("submissions", submissions);
-        result.put("total", total);
-        result.put("page", page);
-        result.put("size", size);
-        result.put("pages", (int) Math.ceil((double) total / size));
-        
+        PageUtils.PageWindow window = resolvePageWindow(page, size, total);
+        List<ExamSubmission> submissions = examSubmissionService.getSubmissionsWithPagination(
+                window.page(), window.size(), total, sortBy, order, examId, studentId, graded);
+
+        Map<String, Object> result = buildSpringPageResponse(submissions, window.page(), window.size(), total);
+
         LogUtil.logResponse(logger, "GET", "/api/teacher/exams/submissions", 200, result, getCurrentUserId(requestContext));
         return ResponseResult.success(result, "获取考试提交记录成功", 200);
     }
@@ -715,11 +569,6 @@ public class ExamController extends BaseController {
     @GetMapping("/submissions/{submissionId}")
     public ResponseResult<ExamSubmission> getSubmissionById(@PathVariable Long submissionId, HttpServletRequest requestContext) {
         LogUtil.logRequest(logger, "GET", "/api/teacher/exams/submissions/" + submissionId, null, getCurrentUserId(requestContext));
-        
-        if (!isLoggedIn(requestContext)) {
-            LogUtil.logWarning(logger, "未授权访问考试提交记录详情", getCurrentUserId(requestContext));
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
         
         ExamSubmission submission = examSubmissionService.getSubmissionById(submissionId);
         if (submission == null) {
@@ -733,11 +582,6 @@ public class ExamController extends BaseController {
     @PutMapping("/submissions/{submissionId}")
     public ResponseResult<ExamSubmission> updateSubmission(@PathVariable Long submissionId, @RequestBody ExamSubmission submission, HttpServletRequest requestContext) {
         LogUtil.logRequest(logger, "PUT", "/api/teacher/exams/submissions/" + submissionId, submission, getCurrentUserId(requestContext));
-        
-        if (!isLoggedIn(requestContext)) {
-            LogUtil.logWarning(logger, "未授权更新考试提交记录", getCurrentUserId(requestContext));
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
         
         submission.setId(submissionId);
         boolean success = examSubmissionService.updateSubmission(submission);
@@ -753,11 +597,6 @@ public class ExamController extends BaseController {
     @DeleteMapping("/submissions/{submissionId}")
     public ResponseResult<Void> deleteSubmission(@PathVariable Long submissionId, HttpServletRequest requestContext) {
         LogUtil.logRequest(logger, "DELETE", "/api/teacher/exams/submissions/" + submissionId, null, getCurrentUserId(requestContext));
-        
-        if (!isLoggedIn(requestContext)) {
-            LogUtil.logWarning(logger, "未授权删除考试提交记录", getCurrentUserId(requestContext));
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
         
         boolean success = examSubmissionService.deleteSubmission(submissionId);
         if (success) {

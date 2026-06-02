@@ -1,6 +1,8 @@
 package com._202510007517.platform.course.service;
 
 import com._202510007517.platform.common.exception.ResourceNotFoundException;
+import com._202510007517.platform.common.exception.ForbiddenException;
+import com._202510007517.platform.common.exception.RemoteClientException;
 import com._202510007517.platform.course.api.dto.ClassCourseDTO;
 import com._202510007517.platform.course.api.dto.ClassUpsertRequestDTO;
 import com._202510007517.platform.course.api.dto.CourseDTO;
@@ -229,6 +231,52 @@ public class CourseApplicationService {
     }
 
     @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> addStudentToClass(Long teacherId, Long classId, Map<String, Object> requestData) {
+        ensureTeacherCanAccessClass(teacherId, classId);
+
+        UserProfileDTO student = resolveStudentForClassAssignment(requestData);
+        Long studentId = student.getId();
+        if (studentId == null) {
+            throw new ResourceNotFoundException("学生不存在");
+        }
+        if (!isStudentUser(student)) {
+            throw new IllegalArgumentException("目标用户不是学生");
+        }
+
+        List<Long> existingClassIds = new ArrayList<>(new LinkedHashSet<>(courseRepository.findClassIdsByStudentId(studentId)));
+        if (existingClassIds.contains(classId)) {
+            return Map.of(
+                    "studentId", studentId,
+                    "classId", classId
+            );
+        }
+
+        boolean forceReplace = Boolean.TRUE.equals(requestData.get("forceReplace"));
+        if (!existingClassIds.isEmpty()) {
+            boolean hasUnmanagedClass = existingClassIds.stream()
+                    .anyMatch(existingClassId -> !courseRepository.teacherCanAccessClass(teacherId, existingClassId));
+            if (hasUnmanagedClass) {
+                throw new ForbiddenException("无权移动该学生所在班级");
+            }
+
+            if (!forceReplace) {
+                return Map.of(
+                        "needConfirm", true,
+                        "message", "该学生已在其他班级中，是否要移动到当前班级？",
+                        "studentId", studentId,
+                        "classId", classId
+                );
+            }
+        }
+
+        courseRepository.replaceStudentClass(studentId, classId);
+        return Map.of(
+                "studentId", studentId,
+                "classId", classId
+        );
+    }
+
+    @Transactional(rollbackFor = Exception.class)
     public Long createClass(Long teacherId, ClassUpsertRequestDTO request) {
         ensureCourseOwnershipWhenPresent(teacherId, request.getCourseId());
         Map<String, Object> values = classValues(teacherId, request);
@@ -394,6 +442,39 @@ public class CourseApplicationService {
         if (!courseRepository.findStudentIdsByTeacherId(teacherId).contains(studentId)) {
             throw new IllegalArgumentException("无权操作该学生");
         }
+    }
+
+    private UserProfileDTO resolveStudentForClassAssignment(Map<String, Object> requestData) {
+        Object identifierObj = requestData.get("studentIdentifier");
+        if (identifierObj == null || identifierObj.toString().trim().isEmpty()) {
+            throw new IllegalArgumentException("缺少学生标识");
+        }
+
+        String identifier = identifierObj.toString().trim();
+        if (identifier.matches("\\d+")) {
+            try {
+                return userFeignClient.getProfile(Long.parseLong(identifier));
+            } catch (RemoteClientException ex) {
+                if (ex.getCode() != 404) {
+                    throw ex;
+                }
+            }
+        }
+
+        try {
+            return userFeignClient.getProfileByUsername(identifier);
+        } catch (RemoteClientException ex) {
+            if (ex.getCode() == 404) {
+                throw new ResourceNotFoundException("学生不存在");
+            }
+            throw ex;
+        }
+    }
+
+    private boolean isStudentUser(UserProfileDTO profile) {
+        List<String> roles = profile != null ? profile.getRoles() : null;
+        return roles != null && roles.stream().anyMatch(role ->
+                "STUDENT".equalsIgnoreCase(role) || "ROLE_STUDENT".equalsIgnoreCase(role));
     }
 
     private static Map<String, Object> classValues(Long teacherId, ClassUpsertRequestDTO request) {

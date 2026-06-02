@@ -1,5 +1,7 @@
 package com._202510007517.major_assignment.controller;
 
+import com._202510007517.major_assignment.annotation.RequireLogin;
+import com._202510007517.major_assignment.constants.RoleConstants;
 import com._202510007517.major_assignment.client.UserServiceProfileClient;
 import com._202510007517.major_assignment.entity.User;
 import com._202510007517.major_assignment.entity.AssignmentSubmission;
@@ -16,6 +18,7 @@ import com._202510007517.major_assignment.service.AssignmentSubmissionService;
 import com._202510007517.major_assignment.service.CourseService;
 import com._202510007517.platform.user.api.dto.StudentProfileDTO;
 import com._202510007517.platform.user.api.dto.UpdateStudentProfileDTO;
+import com._202510007517.major_assignment.utils.PageUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +34,7 @@ import java.util.Set;
 
 @RestController
 @RequestMapping("/api/teacher")
+@RequireLogin(roles = {RoleConstants.TEACHER})
 public class TeacherDashboardController extends BaseController {
     
     private static final Logger logger = LoggerFactory.getLogger(TeacherDashboardController.class);
@@ -62,16 +66,10 @@ public class TeacherDashboardController extends BaseController {
             @RequestParam(value = "courseId", required = false) String courseId,
             @RequestParam(value = "timeRange", required = false) String timeRange,
             HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
-        // 处理参数，将"all"转换为null
-        Long classIdLong = classId != null && !"all".equals(classId) ? Long.parseLong(classId) : null;
-        Long courseIdLong = courseId != null && !"all".equals(courseId) ? Long.parseLong(courseId) : null;
+        Long classIdLong = parseOptionalFilterId(classId);
+        Long courseIdLong = parseOptionalFilterId(courseId);
         
         Long teacherId = getCurrentUserId(requestContext);
-        // 传递timeRange参数给service层
         TeacherDashboardDTO dashboardData = teacherDashboardService.getDashboardData(teacherId, classIdLong, courseIdLong, timeRange);
         
         return ResponseResult.success(dashboardData, "获取教师仪表盘数据成功", 200);
@@ -83,16 +81,10 @@ public class TeacherDashboardController extends BaseController {
             @RequestParam(value = "courseId", required = false) String courseId,
             @RequestParam(value = "timeRange", required = false) String timeRange,
             HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
-        // 处理参数，将"all"转换为null
-        Long classIdLong = classId != null && !"all".equals(classId) ? Long.parseLong(classId) : null;
-        Long courseIdLong = courseId != null && !"all".equals(courseId) ? Long.parseLong(courseId) : null;
+        Long classIdLong = parseOptionalFilterId(classId);
+        Long courseIdLong = parseOptionalFilterId(courseId);
         
         Long teacherId = getCurrentUserId(requestContext);
-        // 传递timeRange参数给service层
         StudentLearningSummaryDTO summaryData = teacherDashboardService.getStudentLearningSummary(teacherId, classIdLong, courseIdLong, timeRange);
         
         return ResponseResult.success(summaryData, "获取学生学习汇总数据成功", 200);
@@ -102,17 +94,14 @@ public class TeacherDashboardController extends BaseController {
     public ResponseResult<List<ScoreTrendDTO>> getScoreTrend(
             @RequestParam(value = "classId", required = false) String classId,
             @RequestParam(value = "courseId", required = false) String courseId,
+            @RequestParam(value = "studentId", required = false) Long studentId,
             @RequestParam(value = "timeRange", required = false) String timeRange,
             HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-
-        Long classIdLong = classId != null && !"all".equals(classId) ? Long.parseLong(classId) : null;
-        Long courseIdLong = courseId != null && !"all".equals(courseId) ? Long.parseLong(courseId) : null;
+        Long classIdLong = parseOptionalFilterId(classId);
+        Long courseIdLong = parseOptionalFilterId(courseId);
         Long teacherId = getCurrentUserId(requestContext);
 
-        List<ScoreTrendDTO> trend = teacherDashboardService.getScoreTrend(teacherId, classIdLong, courseIdLong, timeRange);
+        List<ScoreTrendDTO> trend = teacherDashboardService.getScoreTrend(teacherId, classIdLong, courseIdLong, studentId, timeRange);
         return ResponseResult.success(trend, "获取成绩趋势数据成功", 200);
     }
     
@@ -125,10 +114,6 @@ public class TeacherDashboardController extends BaseController {
             @RequestParam(value = "teacherName", required = false) String teacherName,
             @RequestParam(value = "courseId", required = false) Long courseId,
             HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
         Long teacherId = getCurrentUserId(requestContext);
         List<Map<String, Object>> classes = courseMapper.getClassesByTeacherId(teacherId, className, grade, majorName, majorId, teacherName, courseId);
         
@@ -226,12 +211,16 @@ public class TeacherDashboardController extends BaseController {
         
         return ResponseResult.success(result, "获取班级列表成功", 200);
     }
+
+    private Long parseOptionalFilterId(String rawValue) {
+        if (rawValue == null || rawValue.isBlank() || "all".equalsIgnoreCase(rawValue)) {
+            return null;
+        }
+        return Long.parseLong(rawValue);
+    }
     
     @PostMapping("/classes")
     public ResponseResult<Map<String, Object>> createClass(@RequestBody Map<String, Object> classData, HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
         
         try {
             Long teacherId = getCurrentUserId(requestContext);
@@ -255,9 +244,6 @@ public class TeacherDashboardController extends BaseController {
     
     @PutMapping("/classes/{classId}")
     public ResponseResult<Map<String, Object>> updateClass(@PathVariable Long classId, @RequestBody Map<String, Object> classData, HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
         
         try {
             Long teacherId = getCurrentUserId(requestContext);
@@ -299,9 +285,6 @@ public class TeacherDashboardController extends BaseController {
     
     @DeleteMapping("/classes/{classId}")
     public ResponseResult<Void> deleteClass(@PathVariable Long classId, HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
         
         try {
             Long teacherId = getCurrentUserId(requestContext);
@@ -319,9 +302,6 @@ public class TeacherDashboardController extends BaseController {
     
     @GetMapping("/classes/{classId}")
     public ResponseResult<Map<String, Object>> getClassById(@PathVariable Long classId, HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
         
         try {
             Long teacherId = getCurrentUserId(requestContext);
@@ -344,9 +324,6 @@ public class TeacherDashboardController extends BaseController {
     
     @GetMapping("/classes/{classId}/students")
     public ResponseResult<List<Map<String, Object>>> getClassStudents(@PathVariable Long classId, HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
 
         Long teacherId = getCurrentUserId(requestContext);
         if (!teacherCanAccessClass(teacherId, classId)) {
@@ -357,12 +334,77 @@ public class TeacherDashboardController extends BaseController {
         
         return ResponseResult.success(students, "获取班级学生列表成功", 200);
     }
+
+    @PostMapping("/classes/{classId}/students")
+    public ResponseResult<Object> addStudentToClass(
+            @PathVariable Long classId,
+            @RequestBody Map<String, Object> requestData,
+            HttpServletRequest requestContext) {
+
+        try {
+            Long teacherId = getCurrentUserId(requestContext);
+            if (!teacherCanAccessClass(teacherId, classId)) {
+                return ResponseResult.failure("无权操作该班级", 403);
+            }
+
+            User student = resolveStudentForClassAssignment(requestData);
+            if (student == null) {
+                return ResponseResult.failure("学生不存在", 404);
+            }
+            if (!isStudentUser(student.getId())) {
+                return ResponseResult.failure("目标用户不是学生", 400);
+            }
+
+            List<Map<String, Object>> existingClasses = courseMapper.getClassesByStudentId(student.getId());
+            if (existingClasses != null && !existingClasses.isEmpty()) {
+                boolean alreadyInTargetClass = existingClasses.stream()
+                        .anyMatch(c -> classId.equals(parseNullableLong(c.get("id"))));
+                if (alreadyInTargetClass) {
+                    return ResponseResult.failure("学生已经在该班级中", 400);
+                }
+
+                boolean allClassesManagedByTeacher = existingClasses.stream()
+                        .allMatch(c -> teacherCanAccessClass(teacherId, parseNullableLong(c.get("id"))));
+                if (!allClassesManagedByTeacher) {
+                    return ResponseResult.failure("无权移动该学生所在班级", 403);
+                }
+
+                boolean forceReplace = Boolean.parseBoolean(String.valueOf(requestData.getOrDefault("forceReplace", false)));
+                if (!forceReplace) {
+                    StringBuilder classNames = new StringBuilder();
+                    for (Map<String, Object> cls : existingClasses) {
+                        if (classNames.length() > 0) {
+                            classNames.append("、");
+                        }
+                        classNames.append(String.valueOf(cls.getOrDefault("className", "未知班级")));
+                    }
+                    Map<String, Object> warningData = new HashMap<>();
+                    warningData.put("needConfirm", true);
+                    warningData.put("message", "该学生已在班级【" + classNames + "】中，是否要将其移动到当前班级？");
+                    warningData.put("existingClasses", existingClasses);
+                    return ResponseResult.success(warningData, "需要确认操作", 200);
+                }
+            }
+
+            studentMapper.deleteStudentClass(student.getId());
+            studentMapper.insertStudentClass(classId, student.getId());
+
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("studentId", student.getId());
+            responseData.put("username", student.getUsername());
+            responseData.put("realName", student.getName());
+            responseData.put("classId", classId);
+            return ResponseResult.success(responseData, "学生已添加到班级", 200);
+        } catch (IllegalArgumentException e) {
+            return ResponseResult.failure(e.getMessage(), 400);
+        } catch (Exception e) {
+            logger.error("添加班级学生失败 classId={}", classId, e);
+            return ResponseResult.failure("添加学生到班级失败", 500);
+        }
+    }
     
     @GetMapping("/students/{studentId}")
     public ResponseResult<Map<String, Object>> getStudentById(@PathVariable Long studentId, HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
 
         try {
             Long teacherId = getCurrentUserId(requestContext);
@@ -398,47 +440,16 @@ public class TeacherDashboardController extends BaseController {
             @RequestParam(value = "courseId", required = false) Long courseId,
             @RequestParam(value = "classId", required = false) Long classId,
             HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
         
         Long teacherId = getCurrentUserId(requestContext);
-        
-        // 计算分页参数
-        int safePage = (page == null || page < 1) ? 1 : page;
-        int safeSize = (size == null || size < 1) ? 10 : size;
-        int offset = (safePage - 1) * safeSize;
-        
-        // 获取总数
-        Integer total = courseMapper.countClassAssignments(teacherId, courseId, classId);
-        if (total == null) total = 0;
-        
-        // 获取所有数据（当前SQL不支持LIMIT，需要在内存中分页）
+
+        // 当前 SQL 不支持 LIMIT，先全量取回后再用统一分页规则裁切。
         List<Map<String, Object>> allAssignments = courseMapper.getClassAssignments(teacherId, courseId, classId);
-        
-        // 内存分页
-        int totalPages = (int) Math.ceil((double) total / safeSize);
-        totalPages = Math.max(totalPages, 1);
-        safePage = Math.min(safePage, totalPages);
-        
-        List<Map<String, Object>> pagedAssignments = allAssignments.stream()
-            .skip(offset)
-            .limit(safeSize)
-            .collect(java.util.stream.Collectors.toList());
-        
-        // 构建分页响应
-        Map<String, Object> result = new java.util.HashMap<>();
-        result.put("content", pagedAssignments);
-        result.put("pageNumber", safePage - 1);
-        result.put("pageSize", safeSize);
-        result.put("totalElements", total);
-        result.put("totalPages", totalPages);
-        result.put("first", safePage == 1);
-        result.put("last", safePage >= totalPages);
-        result.put("numberOfElements", pagedAssignments.size());
-        result.put("empty", pagedAssignments.isEmpty());
-        
-        return ResponseResult.success(result, "获取课程分配列表成功", 200);
+
+        return ResponseResult.success(
+                buildSpringPageResponseFromInMemoryList(allAssignments, page == null ? 1 : page, size == null ? DEFAULT_PAGE_SIZE : size),
+                "获取课程分配列表成功",
+                200);
     }
     
     @GetMapping("/check-class-name")
@@ -446,9 +457,6 @@ public class TeacherDashboardController extends BaseController {
             @RequestParam String className,
             @RequestParam(required = false) Long classId,
             HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
         
         try {
             // 查询班级名称是否存在
@@ -466,9 +474,6 @@ public class TeacherDashboardController extends BaseController {
     
     @PostMapping("/course-assignments")
     public ResponseResult<Map<String, Object>> assignCourse(@RequestBody Map<String, Object> assignData, HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
         
         try {
             Long currentTeacherId = getCurrentUserId(requestContext);
@@ -528,9 +533,6 @@ public class TeacherDashboardController extends BaseController {
     
     @DeleteMapping("/course-assignments/{assignmentId}")
     public ResponseResult<Void> unassignCourse(@PathVariable Long assignmentId, HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
         
         try {
             Long teacherId = getCurrentUserId(requestContext);
@@ -553,9 +555,6 @@ public class TeacherDashboardController extends BaseController {
             @RequestParam Long classId,
             @RequestParam Long courseId,
             HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
         
         try {
             Long teacherId = getCurrentUserId(requestContext);
@@ -580,9 +579,6 @@ public class TeacherDashboardController extends BaseController {
     
     @PutMapping("/students/{studentId}")
     public ResponseResult<Object> updateStudent(@PathVariable Long studentId, @RequestBody Map<String, Object> studentData, HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
         
         try {
             Long teacherId = getCurrentUserId(requestContext);
@@ -684,29 +680,20 @@ public class TeacherDashboardController extends BaseController {
             @RequestParam(value = "studentId", required = false) Long studentId,
             @RequestParam(value = "graded", required = false) Boolean graded,
             HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
+        int total = assignmentSubmissionService.countSubmissions(assignmentId, studentId, graded);
+        PageUtils.PageWindow window = resolvePageWindow(page == null ? 1 : page, size == null ? DEFAULT_PAGE_SIZE : size, total);
+
         List<AssignmentSubmission> submissions = assignmentSubmissionService.getSubmissionsWithPagination(
-                page, size, sortBy, order, assignmentId, studentId, graded);
-        Integer total = assignmentSubmissionService.countSubmissions(assignmentId, studentId, graded);
-        
-        Map<String, Object> result = new java.util.HashMap<>();
-        result.put("content", submissions);
-        result.put("totalElements", total);
-        result.put("pageNumber", page);
-        result.put("totalPages", (int) Math.ceil((double) total / size));
-        result.put("pageSize", size);
-        
-        return ResponseResult.success(result, "获取作业提交记录成功", 200);
+                window.page(), window.size(), total, sortBy, order, assignmentId, studentId, graded);
+
+        return ResponseResult.success(
+                buildSpringPageResponse(submissions, window.page(), window.size(), total),
+                "获取作业提交记录成功",
+                200);
     }
     
     @GetMapping("/submissions/{submissionId}")
     public ResponseResult<AssignmentSubmission> getSubmissionById(@PathVariable Long submissionId, HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
         
         AssignmentSubmission submission = assignmentSubmissionService.getSubmissionById(submissionId);
         if (submission == null) {
@@ -718,9 +705,6 @@ public class TeacherDashboardController extends BaseController {
     
     @PutMapping("/submissions/{submissionId}/grade")
     public ResponseResult<AssignmentSubmission> gradeSubmission(@PathVariable Long submissionId, @RequestBody Map<String, Object> gradeData, HttpServletRequest requestContext) {
-        if (!isLoggedIn(requestContext)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
         
         try {
             Integer score = gradeData.get("score") != null ? Integer.parseInt(gradeData.get("score").toString()) : null;
@@ -751,6 +735,29 @@ public class TeacherDashboardController extends BaseController {
         }
         Set<Long> visibleStudentIds = new HashSet<>(studentIds);
         return visibleStudentIds.contains(studentId);
+    }
+
+    private User resolveStudentForClassAssignment(Map<String, Object> requestData) {
+        Object identifierObj = requestData.get("studentIdentifier");
+        if (identifierObj == null || identifierObj.toString().trim().isEmpty()) {
+            throw new IllegalArgumentException("缺少学生标识");
+        }
+
+        String identifier = identifierObj.toString().trim();
+        if (identifier.matches("\\d+")) {
+            User studentById = userService.findById(Long.parseLong(identifier));
+            if (studentById != null) {
+                return studentById;
+            }
+        }
+        return userService.findByUsername(identifier);
+    }
+
+    private boolean isStudentUser(Long userId) {
+        List<String> roles = userService.getRolesByUserId(userId);
+        return roles != null && roles.stream().anyMatch(role ->
+                RoleConstants.STUDENT.equalsIgnoreCase(role)
+                        || RoleConstants.ROLE_STUDENT.equalsIgnoreCase(role));
     }
 
     private Map<String, Object> toStudentInfo(StudentProfileDTO profile) {

@@ -9,6 +9,38 @@ const sessionFile = process.argv[2]
 const session = JSON.parse(fs.readFileSync(sessionFile, 'utf8').replace(/^\uFEFF/, ''));
 const sessionStorageState = session.sessionStorage || {};
 
+function decodeJwtPayload(token) {
+    if (!token || typeof token !== 'string') {
+        return null;
+    }
+    const parts = token.split('.');
+    if (parts.length < 2) {
+        return null;
+    }
+    try {
+        const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+        return JSON.parse(Buffer.from(padded, 'base64').toString('utf8'));
+    } catch (error) {
+        return null;
+    }
+}
+
+function assertFreshSession(storageState) {
+    const token = storageState.token;
+    const payload = decodeJwtPayload(token);
+    if (!payload || typeof payload.exp !== 'number') {
+        return;
+    }
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    if (payload.exp <= nowSeconds + 30) {
+        const expiredAt = new Date(payload.exp * 1000).toISOString();
+        throw new Error(`teacher session token expired or near expiry: ${expiredAt}`);
+    }
+}
+
+assertFreshSession(sessionStorageState);
+
 const checks = [
     {
         name: 'teacher-dashboard',

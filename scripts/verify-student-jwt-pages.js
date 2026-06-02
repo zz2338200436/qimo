@@ -9,6 +9,38 @@ const sessionFile = process.argv[2]
 const session = JSON.parse(fs.readFileSync(sessionFile, 'utf8').replace(/^\uFEFF/, ''));
 const sessionStorageState = session.sessionStorage || {};
 
+function decodeJwtPayload(token) {
+    if (!token || typeof token !== 'string') {
+        return null;
+    }
+    const parts = token.split('.');
+    if (parts.length < 2) {
+        return null;
+    }
+    try {
+        const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+        return JSON.parse(Buffer.from(padded, 'base64').toString('utf8'));
+    } catch (error) {
+        return null;
+    }
+}
+
+function assertFreshSession(storageState) {
+    const token = storageState.token;
+    const payload = decodeJwtPayload(token);
+    if (!payload || typeof payload.exp !== 'number') {
+        return;
+    }
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    if (payload.exp <= nowSeconds + 30) {
+        const expiredAt = new Date(payload.exp * 1000).toISOString();
+        throw new Error(`student session token expired or near expiry: ${expiredAt}`);
+    }
+}
+
+assertFreshSession(sessionStorageState);
+
 const checks = [
     {
         name: 'student-dashboard',
@@ -25,6 +57,9 @@ const checks = [
         ],
         toleratedInfoText: [
             '当前 JWT 微服务环境暂未提供学生综合表现接口'
+        ],
+        forbiddenText: [
+            '暂无活动记录'
         ]
     },
     {
@@ -42,11 +77,14 @@ const checks = [
         name: 'student-assignments',
         url: 'http://localhost:5500/student-assignments.html',
         expectedApis: [
-            '/api/student/assignments'
+            '/api/student/assignments',
+            '/api/student/exams',
+            '/api/student/scores'
         ],
         expectedText: [
             '作业与考试',
-            '作业列表'
+            '考试',
+            '成绩查询'
         ]
     },
     {
@@ -64,14 +102,52 @@ const checks = [
         name: 'student-settings',
         url: 'http://localhost:5500/student-settings.html',
         expectedApis: [
-            '/api/student/profile',
-            '/api/student/notification-settings',
-            '/api/student/privacy-settings'
+            '/api/student/profile'
         ],
         expectedText: [
             '系统设置',
             '基本信息',
-            '通知偏好'
+            '姓名、邮箱、手机号会同步到账号资料；专业、年级以当前浏览器补充信息为准。',
+            '班级由系统班级关系自动生成，当前页不可手动修改。',
+            '通知偏好',
+            '当前环境下通知偏好以本浏览器保存为准。',
+            '当前环境下隐私设置以本浏览器保存为准。'
+        ],
+        forbiddenText: [
+            '当前 JWT 微服务环境暂未提供头像上传接口'
+        ]
+    },
+    {
+        name: 'student-stats',
+        url: 'http://localhost:5500/student-stats.html',
+        expectedApis: [
+            '/api/student/courses',
+            '/api/student/assignments',
+            '/api/student/knowledge-points',
+            '/api/student/study-time-distribution',
+            '/api/student/stats',
+            '/api/student/scores'
+        ],
+        expectedText: [
+            '学习数据',
+            '学习时长',
+            '成绩趋势'
+        ],
+        toleratedInfoText: [
+            '当前 JWT 微服务环境仅展示已接通的学习数据。'
+        ],
+        forbiddenText: [
+            '当前 JWT 微服务环境暂未接通知识点统计接口。'
+        ]
+    },
+    {
+        name: 'student-ai-assistant',
+        url: 'http://localhost:5500/student-ai-assistant.html',
+        expectedApis: [],
+        expectedText: [
+            'AI学习助手',
+            'AI学习建议',
+            '自由问答暂不可用'
         ]
     }
 ];
@@ -98,6 +174,26 @@ function collectMatchedResponses(responses, expectedApis) {
             matches
         };
     });
+}
+
+async function primeStudentPageExpectedTabs(page, check) {
+    if (check.name !== 'student-assignments') {
+        return;
+    }
+
+    await page.click('.tab-btn[data-tab="exams"]');
+    await page.waitForFunction(() => {
+        const tab = document.getElementById('exams');
+        return tab && tab.classList.contains('active');
+    }, { timeout: 10000 });
+    await page.waitForTimeout(2000);
+
+    await page.click('.tab-btn[data-tab="scores"]');
+    await page.waitForFunction(() => {
+        const tab = document.getElementById('scores');
+        return tab && tab.classList.contains('active');
+    }, { timeout: 10000 });
+    await page.waitForTimeout(2000);
 }
 
 (async () => {
@@ -132,14 +228,16 @@ function collectMatchedResponses(responses, expectedApis) {
 
             await page.goto(check.url, { waitUntil: 'domcontentloaded' });
             await page.waitForTimeout(3500);
+            await primeStudentPageExpectedTabs(page, check);
 
             const renderedText = await page.locator('body').innerText();
             const matchedResponses = collectMatchedResponses(responses, check.expectedApis);
             const missingApi = matchedResponses.find(item => !item.found || !item.success);
             const missingText = (check.expectedText || []).find(text => !renderedText.includes(text));
+            const forbiddenText = (check.forbiddenText || []).find(text => renderedText.includes(text));
             const genericError = genericErrorFragments.find(fragment => renderedText.includes(fragment));
 
-            if (missingApi || missingText || genericError) {
+            if (missingApi || missingText || forbiddenText || genericError) {
                 hasFailure = true;
                 console.error(`[FAIL] ${check.name}`);
                 if (missingApi) {
@@ -148,6 +246,9 @@ function collectMatchedResponses(responses, expectedApis) {
                 }
                 if (missingText) {
                     console.error(`  missing text: ${missingText}`);
+                }
+                if (forbiddenText) {
+                    console.error(`  forbidden text present: ${forbiddenText}`);
                 }
                 if (genericError) {
                     console.error(`  generic error text: ${genericError}`);

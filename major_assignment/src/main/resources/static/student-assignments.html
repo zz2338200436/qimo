@@ -5,22 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>作业与考试 - 智能学习辅助系统</title>
     <!-- jQuery CDN -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome CSS -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <script src="lib/jquery-3.6.0.min.js"></script>
+    <link href="lib/bootstrap.min.css" rel="stylesheet">
+    <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- 全局样式文件 -->
-    <link href="styles.css" rel="stylesheet">
+        <!-- 全局样式文件 -->
+    <link href="styles.css?v=20260523-1" rel="stylesheet">
 </head>
 <body>
 <!-- 侧边栏导航组件 -->
 <div id="sidebar-container"></div>
 <script>
     $(function() {
-        $('#sidebar-container').load('components/sidebar-nav.html', function() {
+        $('#sidebar-container').load('components/sidebar-nav.html?v=20260523-1', function() {
             highlightActiveNavItem();
         });
     });
@@ -132,10 +129,10 @@
                     <thead>
                         <tr>
                             <th>课程名称</th>
-                            <th>考试名称</th>
+                            <th>项目名称</th>
                             <th>成绩</th>
                             <th>班级排名</th>
-                            <th>考试时间</th>
+                            <th>完成时间</th>
                         </tr>
                     </thead>
                     <tbody id="score-list">
@@ -148,10 +145,10 @@
 </main>
 
 <!-- Bootstrap 5 JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="lib/bootstrap.bundle.min.js"></script>
 
 <!-- API服务 -->
-<script src="api.js"></script>
+<script src="api.js?v=20260523-1"></script>
 
 <!-- 页面功能脚本 -->
 <script>
@@ -203,6 +200,7 @@
     function bindTabEvents() {
         const tabBtns = document.querySelectorAll('.tab-btn');
         const tabContents = document.querySelectorAll('.tab-content');
+        const loadedTabs = new Set(['assignments']);
         
         tabBtns.forEach(btn => {
             btn.addEventListener('click', function() {
@@ -214,6 +212,15 @@
                 this.classList.add('active');
                 const tabId = this.getAttribute('data-tab');
                 document.getElementById(tabId).classList.add('active');
+
+                if (!loadedTabs.has(tabId)) {
+                    if (tabId === 'exams') {
+                        fetchExams();
+                    } else if (tabId === 'scores') {
+                        fetchScores();
+                    }
+                    loadedTabs.add(tabId);
+                }
             });
         });
     }
@@ -222,6 +229,157 @@
     let assignments = [];
     let exams = [];
     let scores = [];
+
+    function showMessage(text, type = 'info') {
+        const existing = document.getElementById('studentAssignmentsMessage');
+        if (existing) {
+            existing.remove();
+        }
+        const alertClass = type === 'success'
+            ? 'alert-success'
+            : type === 'error'
+                ? 'alert-danger'
+                : type === 'warning'
+                    ? 'alert-warning'
+                    : 'alert-info';
+        const message = document.createElement('div');
+        message.id = 'studentAssignmentsMessage';
+        message.className = `alert ${alertClass} alert-dismissible fade show mx-3 mt-3`;
+        message.innerHTML = `
+            ${text}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="关闭"></button>
+        `;
+        const contentContainer = document.querySelector('.content-container');
+        if (contentContainer) {
+            contentContainer.insertBefore(message, contentContainer.firstChild);
+        }
+    }
+
+    function parseStructuredSubmissionContent(rawContent) {
+        if (!rawContent || typeof rawContent !== 'string') {
+            return {
+                displayText: '',
+                extractedContent: '',
+                parsed: null
+            };
+        }
+
+        try {
+            const parsed = JSON.parse(rawContent);
+            if (parsed && typeof parsed === 'object') {
+                const extractedContent = typeof parsed.content === 'string' ? parsed.content : '';
+                const lines = [];
+                if (extractedContent) {
+                    lines.push(extractedContent);
+                }
+                Object.entries(parsed).forEach(([key, value]) => {
+                    if (key === 'content' || value == null || value === '') {
+                        return;
+                    }
+                    lines.push(`${key}: ${typeof value === 'string' ? value : JSON.stringify(value)}`);
+                });
+                return {
+                    displayText: lines.join('\n') || rawContent,
+                    extractedContent,
+                    parsed
+                };
+            }
+        } catch (error) {
+            // Keep raw content for non-JSON submissions.
+        }
+
+        return {
+            displayText: rawContent,
+            extractedContent: rawContent,
+            parsed: null
+        };
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function renderStructuredSubmissionHtml(parsedSubmission) {
+        if (!parsedSubmission) {
+            return '<p>暂无内容</p>';
+        }
+
+        const blocks = [];
+        if (parsedSubmission.extractedContent) {
+            blocks.push(`
+                <div class="mb-3">
+                    <div class="fw-semibold mb-2">正文</div>
+                    <div class="border rounded p-3 bg-light" style="white-space: pre-wrap;">${escapeHtml(parsedSubmission.extractedContent)}</div>
+                </div>
+            `);
+        }
+
+        const parsed = parsedSubmission.parsed;
+        if (parsed && typeof parsed === 'object') {
+            const attachmentEntries = Object.entries(parsed).filter(([key, value]) => key !== 'content' && value != null && value !== '');
+            if (attachmentEntries.length > 0) {
+                const attachmentItems = attachmentEntries.map(([key, value]) => {
+                    let normalizedValue = value;
+                    if (typeof normalizedValue === 'string') {
+                        try {
+                            const nested = JSON.parse(normalizedValue);
+                            if (nested && typeof nested === 'object') {
+                                normalizedValue = nested;
+                            }
+                        } catch (error) {
+                            // Keep original string when nested JSON parsing is not applicable.
+                        }
+                    }
+
+                    if (normalizedValue && typeof normalizedValue === 'object') {
+                        const name = normalizedValue.name ? `<div><strong>名称：</strong>${escapeHtml(normalizedValue.name)}</div>` : '';
+                        const type = normalizedValue.type ? `<div><strong>类型：</strong>${escapeHtml(normalizedValue.type)}</div>` : '';
+                        const size = normalizedValue.size != null ? `<div><strong>大小：</strong>${escapeHtml(normalizedValue.size)} bytes</div>` : '';
+                        const note = normalizedValue.note ? `<div><strong>说明：</strong>${escapeHtml(normalizedValue.note)}</div>` : '';
+                        const error = normalizedValue.error ? `<div><strong>错误：</strong>${escapeHtml(normalizedValue.error)}</div>` : '';
+                        const imagePreview = normalizedValue.data && String(normalizedValue.data).startsWith('data:image/')
+                            ? `<img src="${escapeHtml(normalizedValue.data)}" alt="${escapeHtml(normalizedValue.name || key)}" class="img-fluid rounded border mb-2" style="max-height: 240px;">`
+                            : '';
+                        return `
+                            <div class="border rounded p-3 mb-2">
+                                <div class="fw-semibold mb-2">${escapeHtml(key)}</div>
+                                ${imagePreview}
+                                ${name}
+                                ${type}
+                                ${size}
+                                ${note}
+                                ${error}
+                            </div>
+                        `;
+                    }
+                    return `
+                        <div class="border rounded p-3 mb-2">
+                            <div class="fw-semibold mb-2">${escapeHtml(key)}</div>
+                            <div>${escapeHtml(normalizedValue)}</div>
+                        </div>
+                    `;
+                }).join('');
+
+                blocks.push(`
+                    <div class="mb-3">
+                        <div class="fw-semibold mb-2">附件/补充信息</div>
+                        ${attachmentItems}
+                    </div>
+                `);
+            }
+        }
+
+        if (blocks.length === 0) {
+            blocks.push(`<div style="white-space: pre-wrap;">${escapeHtml(parsedSubmission.displayText || '暂无内容')}</div>`);
+        }
+
+        return blocks.join('');
+    }
     
     // 渲染作业列表
     function renderAssignments(assignments) {
@@ -296,6 +454,22 @@
     function renderExams(exams) {
         const container = document.getElementById('exam-list');
         container.innerHTML = '';
+
+        if (!exams || exams.length === 0) {
+            const emptyState = document.createElement('div');
+            emptyState.className = 'empty-state';
+            emptyState.innerHTML = `
+                <div class="empty-icon">
+                    <i class="fa fa-inbox"></i>
+                </div>
+                <div class="empty-text">
+                    <p>当前没有可以显示的考试。</p>
+                    <p class="text-muted">考试列表为空时，页面仍保留作业与成绩等其他可用功能。</p>
+                </div>
+            `;
+            container.appendChild(emptyState);
+            return;
+        }
         
         exams.forEach(exam => {
             const examItem = document.createElement('div');
@@ -334,7 +508,7 @@
                 </div>
                 <div class="item-status">
                     <span class="status-badge ${exam.status}">
-                        ${exam.status === 'upcoming' ? '即将到来' : exam.status === 'ongoing' ? '进行中' : exam.status === 'completed' ? '已完成' : '已批改'}
+                        ${exam.status === 'upcoming' ? '即将到来' : exam.status === 'ongoing' ? '进行中' : exam.status === 'submitted' ? '已提交' : exam.status === 'completed' ? '已完成' : '已批改'}
                     </span>
                     ${exam.score ? `<span class="score">${exam.score}分</span>` : ''}
                 </div>
@@ -343,20 +517,83 @@
             container.appendChild(examItem);
         });
     }
+
+    function syncExamDetailToCache(examDetail) {
+        if (!examDetail || examDetail.id == null || !Array.isArray(exams)) {
+            return;
+        }
+
+        const examId = Number(examDetail.id);
+        const index = exams.findIndex(item => Number(item.id) === examId);
+        const existingExam = index === -1 ? { id: examId } : exams[index];
+        let status = existingExam?.status || 'upcoming';
+        const now = new Date();
+        const startTime = examDetail.startTime ? new Date(examDetail.startTime) : null;
+        const endTime = examDetail.endTime ? new Date(examDetail.endTime) : null;
+
+        if (examDetail.submission) {
+            status = examDetail.submission.graded ? 'graded' : 'submitted';
+        } else if (endTime && endTime < now) {
+            status = 'completed';
+        } else if (startTime && endTime && startTime <= now && endTime >= now) {
+            status = 'ongoing';
+        }
+
+        const normalizedExam = {
+            ...existingExam,
+            title: examDetail.title ?? existingExam.title,
+            description: examDetail.description ?? existingExam.description,
+            course: examDetail.courseName || existingExam.course || '未知课程',
+            examDate: examDetail.startTime ? new Date(examDetail.startTime).toLocaleString() : existingExam.examDate,
+            status,
+            score: examDetail.submission ? examDetail.submission.score : existingExam.score,
+            teacherComment: examDetail.submission ? examDetail.submission.teacherComment : existingExam.teacherComment,
+            submission: examDetail.submission || null
+        };
+
+        if (index === -1) {
+            exams.push(normalizedExam);
+            return;
+        }
+
+        exams[index] = normalizedExam;
+    }
     
     // 渲染成绩列表
+    function formatScoreTypeLabel(type, fallbackLabel = '') {
+        const normalized = String(type || '').toLowerCase();
+        if (normalized === 'assignment') {
+            return '作业';
+        }
+        if (normalized === 'exam') {
+            return '考试';
+        }
+        return fallbackLabel || '成绩';
+    }
+
     function renderScores(scores) {
         const container = document.getElementById('score-list');
         container.innerHTML = '';
+
+        if (!scores || scores.length === 0) {
+            container.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">暂无成绩数据</td></tr>';
+            return;
+        }
         
         scores.forEach(score => {
             const scoreItem = document.createElement('tr');
+            const scoreValue = score.score ?? null;
+            const rankValue = score.rank ?? null;
+            const typeLabel = formatScoreTypeLabel(score.type, score.typeLabel);
             scoreItem.innerHTML = `
-                <td>${score.course}</td>
-                <td>${score.exam}</td>
-                <td>${score.score}</td>
-                <td>${score.rank}</td>
-                <td>${score.date}</td>
+                <td>${escapeHtml(score.course || '未知课程')}</td>
+                <td>
+                    <div class="fw-semibold">${escapeHtml(score.exam || '未知项目')}</div>
+                    <div class="text-muted small">${escapeHtml(typeLabel)}</div>
+                </td>
+                <td>${scoreValue !== null ? escapeHtml(scoreValue) : '-'}</td>
+                <td>${rankValue !== null ? escapeHtml(rankValue) : '-'}</td>
+                <td>${escapeHtml(score.date || '未知日期')}</td>
             `;
             container.appendChild(scoreItem);
         });
@@ -542,6 +779,12 @@
             const apiService = new APIService();
             const studentAPI = new StudentAPI(apiService);
             const response = await studentAPI.getExams();
+            if (response?.unsupported) {
+                exams = [];
+                renderExams(exams);
+                showMessage(response.message, 'info');
+                return;
+            }
             
             console.log('考试API响应:', response);
             
@@ -566,7 +809,9 @@
                 const startTime = new Date(exam.startTime);
                 const endTime = new Date(exam.endTime);
                 
-                if (endTime < now) {
+                if (exam.submission) {
+                    status = exam.submission.graded ? 'graded' : 'submitted';
+                } else if (endTime < now) {
                     status = 'completed';
                 } else if (startTime <= now && endTime >= now) {
                     status = 'ongoing';
@@ -580,7 +825,8 @@
                     examDate: exam.startTime ? new Date(exam.startTime).toLocaleString() : '未知',
                     status: status,
                     score: exam.submission ? exam.submission.score : null,
-                    teacherComment: exam.submission ? exam.submission.teacherComment : null
+                    teacherComment: exam.submission ? exam.submission.teacherComment : null,
+                    submission: exam.submission || null
                 };
             });
             
@@ -599,6 +845,13 @@
             const apiService = new APIService();
             const studentAPI = new StudentAPI(apiService);
             const response = await studentAPI.getScores();
+            if (response?.unsupported) {
+                scores = [];
+                populateCourseOptions(scores);
+                renderScores(scores);
+                showMessage(response.message, 'info');
+                return;
+            }
             
             console.log('成绩API响应:', response);
             
@@ -614,12 +867,15 @@
             
             // 转换成绩数据格式，确保与前端渲染函数兼容
             scores = scoreList.map(score => {
-                // 优先使用examDate（考试时间），如果没有则使用submitDate（提交时间）
-                let examDate = score.examDate || score.submitDate || score.submissionDate;
+                // 优先使用 submitDate（完成时间），如果没有再回退到 examDate / submissionDate / completedAt
+                let examDate = score.submitDate || score.examDate || score.submissionDate || score.completedAt;
                 let dateStr = '未知日期';
+                let timestamp = 0;
                 if (examDate) {
                     try {
-                        dateStr = new Date(examDate).toLocaleDateString();
+                        const parsedDate = new Date(examDate);
+                        timestamp = Number.isNaN(parsedDate.getTime()) ? 0 : parsedDate.getTime();
+                        dateStr = parsedDate.toLocaleDateString();
                     } catch (e) {
                         console.error('日期解析错误:', e, examDate);
                     }
@@ -628,11 +884,14 @@
                 return {
                     course: score.courseName || score.course || '未知课程',
                     exam: score.examName || score.name || score.title || '未知考试',
-                    score: score.score || 0,
-                    rank: score.rank || 0,
-                    date: dateStr
+                    type: score.type || '',
+                    typeLabel: score.typeLabel || '',
+                    score: score.score ?? null,
+                    rank: score.rank ?? null,
+                    date: dateStr,
+                    timestamp
                 };
-            });
+            }).sort((left, right) => right.timestamp - left.timestamp);
             
             // 生成课程选项
             populateCourseOptions(scores);
@@ -648,14 +907,15 @@
     // 检查用户登录状态
     function checkLoginStatus() {
         const user = sessionStorage.getItem('user');
-        if (!user) {
-            window.location.href = 'student-login.html';
+        const sessionContext = window.getStudentSessionContext ? window.getStudentSessionContext() : null;
+        if (!user && !(sessionContext && sessionContext.canRender)) {
+            window.location.href = 'student-login.html?v=20260523-1';
             return false;
         }
         
         // 加载用户下拉组件
         if ($('#userDropdownContainer').length > 0) {
-            $('#userDropdownContainer').load('components/user-dropdown.html', function() {
+        $('#userDropdownContainer').load('components/user-dropdown.html?v=20260523-1', function() {
                 if (typeof UserDropdown !== 'undefined') {
                     new UserDropdown('userDropdownContainer');
                 }
@@ -817,7 +1077,7 @@
             }
         } catch (error) {
             console.error('获取作业详情失败:', error);
-            alert('获取作业详情失败: ' + error.message);
+            showMessage('获取作业详情失败: ' + error.message, 'error');
         }
     }
     
@@ -848,7 +1108,7 @@
                 
                 // 前端验证
                 if (!content.trim()) {
-                    alert('作业内容不能为空！');
+                    showMessage('作业内容不能为空。', 'warning');
                     return;
                 }
                 
@@ -858,7 +1118,7 @@
                     const response = await studentAPI.submitAssignment(assignmentId, content);
                     
                     if (response && (response.success || response.code === 200)) {
-                        alert('作业提交成功！');
+                        showMessage('作业提交成功。', 'success');
                         const submitModal = bootstrap.Modal.getInstance(document.getElementById('submitAssignmentModal'));
                         submitModal.hide();
                         // 重新获取作业列表
@@ -866,12 +1126,12 @@
                     } else {
                         // 显示更详细的错误信息
                         const errorMsg = response.message || '提交失败，请稍后重试';
-                        alert('作业提交失败: ' + errorMsg);
+                        showMessage('作业提交失败: ' + errorMsg, 'error');
                         console.error('作业提交失败:', response);
                     }
                 } catch (error) {
                     console.error('提交作业失败:', error);
-                    alert('提交作业失败: 服务器内部错误，请联系管理员');
+                    showMessage('提交作业失败: 服务器内部错误，请联系管理员。', 'error');
                 }
             });
         }
@@ -886,6 +1146,10 @@
             
             if (response && response.success && response.data) {
                 const exam = response.data;
+                syncExamDetailToCache(exam);
+                const submissionContent = exam.submission
+                    ? parseStructuredSubmissionContent(exam.submission.content || '')
+                    : null;
                 const modalBody = document.getElementById('examModalBody');
                 
                 // 检查考试是否可以提交（时间到了可以考试）
@@ -930,7 +1194,7 @@
                                 <div class="mt-4">
                                     <h6>我的提交：</h6>
                                     <div class="submission-content p-3 border rounded">
-                                        <p>${exam.submission.content || '暂无内容'}</p>
+                                        ${renderStructuredSubmissionHtml(submissionContent)}
                                         <p class="text-muted mt-2">提交时间：${exam.submission.submissionDate ? new Date(exam.submission.submissionDate).toLocaleString() : '未知'}</p>
                                     </div>
                                     ${exam.submission.graded ? `
@@ -954,7 +1218,7 @@
             }
         } catch (error) {
             console.error('获取考试详情失败:', error);
-            alert('获取考试详情失败: ' + error.message);
+            showMessage('获取考试详情失败: ' + error.message, 'error');
         }
     }
     
@@ -964,6 +1228,12 @@
         document.getElementById('examContent').value = '';
         document.getElementById('examFiles').value = '';
         document.getElementById('filePreview').innerHTML = '';
+
+        const exam = exams.find(item => item.id === examId);
+        if (exam && exam.submission && exam.submission.content) {
+            const parsedSubmission = parseStructuredSubmissionContent(exam.submission.content);
+            document.getElementById('examContent').value = parsedSubmission.extractedContent || '';
+        }
         
         // 关闭考试详情模态框
         const examModal = bootstrap.Modal.getInstance(document.getElementById('examModal'));
@@ -1035,7 +1305,7 @@
                 
                 // 验证：至少要有内容或文件
                 if (!content.trim() && files.length === 0) {
-                    alert('请至少填写考试内容或上传文件！');
+                    showMessage('请至少填写考试内容或上传文件。', 'warning');
                     return;
                 }
                 
@@ -1109,21 +1379,31 @@
                     });
                     
                     if (response && (response.success || response.code === 200)) {
-                        alert('考试提交成功！');
+                        showMessage('考试提交成功。', 'success');
                         const submitModal = bootstrap.Modal.getInstance(document.getElementById('submitExamModal'));
                         if (submitModal) {
                             submitModal.hide();
                         }
+                        syncExamDetailToCache({
+                            id: Number(examId),
+                            submission: {
+                                content: JSON.stringify(answersString),
+                                graded: false,
+                                score: null,
+                                teacherComment: null,
+                                submissionDate: new Date().toISOString()
+                            }
+                        });
                         // 重新获取考试列表
                         fetchExams();
                     } else {
                         const errorMsg = response.message || '提交失败，请稍后重试';
-                        alert('考试提交失败: ' + errorMsg);
+                        showMessage('考试提交失败: ' + errorMsg, 'error');
                         console.error('考试提交失败:', response);
                     }
                 } catch (error) {
                     console.error('提交考试失败:', error);
-                    alert('提交考试失败: ' + (error.message || '服务器内部错误，请联系管理员'));
+                    showMessage('提交考试失败: ' + (error.message || '服务器内部错误，请联系管理员'), 'error');
                 }
             });
         }
@@ -1132,7 +1412,7 @@
     // 进入/开始考试
     function startExam(examId) {
         // 这里可以跳转到考试页面或显示考试内容
-        alert(`即将进入考试：${examId}`);
+        showMessage(`考试 ${examId} 可先通过“查看”进入详情，当前页面会保留在考试列表中继续操作。`, 'info');
         // 实际应用中可以跳转到考试页面，如：window.location.href = `student-exam.html?id=${examId}`;
     }
     
@@ -1140,6 +1420,9 @@
     document.addEventListener('DOMContentLoaded', function() {
         // 检查登录状态
         checkLoginStatus();
+        if (window.isJwtOnlyStudentSession && window.isJwtOnlyStudentSession()) {
+            showMessage('检测到当前为 JWT 微服务登录环境，页面将优先使用已接通的作业、考试和成绩接口。', 'info');
+        }
         
         // 初始化侧边栏状态
         setTimeout(initializeSidebar, 100); // 延迟执行，确保侧边栏已经加载
@@ -1153,10 +1436,8 @@
         // 绑定选项卡事件
         bindTabEvents();
         
-        // 从API获取数据并渲染
+        // 首屏先只加载默认打开的作业标签，考试和成绩在切换到对应 tab 时按需取数
         fetchAssignments();
-        fetchExams();
-        fetchScores();
     });
 </script>
 </body>

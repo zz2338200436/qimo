@@ -14,6 +14,36 @@ function readJson(filePath) {
     return JSON.parse(fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, ''));
 }
 
+function decodeJwtPayload(token) {
+    if (!token || typeof token !== 'string') {
+        return null;
+    }
+    const parts = token.split('.');
+    if (parts.length < 2) {
+        return null;
+    }
+    try {
+        const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+        return JSON.parse(Buffer.from(padded, 'base64').toString('utf8'));
+    } catch (error) {
+        return null;
+    }
+}
+
+function assertFreshSession(storageState, label) {
+    const token = storageState?.token;
+    const payload = decodeJwtPayload(token);
+    if (!payload || typeof payload.exp !== 'number') {
+        return;
+    }
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    if (payload.exp <= nowSeconds + 30) {
+        const expiredAt = new Date(payload.exp * 1000).toISOString();
+        throw new Error(`${label} token expired or near expiry: ${expiredAt}`);
+    }
+}
+
 function requireRole(session, expectedRole, label) {
     const roles = session.user?.roles || [];
     const activeRole = session.activeRole || session.user?.activeRole || session.sessionStorage?.activeRole || session.sessionStorage?.role;
@@ -133,6 +163,8 @@ async function runStep(results, name, action) {
 (async () => {
     const teacherSession = readJson(teacherSessionFile);
     const studentSession = readJson(studentSessionFile);
+    assertFreshSession(teacherSession.sessionStorage, 'teacherSessionFile');
+    assertFreshSession(studentSession.sessionStorage, 'studentSessionFile');
     requireRole(teacherSession, 'TEACHER', 'teacherSessionFile');
     requireRole(studentSession, 'STUDENT', 'studentSessionFile');
     const unique = `BrowserCrud${Date.now()}`;
@@ -148,6 +180,7 @@ async function runStep(results, name, action) {
         courseId: null,
         classId: null,
         courseAssignmentId: null,
+        movedStudent: null,
         knowledgePointId: null,
         assignmentId: null,
         examId: null,
@@ -185,6 +218,17 @@ async function runStep(results, name, action) {
         }
         if (created.courseAssignmentId) {
             attempts.push(['delete course assignment', () => api(teacherPage, 'DELETE', `/api/teacher/course-assignments/${created.courseAssignmentId}`)]);
+        }
+        if (created.movedStudent) {
+            attempts.push(['restore moved student class', () => api(
+                teacherPage,
+                'POST',
+                `/api/teacher/classes/${created.movedStudent.originalClassId}/students`,
+                {
+                    studentIdentifier: created.movedStudent.username,
+                    forceReplace: true
+                }
+            )]);
         }
         if (created.classId) {
             attempts.push(['delete class', () => api(teacherPage, 'DELETE', `/api/teacher/classes/${created.classId}`)]);
@@ -289,6 +333,61 @@ async function runStep(results, name, action) {
             const row = extractList(assignmentList.data).find(item => item.courseId === created.courseId && item.classId === created.classId);
             assert(row, 'course assignment should be queryable', assignmentList.data);
             created.courseAssignmentId = row.id || row.assignmentId;
+
+            const availableClasses = await api(teacherPage, 'GET', '/api/teacher/classes?page=1&size=50');
+            const existingClasses = extractList(availableClasses.data).filter(item => item.id !== created.classId);
+            assert(existingClasses.length > 0, 'teacher should have at least one existing class to validate student add flow', availableClasses.data);
+
+            let sourceClass = null;
+            let sourceStudent = null;
+            for (const candidateClass of existingClasses) {
+                const candidateStudents = await api(teacherPage, 'GET', `/api/teacher/classes/${candidateClass.id}/students`);
+                const candidateStudent = extractList(candidateStudents.data).find(student => student.username);
+                if (candidateStudent) {
+                    sourceClass = candidateClass;
+                    sourceStudent = candidateStudent;
+                    break;
+                }
+            }
+            assert(sourceClass?.id && sourceStudent?.username, 'teacher should have an existing class with a username-bearing student for add-student flow', existingClasses);
+
+            const confirmRequired = await api(
+                teacherPage,
+                'POST',
+                `/api/teacher/classes/${created.classId}/students`,
+                { studentIdentifier: sourceStudent.username }
+            );
+            assert(confirmRequired.success === true, 'student move confirmation probe should return success envelope', confirmRequired);
+            assert(confirmRequired.data?.needConfirm === true, 'existing class student should require confirm before move', confirmRequired.data);
+
+            const moveStudent = await api(
+                teacherPage,
+                'POST',
+                `/api/teacher/classes/${created.classId}/students`,
+                { studentIdentifier: sourceStudent.username, forceReplace: true }
+            );
+            assert(moveStudent.success === true, 'teacher should be able to move visible student into created class', moveStudent);
+            created.movedStudent = {
+                studentId: sourceStudent.id,
+                username: sourceStudent.username,
+                originalClassId: sourceClass.id
+            };
+
+            const movedStudents = await api(teacherPage, 'GET', `/api/teacher/classes/${created.classId}/students`);
+            assert(
+                extractList(movedStudents.data).some(student => student.username === sourceStudent.username),
+                'created class student list should include moved student',
+                movedStudents.data
+            );
+
+            const restoreStudent = await api(
+                teacherPage,
+                'POST',
+                `/api/teacher/classes/${sourceClass.id}/students`,
+                { studentIdentifier: sourceStudent.username, forceReplace: true }
+            );
+            assert(restoreStudent.success === true, 'teacher should be able to restore moved student back to original class', restoreStudent);
+            created.movedStudent = null;
         });
 
         await runStep(results, 'teacher knowledge page CRUD', async () => {
