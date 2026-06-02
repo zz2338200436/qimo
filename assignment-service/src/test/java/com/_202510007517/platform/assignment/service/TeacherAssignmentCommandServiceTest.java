@@ -135,6 +135,7 @@ class TeacherAssignmentCommandServiceTest {
         assertThat(outboxEventRepository.savedEvents.get(0).bindingName()).isEqualTo("assignment.graded");
         assertThat(outboxEventRepository.savedEvents.get(0).eventType()).isEqualTo("AssignmentGradedEvent");
         assertThat(outboxEventRepository.savedEvents.get(0).eventId()).startsWith("assignment-graded-3001-95-");
+        assertThat(outboxEventRepository.savedEvents.get(0).eventId()).hasSizeLessThanOrEqualTo(64);
         assertThat(outboxEventRepository.savedEvents.get(0).eventId()).isNotEqualTo("assignment-graded-3001");
     }
 
@@ -165,6 +166,34 @@ class TeacherAssignmentCommandServiceTest {
         assertThat(outboxEventRepository.savedEvents).hasSize(2);
         assertThat(outboxEventRepository.savedEvents.get(0).eventId()).startsWith("assignment-graded-3001-89-");
         assertThat(outboxEventRepository.savedEvents.get(1).eventId()).startsWith("assignment-graded-3001-91-");
+        assertThat(outboxEventRepository.savedEvents.get(0).eventId())
+                .isNotEqualTo(outboxEventRepository.savedEvents.get(1).eventId());
+    }
+
+    @Test
+    void regradeSubmissionWithSameScoreAndCommentStillGeneratesDistinctOutboxEventId() {
+        FakeAssignmentRepository repository = new FakeAssignmentRepository();
+        CourseFeignClient courseFeignClient = mock(CourseFeignClient.class);
+        InMemoryOutboxEventRepository outboxEventRepository = new InMemoryOutboxEventRepository();
+        TeacherAssignmentCommandService service = new TeacherAssignmentCommandService(
+                repository,
+                courseFeignClient,
+                outboxEventRepository,
+                new ObjectMapper().findAndRegisterModules());
+
+        TeacherAssignmentGradeRequestDTO request = new TeacherAssignmentGradeRequestDTO();
+        request.setScore(90);
+        request.setTeacherComment("");
+        request.setGraded(true);
+
+        service.gradeSubmission(7L, 3001L, request);
+        service.gradeSubmission(7L, 3001L, request);
+
+        assertThat(outboxEventRepository.savedEvents).hasSize(2);
+        assertThat(outboxEventRepository.savedEvents.get(0).eventId()).startsWith("assignment-graded-3001-90-");
+        assertThat(outboxEventRepository.savedEvents.get(1).eventId()).startsWith("assignment-graded-3001-90-");
+        assertThat(outboxEventRepository.savedEvents.get(0).eventId()).hasSizeLessThanOrEqualTo(64);
+        assertThat(outboxEventRepository.savedEvents.get(1).eventId()).hasSizeLessThanOrEqualTo(64);
         assertThat(outboxEventRepository.savedEvents.get(0).eventId())
                 .isNotEqualTo(outboxEventRepository.savedEvents.get(1).eventId());
     }
