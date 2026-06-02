@@ -69,6 +69,37 @@ assertIncludes(
 });
 
 [
+  'updateExam(examId, data) {',
+  'courseId: data.courseId',
+  'startTime: data.startTime',
+  'endTime: data.endTime',
+  'publishDate: data.publishDate',
+  'isActive: data.isActive',
+  'isOnline: data.isOnline',
+  'requestData.knowledgePointIds = data.knowledgePointIds;',
+  'requestData.questions = data.questions;'
+].forEach(snippet => {
+  assertIncludes(
+    apiContent,
+    snippet,
+    'TeacherAPI.updateExam should send camelCase fields expected by backend validation.'
+  );
+});
+
+[
+  'course_id: data.courseId',
+  'start_time: data.startTime',
+  'end_time: data.endTime',
+  'publish_date: data.publishDate',
+  'is_active: data.isActive',
+  'is_online: data.isOnline'
+].forEach(snippet => {
+  if (apiContent.includes(snippet)) {
+    throw new Error(`TeacherAPI.updateExam should not send legacy snake_case fields. Found: ${snippet}`);
+  }
+});
+
+[
   "const response = await fetch(`/api/teacher/knowledge-points/course/${courseId}`, {",
   "selectElement.innerHTML = '<option value=\"\" disabled>当前环境暂未提供知识点接口</option>';",
   'course_id: data.courseId',
