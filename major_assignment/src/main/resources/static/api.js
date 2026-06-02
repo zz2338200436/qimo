@@ -1070,19 +1070,26 @@ class TeacherAPI {
     
     // 新增方法：更新考试
     updateExam(examId, data) {
-        // 构建与后端期望格式一致的请求数据
+        // Spring Cloud exam-service 的 TeacherExamUpsertRequestDTO 使用 camelCase 字段；
+        // 单体 ExamController 同时兼容 camelCase，因此这里与创建考试保持一致，避免编辑保存时 courseId/startTime 等字段绑定失败。
         const requestData = {
             title: data.title,
             description: data.description,
-            course_id: data.courseId, // 使用下划线命名，与数据库字段一致
-            start_time: data.startTime, // 使用下划线命名，与数据库字段一致
-            end_time: data.endTime, // 使用下划线命名，与数据库字段一致
-            publish_date: data.publishDate, // 使用下划线命名，与数据库字段一致
+            courseId: data.courseId,
+            startTime: data.startTime,
+            endTime: data.endTime,
+            publishDate: data.publishDate,
             duration: data.duration,
-            is_active: data.isActive, // 使用下划线命名，与数据库字段一致
-            is_online: data.isOnline, // 使用下划线命名，与数据库字段一致
+            isActive: data.isActive,
+            isOnline: data.isOnline,
             location: data.location
         };
+        if (Array.isArray(data.knowledgePointIds)) {
+            requestData.knowledgePointIds = data.knowledgePointIds;
+        }
+        if (Array.isArray(data.questions)) {
+            requestData.questions = data.questions;
+        }
         return this.apiService.put(`/api/teacher/exams/${examId}`, requestData);
     }
     

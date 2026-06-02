@@ -302,13 +302,56 @@
         }
     }
 
+    function escapeSubmissionText(value) {
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatSubmissionDate(value) {
+        if (!value) {
+            return '未知';
+        }
+
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return escapeSubmissionText(value);
+        }
+
+        return date.toLocaleString();
+    }
+
+    function isSubmissionGraded(submission) {
+        return submission?.graded === true || submission?.status === 'graded' || submission?.status === '已批改';
+    }
+
     async function viewSubmission(submissionId) {
         try {
+            const modalElement = document.getElementById('viewSubmissionModal');
+            const modalBody = document.getElementById('viewSubmissionBody');
+            if (!modalElement || !modalBody) {
+                throw new Error('页面缺少提交详情弹窗，请刷新后重试');
+            }
+
             const submission = await fetchAPI(`/api/teacher/submissions/${submissionId}`);
+            const studentName = submission.studentName || `学生${submission.studentId || ''}`.trim() || '学生';
+            const assignmentTitle = submission.title || submission.assignmentTitle || `作业${submission.assignmentId || ''}`.trim() || '未知作业';
+            const graded = isSubmissionGraded(submission);
             const modalTitle = document.querySelector('#viewSubmissionModal .modal-title');
             if (modalTitle) {
-                modalTitle.textContent = `${submission.studentName}的提交详情`;
+                modalTitle.textContent = `${studentName}的提交详情`;
             }
+
+            const contentHtml = submission.content
+                ? `<div class="submission-content" style="white-space: pre-wrap; word-break: break-word;">${escapeSubmissionText(submission.content)}</div>`
+                : '<p class="text-muted">暂无提交内容</p>';
 
             const submissionHTML = `
                 <div class="card mb-3">
@@ -316,14 +359,14 @@
                         <h6 class="card-title">基本信息</h6>
                         <div class="row">
                             <div class="col-md-6">
-                                <p><strong>学生姓名：</strong>${submission.studentName}</p>
-                                <p><strong>学号：</strong>${submission.studentId}</p>
-                                <p><strong>作业/考试：</strong>${submission.title}</p>
+                                <p><strong>学生姓名：</strong>${escapeSubmissionText(studentName)}</p>
+                                <p><strong>学号：</strong>${escapeSubmissionText(submission.studentId || '-')}</p>
+                                <p><strong>作业/考试：</strong>${escapeSubmissionText(assignmentTitle)}</p>
                             </div>
                             <div class="col-md-6">
-                                <p><strong>提交时间：</strong>${new Date(submission.submissionDate).toLocaleString()}</p>
-                                <p><strong>状态：</strong>${submission.status === 'graded' ? '<span class="badge badge-success">已批改</span>' : '<span class="badge badge-warning">未批改</span>'}</p>
-                                <p><strong>分数：</strong>${submission.score !== null ? submission.score : '-'}</p>
+                                <p><strong>提交时间：</strong>${formatSubmissionDate(submission.submissionDate)}</p>
+                                <p><strong>状态：</strong>${graded ? '<span class="badge badge-success">已批改</span>' : '<span class="badge badge-warning">未批改</span>'}</p>
+                                <p><strong>分数：</strong>${submission.score !== null && submission.score !== undefined ? escapeSubmissionText(submission.score) : '-'}</p>
                             </div>
                         </div>
                     </div>
@@ -331,34 +374,29 @@
                 <div class="card mb-3">
                     <div class="card-body">
                         <h6 class="card-title">提交内容</h6>
-                        <div class="submission-content">
-                            ${submission.content || '<p class="text-muted">暂无提交内容</p>'}
-                        </div>
+                        ${contentHtml}
                     </div>
                 </div>
                 ${submission.teacherComment ? `
                 <div class="card">
                     <div class="card-body">
                         <h6 class="card-title">评语</h6>
-                        <p>${submission.teacherComment}</p>
+                        <p style="white-space: pre-wrap; word-break: break-word;">${escapeSubmissionText(submission.teacherComment)}</p>
                     </div>
                 </div>
                 ` : ''}
             `;
 
-            const modalBody = document.getElementById('viewSubmissionBody');
-            if (modalBody) {
-                modalBody.innerHTML = submissionHTML;
-            }
+            modalBody.innerHTML = submissionHTML;
 
             currentSubmissionId = submissionId;
 
             const gradeBtn = document.getElementById('gradeSubmissionBtn');
             if (gradeBtn) {
-                gradeBtn.style.display = submission.status === 'graded' ? 'none' : 'block';
+                gradeBtn.style.display = graded ? 'none' : 'block';
             }
 
-            const modal = new bootstrap.Modal(document.getElementById('viewSubmissionModal'));
+            const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
             modal.show();
         } catch (error) {
             console.error('Failed to view submission:', error);
