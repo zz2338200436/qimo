@@ -1,0 +1,21 @@
+@startuml
+actor 用户
+participant 登录页面
+participant Gateway
+participant AuthController
+participant AuthService
+participant UserService
+database Redis
+participant JWT
+用户 -> 登录页面 : 输入账号密码/验证码
+登录页面 -> Gateway : POST /api/auth/login
+Gateway -> AuthController : 转发登录请求
+AuthController -> AuthService : authenticate(command)
+AuthService -> UserService : 查询用户、角色、状态
+UserService --> AuthService : 返回用户资料
+AuthService -> Redis : 校验验证码/写 refresh JTI
+AuthService -> JWT : 签发 token pair
+AuthService --> AuthController : 登录结果
+AuthController --> Gateway : ResponseResult
+Gateway --> 登录页面 : 保存 token 与角色
+@enduml

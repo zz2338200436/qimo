@@ -1,0 +1,16 @@
+@startuml
+object RabbitMQ
+object AnalysisConsumer
+object MasteryModel
+object WarningRule
+object EarlyWarning
+object NotificationConsumer
+object Notification
+RabbitMQ -- AnalysisConsumer : 1 消费成绩事件
+AnalysisConsumer -- MasteryModel : 2 更新掌握度
+AnalysisConsumer -- WarningRule : 3 计算预警
+WarningRule -- EarlyWarning : 4 保存预警
+EarlyWarning -- RabbitMQ : 5 发布预警事件
+RabbitMQ -- NotificationConsumer : 6 消费预警事件
+NotificationConsumer -- Notification : 7 创建通知
+@enduml

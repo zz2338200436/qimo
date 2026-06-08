@@ -1,0 +1,21 @@
+@startuml
+start
+:打开登录页;
+:输入账号、密码、验证码;
+if (验证码有效?) then (是)
+  :查询用户和角色;
+else (否)
+  :返回验证码错误;
+  stop
+endif
+if (账号启用且密码正确?) then (是)
+  :选择默认角色;
+else (否)
+  :返回认证失败;
+  stop
+endif
+:签发 access token;
+:写入 refresh JTI;
+:返回用户资料和菜单权限;
+stop
+@enduml

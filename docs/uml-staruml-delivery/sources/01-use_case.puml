@@ -1,0 +1,39 @@
+@startuml
+left to right direction
+actor 学生
+actor 教师
+actor 系统管理员
+actor "AI 服务" as AI
+actor "消息服务" as MQ
+rectangle 智能学习辅助系统 {
+  usecase "登录与角色切换" as UC1
+  usecase "浏览课程与班级" as UC2
+  usecase "提交作业" as UC3
+  usecase "参加考试并提交" as UC4
+  usecase "查看成绩与知识点掌握" as UC5
+  usecase "接收通知与预警" as UC6
+  usecase "维护课程/班级/知识点" as UC7
+  usecase "发布作业/考试" as UC8
+  usecase "批改与查看提交" as UC9
+  usecase "触发学情分析" as UC10
+  usecase "处理学情预警" as UC11
+  usecase "AI 生成题目/建议" as UC12
+  usecase "管理基础数据与服务" as UC13
+}
+学生 --> UC1
+学生 --> UC2
+学生 --> UC3
+学生 --> UC4
+学生 --> UC5
+学生 --> UC6
+教师 --> UC1
+教师 --> UC7
+教师 --> UC8
+教师 --> UC9
+教师 --> UC10
+教师 --> UC11
+教师 --> UC12
+系统管理员 --> UC13
+UC12 --> AI
+UC6 --> MQ
+@enduml

@@ -1,0 +1,5 @@
+auth:
+  active-kid: ${AUTH_ACTIVE_KID:dev}
+  access-token-ttl: ${AUTH_ACCESS_TOKEN_TTL:30m}
+  refresh-token-ttl: ${AUTH_REFRESH_TOKEN_TTL:7d}
+  key-rotation-grace: ${AUTH_KEY_ROTATION_GRACE:48h}

@@ -1,0 +1,6569 @@
+{
+  "systemName": "智能学习辅助系统",
+  "project": "D:/111/Distributed framework technology/JavaCode/majorassignment",
+  "generatedFor": "分布式框架技术课程 UML 实验报告",
+  "diagrams": [
+    {
+      "key": "use_case",
+      "title": "图1 智能学习辅助系统用例图",
+      "umlType": "Use Case Diagram",
+      "image": "images/01-use-case.png",
+      "description": "用例图以学生、教师、系统管理员和外部 AI/消息服务为参与者，概括平台对外提供的核心业务目标。学生侧重点是登录、学习课程、提交作业和考试、查看成绩预警与接收通知；教师侧重点是课程班级管理、作业考试发布、批改、分析学情、处理预警和使用 AI 生成资源；管理员负责基础数据和系统运行配置。",
+      "evidence": [
+        "gateway/src/main/resources/application.yml 中的 /api/student/**、/api/teacher/**、/api/auth/**、/api/ai/** 路由",
+        "docs/service-boundary-and-monolith-shrink-plan.md 中的服务边界总表"
+      ],
+      "nodes": [
+        {
+          "id": "student",
+          "label": "学生",
+          "x": 70,
+          "y": 250,
+          "w": 110,
+          "h": 180,
+          "kind": "actor",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "teacher",
+          "label": "教师",
+          "x": 70,
+          "y": 610,
+          "w": 110,
+          "h": 180,
+          "kind": "actor",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "admin",
+          "label": "系统管理员",
+          "x": 70,
+          "y": 900,
+          "w": 130,
+          "h": 180,
+          "kind": "actor",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "ai",
+          "label": "AI 服务",
+          "x": 1590,
+          "y": 320,
+          "w": 110,
+          "h": 180,
+          "kind": "actor",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "mq",
+          "label": "消息服务",
+          "x": 1590,
+          "y": 700,
+          "w": 110,
+          "h": 180,
+          "kind": "actor",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "uc1",
+          "label": "登录与角色切换",
+          "x": 360,
+          "y": 150,
+          "w": 210,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "uc2",
+          "label": "浏览课程与班级",
+          "x": 650,
+          "y": 150,
+          "w": 210,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "uc3",
+          "label": "提交作业",
+          "x": 940,
+          "y": 150,
+          "w": 210,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "uc4",
+          "label": "参加考试并提交",
+          "x": 1230,
+          "y": 150,
+          "w": 230,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "uc5",
+          "label": "查看成绩与知识点掌握",
+          "x": 650,
+          "y": 330,
+          "w": 260,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "uc6",
+          "label": "接收通知与预警",
+          "x": 1000,
+          "y": 330,
+          "w": 230,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "uc7",
+          "label": "维护课程/班级/知识点",
+          "x": 360,
+          "y": 570,
+          "w": 260,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "uc8",
+          "label": "发布作业/考试",
+          "x": 700,
+          "y": 570,
+          "w": 230,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "uc9",
+          "label": "批改与查看提交",
+          "x": 1010,
+          "y": 570,
+          "w": 230,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "uc10",
+          "label": "触发学情分析",
+          "x": 360,
+          "y": 750,
+          "w": 230,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "uc11",
+          "label": "处理学情预警",
+          "x": 690,
+          "y": 750,
+          "w": 230,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "uc12",
+          "label": "AI 生成题目/建议",
+          "x": 1030,
+          "y": 750,
+          "w": 240,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "uc13",
+          "label": "管理基础数据与服务",
+          "x": 520,
+          "y": 940,
+          "w": 280,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#f8fafc",
+          "stereotype": null,
+          "members": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "student",
+          "target": "uc1",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "student",
+          "target": "uc2",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "student",
+          "target": "uc3",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "student",
+          "target": "uc4",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "student",
+          "target": "uc5",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "student",
+          "target": "uc6",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "teacher",
+          "target": "uc1",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "teacher",
+          "target": "uc7",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "teacher",
+          "target": "uc8",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "teacher",
+          "target": "uc9",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "teacher",
+          "target": "uc10",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "teacher",
+          "target": "uc11",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "teacher",
+          "target": "uc12",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "admin",
+          "target": "uc13",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "uc12",
+          "target": "ai",
+          "label": "<<include>>",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "uc6",
+          "target": "mq",
+          "label": "异步投递",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "core"
+      }
+    },
+    {
+      "key": "class",
+      "title": "图2 智能学习辅助系统类图",
+      "umlType": "Class Diagram",
+      "image": "images/02-class.png",
+      "description": "类图按微服务内部常见的 Controller、ApplicationService、Repository、Entity/Record 分层组织，同时展示 Auth、Course、Assignment、Exam、Analysis、Notification、AI 等核心领域对象的依赖关系。图中虚线表示跨服务 API 或事件依赖，实线表示同一服务内部调用或持久化依赖。",
+      "evidence": [
+        "各服务 src/main/java 中的 Controller、Service、Repository、Entity/Record 类",
+        "common-events 模块中的 ExamFinishedEvent、EarlyWarningRaisedEvent 等领域事件"
+      ],
+      "nodes": [
+        {
+          "id": "AuthController",
+          "label": "AuthController",
+          "x": 70,
+          "y": 170,
+          "w": 245,
+          "h": 128,
+          "kind": "class",
+          "fill": "#dbeafe",
+          "stereotype": "controller",
+          "members": [
+            "login()",
+            "refresh()",
+            "switchRole()"
+          ]
+        },
+        {
+          "id": "AuthService",
+          "label": "AuthApplicationService",
+          "x": 390,
+          "y": 170,
+          "w": 260,
+          "h": 128,
+          "kind": "class",
+          "fill": "#dcfce7",
+          "stereotype": "service",
+          "members": [
+            "authenticate()",
+            "refreshToken()"
+          ]
+        },
+        {
+          "id": "JwtService",
+          "label": "JwtTokenService",
+          "x": 710,
+          "y": 170,
+          "w": 245,
+          "h": 128,
+          "kind": "class",
+          "fill": "#dcfce7",
+          "stereotype": "service",
+          "members": [
+            "issueTokenPair()",
+            "parseClaims()"
+          ]
+        },
+        {
+          "id": "Credential",
+          "label": "AuthCredentialEntity",
+          "x": 1040,
+          "y": 170,
+          "w": 260,
+          "h": 128,
+          "kind": "class",
+          "fill": "#fef3c7",
+          "stereotype": "entity",
+          "members": [
+            "userId",
+            "username",
+            "passwordHash",
+            "enabled"
+          ]
+        },
+        {
+          "id": "User",
+          "label": "UserEntity",
+          "x": 1390,
+          "y": 170,
+          "w": 245,
+          "h": 128,
+          "kind": "class",
+          "fill": "#fef3c7",
+          "stereotype": "entity",
+          "members": [
+            "id",
+            "username",
+            "realName",
+            "majorId"
+          ]
+        },
+        {
+          "id": "CourseController",
+          "label": "TeacherCourseAdminController",
+          "x": 70,
+          "y": 380,
+          "w": 245,
+          "h": 142,
+          "kind": "class",
+          "fill": "#dbeafe",
+          "stereotype": "controller",
+          "members": [
+            "listCourses()",
+            "saveCourse()",
+            "assignClass()"
+          ]
+        },
+        {
+          "id": "CourseService",
+          "label": "CourseApplicationService",
+          "x": 390,
+          "y": 380,
+          "w": 260,
+          "h": 142,
+          "kind": "class",
+          "fill": "#dcfce7",
+          "stereotype": "service",
+          "members": [
+            "queryTeacherCourses()",
+            "upsertCourse()",
+            "assignStudent()"
+          ]
+        },
+        {
+          "id": "CourseRepo",
+          "label": "CourseRepository",
+          "x": 710,
+          "y": 380,
+          "w": 245,
+          "h": 142,
+          "kind": "class",
+          "fill": "#f8fafc",
+          "stereotype": "repository",
+          "members": [
+            "findCourses()",
+            "saveCourse()",
+            "findClasses()"
+          ]
+        },
+        {
+          "id": "Course",
+          "label": "CourseEntity",
+          "x": 1040,
+          "y": 380,
+          "w": 260,
+          "h": 142,
+          "kind": "class",
+          "fill": "#fef3c7",
+          "stereotype": "entity",
+          "members": [
+            "id",
+            "courseName",
+            "teacherId",
+            "semester"
+          ]
+        },
+        {
+          "id": "Class",
+          "label": "CourseClassEntity",
+          "x": 1390,
+          "y": 380,
+          "w": 245,
+          "h": 142,
+          "kind": "class",
+          "fill": "#fef3c7",
+          "stereotype": "entity",
+          "members": [
+            "id",
+            "className",
+            "majorId",
+            "studentCount"
+          ]
+        },
+        {
+          "id": "AssignmentController",
+          "label": "StudentAssignmentController",
+          "x": 70,
+          "y": 610,
+          "w": 245,
+          "h": 142,
+          "kind": "class",
+          "fill": "#dbeafe",
+          "stereotype": "controller",
+          "members": [
+            "listAssignments()",
+            "submitAssignment()"
+          ]
+        },
+        {
+          "id": "AssignmentService",
+          "label": "AssignmentApplicationService",
+          "x": 390,
+          "y": 610,
+          "w": 260,
+          "h": 142,
+          "kind": "class",
+          "fill": "#dcfce7",
+          "stereotype": "service",
+          "members": [
+            "submitAssignment()",
+            "publishEvent()"
+          ]
+        },
+        {
+          "id": "AssignmentRepo",
+          "label": "AssignmentRepository",
+          "x": 710,
+          "y": 610,
+          "w": 245,
+          "h": 142,
+          "kind": "class",
+          "fill": "#f8fafc",
+          "stereotype": "repository",
+          "members": [
+            "findAssignment()",
+            "insertSubmission()"
+          ]
+        },
+        {
+          "id": "Assignment",
+          "label": "AssignmentRecord",
+          "x": 1040,
+          "y": 610,
+          "w": 260,
+          "h": 142,
+          "kind": "class",
+          "fill": "#fef3c7",
+          "stereotype": "domain",
+          "members": [
+            "id",
+            "courseId",
+            "classId",
+            "deadline"
+          ]
+        },
+        {
+          "id": "AssignmentSubmission",
+          "label": "AssignmentSubmissionRecord",
+          "x": 1390,
+          "y": 610,
+          "w": 245,
+          "h": 156,
+          "kind": "class",
+          "fill": "#fef3c7",
+          "stereotype": "domain",
+          "members": [
+            "assignmentId",
+            "studentId",
+            "content",
+            "graded",
+            "score"
+          ]
+        },
+        {
+          "id": "ExamController",
+          "label": "StudentExamController",
+          "x": 70,
+          "y": 850,
+          "w": 245,
+          "h": 142,
+          "kind": "class",
+          "fill": "#dbeafe",
+          "stereotype": "controller",
+          "members": [
+            "listExams()",
+            "submitExam()"
+          ]
+        },
+        {
+          "id": "ExamService",
+          "label": "ExamApplicationService",
+          "x": 390,
+          "y": 850,
+          "w": 260,
+          "h": 142,
+          "kind": "class",
+          "fill": "#dcfce7",
+          "stereotype": "service",
+          "members": [
+            "submitExam()",
+            "autoGradeIfPossible()",
+            "persistExamFinishedEvent()"
+          ]
+        },
+        {
+          "id": "ExamRepo",
+          "label": "ExamRepository",
+          "x": 710,
+          "y": 850,
+          "w": 245,
+          "h": 142,
+          "kind": "class",
+          "fill": "#f8fafc",
+          "stereotype": "repository",
+          "members": [
+            "findExam()",
+            "insertSubmission()",
+            "findQuestions()"
+          ]
+        },
+        {
+          "id": "Exam",
+          "label": "ExamRecord",
+          "x": 1040,
+          "y": 850,
+          "w": 260,
+          "h": 142,
+          "kind": "class",
+          "fill": "#fef3c7",
+          "stereotype": "domain",
+          "members": [
+            "id",
+            "courseId",
+            "startTime",
+            "endTime",
+            "status"
+          ]
+        },
+        {
+          "id": "ExamSubmission",
+          "label": "ExamSubmissionRecord",
+          "x": 1390,
+          "y": 850,
+          "w": 245,
+          "h": 166,
+          "kind": "class",
+          "fill": "#fef3c7",
+          "stereotype": "domain",
+          "members": [
+            "examId",
+            "studentId",
+            "timeTaken",
+            "graded",
+            "score"
+          ]
+        },
+        {
+          "id": "AnalysisService",
+          "label": "AnalysisQueryService",
+          "x": 390,
+          "y": 1060,
+          "w": 260,
+          "h": 128,
+          "kind": "class",
+          "fill": "#ede9fe",
+          "stereotype": "service",
+          "members": [
+            "queryTrend()",
+            "queryMastery()",
+            "listWarnings()"
+          ]
+        },
+        {
+          "id": "Warning",
+          "label": "EarlyWarningEntity",
+          "x": 710,
+          "y": 1060,
+          "w": 245,
+          "h": 128,
+          "kind": "class",
+          "fill": "#fee2e2",
+          "stereotype": "entity",
+          "members": [
+            "studentId",
+            "courseId",
+            "warningLevel",
+            "resolved"
+          ]
+        },
+        {
+          "id": "Notification",
+          "label": "NotificationEntity",
+          "x": 1040,
+          "y": 1060,
+          "w": 260,
+          "h": 128,
+          "kind": "class",
+          "fill": "#ffedd5",
+          "stereotype": "entity",
+          "members": [
+            "studentId",
+            "type",
+            "title",
+            "read"
+          ]
+        },
+        {
+          "id": "AI",
+          "label": "AiGenerationEntity",
+          "x": 1390,
+          "y": 1060,
+          "w": 245,
+          "h": 128,
+          "kind": "class",
+          "fill": "#ffedd5",
+          "stereotype": "entity",
+          "members": [
+            "requestType",
+            "inputSummary",
+            "outputSummary",
+            "modelName"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "source": "AuthController",
+          "target": "AuthService",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "AuthService",
+          "target": "JwtService",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "AuthService",
+          "target": "Credential",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "AuthService",
+          "target": "User",
+          "label": "",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "CourseController",
+          "target": "CourseService",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "CourseService",
+          "target": "CourseRepo",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "CourseRepo",
+          "target": "Course",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "CourseRepo",
+          "target": "Class",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "AssignmentController",
+          "target": "AssignmentService",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "AssignmentService",
+          "target": "AssignmentRepo",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "AssignmentRepo",
+          "target": "Assignment",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "AssignmentRepo",
+          "target": "AssignmentSubmission",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "ExamController",
+          "target": "ExamService",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "ExamService",
+          "target": "ExamRepo",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "ExamRepo",
+          "target": "Exam",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "ExamRepo",
+          "target": "ExamSubmission",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "ExamService",
+          "target": "AnalysisService",
+          "label": "",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "AnalysisService",
+          "target": "Warning",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "AnalysisService",
+          "target": "Notification",
+          "label": "",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "core"
+      }
+    },
+    {
+      "key": "object",
+      "title": "图3 考试提交场景对象图",
+      "umlType": "Object Diagram",
+      "image": "images/03-object.png",
+      "description": "对象图描述一次具体考试提交后的运行时对象快照。示例中学生张三通过网关提交考试，ExamSubmissionRecord 保存提交事实，ExamFinishedEvent 进入 outbox 后由分析服务消费，最终形成掌握度、成绩趋势、预警和通知对象。",
+      "evidence": [
+        "exam-service/domain/ExamSubmissionRecord.java 字段 examId、studentId、timeTaken、graded、score",
+        "analysis-service/repository/EarlyWarningEntity.java 与 notification-service/repository/NotificationEntity.java"
+      ],
+      "nodes": [
+        {
+          "id": "student",
+          "label": "student:UserEntity",
+          "x": 80,
+          "y": 190,
+          "w": 300,
+          "h": 150,
+          "kind": "class",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "id = 10023",
+            "realName = 张三",
+            "activeRole = STUDENT"
+          ]
+        },
+        {
+          "id": "exam",
+          "label": "exam:ExamRecord",
+          "x": 520,
+          "y": 190,
+          "w": 300,
+          "h": 150,
+          "kind": "class",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": [
+            "id = 301",
+            "title = Java 基础测验",
+            "courseId = 12"
+          ]
+        },
+        {
+          "id": "sub",
+          "label": "submission:ExamSubmissionRecord",
+          "x": 960,
+          "y": 190,
+          "w": 360,
+          "h": 178,
+          "kind": "class",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": [
+            "examId = 301",
+            "studentId = 10023",
+            "graded = true",
+            "score = 78"
+          ]
+        },
+        {
+          "id": "event",
+          "label": "event:ExamFinishedEvent",
+          "x": 960,
+          "y": 480,
+          "w": 360,
+          "h": 150,
+          "kind": "class",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": [
+            "aggregate = ExamSubmission",
+            "eventId = EXAM-301-10023"
+          ]
+        },
+        {
+          "id": "warning",
+          "label": "warning:EarlyWarningEntity",
+          "x": 520,
+          "y": 720,
+          "w": 330,
+          "h": 160,
+          "kind": "class",
+          "fill": "#fee2e2",
+          "stereotype": null,
+          "members": [
+            "warningLevel = MEDIUM",
+            "resolved = false",
+            "studentId = 10023"
+          ]
+        },
+        {
+          "id": "notice",
+          "label": "notice:NotificationEntity",
+          "x": 80,
+          "y": 720,
+          "w": 330,
+          "h": 160,
+          "kind": "class",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": [
+            "type = EARLY_WARNING",
+            "read = false",
+            "title = 学情预警"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "source": "student",
+          "target": "sub",
+          "label": "提交人",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "exam",
+          "target": "sub",
+          "label": "所属考试",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "sub",
+          "target": "event",
+          "label": "产生事件",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "event",
+          "target": "warning",
+          "label": "分析生成",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "warning",
+          "target": "notice",
+          "label": "推送通知",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "core"
+      }
+    },
+    {
+      "key": "sequence",
+      "title": "图4 学生考试提交顺序图",
+      "umlType": "Sequence Diagram",
+      "image": "images/04-sequence.png",
+      "description": "顺序图选择“学生提交考试并触发分析通知”作为核心业务场景。浏览器请求先经 Gateway 鉴权、限流和熔断，再进入 exam-service 保存提交、自动阅卷和写 outbox；RabbitMQ 将 ExamFinishedEvent 分发给 analysis-service 与 notification-service，完成成绩趋势、知识点掌握、预警和通知更新。",
+      "evidence": [
+        "gateway/application.yml 的 student-exam-submit-route",
+        "ExamApplicationService 中 submitExam、autoGradeIfPossible、persistExamFinishedEvent 相关方法",
+        "common-events 中的 ExamFinishedEvent"
+      ],
+      "nodes": [
+        {
+          "id": "seq-0",
+          "label": "学生",
+          "x": 90,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-1",
+          "label": "前端页面",
+          "x": 340,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-2",
+          "label": "Gateway",
+          "x": 590,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-3",
+          "label": "ExamController",
+          "x": 840,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-4",
+          "label": "ExamApplicationService",
+          "x": 1090,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-5",
+          "label": "sc_exam",
+          "x": 1340,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-6",
+          "label": "RabbitMQ",
+          "x": 1590,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-7",
+          "label": "Analysis Service",
+          "x": 1840,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-8",
+          "label": "Notification Service",
+          "x": 2090,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "source": "seq-0",
+          "target": "seq-1",
+          "label": "填写答案并提交",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 1
+        },
+        {
+          "source": "seq-1",
+          "target": "seq-2",
+          "label": "POST /api/student/exams/{id}/submit",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 2
+        },
+        {
+          "source": "seq-2",
+          "target": "seq-2",
+          "label": "JWT 校验、限流、熔断",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 3
+        },
+        {
+          "source": "seq-2",
+          "target": "seq-3",
+          "label": "转发提交请求",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 4
+        },
+        {
+          "source": "seq-3",
+          "target": "seq-4",
+          "label": "submitExam(studentId, examId, answers)",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 5
+        },
+        {
+          "source": "seq-4",
+          "target": "seq-5",
+          "label": "保存 ExamSubmissionRecord",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 6
+        },
+        {
+          "source": "seq-4",
+          "target": "seq-4",
+          "label": "autoGradeIfPossible()",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 7
+        },
+        {
+          "source": "seq-4",
+          "target": "seq-5",
+          "label": "写 outbox_event(ExamFinishedEvent)",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 8
+        },
+        {
+          "source": "seq-4",
+          "target": "seq-3",
+          "label": "返回提交与成绩",
+          "kind": "message",
+          "dashed": true,
+          "sequence": 9
+        },
+        {
+          "source": "seq-3",
+          "target": "seq-2",
+          "label": "ResponseResult",
+          "kind": "message",
+          "dashed": true,
+          "sequence": 10
+        },
+        {
+          "source": "seq-2",
+          "target": "seq-1",
+          "label": "提交成功",
+          "kind": "message",
+          "dashed": true,
+          "sequence": 11
+        },
+        {
+          "source": "seq-5",
+          "target": "seq-6",
+          "label": "OutboxRelayJob 发布事件",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 12
+        },
+        {
+          "source": "seq-6",
+          "target": "seq-7",
+          "label": "消费 ExamFinishedEvent",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 13
+        },
+        {
+          "source": "seq-7",
+          "target": "seq-7",
+          "label": "更新掌握度、成绩趋势、预警",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 14
+        },
+        {
+          "source": "seq-6",
+          "target": "seq-8",
+          "label": "消费事件或预警事件",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 15
+        },
+        {
+          "source": "seq-8",
+          "target": "seq-8",
+          "label": "创建通知",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 16
+        }
+      ],
+      "metadata": {
+        "lifelines": [
+          "学生",
+          "前端页面",
+          "Gateway",
+          "ExamController",
+          "ExamApplicationService",
+          "sc_exam",
+          "RabbitMQ",
+          "Analysis Service",
+          "Notification Service"
+        ],
+        "messages": [
+          {
+            "from": "学生",
+            "to": "前端页面",
+            "label": "填写答案并提交"
+          },
+          {
+            "from": "前端页面",
+            "to": "Gateway",
+            "label": "POST /api/student/exams/{id}/submit"
+          },
+          {
+            "from": "Gateway",
+            "to": "Gateway",
+            "label": "JWT 校验、限流、熔断"
+          },
+          {
+            "from": "Gateway",
+            "to": "ExamController",
+            "label": "转发提交请求"
+          },
+          {
+            "from": "ExamController",
+            "to": "ExamApplicationService",
+            "label": "submitExam(studentId, examId, answers)"
+          },
+          {
+            "from": "ExamApplicationService",
+            "to": "sc_exam",
+            "label": "保存 ExamSubmissionRecord"
+          },
+          {
+            "from": "ExamApplicationService",
+            "to": "ExamApplicationService",
+            "label": "autoGradeIfPossible()"
+          },
+          {
+            "from": "ExamApplicationService",
+            "to": "sc_exam",
+            "label": "写 outbox_event(ExamFinishedEvent)"
+          },
+          {
+            "from": "ExamApplicationService",
+            "to": "ExamController",
+            "label": "返回提交与成绩",
+            "return": true,
+            "dashed": true
+          },
+          {
+            "from": "ExamController",
+            "to": "Gateway",
+            "label": "ResponseResult",
+            "return": true,
+            "dashed": true
+          },
+          {
+            "from": "Gateway",
+            "to": "前端页面",
+            "label": "提交成功",
+            "return": true,
+            "dashed": true
+          },
+          {
+            "from": "sc_exam",
+            "to": "RabbitMQ",
+            "label": "OutboxRelayJob 发布事件"
+          },
+          {
+            "from": "RabbitMQ",
+            "to": "Analysis Service",
+            "label": "消费 ExamFinishedEvent"
+          },
+          {
+            "from": "Analysis Service",
+            "to": "Analysis Service",
+            "label": "更新掌握度、成绩趋势、预警"
+          },
+          {
+            "from": "RabbitMQ",
+            "to": "Notification Service",
+            "label": "消费事件或预警事件"
+          },
+          {
+            "from": "Notification Service",
+            "to": "Notification Service",
+            "label": "创建通知"
+          }
+        ],
+        "group": "core"
+      }
+    },
+    {
+      "key": "communication",
+      "title": "图5 学生考试提交协作图",
+      "umlType": "Communication Diagram",
+      "image": "images/05-communication.png",
+      "description": "协作图从对象协同角度重新表达同一考试提交场景，重点不是时间轴，而是对象之间的链接和消息编号。可以看到前端、Gateway、考试服务、数据库、消息队列、分析服务和通知服务各自承担的协作责任。",
+      "evidence": [
+        "Gateway 路由、ExamApplicationService、Outbox/RabbitMQ、Analysis/Notification 消费处理链"
+      ],
+      "nodes": [
+        {
+          "id": "student",
+          "label": "学生",
+          "x": 80,
+          "y": 230,
+          "w": 220,
+          "h": 92,
+          "kind": "class",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "ui",
+          "label": "前端页面",
+          "x": 420,
+          "y": 140,
+          "w": 240,
+          "h": 92,
+          "kind": "class",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "gateway",
+          "label": "Gateway",
+          "x": 780,
+          "y": 140,
+          "w": 240,
+          "h": 92,
+          "kind": "class",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "controller",
+          "label": "ExamController",
+          "x": 1140,
+          "y": 140,
+          "w": 260,
+          "h": 92,
+          "kind": "class",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "service",
+          "label": "ExamApplicationService",
+          "x": 1140,
+          "y": 390,
+          "w": 300,
+          "h": 104,
+          "kind": "class",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "db",
+          "label": "sc_exam",
+          "x": 790,
+          "y": 590,
+          "w": 240,
+          "h": 92,
+          "kind": "class",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "mq",
+          "label": "RabbitMQ",
+          "x": 440,
+          "y": 590,
+          "w": 240,
+          "h": 92,
+          "kind": "class",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "analysis",
+          "label": "AnalysisService",
+          "x": 430,
+          "y": 830,
+          "w": 260,
+          "h": 92,
+          "kind": "class",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "notification",
+          "label": "NotificationService",
+          "x": 80,
+          "y": 830,
+          "w": 280,
+          "h": 92,
+          "kind": "class",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "student",
+          "target": "ui",
+          "label": "1: 提交答案",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "ui",
+          "target": "gateway",
+          "label": "2: POST submit",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "gateway",
+          "target": "controller",
+          "label": "3: 转发",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "controller",
+          "target": "service",
+          "label": "4: submitExam",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "service",
+          "target": "db",
+          "label": "5: 保存提交\\n6: 写 outbox",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "db",
+          "target": "mq",
+          "label": "7: 发布事件",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "mq",
+          "target": "analysis",
+          "label": "8: 分析事件",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "analysis",
+          "target": "notification",
+          "label": "9: 预警通知",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "notification",
+          "target": "student",
+          "label": "10: 通知可见",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "core"
+      }
+    },
+    {
+      "key": "state",
+      "title": "图6 考试提交记录状态图",
+      "umlType": "Statechart Diagram",
+      "image": "images/06-state.png",
+      "description": "状态图选择 ExamSubmissionRecord 作为生命周期对象。从未提交开始，学生提交后进入已提交；客观题可自动阅卷进入已评分，主观题或异常情况进入待人工批改；教师复核后完成归档，异常情况下可回退为需重提交。该对象有清晰的状态迁移，适合状态图建模。",
+      "evidence": [
+        "ExamSubmissionRecord 中 graded、score、teacherComment 字段",
+        "ExamApplicationService 的自动阅卷和教师批改相关路径"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "label": "",
+          "x": 140,
+          "y": 210,
+          "w": 34,
+          "h": 34,
+          "kind": "initial",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "unsubmitted",
+          "label": "未提交",
+          "x": 270,
+          "y": 185,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "submitted",
+          "label": "已提交",
+          "x": 590,
+          "y": 185,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "auto",
+          "label": "自动阅卷中",
+          "x": 900,
+          "y": 140,
+          "w": 230,
+          "h": 84,
+          "kind": "state",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "manual",
+          "label": "待人工批改",
+          "x": 900,
+          "y": 330,
+          "w": 230,
+          "h": 84,
+          "kind": "state",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "graded",
+          "label": "已评分",
+          "x": 1210,
+          "y": 235,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "archived",
+          "label": "已归档",
+          "x": 1500,
+          "y": 235,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "resubmit",
+          "label": "需重提交",
+          "x": 590,
+          "y": 460,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#fee2e2",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "end",
+          "label": "",
+          "x": 1650,
+          "y": 470,
+          "w": 42,
+          "h": 42,
+          "kind": "final",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "start",
+          "target": "unsubmitted",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "unsubmitted",
+          "target": "submitted",
+          "label": "学生提交答案",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "submitted",
+          "target": "auto",
+          "label": "客观题可评分",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "submitted",
+          "target": "manual",
+          "label": "含主观题/需复核",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "auto",
+          "target": "graded",
+          "label": "计算得分",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "auto",
+          "target": "manual",
+          "label": "自动评分失败",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "manual",
+          "target": "graded",
+          "label": "教师批改",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "graded",
+          "target": "archived",
+          "label": "发布成绩/写事件",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "graded",
+          "target": "manual",
+          "label": "教师重新批改",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "submitted",
+          "target": "resubmit",
+          "label": "内容异常/超时",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "resubmit",
+          "target": "submitted",
+          "label": "重新提交",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "archived",
+          "target": "end",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "core"
+      }
+    },
+    {
+      "key": "activity",
+      "title": "图7 考试提交与分析活动图",
+      "umlType": "Activity Diagram",
+      "image": "images/07-activity.png",
+      "description": "活动图展示从学生提交考试到分析通知完成的控制流。图中包含登录校验、考试开放校验、保存提交、自动/人工批改分支、事件发布、分析更新和通知生成，体现了同步请求与异步事件处理的结合。",
+      "evidence": [
+        "Gateway 的鉴权与 student-exam-submit-route",
+        "exam-service 保存提交和 outbox 事件发布",
+        "analysis-service、notification-service 的事件消费职责"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "label": "",
+          "x": 920,
+          "y": 150,
+          "w": 34,
+          "h": 34,
+          "kind": "initial",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "open",
+          "label": "学生打开考试页面",
+          "x": 780,
+          "y": 235,
+          "w": 320,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "fill",
+          "label": "填写答案并点击提交",
+          "x": 760,
+          "y": 355,
+          "w": 360,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "auth",
+          "label": "JWT 有效且未限流?",
+          "x": 815,
+          "y": 495,
+          "w": 250,
+          "h": 118,
+          "kind": "decision",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "deny",
+          "label": "返回登录或限流提示",
+          "x": 1235,
+          "y": 515,
+          "w": 300,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#fee2e2",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "forward",
+          "label": "Gateway 转发到 exam-service",
+          "x": 740,
+          "y": 675,
+          "w": 400,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "permission",
+          "label": "考试开放且学生有权限?",
+          "x": 800,
+          "y": 825,
+          "w": 280,
+          "h": 126,
+          "kind": "decision",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "reject",
+          "label": "返回不可提交原因",
+          "x": 360,
+          "y": 845,
+          "w": 300,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#fee2e2",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "save",
+          "label": "保存 ExamSubmissionRecord",
+          "x": 740,
+          "y": 1020,
+          "w": 400,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "auto",
+          "label": "可自动阅卷?",
+          "x": 815,
+          "y": 1165,
+          "w": 250,
+          "h": 118,
+          "kind": "decision",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "grade",
+          "label": "计算得分并标记 graded",
+          "x": 1325,
+          "y": 1165,
+          "w": 340,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "manual",
+          "label": "进入待人工批改",
+          "x": 1325,
+          "y": 1295,
+          "w": 340,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "outbox",
+          "label": "写入 ExamFinishedEvent outbox",
+          "x": 740,
+          "y": 1435,
+          "w": 400,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "return",
+          "label": "返回提交结果",
+          "x": 360,
+          "y": 1435,
+          "w": 300,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "publish",
+          "label": "OutboxRelay 发布到 RabbitMQ",
+          "x": 740,
+          "y": 1585,
+          "w": 400,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "analysis",
+          "label": "Analysis 更新趋势/掌握度/预警",
+          "x": 420,
+          "y": 1740,
+          "w": 410,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "notice",
+          "label": "Notification 创建通知",
+          "x": 1050,
+          "y": 1740,
+          "w": 360,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "end",
+          "label": "",
+          "x": 1500,
+          "y": 1760,
+          "w": 42,
+          "h": 42,
+          "kind": "final",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "start",
+          "target": "open",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "open",
+          "target": "fill",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "fill",
+          "target": "auth",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "auth",
+          "target": "deny",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "auth",
+          "target": "forward",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "forward",
+          "target": "permission",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "permission",
+          "target": "reject",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "permission",
+          "target": "save",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "save",
+          "target": "auto",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "auto",
+          "target": "grade",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "auto",
+          "target": "manual",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "grade",
+          "target": "outbox",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "manual",
+          "target": "outbox",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "outbox",
+          "target": "return",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "outbox",
+          "target": "publish",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "publish",
+          "target": "analysis",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "publish",
+          "target": "notice",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "analysis",
+          "target": "end",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "notice",
+          "target": "end",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "core"
+      }
+    },
+    {
+      "key": "component",
+      "title": "图8 智能学习辅助系统组件图",
+      "umlType": "Component Diagram",
+      "image": "images/08-component.png",
+      "description": "组件图展示平台从前端到网关、注册中心、业务微服务、公共模块、事件总线和数据存储的静态组件依赖。每个业务服务只拥有自己的 schema，通过 Feign/API 契约或领域事件协作，旧单体和 legacy-adapter 作为迁移期兼容组件保留。",
+      "evidence": [
+        "根 pom.xml 聚合模块列表",
+        "docs/data-ownership.md 的服务与数据库映射",
+        "docker-compose.yml 的服务编排"
+      ],
+      "nodes": [
+        {
+          "id": "frontend",
+          "label": "Frontend\\n静态页面",
+          "x": 80,
+          "y": 190,
+          "w": 280,
+          "h": 105,
+          "kind": "component",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "gateway",
+          "label": "Gateway\\n路由/鉴权/限流/熔断",
+          "x": 470,
+          "y": 180,
+          "w": 330,
+          "h": 125,
+          "kind": "component",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "registry",
+          "label": "Registry Server\\nEureka",
+          "x": 910,
+          "y": 175,
+          "w": 300,
+          "h": 110,
+          "kind": "component",
+          "fill": "#f8fafc",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "common",
+          "label": "common\\n响应/异常/Feign/MDC/outbox",
+          "x": 1400,
+          "y": 140,
+          "w": 360,
+          "h": 110,
+          "kind": "component",
+          "fill": "#f8fafc",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "events",
+          "label": "common-events\\n领域事件契约",
+          "x": 1400,
+          "y": 340,
+          "w": 360,
+          "h": 110,
+          "kind": "component",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "services",
+          "label": "业务微服务层\\nAuth/User/Course\\nAssignment/Exam\\nAnalysis/Notification/AI",
+          "x": 470,
+          "y": 520,
+          "w": 760,
+          "h": 180,
+          "kind": "component",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "legacy",
+          "label": "legacy-adapter\\n迁移期只读兼容",
+          "x": 1370,
+          "y": 535,
+          "w": 340,
+          "h": 120,
+          "kind": "component",
+          "fill": "#fee2e2",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "mysql",
+          "label": "MySQL\\nmajor_assignment + sc_*",
+          "x": 270,
+          "y": 900,
+          "w": 360,
+          "h": 120,
+          "kind": "component",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "redis",
+          "label": "Redis\\nJWT/JTI/验证码/限流",
+          "x": 820,
+          "y": 900,
+          "w": 360,
+          "h": 120,
+          "kind": "component",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "rabbit",
+          "label": "RabbitMQ\\n领域事件总线",
+          "x": 1360,
+          "y": 900,
+          "w": 380,
+          "h": 120,
+          "kind": "component",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "frontend",
+          "target": "gateway",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "gateway",
+          "target": "registry",
+          "label": "",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "gateway",
+          "target": "services",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "gateway",
+          "target": "legacy",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "services",
+          "target": "common",
+          "label": "",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "services",
+          "target": "events",
+          "label": "",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "services",
+          "target": "mysql",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "services",
+          "target": "redis",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "services",
+          "target": "rabbit",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "legacy",
+          "target": "mysql",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "core"
+      }
+    },
+    {
+      "key": "deployment",
+      "title": "图9 Docker Compose 部署图",
+      "umlType": "Deployment Diagram",
+      "image": "images/09-deployment.png",
+      "description": "部署图依据 docker-compose.yml 表示本地/测试环境的运行拓扑。浏览器访问前端和 Gateway，Gateway 通过 Eureka 发现业务服务；各服务连接 MySQL 多 schema，认证与网关使用 Redis，作业/考试/分析/通知通过 RabbitMQ 协作，Prometheus 与 Grafana 提供观测能力。",
+      "evidence": [
+        "docker-compose.yml 中 qimo-platform 网络、端口、容器和依赖关系",
+        "docs/deployment.md 中本地编排和中间件说明"
+      ],
+      "nodes": [
+        {
+          "id": "client",
+          "label": "开发者电脑/浏览器",
+          "x": 90,
+          "y": 220,
+          "w": 320,
+          "h": 120,
+          "kind": "node3d",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "gateway",
+          "label": "gateway:8080\\n统一入口",
+          "x": 560,
+          "y": 200,
+          "w": 320,
+          "h": 130,
+          "kind": "node3d",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "registry",
+          "label": "registry-server:8761\\nEureka",
+          "x": 1010,
+          "y": 205,
+          "w": 330,
+          "h": 120,
+          "kind": "node3d",
+          "fill": "#f8fafc",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "services",
+          "label": "业务服务容器组\\nauth/user/course\\nassignment/exam\\nanalysis/notification/ai",
+          "x": 555,
+          "y": 535,
+          "w": 580,
+          "h": 185,
+          "kind": "node3d",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "mono",
+          "label": "legacy-monolith:8090->8080\\n旧单体兼容",
+          "x": 1350,
+          "y": 545,
+          "w": 380,
+          "h": 135,
+          "kind": "node3d",
+          "fill": "#fee2e2",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "mysql",
+          "label": "mysql:3306\\nmajor_assignment + sc_*",
+          "x": 230,
+          "y": 925,
+          "w": 390,
+          "h": 130,
+          "kind": "node3d",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "redis",
+          "label": "redis:6379\\nJWT/JTI/限流",
+          "x": 760,
+          "y": 925,
+          "w": 330,
+          "h": 120,
+          "kind": "node3d",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "rabbit",
+          "label": "rabbitmq:5672/15672\\n事件总线",
+          "x": 1280,
+          "y": 925,
+          "w": 390,
+          "h": 120,
+          "kind": "node3d",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "prom",
+          "label": "prometheus:9090\\n指标采集",
+          "x": 1485,
+          "y": 200,
+          "w": 330,
+          "h": 120,
+          "kind": "node3d",
+          "fill": "#f8fafc",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "grafana",
+          "label": "grafana:3000\\n监控面板",
+          "x": 1485,
+          "y": 385,
+          "w": 330,
+          "h": 120,
+          "kind": "node3d",
+          "fill": "#f8fafc",
+          "stereotype": null,
+          "members": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "client",
+          "target": "gateway",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "gateway",
+          "target": "registry",
+          "label": "",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "gateway",
+          "target": "services",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "gateway",
+          "target": "mono",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "gateway",
+          "target": "redis",
+          "label": "",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "services",
+          "target": "mysql",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "services",
+          "target": "redis",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "services",
+          "target": "rabbit",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "mono",
+          "target": "mysql",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "prom",
+          "target": "gateway",
+          "label": "",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "prom",
+          "target": "services",
+          "label": "",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "grafana",
+          "target": "prom",
+          "label": "",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "core"
+      }
+    },
+    {
+      "key": "role_use_case",
+      "title": "图10 角色分组用例图",
+      "umlType": "Use Case Diagram",
+      "image": "images/10-role-use-case.png",
+      "description": "角色分组用例图在系统总用例图基础上进一步拆分学生、教师和管理员的典型目标。学生关注学习、提交、成绩和通知；教师关注课程、作业、考试、分析和 AI 辅助；管理员关注账号、角色、字典和运行配置。",
+      "evidence": [
+        "gateway 路由按 /api/student/**、/api/teacher/**、/api/admin/** 与 /api/auth/** 分组",
+        "major_assignment 静态页面中 student/teacher 管理入口与迁移后各微服务接口职责"
+      ],
+      "nodes": [
+        {
+          "id": "student",
+          "label": "学生",
+          "x": 70,
+          "y": 215,
+          "w": 110,
+          "h": 180,
+          "kind": "actor",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "teacher",
+          "label": "教师",
+          "x": 70,
+          "y": 560,
+          "w": 110,
+          "h": 180,
+          "kind": "actor",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "admin",
+          "label": "管理员",
+          "x": 70,
+          "y": 875,
+          "w": 110,
+          "h": 180,
+          "kind": "actor",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "s1",
+          "label": "课程学习",
+          "x": 360,
+          "y": 150,
+          "w": 220,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "s2",
+          "label": "作业提交",
+          "x": 690,
+          "y": 150,
+          "w": 220,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "s3",
+          "label": "考试提交",
+          "x": 1020,
+          "y": 150,
+          "w": 220,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "s4",
+          "label": "成绩与预警查看",
+          "x": 1350,
+          "y": 150,
+          "w": 260,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "t1",
+          "label": "课程班级维护",
+          "x": 360,
+          "y": 515,
+          "w": 250,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "t2",
+          "label": "作业发布批改",
+          "x": 700,
+          "y": 515,
+          "w": 250,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "t3",
+          "label": "考试发布阅卷",
+          "x": 1040,
+          "y": 515,
+          "w": 250,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "t4",
+          "label": "学情分析与 AI 辅助",
+          "x": 1370,
+          "y": 515,
+          "w": 280,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "a1",
+          "label": "账号角色维护",
+          "x": 430,
+          "y": 875,
+          "w": 250,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#f8fafc",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "a2",
+          "label": "基础字典维护",
+          "x": 790,
+          "y": 875,
+          "w": 250,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#f8fafc",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "a3",
+          "label": "服务运行配置",
+          "x": 1150,
+          "y": 875,
+          "w": 250,
+          "h": 90,
+          "kind": "usecase",
+          "fill": "#f8fafc",
+          "stereotype": null,
+          "members": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "student",
+          "target": "s1",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "student",
+          "target": "s2",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "student",
+          "target": "s3",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "student",
+          "target": "s4",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "teacher",
+          "target": "t1",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "teacher",
+          "target": "t2",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "teacher",
+          "target": "t3",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "teacher",
+          "target": "t4",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "admin",
+          "target": "a1",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "admin",
+          "target": "a2",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "admin",
+          "target": "a3",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "extension",
+        "focus": "分角色用户目标"
+      }
+    },
+    {
+      "key": "exam_assignment_class",
+      "title": "图11 考试作业核心类图",
+      "umlType": "Class Diagram",
+      "image": "images/11-exam-assignment-class.png",
+      "description": "考试作业核心类图抽取 assignment-service 与 exam-service 的共同业务结构。作业和考试都围绕课程、班级发布范围、学生提交、教师批改、成绩事件展开，适合放在一张图中比较两条评价链路。",
+      "evidence": [
+        "assignment-service-api 与 exam-service-api 中的发布、提交、批改 DTO",
+        "ExamFinishedEvent、AssignmentGradedEvent 等评价结果事件"
+      ],
+      "nodes": [
+        {
+          "id": "course",
+          "label": "Course",
+          "x": 120,
+          "y": 170,
+          "w": 260,
+          "h": 118,
+          "kind": "class",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": [
+            "id",
+            "name",
+            "teacherId"
+          ]
+        },
+        {
+          "id": "class",
+          "label": "CourseClass",
+          "x": 120,
+          "y": 390,
+          "w": 260,
+          "h": 118,
+          "kind": "class",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": [
+            "id",
+            "className",
+            "majorId"
+          ]
+        },
+        {
+          "id": "assignment",
+          "label": "Assignment",
+          "x": 520,
+          "y": 170,
+          "w": 280,
+          "h": 136,
+          "kind": "class",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": [
+            "title",
+            "deadline",
+            "scoreRule"
+          ]
+        },
+        {
+          "id": "scope",
+          "label": "AssignmentPublishScope",
+          "x": 520,
+          "y": 390,
+          "w": 310,
+          "h": 136,
+          "kind": "class",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": [
+            "assignmentId",
+            "classId"
+          ]
+        },
+        {
+          "id": "asub",
+          "label": "AssignmentSubmission",
+          "x": 900,
+          "y": 250,
+          "w": 320,
+          "h": 150,
+          "kind": "class",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": [
+            "studentId",
+            "content",
+            "submittedAt",
+            "status"
+          ]
+        },
+        {
+          "id": "agrade",
+          "label": "AssignmentGrade",
+          "x": 1320,
+          "y": 250,
+          "w": 290,
+          "h": 136,
+          "kind": "class",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": [
+            "score",
+            "comment",
+            "gradedBy"
+          ]
+        },
+        {
+          "id": "exam",
+          "label": "Exam",
+          "x": 520,
+          "y": 670,
+          "w": 280,
+          "h": 136,
+          "kind": "class",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "title",
+            "startTime",
+            "endTime"
+          ]
+        },
+        {
+          "id": "question",
+          "label": "ExamQuestion",
+          "x": 900,
+          "y": 620,
+          "w": 300,
+          "h": 136,
+          "kind": "class",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "type",
+            "score",
+            "answer"
+          ]
+        },
+        {
+          "id": "esub",
+          "label": "ExamSubmission",
+          "x": 900,
+          "y": 820,
+          "w": 320,
+          "h": 150,
+          "kind": "class",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": [
+            "answers",
+            "timeTaken",
+            "graded",
+            "score"
+          ]
+        },
+        {
+          "id": "egrade",
+          "label": "ExamGrade",
+          "x": 1320,
+          "y": 790,
+          "w": 290,
+          "h": 136,
+          "kind": "class",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": [
+            "autoScore",
+            "manualScore",
+            "finalScore"
+          ]
+        },
+        {
+          "id": "event",
+          "label": "LearningEvent",
+          "x": 1320,
+          "y": 560,
+          "w": 290,
+          "h": 118,
+          "kind": "class",
+          "fill": "#fee2e2",
+          "stereotype": null,
+          "members": [
+            "studentId",
+            "courseId",
+            "eventType"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "source": "course",
+          "target": "assignment",
+          "label": "1..*",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "class",
+          "target": "scope",
+          "label": "发布范围",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "assignment",
+          "target": "scope",
+          "label": "1..*",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "assignment",
+          "target": "asub",
+          "label": "提交",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "asub",
+          "target": "agrade",
+          "label": "批改",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "course",
+          "target": "exam",
+          "label": "1..*",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "exam",
+          "target": "question",
+          "label": "包含题目",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "exam",
+          "target": "esub",
+          "label": "考试提交",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "esub",
+          "target": "egrade",
+          "label": "评分",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "agrade",
+          "target": "event",
+          "label": "成绩事件",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "egrade",
+          "target": "event",
+          "label": "成绩事件",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "extension",
+        "focus": "考试与作业领域结构"
+      }
+    },
+    {
+      "key": "user_course_permission_class",
+      "title": "图12 用户课程权限类图",
+      "umlType": "Class Diagram",
+      "image": "images/12-user-course-permission-class.png",
+      "description": "用户课程权限类图描述账号、角色、学生档案、教师授课、班级学生和课程之间的静态关系。该图用于说明 Gateway 与各服务鉴权后，业务服务如何根据课程、班级和角色关系判断数据访问范围。",
+      "evidence": [
+        "auth-service 与 user-service 的用户、角色、认证凭证模型",
+        "course-service 中 course、class、teacher-course、class-student 等关系表"
+      ],
+      "nodes": [
+        {
+          "id": "user",
+          "label": "User",
+          "x": 120,
+          "y": 200,
+          "w": 260,
+          "h": 130,
+          "kind": "class",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "id",
+            "username",
+            "realName",
+            "status"
+          ]
+        },
+        {
+          "id": "role",
+          "label": "Role",
+          "x": 500,
+          "y": 150,
+          "w": 240,
+          "h": 118,
+          "kind": "class",
+          "fill": "#f8fafc",
+          "stereotype": null,
+          "members": [
+            "code",
+            "name",
+            "permissions"
+          ]
+        },
+        {
+          "id": "cred",
+          "label": "AuthCredential",
+          "x": 500,
+          "y": 330,
+          "w": 270,
+          "h": 130,
+          "kind": "class",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": [
+            "passwordHash",
+            "lastLogin",
+            "enabled"
+          ]
+        },
+        {
+          "id": "student",
+          "label": "StudentProfile",
+          "x": 880,
+          "y": 170,
+          "w": 280,
+          "h": 130,
+          "kind": "class",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": [
+            "studentNo",
+            "majorId",
+            "grade"
+          ]
+        },
+        {
+          "id": "teacher",
+          "label": "TeacherProfile",
+          "x": 880,
+          "y": 380,
+          "w": 280,
+          "h": 130,
+          "kind": "class",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": [
+            "teacherNo",
+            "department",
+            "title"
+          ]
+        },
+        {
+          "id": "tc",
+          "label": "TeacherCourse",
+          "x": 1240,
+          "y": 380,
+          "w": 280,
+          "h": 130,
+          "kind": "class",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": [
+            "teacherId",
+            "courseId",
+            "semester"
+          ]
+        },
+        {
+          "id": "course",
+          "label": "Course",
+          "x": 1240,
+          "y": 600,
+          "w": 280,
+          "h": 130,
+          "kind": "class",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": [
+            "name",
+            "credit",
+            "semester"
+          ]
+        },
+        {
+          "id": "class",
+          "label": "CourseClass",
+          "x": 880,
+          "y": 760,
+          "w": 280,
+          "h": 130,
+          "kind": "class",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": [
+            "className",
+            "majorId",
+            "studentCount"
+          ]
+        },
+        {
+          "id": "cs",
+          "label": "ClassStudent",
+          "x": 500,
+          "y": 760,
+          "w": 280,
+          "h": 130,
+          "kind": "class",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": [
+            "classId",
+            "studentId",
+            "joinedAt"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "source": "user",
+          "target": "role",
+          "label": "*..*",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "user",
+          "target": "cred",
+          "label": "登录凭证",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "user",
+          "target": "student",
+          "label": "学生档案",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "user",
+          "target": "teacher",
+          "label": "教师档案",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "teacher",
+          "target": "tc",
+          "label": "授课关系",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "tc",
+          "target": "course",
+          "label": "授课课程",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "course",
+          "target": "class",
+          "label": "开设班级",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "class",
+          "target": "cs",
+          "label": "班级学生",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "cs",
+          "target": "student",
+          "label": "学生归属",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "extension",
+        "focus": "用户、角色与课程授权关系"
+      }
+    },
+    {
+      "key": "assignment_grading_object",
+      "title": "图13 作业批改场景对象图",
+      "umlType": "Object Diagram",
+      "image": "images/13-assignment-grading-object.png",
+      "description": "作业批改对象图展示一次教师批改作业时的对象快照。教师、作业、提交记录、评分结果、成绩事件和通知对象之间形成一条从评价到反馈的链路。",
+      "evidence": [
+        "assignment-service 的 AssignmentSubmissionRecord、GradeCommand 相关模型",
+        "notification-service 中作业批改完成通知的持久化职责"
+      ],
+      "nodes": [
+        {
+          "id": "teacher",
+          "label": "teacher:User",
+          "x": 120,
+          "y": 190,
+          "w": 300,
+          "h": 140,
+          "kind": "class",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "id = 20011",
+            "role = TEACHER",
+            "realName = 李老师"
+          ]
+        },
+        {
+          "id": "assignment",
+          "label": "assignment:Assignment",
+          "x": 560,
+          "y": 190,
+          "w": 330,
+          "h": 150,
+          "kind": "class",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": [
+            "title = Spring 作业",
+            "courseId = 12",
+            "deadline = 2026-06-10"
+          ]
+        },
+        {
+          "id": "sub",
+          "label": "submission:AssignmentSubmission",
+          "x": 1000,
+          "y": 190,
+          "w": 380,
+          "h": 170,
+          "kind": "class",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": [
+            "studentId = 10023",
+            "status = SUBMITTED",
+            "contentUrl = /uploads/a1.md"
+          ]
+        },
+        {
+          "id": "grade",
+          "label": "grade:AssignmentGrade",
+          "x": 1000,
+          "y": 520,
+          "w": 380,
+          "h": 160,
+          "kind": "class",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": [
+            "score = 88",
+            "comment = 完成度较好",
+            "gradedBy = 20011"
+          ]
+        },
+        {
+          "id": "event",
+          "label": "event:AssignmentGradedEvent",
+          "x": 560,
+          "y": 760,
+          "w": 360,
+          "h": 150,
+          "kind": "class",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": [
+            "aggregateId = A-501-S10023",
+            "eventType = GRADED"
+          ]
+        },
+        {
+          "id": "notice",
+          "label": "notice:Notification",
+          "x": 120,
+          "y": 760,
+          "w": 330,
+          "h": 150,
+          "kind": "class",
+          "fill": "#fee2e2",
+          "stereotype": null,
+          "members": [
+            "type = ASSIGNMENT_GRADED",
+            "read = false",
+            "receiver = 10023"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "source": "teacher",
+          "target": "grade",
+          "label": "批改人",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "assignment",
+          "target": "sub",
+          "label": "所属作业",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "sub",
+          "target": "grade",
+          "label": "产生评分",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "grade",
+          "target": "event",
+          "label": "发布成绩事件",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "event",
+          "target": "notice",
+          "label": "生成通知",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "extension",
+        "focus": "作业批改运行时对象"
+      }
+    },
+    {
+      "key": "login_sequence",
+      "title": "图14 登录认证顺序图",
+      "umlType": "Sequence Diagram",
+      "image": "images/14-login-sequence.png",
+      "description": "登录认证顺序图展示用户登录时 Gateway、auth-service、user-service、Redis 和 JWT 支撑组件之间的消息顺序。该图突出认证链路中的验证码校验、用户状态查询、角色装配和双 token 签发。",
+      "evidence": [
+        "auth-service 的 AuthController、JwtTokenService、RsaKeySupport",
+        "common 安全上下文与 Gateway JWT 校验逻辑"
+      ],
+      "nodes": [
+        {
+          "id": "seq-0",
+          "label": "用户",
+          "x": 90,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-1",
+          "label": "登录页面",
+          "x": 340,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-2",
+          "label": "Gateway",
+          "x": 590,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-3",
+          "label": "AuthController",
+          "x": 840,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-4",
+          "label": "AuthService",
+          "x": 1090,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-5",
+          "label": "UserService",
+          "x": 1340,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-6",
+          "label": "Redis",
+          "x": 1590,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-7",
+          "label": "JWT",
+          "x": 1840,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "source": "seq-0",
+          "target": "seq-1",
+          "label": "输入账号密码/验证码",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 1
+        },
+        {
+          "source": "seq-1",
+          "target": "seq-2",
+          "label": "POST /api/auth/login",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 2
+        },
+        {
+          "source": "seq-2",
+          "target": "seq-3",
+          "label": "转发登录请求",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 3
+        },
+        {
+          "source": "seq-3",
+          "target": "seq-4",
+          "label": "authenticate(command)",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 4
+        },
+        {
+          "source": "seq-4",
+          "target": "seq-5",
+          "label": "查询用户、角色、状态",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 5
+        },
+        {
+          "source": "seq-5",
+          "target": "seq-4",
+          "label": "返回用户资料",
+          "kind": "message",
+          "dashed": true,
+          "sequence": 6
+        },
+        {
+          "source": "seq-4",
+          "target": "seq-6",
+          "label": "校验验证码/写 refresh JTI",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 7
+        },
+        {
+          "source": "seq-4",
+          "target": "seq-7",
+          "label": "签发 access/refresh token",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 8
+        },
+        {
+          "source": "seq-4",
+          "target": "seq-3",
+          "label": "返回登录结果",
+          "kind": "message",
+          "dashed": true,
+          "sequence": 9
+        },
+        {
+          "source": "seq-3",
+          "target": "seq-2",
+          "label": "ResponseResult<TokenPair>",
+          "kind": "message",
+          "dashed": true,
+          "sequence": 10
+        },
+        {
+          "source": "seq-2",
+          "target": "seq-1",
+          "label": "保存 token 与角色",
+          "kind": "message",
+          "dashed": true,
+          "sequence": 11
+        }
+      ],
+      "metadata": {
+        "group": "extension",
+        "focus": "登录认证消息顺序",
+        "lifelines": [
+          "用户",
+          "登录页面",
+          "Gateway",
+          "AuthController",
+          "AuthService",
+          "UserService",
+          "Redis",
+          "JWT"
+        ],
+        "messages": [
+          {
+            "from": "用户",
+            "to": "登录页面",
+            "label": "输入账号密码/验证码"
+          },
+          {
+            "from": "登录页面",
+            "to": "Gateway",
+            "label": "POST /api/auth/login"
+          },
+          {
+            "from": "Gateway",
+            "to": "AuthController",
+            "label": "转发登录请求"
+          },
+          {
+            "from": "AuthController",
+            "to": "AuthService",
+            "label": "authenticate(command)"
+          },
+          {
+            "from": "AuthService",
+            "to": "UserService",
+            "label": "查询用户、角色、状态"
+          },
+          {
+            "from": "UserService",
+            "to": "AuthService",
+            "label": "返回用户资料",
+            "return": true,
+            "dashed": true
+          },
+          {
+            "from": "AuthService",
+            "to": "Redis",
+            "label": "校验验证码/写 refresh JTI"
+          },
+          {
+            "from": "AuthService",
+            "to": "JWT",
+            "label": "签发 access/refresh token"
+          },
+          {
+            "from": "AuthService",
+            "to": "AuthController",
+            "label": "返回登录结果",
+            "return": true,
+            "dashed": true
+          },
+          {
+            "from": "AuthController",
+            "to": "Gateway",
+            "label": "ResponseResult<TokenPair>",
+            "return": true,
+            "dashed": true
+          },
+          {
+            "from": "Gateway",
+            "to": "登录页面",
+            "label": "保存 token 与角色",
+            "return": true,
+            "dashed": true
+          }
+        ]
+      }
+    },
+    {
+      "key": "assignment_grading_sequence",
+      "title": "图15 作业批改顺序图",
+      "umlType": "Sequence Diagram",
+      "image": "images/15-assignment-grading-sequence.png",
+      "description": "作业批改顺序图描述教师为学生提交记录打分的同步与异步链路。同步部分完成授课权限校验、提交状态校验和评分保存；异步部分通过 outbox 与 RabbitMQ 通知学生批改结果。",
+      "evidence": [
+        "assignment-service 中教师批改接口与提交记录持久化逻辑",
+        "common outbox 与 notification-service 的通知落库职责"
+      ],
+      "nodes": [
+        {
+          "id": "seq-0",
+          "label": "教师",
+          "x": 90,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-1",
+          "label": "批改页面",
+          "x": 340,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-2",
+          "label": "Gateway",
+          "x": 590,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-3",
+          "label": "AssignmentController",
+          "x": 840,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-4",
+          "label": "AssignmentService",
+          "x": 1090,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-5",
+          "label": "sc_assignment",
+          "x": 1340,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-6",
+          "label": "RabbitMQ",
+          "x": 1590,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-7",
+          "label": "Notification Service",
+          "x": 1840,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "source": "seq-0",
+          "target": "seq-1",
+          "label": "查看提交并填写评分",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 1
+        },
+        {
+          "source": "seq-1",
+          "target": "seq-2",
+          "label": "PUT /api/teacher/assignments/{id}/submissions/{sid}/grade",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 2
+        },
+        {
+          "source": "seq-2",
+          "target": "seq-3",
+          "label": "鉴权后转发",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 3
+        },
+        {
+          "source": "seq-3",
+          "target": "seq-4",
+          "label": "gradeSubmission(command)",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 4
+        },
+        {
+          "source": "seq-4",
+          "target": "seq-5",
+          "label": "校验教师授课和提交状态",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 5
+        },
+        {
+          "source": "seq-4",
+          "target": "seq-5",
+          "label": "保存分数、评语、批改人",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 6
+        },
+        {
+          "source": "seq-4",
+          "target": "seq-5",
+          "label": "写 AssignmentGradedEvent",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 7
+        },
+        {
+          "source": "seq-4",
+          "target": "seq-3",
+          "label": "返回批改结果",
+          "kind": "message",
+          "dashed": true,
+          "sequence": 8
+        },
+        {
+          "source": "seq-5",
+          "target": "seq-6",
+          "label": "OutboxRelay 发布成绩事件",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 9
+        },
+        {
+          "source": "seq-6",
+          "target": "seq-7",
+          "label": "创建作业批改通知",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 10
+        }
+      ],
+      "metadata": {
+        "group": "extension",
+        "focus": "作业批改消息顺序",
+        "lifelines": [
+          "教师",
+          "批改页面",
+          "Gateway",
+          "AssignmentController",
+          "AssignmentService",
+          "sc_assignment",
+          "RabbitMQ",
+          "Notification Service"
+        ],
+        "messages": [
+          {
+            "from": "教师",
+            "to": "批改页面",
+            "label": "查看提交并填写评分"
+          },
+          {
+            "from": "批改页面",
+            "to": "Gateway",
+            "label": "PUT /api/teacher/assignments/{id}/submissions/{sid}/grade"
+          },
+          {
+            "from": "Gateway",
+            "to": "AssignmentController",
+            "label": "鉴权后转发"
+          },
+          {
+            "from": "AssignmentController",
+            "to": "AssignmentService",
+            "label": "gradeSubmission(command)"
+          },
+          {
+            "from": "AssignmentService",
+            "to": "sc_assignment",
+            "label": "校验教师授课和提交状态"
+          },
+          {
+            "from": "AssignmentService",
+            "to": "sc_assignment",
+            "label": "保存分数、评语、批改人"
+          },
+          {
+            "from": "AssignmentService",
+            "to": "sc_assignment",
+            "label": "写 AssignmentGradedEvent"
+          },
+          {
+            "from": "AssignmentService",
+            "to": "AssignmentController",
+            "label": "返回批改结果",
+            "return": true,
+            "dashed": true
+          },
+          {
+            "from": "sc_assignment",
+            "to": "RabbitMQ",
+            "label": "OutboxRelay 发布成绩事件"
+          },
+          {
+            "from": "RabbitMQ",
+            "to": "Notification Service",
+            "label": "创建作业批改通知"
+          }
+        ]
+      }
+    },
+    {
+      "key": "ai_paper_sequence",
+      "title": "图16 AI 组卷顺序图",
+      "umlType": "Sequence Diagram",
+      "image": "images/16-ai-paper-sequence.png",
+      "description": "AI 组卷顺序图展示教师使用 AI 生成试卷草稿的交互过程。ai-service 汇总课程知识点、题型难度和教师约束，调用外部大模型生成草稿，再交由 exam-service 保存并供教师二次编辑。",
+      "evidence": [
+        "ai-service-api 中题目生成、组卷生成请求 DTO",
+        "course-service-api 与 exam-service-api 为 AI 生成提供上下文和落库能力"
+      ],
+      "nodes": [
+        {
+          "id": "seq-0",
+          "label": "教师",
+          "x": 90,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-1",
+          "label": "AI 组卷页面",
+          "x": 340,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-2",
+          "label": "Gateway",
+          "x": 590,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-3",
+          "label": "AiController",
+          "x": 840,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-4",
+          "label": "AiService",
+          "x": 1090,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-5",
+          "label": "CourseService",
+          "x": 1340,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-6",
+          "label": "ExamService",
+          "x": 1590,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        },
+        {
+          "id": "seq-7",
+          "label": "外部大模型",
+          "x": 1840,
+          "y": 180,
+          "w": 210,
+          "h": 860,
+          "kind": "lifeline",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": [
+            "lifeline"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "source": "seq-0",
+          "target": "seq-1",
+          "label": "选择课程、知识点、题型和难度",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 1
+        },
+        {
+          "source": "seq-1",
+          "target": "seq-2",
+          "label": "POST /api/ai/papers/generate",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 2
+        },
+        {
+          "source": "seq-2",
+          "target": "seq-3",
+          "label": "鉴权后转发",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 3
+        },
+        {
+          "source": "seq-3",
+          "target": "seq-4",
+          "label": "generatePaper(command)",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 4
+        },
+        {
+          "source": "seq-4",
+          "target": "seq-5",
+          "label": "查询课程知识点和班级上下文",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 5
+        },
+        {
+          "source": "seq-4",
+          "target": "seq-7",
+          "label": "提交 prompt 与约束",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 6
+        },
+        {
+          "source": "seq-7",
+          "target": "seq-4",
+          "label": "返回试卷草稿",
+          "kind": "message",
+          "dashed": true,
+          "sequence": 7
+        },
+        {
+          "source": "seq-4",
+          "target": "seq-6",
+          "label": "保存试卷/题目草稿",
+          "kind": "message",
+          "dashed": false,
+          "sequence": 8
+        },
+        {
+          "source": "seq-4",
+          "target": "seq-3",
+          "label": "返回生成记录",
+          "kind": "message",
+          "dashed": true,
+          "sequence": 9
+        },
+        {
+          "source": "seq-3",
+          "target": "seq-1",
+          "label": "展示草稿并允许编辑",
+          "kind": "message",
+          "dashed": true,
+          "sequence": 10
+        }
+      ],
+      "metadata": {
+        "group": "extension",
+        "focus": "AI 组卷消息顺序",
+        "lifelines": [
+          "教师",
+          "AI 组卷页面",
+          "Gateway",
+          "AiController",
+          "AiService",
+          "CourseService",
+          "ExamService",
+          "外部大模型"
+        ],
+        "messages": [
+          {
+            "from": "教师",
+            "to": "AI 组卷页面",
+            "label": "选择课程、知识点、题型和难度"
+          },
+          {
+            "from": "AI 组卷页面",
+            "to": "Gateway",
+            "label": "POST /api/ai/papers/generate"
+          },
+          {
+            "from": "Gateway",
+            "to": "AiController",
+            "label": "鉴权后转发"
+          },
+          {
+            "from": "AiController",
+            "to": "AiService",
+            "label": "generatePaper(command)"
+          },
+          {
+            "from": "AiService",
+            "to": "CourseService",
+            "label": "查询课程知识点和班级上下文"
+          },
+          {
+            "from": "AiService",
+            "to": "外部大模型",
+            "label": "提交 prompt 与约束"
+          },
+          {
+            "from": "外部大模型",
+            "to": "AiService",
+            "label": "返回试卷草稿",
+            "return": true,
+            "dashed": true
+          },
+          {
+            "from": "AiService",
+            "to": "ExamService",
+            "label": "保存试卷/题目草稿"
+          },
+          {
+            "from": "AiService",
+            "to": "AiController",
+            "label": "返回生成记录",
+            "return": true,
+            "dashed": true
+          },
+          {
+            "from": "AiController",
+            "to": "AI 组卷页面",
+            "label": "展示草稿并允许编辑",
+            "return": true,
+            "dashed": true
+          }
+        ]
+      }
+    },
+    {
+      "key": "analysis_notification_communication",
+      "title": "图17 学情分析通知协作图",
+      "umlType": "Communication Diagram",
+      "image": "images/17-analysis-notification-communication.png",
+      "description": "学情分析通知协作图说明考试和作业评价事件如何驱动分析服务更新 read model，并在达到阈值时通知服务生成预警通知。该图突出事件总线、分析规则、预警实体和消息投递之间的对象协作。",
+      "evidence": [
+        "analysis-service 维护成绩趋势、知识点掌握度和 EarlyWarning",
+        "notification-service 消费预警事件并创建站内信/通知记录"
+      ],
+      "nodes": [
+        {
+          "id": "mq",
+          "label": "RabbitMQ",
+          "x": 120,
+          "y": 250,
+          "w": 250,
+          "h": 92,
+          "kind": "class",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "consumer",
+          "label": "AnalysisConsumer",
+          "x": 520,
+          "y": 160,
+          "w": 280,
+          "h": 92,
+          "kind": "class",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "mastery",
+          "label": "MasteryModel",
+          "x": 960,
+          "y": 160,
+          "w": 260,
+          "h": 92,
+          "kind": "class",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "rule",
+          "label": "WarningRule",
+          "x": 960,
+          "y": 390,
+          "w": 260,
+          "h": 92,
+          "kind": "class",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "warning",
+          "label": "EarlyWarning",
+          "x": 520,
+          "y": 570,
+          "w": 280,
+          "h": 92,
+          "kind": "class",
+          "fill": "#fee2e2",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "noticeConsumer",
+          "label": "NotificationConsumer",
+          "x": 520,
+          "y": 820,
+          "w": 320,
+          "h": 92,
+          "kind": "class",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "notice",
+          "label": "Notification",
+          "x": 980,
+          "y": 820,
+          "w": 260,
+          "h": 92,
+          "kind": "class",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "mq",
+          "target": "consumer",
+          "label": "1: 消费成绩事件",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "consumer",
+          "target": "mastery",
+          "label": "2: 更新掌握度",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "consumer",
+          "target": "rule",
+          "label": "3: 计算预警",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "rule",
+          "target": "warning",
+          "label": "4: 保存预警",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "warning",
+          "target": "mq",
+          "label": "5: 发布预警事件",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "mq",
+          "target": "noticeConsumer",
+          "label": "6: 消费预警事件",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "noticeConsumer",
+          "target": "notice",
+          "label": "7: 创建通知",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "extension",
+        "focus": "分析预警与通知协作"
+      }
+    },
+    {
+      "key": "ai_generation_communication",
+      "title": "图18 AI 生成协作图",
+      "umlType": "Communication Diagram",
+      "image": "images/18-ai-generation-communication.png",
+      "description": "AI 生成协作图从对象链接角度说明教师请求、AI 编排服务、课程上下文、外部模型、生成记录和业务草稿之间的协作关系。该图用于补充 AI 组卷顺序图，强调参与对象和责任分配。",
+      "evidence": [
+        "ai-service-api 中 AiGenerateQuestionRequest、AiGeneratePaperRequest 等契约",
+        "ai-service 对外部 AI 能力的编排以及 exam-service 草稿落库职责"
+      ],
+      "nodes": [
+        {
+          "id": "teacher",
+          "label": "教师",
+          "x": 120,
+          "y": 250,
+          "w": 220,
+          "h": 92,
+          "kind": "class",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "request",
+          "label": "AiGenerationRequest",
+          "x": 480,
+          "y": 140,
+          "w": 300,
+          "h": 92,
+          "kind": "class",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "service",
+          "label": "AiService",
+          "x": 880,
+          "y": 250,
+          "w": 250,
+          "h": 92,
+          "kind": "class",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "context",
+          "label": "CourseContext",
+          "x": 1250,
+          "y": 130,
+          "w": 280,
+          "h": 92,
+          "kind": "class",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "prompt",
+          "label": "PromptBuilder",
+          "x": 1250,
+          "y": 390,
+          "w": 280,
+          "h": 92,
+          "kind": "class",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "model",
+          "label": "ExternalModel",
+          "x": 880,
+          "y": 640,
+          "w": 280,
+          "h": 92,
+          "kind": "class",
+          "fill": "#fee2e2",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "record",
+          "label": "AiGenerationRecord",
+          "x": 480,
+          "y": 760,
+          "w": 320,
+          "h": 92,
+          "kind": "class",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "draft",
+          "label": "ExamDraft",
+          "x": 120,
+          "y": 640,
+          "w": 250,
+          "h": 92,
+          "kind": "class",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "teacher",
+          "target": "request",
+          "label": "1: 输入约束",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "request",
+          "target": "service",
+          "label": "2: 生成命令",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "service",
+          "target": "context",
+          "label": "3: 查询上下文",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "service",
+          "target": "prompt",
+          "label": "4: 构造 prompt",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "prompt",
+          "target": "model",
+          "label": "5: 调用模型",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "model",
+          "target": "record",
+          "label": "6: 返回结果",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "record",
+          "target": "draft",
+          "label": "7: 保存草稿",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "extension",
+        "focus": "AI 生成对象协作"
+      }
+    },
+    {
+      "key": "assignment_submission_state",
+      "title": "图19 作业提交状态图",
+      "umlType": "Statechart Diagram",
+      "image": "images/19-assignment-submission-state.png",
+      "description": "作业提交状态图选择 AssignmentSubmission 作为生命周期对象。它从未提交开始，经历草稿、已提交、待批改、已批改、需修改和归档等状态，反映学生提交与教师反馈的闭环。",
+      "evidence": [
+        "assignment-service 中作业提交、教师批改、重新提交与成绩发布路径",
+        "AssignmentSubmissionRecord 中提交内容、批改状态、得分与评语字段"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "label": "",
+          "x": 150,
+          "y": 230,
+          "w": 34,
+          "h": 34,
+          "kind": "initial",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "none",
+          "label": "未提交",
+          "x": 270,
+          "y": 205,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "draft",
+          "label": "草稿",
+          "x": 590,
+          "y": 120,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "submitted",
+          "label": "已提交",
+          "x": 590,
+          "y": 320,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "pending",
+          "label": "待批改",
+          "x": 910,
+          "y": 320,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "graded",
+          "label": "已批改",
+          "x": 1230,
+          "y": 320,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "revise",
+          "label": "需修改",
+          "x": 910,
+          "y": 545,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#fee2e2",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "archived",
+          "label": "已归档",
+          "x": 1540,
+          "y": 320,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "end",
+          "label": "",
+          "x": 1660,
+          "y": 555,
+          "w": 42,
+          "h": 42,
+          "kind": "final",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "start",
+          "target": "none",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "none",
+          "target": "draft",
+          "label": "保存草稿",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "draft",
+          "target": "submitted",
+          "label": "提交作业",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "none",
+          "target": "submitted",
+          "label": "直接提交",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "submitted",
+          "target": "pending",
+          "label": "截止前有效",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "pending",
+          "target": "graded",
+          "label": "教师评分",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "graded",
+          "target": "revise",
+          "label": "教师退回",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "revise",
+          "target": "submitted",
+          "label": "重新提交",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "graded",
+          "target": "archived",
+          "label": "发布成绩",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "archived",
+          "target": "end",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "extension",
+        "focus": "作业提交生命周期"
+      }
+    },
+    {
+      "key": "notification_state",
+      "title": "图20 通知消息状态图",
+      "umlType": "Statechart Diagram",
+      "image": "images/20-notification-state.png",
+      "description": "通知消息状态图描述 NotificationEntity 从创建、待投递、已投递、已读、处理完成到归档的生命周期。对于预警类通知，还存在用户处理或教师确认后关闭的状态迁移。",
+      "evidence": [
+        "notification-service 保存站内信、阅读状态和通知投递记录",
+        "analysis-service 预警事件触发通知生成并等待用户处理"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "label": "",
+          "x": 130,
+          "y": 260,
+          "w": 34,
+          "h": 34,
+          "kind": "initial",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "created",
+          "label": "已创建",
+          "x": 260,
+          "y": 235,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "pending",
+          "label": "待投递",
+          "x": 570,
+          "y": 235,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "failed",
+          "label": "投递失败",
+          "x": 570,
+          "y": 470,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#fee2e2",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "delivered",
+          "label": "已投递",
+          "x": 880,
+          "y": 235,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "read",
+          "label": "已读",
+          "x": 1190,
+          "y": 235,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "handling",
+          "label": "待处理",
+          "x": 1190,
+          "y": 470,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "handled",
+          "label": "已处理",
+          "x": 1490,
+          "y": 470,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "archived",
+          "label": "已归档",
+          "x": 1490,
+          "y": 235,
+          "w": 210,
+          "h": 84,
+          "kind": "state",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "end",
+          "label": "",
+          "x": 1660,
+          "y": 250,
+          "w": 42,
+          "h": 42,
+          "kind": "final",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "start",
+          "target": "created",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "created",
+          "target": "pending",
+          "label": "保存通知",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "pending",
+          "target": "failed",
+          "label": "通道异常",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "failed",
+          "target": "pending",
+          "label": "重试",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "pending",
+          "target": "delivered",
+          "label": "投递成功",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "delivered",
+          "target": "read",
+          "label": "用户打开",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "read",
+          "target": "handling",
+          "label": "预警类通知",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "handling",
+          "target": "handled",
+          "label": "确认处理",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "read",
+          "target": "archived",
+          "label": "普通通知",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "handled",
+          "target": "archived",
+          "label": "关闭预警",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "archived",
+          "target": "end",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "extension",
+        "focus": "通知消息生命周期"
+      }
+    },
+    {
+      "key": "login_activity",
+      "title": "图21 登录认证活动图",
+      "umlType": "Activity Diagram",
+      "image": "images/21-login-activity.png",
+      "description": "登录认证活动图从控制流角度描述账号密码、验证码、用户状态、角色选择和 token 签发。它适合说明认证服务如何处理失败分支，并与 Gateway 后续鉴权形成闭环。",
+      "evidence": [
+        "auth-service 登录、刷新 token、角色切换相关接口",
+        "Redis 存储验证码、refresh token JTI 和限流辅助信息"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "label": "",
+          "x": 900,
+          "y": 145,
+          "w": 34,
+          "h": 34,
+          "kind": "initial",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "open",
+          "label": "打开登录页",
+          "x": 760,
+          "y": 235,
+          "w": 340,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "input",
+          "label": "输入账号、密码、验证码",
+          "x": 720,
+          "y": 365,
+          "w": 420,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "captcha",
+          "label": "验证码有效?",
+          "x": 805,
+          "y": 515,
+          "w": 250,
+          "h": 118,
+          "kind": "decision",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "captchaFail",
+          "label": "返回验证码错误",
+          "x": 1220,
+          "y": 535,
+          "w": 310,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#fee2e2",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "query",
+          "label": "查询用户和角色",
+          "x": 760,
+          "y": 705,
+          "w": 340,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "valid",
+          "label": "账号启用且密码正确?",
+          "x": 790,
+          "y": 855,
+          "w": 280,
+          "h": 126,
+          "kind": "decision",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "authFail",
+          "label": "返回认证失败",
+          "x": 1220,
+          "y": 880,
+          "w": 310,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#fee2e2",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "role",
+          "label": "选择默认角色",
+          "x": 760,
+          "y": 1045,
+          "w": 340,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "token",
+          "label": "签发 access token",
+          "x": 760,
+          "y": 1170,
+          "w": 340,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "refresh",
+          "label": "写入 refresh JTI",
+          "x": 760,
+          "y": 1295,
+          "w": 340,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "menu",
+          "label": "返回用户资料和菜单权限",
+          "x": 720,
+          "y": 1420,
+          "w": 420,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "end",
+          "label": "",
+          "x": 900,
+          "y": 1570,
+          "w": 42,
+          "h": 42,
+          "kind": "final",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "start",
+          "target": "open",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "open",
+          "target": "input",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "input",
+          "target": "captcha",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "captcha",
+          "target": "captchaFail",
+          "label": "否",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "captcha",
+          "target": "query",
+          "label": "是",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "query",
+          "target": "valid",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "valid",
+          "target": "authFail",
+          "label": "否",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "valid",
+          "target": "role",
+          "label": "是",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "role",
+          "target": "token",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "token",
+          "target": "refresh",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "refresh",
+          "target": "menu",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "menu",
+          "target": "end",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "extension",
+        "focus": "登录认证控制流",
+        "size": [
+          1900,
+          1750
+        ]
+      }
+    },
+    {
+      "key": "assignment_activity",
+      "title": "图22 作业发布批改活动图",
+      "umlType": "Activity Diagram",
+      "image": "images/22-assignment-activity.png",
+      "description": "作业发布批改活动图覆盖教师发布作业、学生提交、教师批改、成绩发布和通知反馈的完整闭环。该图与作业批改顺序图互补，强调流程分支和业务状态变化。",
+      "evidence": [
+        "assignment-service 的作业发布、班级发布范围、学生提交和教师批改接口",
+        "notification-service 在批改完成后创建作业结果通知"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "label": "",
+          "x": 900,
+          "y": 145,
+          "w": 34,
+          "h": 34,
+          "kind": "initial",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "select",
+          "label": "教师选择课程和班级",
+          "x": 730,
+          "y": 235,
+          "w": 420,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "fill",
+          "label": "填写作业要求与截止时间",
+          "x": 705,
+          "y": 365,
+          "w": 470,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "publish",
+          "label": "发布作业",
+          "x": 780,
+          "y": 495,
+          "w": 320,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "view",
+          "label": "学生查看作业",
+          "x": 780,
+          "y": 625,
+          "w": 320,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "deadline",
+          "label": "截止前提交?",
+          "x": 815,
+          "y": 765,
+          "w": 250,
+          "h": 118,
+          "kind": "decision",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "save",
+          "label": "保存提交记录",
+          "x": 455,
+          "y": 920,
+          "w": 320,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "late",
+          "label": "标记逾期或拒绝提交",
+          "x": 1080,
+          "y": 920,
+          "w": 380,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#fee2e2",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "list",
+          "label": "教师查看提交列表",
+          "x": 730,
+          "y": 1065,
+          "w": 420,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "revise",
+          "label": "需要退回修改?",
+          "x": 815,
+          "y": 1210,
+          "w": 250,
+          "h": 118,
+          "kind": "decision",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "return",
+          "label": "退回并填写修改意见",
+          "x": 430,
+          "y": 1380,
+          "w": 390,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "resubmit",
+          "label": "学生重新提交",
+          "x": 430,
+          "y": 1510,
+          "w": 390,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "grade",
+          "label": "评分并填写评语",
+          "x": 1080,
+          "y": 1380,
+          "w": 360,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "event",
+          "label": "发布成绩事件",
+          "x": 780,
+          "y": 1640,
+          "w": 320,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "notice",
+          "label": "通知学生查看结果",
+          "x": 730,
+          "y": 1765,
+          "w": 420,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "end",
+          "label": "",
+          "x": 910,
+          "y": 1910,
+          "w": 42,
+          "h": 42,
+          "kind": "final",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "start",
+          "target": "select",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "select",
+          "target": "fill",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "fill",
+          "target": "publish",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "publish",
+          "target": "view",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "view",
+          "target": "deadline",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "deadline",
+          "target": "save",
+          "label": "是",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "deadline",
+          "target": "late",
+          "label": "否",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "save",
+          "target": "list",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "late",
+          "target": "list",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "list",
+          "target": "revise",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "revise",
+          "target": "return",
+          "label": "是",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "return",
+          "target": "resubmit",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "resubmit",
+          "target": "list",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "revise",
+          "target": "grade",
+          "label": "否",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "grade",
+          "target": "event",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "event",
+          "target": "notice",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "notice",
+          "target": "end",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "extension",
+        "focus": "作业发布批改流程",
+        "size": [
+          1900,
+          2050
+        ]
+      }
+    },
+    {
+      "key": "ai_analysis_activity",
+      "title": "图23 AI 分析推荐活动图",
+      "umlType": "Activity Diagram",
+      "image": "images/23-ai-analysis-activity.png",
+      "description": "AI 分析推荐活动图展示平台如何基于成绩、知识点掌握度和教师约束生成学习建议或教学资源。流程包含数据聚合、风险识别、prompt 构造、模型调用、结果审核和通知反馈。",
+      "evidence": [
+        "analysis-service 提供成绩趋势、知识点掌握和预警 read model",
+        "ai-service-api 支持学习建议、题目和组卷生成请求"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "label": "",
+          "x": 900,
+          "y": 145,
+          "w": 34,
+          "h": 34,
+          "kind": "initial",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "collect",
+          "label": "收集考试/作业成绩事件",
+          "x": 700,
+          "y": 235,
+          "w": 480,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "update",
+          "label": "更新成绩趋势和知识点掌握",
+          "x": 690,
+          "y": 365,
+          "w": 500,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "warn",
+          "label": "达到预警条件?",
+          "x": 815,
+          "y": 515,
+          "w": 250,
+          "h": 118,
+          "kind": "decision",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "warning",
+          "label": "生成预警对象",
+          "x": 1180,
+          "y": 535,
+          "w": 320,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#fee2e2",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "request",
+          "label": "教师或学生发起 AI 建议请求",
+          "x": 665,
+          "y": 700,
+          "w": 550,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "context",
+          "label": "汇总课程、知识点和薄弱项",
+          "x": 665,
+          "y": 830,
+          "w": 550,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "prompt",
+          "label": "构造 prompt 和安全约束",
+          "x": 700,
+          "y": 960,
+          "w": 480,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "model",
+          "label": "调用外部模型",
+          "x": 760,
+          "y": 1090,
+          "w": 360,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "usable",
+          "label": "生成结果可用?",
+          "x": 815,
+          "y": 1235,
+          "w": 250,
+          "h": 118,
+          "kind": "decision",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "save",
+          "label": "保存生成记录并返回建议/草稿",
+          "x": 425,
+          "y": 1410,
+          "w": 500,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "fallback",
+          "label": "返回降级模板建议",
+          "x": 1080,
+          "y": 1410,
+          "w": 380,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#fee2e2",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "notice",
+          "label": "通知用户查看结果",
+          "x": 730,
+          "y": 1600,
+          "w": 420,
+          "h": 78,
+          "kind": "activity",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "end",
+          "label": "",
+          "x": 910,
+          "y": 1750,
+          "w": 42,
+          "h": 42,
+          "kind": "final",
+          "fill": "#ffffff",
+          "stereotype": null,
+          "members": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "start",
+          "target": "collect",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "collect",
+          "target": "update",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "update",
+          "target": "warn",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "warn",
+          "target": "warning",
+          "label": "是",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "warn",
+          "target": "request",
+          "label": "否",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "warning",
+          "target": "request",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "request",
+          "target": "context",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "context",
+          "target": "prompt",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "prompt",
+          "target": "model",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "model",
+          "target": "usable",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "usable",
+          "target": "save",
+          "label": "是",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "usable",
+          "target": "fallback",
+          "label": "否",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "save",
+          "target": "notice",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "fallback",
+          "target": "notice",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "notice",
+          "target": "end",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "extension",
+        "focus": "AI 分析推荐流程",
+        "size": [
+          1900,
+          1900
+        ]
+      }
+    },
+    {
+      "key": "core_microservice_component",
+      "title": "图24 核心微服务组件细化图",
+      "umlType": "Component Diagram",
+      "image": "images/24-core-microservice-component.png",
+      "description": "核心微服务组件细化图聚焦业务服务之间的 API 与事件关系。Auth/User/Course 提供身份、资料和教学基础数据，Assignment/Exam 产生评价事实，Analysis/Notification/AI 围绕评价事实提供分析、反馈和智能生成能力。",
+      "evidence": [
+        "docs/service-boundary-and-monolith-shrink-plan.md 中各服务边界与迁移计划",
+        "common-events 模块定义评价、预警和通知相关领域事件"
+      ],
+      "nodes": [
+        {
+          "id": "gateway",
+          "label": "Gateway",
+          "x": 80,
+          "y": 210,
+          "w": 260,
+          "h": 105,
+          "kind": "component",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "auth",
+          "label": "AuthService",
+          "x": 455,
+          "y": 140,
+          "w": 260,
+          "h": 105,
+          "kind": "component",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "user",
+          "label": "UserService",
+          "x": 455,
+          "y": 320,
+          "w": 260,
+          "h": 105,
+          "kind": "component",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "course",
+          "label": "CourseService",
+          "x": 825,
+          "y": 230,
+          "w": 280,
+          "h": 105,
+          "kind": "component",
+          "fill": "#dbeafe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "assignment",
+          "label": "AssignmentService",
+          "x": 1200,
+          "y": 120,
+          "w": 320,
+          "h": 105,
+          "kind": "component",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "exam",
+          "label": "ExamService",
+          "x": 1200,
+          "y": 310,
+          "w": 320,
+          "h": 105,
+          "kind": "component",
+          "fill": "#fef3c7",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "ai",
+          "label": "AiService",
+          "x": 1200,
+          "y": 500,
+          "w": 320,
+          "h": 105,
+          "kind": "component",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "events",
+          "label": "CommonEvents",
+          "x": 825,
+          "y": 620,
+          "w": 300,
+          "h": 105,
+          "kind": "component",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "rabbit",
+          "label": "RabbitMQ",
+          "x": 455,
+          "y": 690,
+          "w": 260,
+          "h": 105,
+          "kind": "component",
+          "fill": "#ede9fe",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "analysis",
+          "label": "AnalysisService",
+          "x": 1200,
+          "y": 720,
+          "w": 320,
+          "h": 105,
+          "kind": "component",
+          "fill": "#fee2e2",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "notice",
+          "label": "NotificationService",
+          "x": 1200,
+          "y": 930,
+          "w": 320,
+          "h": 105,
+          "kind": "component",
+          "fill": "#ffedd5",
+          "stereotype": null,
+          "members": []
+        },
+        {
+          "id": "mysql",
+          "label": "MySQL sc_* schemas",
+          "x": 610,
+          "y": 980,
+          "w": 420,
+          "h": 105,
+          "kind": "component",
+          "fill": "#dcfce7",
+          "stereotype": null,
+          "members": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "gateway",
+          "target": "auth",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "gateway",
+          "target": "user",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "gateway",
+          "target": "course",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "gateway",
+          "target": "assignment",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "gateway",
+          "target": "exam",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "gateway",
+          "target": "ai",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "auth",
+          "target": "user",
+          "label": "用户角色",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "assignment",
+          "target": "course",
+          "label": "课程班级",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "exam",
+          "target": "course",
+          "label": "课程题目",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "ai",
+          "target": "course",
+          "label": "知识点上下文",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "ai",
+          "target": "exam",
+          "label": "试卷草稿",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "assignment",
+          "target": "events",
+          "label": "作业事件",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "exam",
+          "target": "events",
+          "label": "考试事件",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "events",
+          "target": "rabbit",
+          "label": "发布/消费",
+          "kind": "dependency",
+          "dashed": true,
+          "sequence": null
+        },
+        {
+          "source": "rabbit",
+          "target": "analysis",
+          "label": "评价事件",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "analysis",
+          "target": "notice",
+          "label": "预警通知",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "auth",
+          "target": "mysql",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "user",
+          "target": "mysql",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "course",
+          "target": "mysql",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "assignment",
+          "target": "mysql",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "exam",
+          "target": "mysql",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "ai",
+          "target": "mysql",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "analysis",
+          "target": "mysql",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        },
+        {
+          "source": "notice",
+          "target": "mysql",
+          "label": "",
+          "kind": "association",
+          "dashed": false,
+          "sequence": null
+        }
+      ],
+      "metadata": {
+        "group": "extension",
+        "focus": "核心微服务依赖"
+      }
+    }
+  ]
+}

@@ -2,6 +2,7 @@ package com._202510007517.platform.auth.service;
 
 import com._202510007517.platform.auth.config.AuthProperties;
 import com._202510007517.platform.common.exception.UnauthorizedException;
+import com._202510007517.platform.common.security.DevJwtKeyMaterial;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -12,7 +13,6 @@ import com.nimbusds.jwt.SignedJWT;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.security.KeyPair;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.text.ParseException;
@@ -30,7 +30,6 @@ public class JwtTokenService {
 
     private final AuthProperties properties;
     private final StringRedisTemplate redisTemplate;
-    private final KeyPair devKeyPair = RsaKeySupport.generateDevKeyPair();
     private final Map<String, RSAPublicKey> publicKeyCache = new ConcurrentHashMap<>();
     private final Map<String, RSAPrivateKey> privateKeyCache = new ConcurrentHashMap<>();
 
@@ -201,7 +200,7 @@ public class JwtTokenService {
 
     private RSAPublicKey resolvePublicKey(String kid) {
         if (properties.getKeys().isEmpty()) {
-            return (RSAPublicKey) devKeyPair.getPublic();
+            return DevJwtKeyMaterial.publicKey();
         }
         return publicKeyCache.computeIfAbsent(kid, key -> {
             AuthProperties.KeyPairProperties configured = properties.getKeys().get(key);
@@ -214,7 +213,7 @@ public class JwtTokenService {
 
     private RSAPrivateKey resolvePrivateKey(String kid) {
         if (properties.getKeys().isEmpty()) {
-            return (RSAPrivateKey) devKeyPair.getPrivate();
+            return DevJwtKeyMaterial.privateKey();
         }
         return privateKeyCache.computeIfAbsent(kid, key -> {
             AuthProperties.KeyPairProperties configured = properties.getKeys().get(key);

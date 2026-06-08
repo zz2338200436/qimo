@@ -1,0 +1,3 @@
+spring:
+  datasource:
+    url: ${AI_DB_URL:${DB_URL:jdbc:mysql://localhost:3306/sc_ai?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}}

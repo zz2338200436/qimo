@@ -9,7 +9,7 @@
         <style>
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 48%, #0f766e 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -30,7 +30,7 @@
             to { opacity: 1; transform: translateY(0); }
         }
         .login-header {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            background: linear-gradient(135deg, #0f766e 0%, #0d9488 58%, #14b8a6 100%);
             color: white;
             padding: 32px;
             text-align: center;
@@ -49,19 +49,19 @@
             font-size: 14px;
             transition: all 0.3s ease;
         }
-        .form-group input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .form-group input:focus { outline: none; border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12); }
         .form-group input::placeholder { color: #94a3b8; }
         .captcha-group { display: flex; gap: 12px; align-items: flex-end; }
         .captcha-input { flex: 1; }
         .captcha-image { width: 120px; height: 50px; border-radius: 12px; overflow: hidden; border: 2px solid #e2e8f0; cursor: pointer; }
         .captcha-image img { width: 100%; height: 100%; object-fit: cover; }
         .remember-me { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
-        .remember-me input[type="checkbox"] { width: 18px; height: 18px; accent-color: #3b82f6; }
+        .remember-me input[type="checkbox"] { width: 18px; height: 18px; accent-color: #0d9488; }
         .remember-me label { font-size: 14px; color: #64748b; margin: 0; cursor: pointer; }
         .login-btn {
             width: 100%;
             padding: 16px;
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
             color: white;
             border: none;
             border-radius: 12px;
@@ -70,19 +70,19 @@
             cursor: pointer;
             transition: all 0.3s ease;
         }
-        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4); }
+        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(13, 148, 136, 0.32); }
         .login-btn:active { transform: translateY(0); }
         .login-footer { text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid #f1f5f9; }
         .login-footer p { font-size: 14px; color: #64748b; margin: 0; }
-        .login-footer a { color: #3b82f6; text-decoration: none; font-weight: 600; }
+        .login-footer a { color: #0d9488; text-decoration: none; font-weight: 600; }
         .login-footer a:hover { text-decoration: underline; }
         .toggle-auth { margin-top: 16px; text-align: center; padding-bottom: 16px; }
-        .toggle-auth a { color: #3b82f6; text-decoration: none; font-size: 14px; font-weight: 500; }
+        .toggle-auth a { color: #0d9488; text-decoration: none; font-size: 14px; font-weight: 500; }
         .toggle-auth a:hover { text-decoration: underline; }
         .language-switcher { text-align: center; padding: 12px 0 20px; border-top: 1px solid #f1f5f9; }
         .language-switcher .lang-btn { color: #64748b; text-decoration: none; font-size: 13px; padding: 4px 8px; border-radius: 4px; transition: all 0.2s ease; }
-        .language-switcher .lang-btn:hover { color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
-        .language-switcher .lang-btn.active { color: #3b82f6; font-weight: 600; }
+        .language-switcher .lang-btn:hover { color: #0d9488; background: rgba(13, 148, 136, 0.1); }
+        .language-switcher .lang-btn.active { color: #0d9488; font-weight: 600; }
         .language-switcher .lang-divider { color: #cbd5e1; margin: 0 4px; }
         @media (max-width: 576px) {
             .login-container { border-radius: 16px; }
@@ -94,7 +94,7 @@
         }
     </style>
 </head>
-<body>
+<body class="student-theme student-login-page">
     <div class="login-container">
         <div class="login-header">
             <i class="fa fa-user-circle-o"></i>

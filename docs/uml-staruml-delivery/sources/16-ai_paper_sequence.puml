@@ -1,0 +1,20 @@
+@startuml
+actor 教师
+participant AI组卷页面
+participant Gateway
+participant AiController
+participant AiService
+participant CourseService
+participant ExamService
+participant 外部大模型
+教师 -> AI组卷页面 : 选择课程/知识点/题型/难度
+AI组卷页面 -> Gateway : POST /api/ai/papers/generate
+Gateway -> AiController : 鉴权后转发
+AiController -> AiService : generatePaper(command)
+AiService -> CourseService : 查询知识点上下文
+AiService -> 外部大模型 : prompt + constraints
+外部大模型 --> AiService : 试卷草稿
+AiService -> ExamService : 保存试卷/题目草稿
+AiService --> AiController : 生成记录
+AiController --> AI组卷页面 : 展示草稿
+@enduml

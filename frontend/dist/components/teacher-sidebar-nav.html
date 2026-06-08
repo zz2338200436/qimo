@@ -5,7 +5,7 @@
     .sidebar {
         width: 280px;
         height: 100vh;
-        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(180deg, #0f172a 0%, #1d4ed8 58%, #2563eb 100%);
         color: white;
         position: fixed;
         top: 0;
@@ -62,13 +62,13 @@
     .menu-item:hover {
         background: rgba(255, 255, 255, 0.1);
         color: white;
-        border-left-color: white;
+            border-left-color: #38bdf8;
     }
 
     .menu-item.active {
         background: rgba(255, 255, 255, 0.18);
         color: white;
-        border-left-color: white;
+        border-left-color: #38bdf8;
     }
 
     .menu-item i {
@@ -123,7 +123,7 @@
 </style>
 
 <!-- 侧边栏导航HTML结构 -->
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar" id="sidebar" data-role-theme="teacher">
     <div class="sidebar-header">
         <div class="sidebar-logo">
             <i class="fa fa-graduation-cap"></i>

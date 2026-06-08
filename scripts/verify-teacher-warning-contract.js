@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const vm = require('node:vm');
 
 function assertIncludes(content, needle, message) {
   if (!content.includes(needle)) {
@@ -27,6 +28,17 @@ const pageContent = fs.readFileSync('frontend/dist/teacher-warning.html', 'utf8'
   'function buildWarningStatCardMarkup(title, iconColor, iconClass, valueMarkup, metaKey) {',
   'function buildWarningStatsCardsMarkup(stats = {}, options = {}) {',
   'const { loading = false } = options;',
+  'function normalizeResponseList(response) {',
+  'async function fetchStudentsForCourse(courseId) {',
+  'async function fetchStudentsForClass(classId) {',
+  'function renderStudentOptions(students, emptyMessage = \'暂无学生数据\') {',
+  'async function loadStudents(courseId = null) {',
+  'const selectedCourseId = courseId || document.getElementById(\'course-select-add\')?.value || null;',
+  'fetchAPI(`/teacher/classes?courseId=${encodeURIComponent(courseId)}`',
+  'courseSelectAdd.addEventListener(\'change\', () => loadStudents(courseSelectAdd.value));',
+  "'暂无该课程的学生数据'",
+  "element.classList.add('is-invalid');",
+  "element.parentElement.appendChild(errorElement);",
   'let currentWarningTypeChartType = \'bar\';',
   'function destroyWarningCharts() {',
   'function buildWarningChartsCanvasMarkup() {',
@@ -112,7 +124,10 @@ const pageContent = fs.readFileSync('frontend/dist/teacher-warning.html', 'utf8'
   "课程平均成绩：${averageScore.toFixed(1)}分",
   "作业完成率：${(assignmentCompletionRate * 100).toFixed(1)}%",
   "考勤率：${studentDashboard.courseProgress.inProgressCourses > 0 ? '90%' : '100%'}",
-  "学习进度：${studentDashboard.courseProgress.inProgressCourses > 0 ? '70%' : '100%'}"
+  "学习进度：${studentDashboard.courseProgress.inProgressCourses > 0 ? '70%' : '100%'}",
+  '预警消息至少需要10个字符',
+  "parent.classList.add('is-invalid');",
+  'parent.appendChild(errorElement);'
 ].forEach(snippet => {
   assertNotIncludes(
     pageContent,
@@ -122,3 +137,106 @@ const pageContent = fs.readFileSync('frontend/dist/teacher-warning.html', 'utf8'
 });
 
 console.log('teacher warning contract OK');
+
+const inlineScripts = [...pageContent.matchAll(/<script(?:\s[^>]*)?>\s*([\s\S]*?)\s*<\/script>/g)]
+  .map(match => match[1])
+  .filter(script => script.includes('async function loadStudents(courseId = null)'));
+const mainScript = inlineScripts[0];
+if (!mainScript) {
+  throw new Error('teacher warning script block not found');
+}
+
+const studentSelect = {
+  innerHTML: '',
+  appended: [],
+  appendChild(option) {
+    this.appended.push(option);
+  }
+};
+const courseSelectAdd = { value: '2' };
+const notifications = [];
+
+const context = {
+  console,
+  URLSearchParams,
+  Set,
+  encodeURIComponent,
+  setTimeout,
+  bootstrap: {
+    Modal: {
+      getInstance() {
+        return { hide() {} };
+      }
+    }
+  },
+  Chart: function Chart() {},
+  sessionStorage: {
+    getItem() {
+      return 'token';
+    }
+  },
+  window: {
+    location: { href: 'teacher-warning.html' },
+    addEventListener() {},
+    print() {},
+    exportToExcel() {}
+  },
+  document: {
+    createElement(tag) {
+      return { tag, value: '', textContent: '', className: '', appendChild() {} };
+    },
+    getElementById(id) {
+      if (id === 'student-select') {
+        return studentSelect;
+      }
+      if (id === 'course-select-add') {
+        return courseSelectAdd;
+      }
+      if (id === 'addWarningModal') {
+        return { addEventListener() {} };
+      }
+      return {
+        value: '',
+        innerHTML: '',
+        textContent: '',
+        style: {},
+        classList: { add() {}, remove() {} },
+        addEventListener() {},
+        appendChild() {},
+        querySelector() { return null; },
+        querySelectorAll() { return []; }
+      };
+    },
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    },
+    addEventListener() {}
+  },
+  fetch: async url => {
+    if (url.includes('/teacher/classes?courseId=2')) {
+      return { ok: true, status: 200, statusText: 'OK', json: async () => ({ success: true, data: [{ id: 2, className: 'ClassSmokeA' }] }) };
+    }
+    if (url.includes('/teacher/classes/2/students')) {
+      return { ok: true, status: 200, statusText: 'OK', json: async () => ({ success: true, data: [{ id: 42, name: 'Student Forty Two', username: 'student42' }] }) };
+    }
+    return { ok: true, status: 200, statusText: 'OK', json: async () => ({ success: true, data: [] }) };
+  },
+  showNotification(message, type) {
+    notifications.push({ message, type });
+  }
+};
+
+vm.createContext(context);
+vm.runInContext(mainScript, context);
+
+(async () => {
+  await context.loadStudents('2');
+  const optionTexts = studentSelect.appended.map(option => option.textContent);
+  if (!optionTexts.includes('Student Forty Two (42)')) {
+    throw new Error(`student dropdown did not render course students. Options: ${optionTexts.join(', ')}`);
+  }
+  console.log('teacher warning student dropdown contract OK');
+})();

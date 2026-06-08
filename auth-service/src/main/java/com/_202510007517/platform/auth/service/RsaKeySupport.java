@@ -2,8 +2,6 @@ package com._202510007517.platform.auth.service;
 
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
@@ -13,16 +11,6 @@ import java.util.Base64;
 public final class RsaKeySupport {
 
     private RsaKeySupport() {
-    }
-
-    public static KeyPair generateDevKeyPair() {
-        try {
-            KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
-            generator.initialize(2048);
-            return generator.generateKeyPair();
-        } catch (GeneralSecurityException ex) {
-            throw new IllegalStateException("无法生成开发 RSA 密钥", ex);
-        }
     }
 
     public static RSAPublicKey parsePublicKey(String pemText) {

@@ -1012,6 +1012,29 @@
             `;
         }
 
+        function normalizeResponseList(response) {
+            const data = response && response.data !== undefined ? response.data : response;
+            if (Array.isArray(data)) {
+                return data;
+            }
+            if (!data || typeof data !== 'object') {
+                return [];
+            }
+            if (Array.isArray(data.content)) {
+                return data.content;
+            }
+            if (Array.isArray(data.records)) {
+                return data.records;
+            }
+            if (Array.isArray(data.items)) {
+                return data.items;
+            }
+            if (Array.isArray(data.list)) {
+                return data.list;
+            }
+            return [];
+        }
+
         // 加载班级数据
         async function loadClasses() {
             try {
@@ -1024,7 +1047,7 @@
                 });
                 
                 // 正确处理分页响应，班级列表可能在response.data.content中
-                const classes = response.data.content || response.data || [];
+                const classes = normalizeResponseList(response);
                 const classSelect = document.getElementById('class-select');
                 
                 // 清空现有选项，保留"全部班级"选项
@@ -1055,7 +1078,7 @@
                 });
                 
                 // 正确处理分页响应，课程列表在response.data.content中
-                const courses = response.data.content || [];
+                const courses = normalizeResponseList(response);
                 const courseSelect = document.getElementById('course-select');
                 const courseSelectAdd = document.getElementById('course-select-add');
                 
@@ -1084,54 +1107,110 @@
             }
         }
         
-        // 加载学生列表
-        async function loadStudents() {
-            try {
-                // 首先获取教师的课程列表
-                const coursesResponse = await fetchAPI('/teacher/courses', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const courses = coursesResponse.data.content || [];
-                
-                // 如果有课程，获取第一个课程的学生列表
-                if (courses.length > 0) {
-                    const firstCourseId = courses[0].id;
-                    // 修正API请求URL，确保正确拼接
-                    const studentsResponse = await fetchAPI(`/teacher/courses/${firstCourseId}/students`, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    
-                    // 学生列表直接在response.data中
-                    const students = studentsResponse.data || [];
-                    const studentSelect = document.getElementById('student-select');
-                    
-                    // 清空现有选项
-                    studentSelect.innerHTML = '';
-                    
-                    // 添加学生选项
-                    students.forEach(student => {
-                        const option = document.createElement('option');
-                        option.value = student.id;
-                        // 检查studentId字段是否存在，使用realName或name字段
-                        const studentName = student.realName || student.name || '未知学生';
-                        const studentNumber = student.studentId || student.id || '';
-                        option.textContent = `${studentName} (${studentNumber})`;
-                        studentSelect.appendChild(option);
-                    });
-                } else {
-                    // 如果没有课程，显示提示信息
-                    const studentSelect = document.getElementById('student-select');
-                    studentSelect.innerHTML = '<option value="">暂无学生数据</option>';
+        function renderStudentOptions(students, emptyMessage = '暂无学生数据') {
+            const studentSelect = document.getElementById('student-select');
+            if (!studentSelect) {
+                return;
+            }
+
+            studentSelect.innerHTML = '';
+            const uniqueStudents = [];
+            const seenIds = new Set();
+
+            students.forEach(student => {
+                const studentId = student.id || student.studentId || student.userId;
+                if (!studentId || seenIds.has(String(studentId))) {
+                    return;
                 }
+                seenIds.add(String(studentId));
+                uniqueStudents.push(student);
+            });
+
+            if (uniqueStudents.length === 0) {
+                studentSelect.innerHTML = `<option value="">${emptyMessage}</option>`;
+                return;
+            }
+
+            studentSelect.innerHTML = '<option value="">请选择学生</option>';
+            uniqueStudents.forEach(student => {
+                const option = document.createElement('option');
+                const studentId = student.id || student.studentId || student.userId;
+                const studentName = student.realName || student.name || student.studentName || student.username || '未知学生';
+                const studentNumber = student.studentNo || student.studentNumber || student.studentCode || student.studentId || studentId || '';
+                option.value = studentId;
+                option.textContent = studentNumber ? `${studentName} (${studentNumber})` : studentName;
+                studentSelect.appendChild(option);
+            });
+        }
+
+        async function fetchStudentsForClass(classId) {
+            const response = await fetchAPI(`/teacher/classes/${encodeURIComponent(classId)}/students`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            return normalizeResponseList(response);
+        }
+
+        async function fetchStudentsForCourse(courseId) {
+            const classResponse = await fetchAPI(`/teacher/classes?courseId=${encodeURIComponent(courseId)}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            const classes = normalizeResponseList(classResponse);
+            const students = [];
+
+            for (const cls of classes) {
+                const classId = cls.id || cls.classId;
+                if (!classId) {
+                    continue;
+                }
+                const classStudents = await fetchStudentsForClass(classId);
+                classStudents.forEach(student => {
+                    students.push({
+                        ...student,
+                        classId,
+                        className: student.className || cls.className
+                    });
+                });
+            }
+
+            if (students.length > 0) {
+                return students;
+            }
+
+            const fallbackResponse = await fetchAPI(`/teacher/courses/${encodeURIComponent(courseId)}/students`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            return normalizeResponseList(fallbackResponse);
+        }
+
+        // 加载学生列表
+        async function loadStudents(courseId = null) {
+            const selectedCourseId = courseId || document.getElementById('course-select-add')?.value || null;
+            const studentSelect = document.getElementById('student-select');
+            if (!studentSelect) {
+                return;
+            }
+
+            if (!selectedCourseId) {
+                renderStudentOptions([], '请先选择课程');
+                return;
+            }
+
+            studentSelect.innerHTML = '<option value="">正在加载学生...</option>';
+            try {
+                const students = await fetchStudentsForCourse(selectedCourseId);
+                renderStudentOptions(students, '暂无该课程的学生数据');
             } catch (error) {
                 console.error('加载学生数据失败:', error);
+                renderStudentOptions([], '学生加载失败');
                 showNotification('加载学生数据失败，请稍后重试', 'error');
             }
         }
@@ -2510,9 +2589,6 @@
                 if (!warningMessageTextarea.value.trim()) {
                     showValidationError(warningMessageTextarea, '请输入预警消息');
                     isValid = false;
-                } else if (warningMessageTextarea.value.trim().length < 10) {
-                    showValidationError(warningMessageTextarea, '预警消息至少需要10个字符');
-                    isValid = false;
                 }
                 
                 if (!publishTimeInput.value) {
@@ -2589,13 +2665,12 @@
         
         // 显示表单验证错误
         function showValidationError(element, message) {
-            const parent = element.parentElement;
-            parent.classList.add('is-invalid');
-            let errorElement = parent.querySelector('.invalid-feedback');
+            element.classList.add('is-invalid');
+            let errorElement = element.parentElement.querySelector('.invalid-feedback');
             if (!errorElement) {
                 errorElement = document.createElement('div');
                 errorElement.className = 'invalid-feedback';
-                parent.appendChild(errorElement);
+                element.parentElement.appendChild(errorElement);
             }
             errorElement.textContent = message;
         }
@@ -2619,6 +2694,7 @@
             const now = new Date();
             const isoString = now.toISOString().slice(0, 16); // 只保留到分钟
             document.getElementById('publish-time-add').value = isoString;
+            loadStudents(document.getElementById('course-select-add')?.value || null);
         });
         
         // 通用函数：为教师端加载右上角用户下拉菜单，并执行组件内脚本
@@ -2675,7 +2751,7 @@
             // 加载班级、课程和学生数据
             await loadClasses();
             await loadCourses();
-            await loadStudents();
+            await loadStudents(document.getElementById('course-select-add')?.value || null);
             
             // 获取初始筛选条件
             const initialFilters = {
@@ -2707,6 +2783,11 @@
                     const selectElement = document.getElementById(selectId);
                     selectElement.addEventListener('change', debouncedSearch);
                 });
+
+                const courseSelectAdd = document.getElementById('course-select-add');
+                if (courseSelectAdd) {
+                    courseSelectAdd.addEventListener('change', () => loadStudents(courseSelectAdd.value));
+                }
             }, 100);
             
             // 筛选按钮点击事件（保留原有功能，用于手动触发查询）
@@ -2738,7 +2819,7 @@
                     modal.show();
                     
                     // 重新加载学生数据，确保数据最新
-                    await loadStudents();
+                    await loadStudents(document.getElementById('course-select-add')?.value || null);
                 });
             }
             

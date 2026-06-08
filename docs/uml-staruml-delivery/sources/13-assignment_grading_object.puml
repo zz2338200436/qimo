@@ -1,0 +1,13 @@
+@startuml
+object "teacher:User" as teacher
+object "assignment:Assignment" as assignment
+object "submission:AssignmentSubmission" as sub
+object "grade:AssignmentGrade" as grade
+object "event:AssignmentGradedEvent" as event
+object "notice:Notification" as notice
+teacher --> grade
+assignment --> sub
+sub --> grade
+grade --> event
+event --> notice
+@enduml

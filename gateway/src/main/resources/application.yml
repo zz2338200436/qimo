@@ -2,196 +2,14 @@ spring:
   application:
     name: gateway
   config:
-    import: optional:classpath:application-common.yml
+    import:
+      - optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+      - optional:classpath:application-common.yml
   cloud:
     gateway:
-      routes:
-        - id: auth-route
-          uri: lb://auth-service
-          predicates:
-            - Path=/api/auth/login,/api/auth/refresh,/api/auth/captcha,/api/public/captcha
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: auth-service
-                fallbackUri: forward:/_fallback/auth-service
-        - id: auth-secured
-          uri: lb://auth-service
-          predicates:
-            - Path=/api/auth/me,/api/auth/logout,/api/auth/switch-role,/api/auth/change-password,/api/auth/notification-settings,/api/student/change-password
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: auth-service
-                fallbackUri: forward:/_fallback/auth-service
-        - id: user-route
-          uri: lb://user-service
-          predicates:
-            - Path=/api/users/**
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: user-service
-                fallbackUri: forward:/_fallback/user-service
-        - id: student-profile-compatibility-route
-          uri: lb://user-service
-          predicates:
-            - Path=/api/student/profile,/api/student/notification-settings,/api/student/privacy-settings,/api/student/upload-avatar,/api/student/export-data,/api/students/*/class
-            - Method=GET,POST,PUT
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: user-service-student-compatibility
-                fallbackUri: forward:/_fallback/user-service
-        - id: course-route
-          uri: lb://course-service
-          predicates:
-            - Path=/api/teacher/courses/**,/api/student/courses/**,/api/teacher/classes,/api/teacher/classes/**,/api/teacher/course-assignments,/api/teacher/course-assignments/**,/api/teacher/class-courses/**,/api/teacher/majors,/api/teacher/check-class-name,/api/teacher/students/**,/api/system/semesters,/api/system/student/courses,/api/system/teacher/courses,/api/system/time-ranges,/api/dashboard/student-performance,/api/dashboard/student-performance/*,/api/teacher/knowledge-points,/api/teacher/knowledge-points/*,/api/teacher/knowledge-points/course/*
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: course-service
-                fallbackUri: forward:/_fallback/course-service
-        - id: assignment-read-route
-          uri: lb://assignment-service
-          predicates:
-            - Path=/api/teacher/assignments,/api/teacher/assignments/**
-            - Method=GET
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: assignment-service
-                fallbackUri: forward:/_fallback/assignment-service
-        - id: assignment-write-route
-          uri: lb://assignment-service
-          predicates:
-            - Path=/api/teacher/assignments,/api/teacher/assignments/**
-            - Method=POST,PUT,DELETE
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: assignment-service
-                fallbackUri: forward:/_fallback/assignment-service
-        - id: teacher-submission-route
-          uri: lb://assignment-service
-          predicates:
-            - Path=/api/teacher/submissions,/api/teacher/submissions/**
-            - Method=GET,PUT
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: assignment-service
-                fallbackUri: forward:/_fallback/assignment-service
-        - id: student-assignment-read-route
-          uri: lb://assignment-service
-          predicates:
-            - Path=/api/student/assignments,/api/student/assignments/**,/api/student/assignment-submissions
-            - Method=GET
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: assignment-service
-                fallbackUri: forward:/_fallback/assignment-service
-        - id: student-assignment-submit-route
-          uri: lb://assignment-service
-          predicates:
-            - Path=/api/student/assignments/*/submit
-            - Method=POST
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: assignment-service
-                fallbackUri: forward:/_fallback/assignment-service
-        - id: assignment-knowledge-route
-          uri: lb://assignment-service
-          predicates:
-            - Path=/api/teacher/knowledge-points/assignment/**
-            - Method=GET,POST
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: assignment-service-knowledge
-                fallbackUri: forward:/_fallback/assignment-service
-        - id: student-exam-read-route
-          uri: lb://exam-service
-          predicates:
-            - Path=/api/student/exams,/api/student/exams/**,/api/student/scores
-            - Method=GET
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: exam-service-student-read
-                fallbackUri: forward:/_fallback/exam-service
-        - id: student-exam-submit-route
-          uri: lb://exam-service
-          predicates:
-            - Path=/api/student/exams/*/submit
-            - Method=POST
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: exam-service-student-submit
-                fallbackUri: forward:/_fallback/exam-service
-        - id: teacher-exam-crud-route
-          uri: lb://exam-service
-          predicates:
-            - Path=/api/teacher/exams,/api/teacher/exams/**
-            - Method=GET,POST,PUT,DELETE
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: exam-service-teacher
-                fallbackUri: forward:/_fallback/exam-service
-        - id: exam-knowledge-route
-          uri: lb://exam-service
-          predicates:
-            - Path=/api/teacher/knowledge-points/exam/**
-            - Method=GET,POST
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: exam-service-knowledge
-                fallbackUri: forward:/_fallback/exam-service
-        - id: notification-route
-          uri: lb://notification-service
-          predicates:
-            - Path=/api/notifications/**
-            - Method=GET,POST,PUT,DELETE
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: notification-service
-                fallbackUri: forward:/_fallback/notification-service
-        - id: analysis-route
-          uri: lb://analysis-service
-          predicates:
-            - Path=/api/teacher/score-trend,/api/teacher/dashboard,/api/teacher/learning-summary,/api/teacher/analysis/**,/api/teacher/knowledge-points/mastery/student/*/course/*,/api/teacher/knowledge-points/stats/course/*,/api/knowledge-points/analysis/teacher/**,/api/early-warnings/**,/api/teacher/early-warnings/**,/api/student/early-warnings,/api/student/study-time-distribution,/api/student/stats,/api/student/knowledge-points,/api/student/knowledge-points/*
-            - Method=GET,POST,PUT,DELETE
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: analysis-service
-                fallbackUri: forward:/_fallback/analysis-service
-        - id: knowledge-analysis-trigger-route
-          uri: lb://analysis-service
-          predicates:
-            - Path=/api/teacher/knowledge-points/analyze/student/*/course/*
-            - Method=POST
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: analysis-service-trigger
-                fallbackUri: forward:/_fallback/analysis-service
-        - id: ai-route
-          uri: lb://ai-service
-          predicates:
-            - Path=/api/ai/**
-            - Method=POST
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: ai-service
-                fallbackUri: forward:/_fallback/ai-service
+      server:
+        webflux:
+          enabled: true
 server:
   port: 8080
 
@@ -216,23 +34,6 @@ gateway:
       - X-Captcha-Key
     allow-credentials: true
     max-age-seconds: 1800
-  rate-limit:
-    enabled: true
-    replenish-rate: 20
-    burst-capacity: 40
-    requested-tokens: 1
-    retry-after-seconds: 1
-    routes:
-      student-exam-submit-route:
-        replenish-rate: 40
-        burst-capacity: 80
-        requested-tokens: 1
-        retry-after-seconds: 1
-      ai-route:
-        replenish-rate: 2
-        burst-capacity: 4
-        requested-tokens: 1
-        retry-after-seconds: 3
   security:
     whitelist-paths:
       - /api/auth/login
@@ -244,42 +45,31 @@ gateway:
     jwt:
       clock-skew-seconds: 30
       jti-blacklist-prefix: "AUTH:JTI_BLACKLIST:"
-      public-keys:
-        dev: |
-          -----BEGIN PUBLIC KEY-----
-          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvUrnnYOR0cf5ClnOtc4v
-          9eqJuEXrvm45+JAm/TG32N+Ss4kfmMHjwz3fySbcoAwJ7SV1DTyNNRk1jd5z5N8v
-          790aiqAasNJarLH3EHA1jJ14zL6cYGzRKnsopKY4d+ZyxDWDtKnrgP0ChbNTk0Bj
-          4EPJfhXPzuYtjJssUTXtaPaca+0MMXa+nYpJ47J/HoGrRhjZt9VxotGa5yt5uDAE
-          YHqrYEx7e6vMQZx2QyroGM6PyFS86nsdBmEdTmRAW1a3RfdIHXDXYNZCJMTxhmfF
-          RuSPalW1PkaoL3yw85R5laQKOypzOctz4Si4/1og1ESaX6bdnVUTdz64NXcUZhzO
-          cQIDAQAB
-          -----END PUBLIC KEY-----
 
-resilience4j:
-  circuitbreaker:
-    configs:
-      default:
-        failure-rate-threshold: 50
-        slow-call-rate-threshold: 50
-        slow-call-duration-threshold: 2s
-        sliding-window-size: 20
-        minimum-number-of-calls: 10
-        wait-duration-in-open-state: 30s
-        permitted-number-of-calls-in-half-open-state: 5
-    instances:
-      exam-service-student-submit:
-        base-config: default
-        failure-rate-threshold: 30
-        minimum-number-of-calls: 20
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+    import:
+      - optional:classpath:application-common.yml
+  cloud:
+    config:
+      enabled: false
 
-eureka:
-  client:
-    service-url:
-      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
-    register-with-eureka: true
-    fetch-registry: true
-  instance:
-    prefer-ip-address: ${EUREKA_PREFER_IP_ADDRESS:false}
-    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
-    ip-address: ${EUREKA_INSTANCE_IP:127.0.0.1}
+---
+spring:
+  config:
+    activate:
+      on-profile: docker | prod
+    import:
+      - configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+      - optional:classpath:application-common.yml
+  cloud:
+    config:
+      fail-fast: true
+      retry:
+        initial-interval: 1000
+        max-attempts: 6
+        max-interval: 5000
+        multiplier: 1.5

@@ -1,0 +1,27 @@
+@startuml
+actor 学生
+participant "前端页面" as UI
+participant Gateway
+participant "ExamController" as C
+participant "ExamApplicationService" as S
+database "sc_exam" as DB
+queue RabbitMQ
+participant "Analysis Service" as A
+participant "Notification Service" as N
+学生 -> UI : 填写答案并提交
+UI -> Gateway : POST /api/student/exams/{id}/submit
+Gateway -> Gateway : JWT校验/限流/熔断
+Gateway -> C : 转发提交请求
+C -> S : submitExam(studentId, examId, answers)
+S -> DB : 保存 ExamSubmissionRecord
+S -> S : autoGradeIfPossible()
+S -> DB : 写 outbox_event(ExamFinishedEvent)
+S --> C : 返回提交与成绩
+C --> Gateway : ResponseResult
+Gateway --> UI : 提交成功
+DB -> RabbitMQ : OutboxRelayJob 发布事件
+RabbitMQ -> A : 消费 ExamFinishedEvent
+A -> A : 更新掌握度/成绩趋势/预警
+RabbitMQ -> N : 消费事件或预警事件
+N -> N : 创建通知
+@enduml

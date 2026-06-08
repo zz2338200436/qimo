@@ -1,0 +1,20 @@
+@startuml
+object 学生
+object 前端页面
+object Gateway
+object ExamController
+object ExamApplicationService
+database sc_exam
+queue RabbitMQ
+object AnalysisService
+object NotificationService
+学生 -- 前端页面 : 1 提交答案
+前端页面 -- Gateway : 2 POST submit
+Gateway -- ExamController : 3 转发
+ExamController -- ExamApplicationService : 4 submitExam
+ExamApplicationService -- sc_exam : 5 保存提交\n6 写事件
+sc_exam -- RabbitMQ : 7 发布事件
+RabbitMQ -- AnalysisService : 8 分析事件
+AnalysisService -- NotificationService : 9 预警通知
+NotificationService -- 学生 : 10 通知可见
+@enduml

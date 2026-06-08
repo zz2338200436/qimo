@@ -11,6 +11,12 @@ services:
     volumes:
       - ./data/mysql/db:/var/lib/mysql
       - ./data/mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - qimo-platform
 
@@ -22,6 +28,12 @@ services:
       - "6379:6379"
     volumes:
       - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     networks:
       - qimo-platform
 
@@ -32,6 +44,12 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - qimo-platform
 
@@ -82,6 +100,21 @@ services:
     networks:
       - qimo-platform
 
+  config-server:
+    build:
+      context: .
+      dockerfile: config-server/Dockerfile
+    image: qimo/config-server:dev
+    ports:
+      - "8888:8888"
+    environment:
+      EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+    depends_on:
+      registry-server:
+        condition: service_healthy
+    networks:
+      - qimo-platform
+
   legacy-monolith:
     build:
       context: .
@@ -96,8 +129,10 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
     depends_on:
-      - mysql
-      - redis
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - qimo-platform
 
@@ -109,16 +144,23 @@ services:
     ports:
       - "8081:8081"
     environment:
+      SPRING_PROFILES_ACTIVE: docker
       EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      CONFIG_SERVER_URL: http://config-server:8888
       AUTH_DB_URL: jdbc:mysql://mysql:3306/sc_auth?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
       AUTH_DB_USERNAME: dev_user
       AUTH_DB_PASSWORD: dev_only_pwd
       REDIS_HOST: redis
       REDIS_PORT: 6379
     depends_on:
-      - mysql
-      - redis
-      - registry-server
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      registry-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
     networks:
       - qimo-platform
 
@@ -130,13 +172,19 @@ services:
     ports:
       - "8082:8082"
     environment:
+      SPRING_PROFILES_ACTIVE: docker
       EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      CONFIG_SERVER_URL: http://config-server:8888
       USER_DB_URL: jdbc:mysql://mysql:3306/sc_user?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
       USER_DB_USERNAME: dev_user
       USER_DB_PASSWORD: dev_only_pwd
     depends_on:
-      - mysql
-      - registry-server
+      mysql:
+        condition: service_healthy
+      registry-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
     networks:
       - qimo-platform
 
@@ -148,13 +196,19 @@ services:
     ports:
       - "8083:8083"
     environment:
+      SPRING_PROFILES_ACTIVE: docker
       EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      CONFIG_SERVER_URL: http://config-server:8888
       COURSE_DB_URL: jdbc:mysql://mysql:3306/sc_course?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
       COURSE_DB_USERNAME: dev_user
       COURSE_DB_PASSWORD: dev_only_pwd
     depends_on:
-      - mysql
-      - registry-server
+      mysql:
+        condition: service_healthy
+      registry-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
     networks:
       - qimo-platform
 
@@ -166,7 +220,9 @@ services:
     ports:
       - "8084:8084"
     environment:
+      SPRING_PROFILES_ACTIVE: docker
       EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      CONFIG_SERVER_URL: http://config-server:8888
       ASSIGNMENT_DB_URL: jdbc:mysql://mysql:3306/sc_assignment?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
       ASSIGNMENT_DB_USERNAME: dev_user
       ASSIGNMENT_DB_PASSWORD: dev_only_pwd
@@ -175,9 +231,14 @@ services:
       RABBITMQ_USERNAME: guest
       RABBITMQ_PASSWORD: guest
     depends_on:
-      - mysql
-      - rabbitmq
-      - registry-server
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      registry-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
     networks:
       - qimo-platform
 
@@ -189,13 +250,19 @@ services:
     ports:
       - "8085:8085"
     environment:
+      SPRING_PROFILES_ACTIVE: docker
       EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      CONFIG_SERVER_URL: http://config-server:8888
       EXAM_DB_URL: jdbc:mysql://mysql:3306/sc_exam?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
       EXAM_DB_USERNAME: dev_user
       EXAM_DB_PASSWORD: dev_only_pwd
     depends_on:
-      - mysql
-      - registry-server
+      mysql:
+        condition: service_healthy
+      registry-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
     networks:
       - qimo-platform
 
@@ -207,7 +274,9 @@ services:
     ports:
       - "8086:8086"
     environment:
+      SPRING_PROFILES_ACTIVE: docker
       EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      CONFIG_SERVER_URL: http://config-server:8888
       ANALYSIS_DB_URL: jdbc:mysql://mysql:3306/sc_analysis?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
       ANALYSIS_DB_USERNAME: dev_user
       ANALYSIS_DB_PASSWORD: dev_only_pwd
@@ -216,9 +285,14 @@ services:
       RABBITMQ_USERNAME: guest
       RABBITMQ_PASSWORD: guest
     depends_on:
-      - mysql
-      - rabbitmq
-      - registry-server
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      registry-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
     networks:
       - qimo-platform
 
@@ -230,7 +304,9 @@ services:
     ports:
       - "8087:8087"
     environment:
+      SPRING_PROFILES_ACTIVE: docker
       EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      CONFIG_SERVER_URL: http://config-server:8888
       NOTIFICATION_DB_URL: jdbc:mysql://mysql:3306/sc_notification?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
       NOTIFICATION_DB_USERNAME: dev_user
       NOTIFICATION_DB_PASSWORD: dev_only_pwd
@@ -239,9 +315,14 @@ services:
       RABBITMQ_USERNAME: guest
       RABBITMQ_PASSWORD: guest
     depends_on:
-      - mysql
-      - rabbitmq
-      - registry-server
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      registry-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
     networks:
       - qimo-platform
 
@@ -253,13 +334,43 @@ services:
     ports:
       - "8088:8088"
     environment:
+      SPRING_PROFILES_ACTIVE: docker
       EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      CONFIG_SERVER_URL: http://config-server:8888
       AI_DB_URL: jdbc:mysql://mysql:3306/sc_ai?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
       AI_DB_USERNAME: dev_user
       AI_DB_PASSWORD: dev_only_pwd
     depends_on:
-      - mysql
-      - registry-server
+      mysql:
+        condition: service_healthy
+      registry-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    networks:
+      - qimo-platform
+
+  legacy-adapter:
+    build:
+      context: .
+      dockerfile: legacy-adapter/Dockerfile
+    image: qimo/legacy-adapter:dev
+    ports:
+      - "8091:8091"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      CONFIG_SERVER_URL: http://config-server:8888
+      LEGACY_DB_URL: jdbc:mysql://mysql:3306/major_assignment?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      LEGACY_DB_USERNAME: dev_user
+      LEGACY_DB_PASSWORD: dev_only_pwd
+    depends_on:
+      mysql:
+        condition: service_healthy
+      registry-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
     networks:
       - qimo-platform
 
@@ -271,24 +382,41 @@ services:
     ports:
       - "8080:8080"
     environment:
+      SPRING_PROFILES_ACTIVE: docker
       EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      CONFIG_SERVER_URL: http://config-server:8888
       LEGACY_BASE_URL: http://legacy-monolith:8080
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       MANAGEMENT_OTLP_TRACING_EXPORT_ENABLED: "false"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318/v1/traces
     depends_on:
-      - registry-server
-      - redis
-      - auth-service
-      - user-service
-      - course-service
-      - assignment-service
-      - exam-service
-      - analysis-service
-      - notification-service
-      - ai-service
-      - legacy-monolith
+      registry-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      course-service:
+        condition: service_healthy
+      assignment-service:
+        condition: service_healthy
+      exam-service:
+        condition: service_healthy
+      analysis-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+      legacy-adapter:
+        condition: service_healthy
+      legacy-monolith:
+        condition: service_healthy
     networks:
       - qimo-platform
 

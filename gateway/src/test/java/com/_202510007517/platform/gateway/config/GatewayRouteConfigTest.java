@@ -3,7 +3,10 @@ package com._202510007517.platform.gateway.config;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.FileSystemResource;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -11,6 +14,17 @@ import java.util.Properties;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class GatewayRouteConfigTest {
+
+    @Test
+    void routeDefinitionsLiveInConfigRepositoryUsingCurrentWebfluxPrefix() {
+        Properties centralProperties = loadGatewayProperties();
+        Properties localProperties = loadLocalGatewayProperties();
+
+        assertThat(readRouteIds(centralProperties)).contains("auth-route", "analysis-route", "ai-route");
+        assertThat(centralProperties.getProperty("spring.cloud.gateway.routes[0].id")).isNull();
+        assertThat(localProperties.getProperty(routeKey(0, "id"))).isNull();
+        assertThat(localProperties.getProperty("spring.cloud.gateway.routes[0].id")).isNull();
+    }
 
     @Test
     void analysisRouteCarriesTeacherAndStudentAnalysisCompatibilityEndpoints() {
@@ -129,6 +143,7 @@ class GatewayRouteConfigTest {
     @Test
     void explicitLegacyRoutesReplaceCatchAllLegacyRoute() {
         Properties properties = loadGatewayProperties();
+        Properties localProperties = loadLocalGatewayProperties();
         List<String> routeIds = readRouteIds(properties);
 
         assertThat(routeIds).doesNotContain("legacy-route");
@@ -156,11 +171,11 @@ class GatewayRouteConfigTest {
                 .contains("/api/system/student/courses")
                 .contains("/api/system/teacher/courses")
                 .contains("/api/system/time-ranges");
-        assertThat(properties.getProperty("gateway.security.whitelist-paths[3]"))
+        assertThat(localProperties.getProperty("gateway.security.whitelist-paths[3]"))
                 .isEqualTo("/api/public/captcha");
-        assertThat(properties.getProperty("gateway.security.whitelist-paths[4]"))
+        assertThat(localProperties.getProperty("gateway.security.whitelist-paths[4]"))
                 .isEqualTo("/api/errors/browser");
-        assertThat(properties.getProperty("gateway.security.whitelist-paths[5]"))
+        assertThat(localProperties.getProperty("gateway.security.whitelist-paths[5]"))
                 .isEqualTo("/api/errors/browser/batch");
     }
 
@@ -337,6 +352,15 @@ class GatewayRouteConfigTest {
 
     private static Properties loadGatewayProperties() {
         YamlPropertiesFactoryBean factory = new YamlPropertiesFactoryBean();
+        factory.setResources(new FileSystemResource(repoRoot()
+                .resolve("config-server/src/main/resources/config-repo/gateway.yml")));
+        Properties properties = factory.getObject();
+        assertThat(properties).isNotNull();
+        return properties;
+    }
+
+    private static Properties loadLocalGatewayProperties() {
+        YamlPropertiesFactoryBean factory = new YamlPropertiesFactoryBean();
         factory.setResources(new ClassPathResource("application.yml"));
         Properties properties = factory.getObject();
         assertThat(properties).isNotNull();
@@ -355,7 +379,7 @@ class GatewayRouteConfigTest {
     }
 
     private static String routeKey(int routeIndex, String property) {
-        return "spring.cloud.gateway.routes[" + routeIndex + "]." + property;
+        return "spring.cloud.gateway.server.webflux.routes[" + routeIndex + "]." + property;
     }
 
     private static String routePredicateKey(int routeIndex, int predicateIndex) {
@@ -377,5 +401,17 @@ class GatewayRouteConfigTest {
             }
         }
         return -1;
+    }
+
+    private static Path repoRoot() {
+        Path current = Path.of(System.getProperty("user.dir")).toAbsolutePath();
+        while (current != null) {
+            if (Files.isDirectory(current.resolve("config-server"))
+                    && Files.isDirectory(current.resolve("gateway"))) {
+                return current;
+            }
+            current = current.getParent();
+        }
+        throw new IllegalStateException("Cannot locate repository root from " + System.getProperty("user.dir"));
     }
 }

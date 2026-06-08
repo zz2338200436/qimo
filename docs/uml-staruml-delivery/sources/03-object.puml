@@ -1,0 +1,34 @@
+@startuml
+object "student:UserEntity" as student {
+  id = 10023
+  realName = 张三
+  activeRole = STUDENT
+}
+object "exam:ExamRecord" as exam {
+  id = 301
+  title = Java 基础测验
+  courseId = 12
+}
+object "submission:ExamSubmissionRecord" as sub {
+  examId = 301
+  studentId = 10023
+  graded = true
+  score = 78
+}
+object "event:ExamFinishedEvent" as event {
+  aggregate = ExamSubmission/301-10023
+}
+object "warning:EarlyWarningEntity" as warning {
+  warningLevel = MEDIUM
+  resolved = false
+}
+object "notice:NotificationEntity" as notice {
+  type = EARLY_WARNING
+  read = false
+}
+student --> sub
+exam --> sub
+sub --> event
+event --> warning
+warning --> notice
+@enduml

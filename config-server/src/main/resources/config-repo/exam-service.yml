@@ -1,0 +1,3 @@
+spring:
+  datasource:
+    url: ${EXAM_DB_URL:${DB_URL:jdbc:mysql://localhost:3306/sc_exam?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}}

@@ -9,7 +9,7 @@
         <style>
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 46%, #0f172a 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -30,7 +30,7 @@
             to { opacity: 1; transform: translateY(0); }
         }
         .login-header {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 56%, #2563eb 100%);
             color: white;
             padding: 32px;
             text-align: center;
@@ -49,19 +49,19 @@
             font-size: 14px;
             transition: all 0.3s ease;
         }
-        .form-group input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .form-group input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); }
         .form-group input::placeholder { color: #94a3b8; }
         .captcha-group { display: flex; gap: 12px; align-items: flex-start; }
         .captcha-input { flex: 1; }
         .captcha-image { width: 120px; height: 58px; border-radius: 12px; overflow: hidden; border: 2px solid #e2e8f0; cursor: pointer; }
         .captcha-image img { width: 100%; height: 100%; object-fit: cover; }
         .remember-me { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
-        .remember-me input[type="checkbox"] { width: 18px; height: 18px; accent-color: #3b82f6; }
+        .remember-me input[type="checkbox"] { width: 18px; height: 18px; accent-color: #2563eb; }
         .remember-me label { font-size: 14px; color: #64748b; margin: 0; cursor: pointer; }
         .login-btn {
             width: 100%;
             padding: 16px;
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
             color: white;
             border: none;
             border-radius: 12px;
@@ -70,7 +70,7 @@
             cursor: pointer;
             transition: all 0.3s ease;
         }
-        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4); }
+        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(37, 99, 235, 0.35); }
         .login-btn:active { transform: translateY(0); }
         .login-footer { text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid #f1f5f9; }
         .login-footer p { font-size: 14px; color: #64748b; margin: 0; }
@@ -94,7 +94,7 @@
         }
     </style>
 </head>
-<body>
+<body class="teacher-theme teacher-login-page">
     <div class="login-container">
         <div class="login-header">
             <i class="fa fa-graduation-cap"></i>

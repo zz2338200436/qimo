@@ -1,0 +1,20 @@
+{
+  "name": "smart-learning-uml-generator",
+  "title": "智能学习辅助系统 UML 一键生成",
+  "description": "为 majorassignment 项目一键生成 9 张课程核心 UML 图和 15 张业务扩展 UML 图。",
+  "version": "1.0.0",
+  "keywords": [
+    "uml",
+    "coursework",
+    "smart-learning",
+    "staruml"
+  ],
+  "author": {
+    "name": "Codex"
+  },
+  "license": "MIT",
+  "engines": {
+    "staruml": ">=6.0.0"
+  },
+  "main": "main.js"
+}

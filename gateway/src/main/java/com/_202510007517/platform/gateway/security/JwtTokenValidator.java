@@ -1,6 +1,7 @@
 package com._202510007517.platform.gateway.security;
 
 import com._202510007517.platform.gateway.config.GatewaySecurityProperties;
+import com._202510007517.platform.common.security.DevJwtKeyMaterial;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
@@ -72,6 +73,9 @@ public class JwtTokenValidator {
             throw new JwtAuthenticationException("JWT 缺少 kid");
         }
         Map<String, String> publicKeys = securityProperties.getJwt().getPublicKeys();
+        if (publicKeys.isEmpty() && DevJwtKeyMaterial.KID.equals(kid)) {
+            return DevJwtKeyMaterial.publicKey();
+        }
         String publicKeyText = publicKeys.get(kid);
         if (publicKeyText == null || publicKeyText.isBlank()) {
             throw new JwtAuthenticationException("JWT kid 未受信任");

@@ -1,6 +1,14 @@
 /* 全局样式优化 */
 :root {
     --primary-color: #3b82f6;
+    --teacher-primary: #2563eb;
+    --teacher-primary-strong: #1d4ed8;
+    --teacher-shell: #0f172a;
+    --teacher-accent: #38bdf8;
+    --student-primary: #0d9488;
+    --student-primary-strong: #0f766e;
+    --student-accent: #14b8a6;
+    --student-surface: #f0fdfa;
     --secondary-color: #64748b;
     --success-color: #10b981;
     --warning-color: #f59e0b;
@@ -3659,4 +3667,77 @@ body {
     text-rendering: auto;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scheme 1 role themes: teacher blue, student teal */
+body.teacher-theme,
+body.teacher-shell-body {
+    --primary-color: var(--teacher-primary);
+    --role-primary: var(--teacher-primary);
+    --role-primary-strong: var(--teacher-primary-strong);
+    --role-shell: var(--teacher-shell);
+    --role-accent: var(--teacher-accent);
+}
+
+body.student-theme {
+    --primary-color: var(--student-primary);
+    --role-primary: var(--student-primary);
+    --role-primary-strong: var(--student-primary-strong);
+    --role-shell: var(--student-primary-strong);
+    --role-accent: var(--student-accent);
+    background: #f7fbf9;
+}
+
+[data-role-theme="teacher"].sidebar,
+.teacher-shell-body [data-role-theme="teacher"].sidebar,
+.teacher-shell-body .sidebar {
+    background: linear-gradient(180deg, var(--teacher-shell) 0%, var(--teacher-primary-strong) 58%, var(--teacher-primary) 100%) !important;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+}
+
+[data-role-theme="student"].sidebar,
+.student-theme [data-role-theme="student"].sidebar {
+    background: linear-gradient(180deg, var(--student-primary-strong) 0%, var(--student-primary) 62%, var(--student-accent) 100%) !important;
+    box-shadow: 0 18px 40px rgba(13, 148, 136, 0.16);
+}
+
+[data-role-theme="teacher"] .menu-item.active,
+.teacher-shell-body .sidebar .menu-item.active {
+    background: rgba(255, 255, 255, 0.18);
+    border-left-color: var(--teacher-accent);
+}
+
+[data-role-theme="student"] .menu-item.active,
+.student-theme .sidebar .menu-item.active {
+    background: rgba(255, 255, 255, 0.2);
+    border-left-color: #ccfbf1;
+}
+
+.teacher-shell-body .user-avatar,
+.teacher-theme .user-avatar {
+    background: linear-gradient(135deg, var(--teacher-primary) 0%, var(--teacher-primary-strong) 100%) !important;
+}
+
+.student-theme .user-avatar {
+    background: linear-gradient(135deg, var(--student-primary) 0%, var(--student-primary-strong) 100%) !important;
+}
+
+.teacher-shell-body .toggle-btn:hover,
+.teacher-theme .toggle-btn:hover {
+    color: var(--teacher-primary);
+    background: #eff6ff;
+}
+
+.student-theme .toggle-btn:hover {
+    color: var(--student-primary);
+    background: #ccfbf1;
+}
+
+.teacher-shell-body .stat-card:hover,
+.teacher-theme .stat-card:hover {
+    border-color: rgba(37, 99, 235, 0.46);
+}
+
+.student-theme .stat-card:hover {
+    border-color: rgba(13, 148, 136, 0.46);
 }

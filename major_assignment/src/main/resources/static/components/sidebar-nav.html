@@ -4,7 +4,7 @@
     .sidebar {
         width: 280px;
         height: 100vh;
-        background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+        background: linear-gradient(180deg, #0f766e 0%, #0d9488 62%, #14b8a6 100%);
         color: white;
         position: fixed;
         top: 0;
@@ -12,6 +12,7 @@
         z-index: 1000;
         overflow-y: auto;
         transition: width 0.3s ease;
+        box-shadow: 0 18px 40px rgba(13, 148, 136, 0.16);
     }
 
     .sidebar.collapsed {
@@ -59,13 +60,13 @@
     .menu-item:hover {
         background: rgba(255, 255, 255, 0.1);
         color: white;
-        border-left-color: white;
+            border-left-color: #ccfbf1;
     }
 
     .menu-item.active {
         background: rgba(255, 255, 255, 0.15);
         color: white;
-        border-left-color: white;
+        border-left-color: #ccfbf1;
     }
 
     .menu-item i {
@@ -120,7 +121,7 @@
 </style>
 
 <!-- 侧边栏导航HTML结构 -->
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar" id="sidebar" data-role-theme="student">
     <div class="sidebar-header">
         <div class="sidebar-logo">
             <i class="fa fa-graduation-cap"></i>

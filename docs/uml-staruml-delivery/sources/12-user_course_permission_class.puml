@@ -1,0 +1,21 @@
+@startuml
+skinparam classAttributeIconSize 0
+class User
+class Role
+class AuthCredential
+class StudentProfile
+class TeacherProfile
+class Course
+class TeacherCourse
+class CourseClass
+class ClassStudent
+User "*" -- "*" Role
+User "1" -- "0..1" AuthCredential
+User "1" -- "0..1" StudentProfile
+User "1" -- "0..1" TeacherProfile
+TeacherProfile "1" -- "*" TeacherCourse
+TeacherCourse "*" -- "1" Course
+Course "1" -- "*" CourseClass
+CourseClass "1" -- "*" ClassStudent
+ClassStudent "*" -- "1" StudentProfile
+@enduml

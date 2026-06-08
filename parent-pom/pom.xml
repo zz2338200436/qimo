@@ -104,6 +104,17 @@
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <configuration>
+                        <systemPropertyVariables>
+                            <spring.cloud.config.enabled>false</spring.cloud.config.enabled>
+                            <spring.cloud.discovery.enabled>false</spring.cloud.discovery.enabled>
+                            <eureka.client.enabled>false</eureka.client.enabled>
+                        </systemPropertyVariables>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-site-plugin</artifactId>
                     <version>${maven-site-plugin.version}</version>
                 </plugin>

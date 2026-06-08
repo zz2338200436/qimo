@@ -1,0 +1,22 @@
+@startuml
+component "Frontend 静态页面" as Frontend
+component "Gateway\n路由/鉴权/限流/熔断" as Gateway
+component "Registry Server\nEureka" as Registry
+component "业务微服务层\nAuth/User/Course\nAssignment/Exam\nAnalysis/Notification/AI" as Services
+component "legacy-adapter\n迁移期只读兼容" as Legacy
+component "common\n响应/异常/Feign/MDC/outbox" as Common
+component "common-events\n领域事件契约" as Events
+database "MySQL\nmajor_assignment + sc_*" as MySQL
+database "Redis\nJWT/JTI/验证码/限流" as Redis
+queue "RabbitMQ\n领域事件总线" as RabbitMQ
+Frontend --> Gateway
+Gateway ..> Registry
+Gateway --> Services
+Gateway --> Legacy
+Services ..> Common
+Services ..> Events
+Services --> MySQL
+Services --> Redis
+Services --> RabbitMQ
+Legacy --> MySQL
+@enduml

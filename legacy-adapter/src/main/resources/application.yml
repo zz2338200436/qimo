@@ -2,23 +2,42 @@ spring:
   application:
     name: legacy-adapter
   config:
-    import: optional:classpath:application-common.yml
+    import:
+      - optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+      - optional:classpath:application-common.yml
   datasource:
     url: ${LEGACY_DB_URL:${DB_URL:jdbc:mysql://localhost:3306/major_assignment?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}}
     username: ${LEGACY_DB_USERNAME:${DB_USERNAME:root}}
-    password: ${LEGACY_DB_PASSWORD:${DB_PASSWORD:root}}
+    password: ${LEGACY_DB_PASSWORD:${DB_PASSWORD:}}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
 server:
   port: 8091
 
-eureka:
-  client:
-    service-url:
-      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
-    register-with-eureka: true
-    fetch-registry: true
-  instance:
-    prefer-ip-address: ${EUREKA_PREFER_IP_ADDRESS:false}
-    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
-    ip-address: ${EUREKA_INSTANCE_IP:127.0.0.1}
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+    import:
+      - optional:classpath:application-common.yml
+  cloud:
+    config:
+      enabled: false
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker | prod
+    import:
+      - configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+      - optional:classpath:application-common.yml
+  cloud:
+    config:
+      fail-fast: true
+      retry:
+        initial-interval: 1000
+        max-attempts: 6
+        max-interval: 5000
+        multiplier: 1.5

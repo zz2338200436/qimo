@@ -2,11 +2,13 @@ spring:
   application:
     name: course-service
   config:
-    import: optional:classpath:application-common.yml
+    import:
+      - optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+      - optional:classpath:application-common.yml
   datasource:
     url: ${COURSE_DB_URL:${DB_URL:jdbc:mysql://localhost:3306/sc_course?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}}
     username: ${COURSE_DB_USERNAME:${DB_USERNAME:dev_user}}
-    password: ${COURSE_DB_PASSWORD:${DB_PASSWORD:dev_only_pwd}}
+    password: ${COURSE_DB_PASSWORD:${DB_PASSWORD:}}
     driver-class-name: com.mysql.cj.jdbc.Driver
   flyway:
     enabled: ${COURSE_FLYWAY_ENABLED:true}
@@ -20,13 +22,30 @@ spring:
 server:
   port: 8083
 
-eureka:
-  client:
-    service-url:
-      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
-    register-with-eureka: true
-    fetch-registry: true
-  instance:
-    prefer-ip-address: ${EUREKA_PREFER_IP_ADDRESS:false}
-    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
-    ip-address: ${EUREKA_INSTANCE_IP:127.0.0.1}
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+    import:
+      - optional:classpath:application-common.yml
+  cloud:
+    config:
+      enabled: false
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker | prod
+    import:
+      - configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+      - optional:classpath:application-common.yml
+  cloud:
+    config:
+      fail-fast: true
+      retry:
+        initial-interval: 1000
+        max-attempts: 6
+        max-interval: 5000
+        multiplier: 1.5

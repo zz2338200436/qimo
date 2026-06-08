@@ -2,11 +2,13 @@ spring:
   application:
     name: auth-service
   config:
-    import: optional:classpath:application-common.yml
+    import:
+      - optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+      - optional:classpath:application-common.yml
   datasource:
     url: ${AUTH_DB_URL:${DB_URL:jdbc:mysql://localhost:3306/sc_auth?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}}
     username: ${AUTH_DB_USERNAME:${DB_USERNAME:dev_user}}
-    password: ${AUTH_DB_PASSWORD:${DB_PASSWORD:dev_only_pwd}}
+    password: ${AUTH_DB_PASSWORD:${DB_PASSWORD:}}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
@@ -34,55 +36,31 @@ auth:
   captcha-prefix: "CAPTCHA:IMG:"
   jti-blacklist-prefix: "AUTH:JTI_BLACKLIST:"
   refresh-token-prefix: "AUTH:REFRESH:"
-  keys:
-    dev:
-      public-key: |
-        -----BEGIN PUBLIC KEY-----
-        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvUrnnYOR0cf5ClnOtc4v
-        9eqJuEXrvm45+JAm/TG32N+Ss4kfmMHjwz3fySbcoAwJ7SV1DTyNNRk1jd5z5N8v
-        790aiqAasNJarLH3EHA1jJ14zL6cYGzRKnsopKY4d+ZyxDWDtKnrgP0ChbNTk0Bj
-        4EPJfhXPzuYtjJssUTXtaPaca+0MMXa+nYpJ47J/HoGrRhjZt9VxotGa5yt5uDAE
-        YHqrYEx7e6vMQZx2QyroGM6PyFS86nsdBmEdTmRAW1a3RfdIHXDXYNZCJMTxhmfF
-        RuSPalW1PkaoL3yw85R5laQKOypzOctz4Si4/1og1ESaX6bdnVUTdz64NXcUZhzO
-        cQIDAQAB
-        -----END PUBLIC KEY-----
-      private-key: |
-        -----BEGIN PRIVATE KEY-----
-        MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC9Suedg5HRx/kK
-        Wc61zi/16om4Reu+bjn4kCb9MbfY35KziR+YwePDPd/JJtygDAntJXUNPI01GTWN
-        3nPk3y/v3RqKoBqw0lqssfcQcDWMnXjMvpxgbNEqeyikpjh35nLENYO0qeuA/QKF
-        s1OTQGPgQ8l+Fc/O5i2MmyxRNe1o9pxr7Qwxdr6diknjsn8egatGGNm31XGi0Zrn
-        K3m4MARgeqtgTHt7q8xBnHZDKugYzo/IVLzqex0GYR1OZEBbVrdF90gdcNdg1kIk
-        xPGGZ8VG5I9qVbU+RqgvfLDzlHmVpAo7KnM5y3PhKLj/WiDURJpfpt2dVRN3Prg1
-        dxRmHM5xAgMBAAECggEAOYtS2/SKWL60+6uPhn9W3yhck5NV9j8mCmUwJRp/LEPT
-        IhcWbubKaakepdTVjyX5woj3i32T48d1G1q72qDqvr11exzu4EAiZot3cxzZepTI
-        i12KxlluQL7N/Te2xORekT0/e6WIPV8s7B420vXpJt0UnOrekKQyxqLJlyqQsK55
-        PUgXWLSgYBp0HR3ftfgfbzxONPd9Gs9fHk+xhCf4FVoYojhefDxTykqifVRryMyr
-        ikQ7Hw+8g04nxwtjGmAmK8fGKATsipR5ZvfByAan9RfPSTLkzZitwTSjm4+biqJ7
-        /Q6DmgyR4SE7hCSdOI9u3kRdiCAcDbpc23S4tLwJHQKBgQDJGowSQ7rp4hx/reji
-        uEUvCcSHDV26lRK/ViJ04n9ridmVv+j1sTn3QYQWhX7yUR2KdzcLqy2gfVg1WTiD
-        zvHZFNzQrFIIUzcfEqS7C6k/GQcfyIuwcaddbpp9ojEdx25oNu8yDTVWj9nvhmII
-        G9n/0/0K6D346LxLJ4GHfExRwwKBgQDw9vqBrE33i3oSOVwfcLXyNwNXAWk7l5aq
-        W23+A3qm4PU5FkUPcHzobwTsNja4VL9EN0DA63zHKhtvF8+XUE6AucVkGygHC3Mq
-        lQIsiWmnUjgY2LfjW9LJxZ63qja33mzaFayxsJLtw/zjlzcRMDdrMvkrz+llV7oR
-        zMd7ppBHuwKBgQDEmiVx/bEP0bPWxug0Lb3FHKF6/oAxVme7krOg3YWAVoXXNoTD
-        HX3z0aMWeW//6Xkd0yqHR9QVYDUKAq2Tfo9FkHXHs4+HAAOVZx6Qlffh7c/fLKoT
-        1yit2OFEDXpDCKNRUtNJdUw90ehXmGLiVogq6M4rCZz8aFschgTFtajPDQKBgErz
-        d64YC1RhZQIAJ4B8DYwewoIwpSvtFec9czQcnu0DciNkouyPf7rItY5HurORYMD2
-        MsUPOou0tD3U+TRGvXRa1GQz8jpmvFbVbIyv3VY3Q82us1wb9q/eMWVNo6GDpPYc
-        4c+PbdRZLvMX2QAWsFY+z7RqAl4McIsS2EXE5IH7AoGAIJ8raL/IJzvAVZl8EZ1R
-        cEfIaMAQKAtk2geqCMjKdRuK0gFQYL0C2iP7DJGMT3CFG+R3gXy8i/vO0y9alyCE
-        AitO+493FQio5HKO0WwGMTQWEA+kOybZXnQ5pYVtFEQPE6gCg+u9oUdFYzakNxrY
-        wUGvHZuevEfseuE151DYBT4=
-        -----END PRIVATE KEY-----
 
-eureka:
-  client:
-    service-url:
-      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
-    register-with-eureka: true
-    fetch-registry: true
-  instance:
-    prefer-ip-address: ${EUREKA_PREFER_IP_ADDRESS:false}
-    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
-    ip-address: ${EUREKA_INSTANCE_IP:127.0.0.1}
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+    import:
+      - optional:classpath:application-common.yml
+  cloud:
+    config:
+      enabled: false
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker | prod
+    import:
+      - configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+      - optional:classpath:application-common.yml
+  cloud:
+    config:
+      fail-fast: true
+      retry:
+        initial-interval: 1000
+        max-attempts: 6
+        max-interval: 5000
+        multiplier: 1.5

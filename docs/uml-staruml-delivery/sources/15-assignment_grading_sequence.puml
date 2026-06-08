@@ -1,0 +1,20 @@
+@startuml
+actor 教师
+participant 批改页面
+participant Gateway
+participant AssignmentController
+participant AssignmentService
+database sc_assignment
+queue RabbitMQ
+participant NotificationService
+教师 -> 批改页面 : 查看提交并填写评分
+批改页面 -> Gateway : PUT grade
+Gateway -> AssignmentController : 鉴权后转发
+AssignmentController -> AssignmentService : gradeSubmission(command)
+AssignmentService -> sc_assignment : 校验教师授课和提交状态
+AssignmentService -> sc_assignment : 保存分数/评语/批改人
+AssignmentService -> sc_assignment : 写 AssignmentGradedEvent
+AssignmentService --> AssignmentController : 批改结果
+sc_assignment -> RabbitMQ : 发布成绩事件
+RabbitMQ -> NotificationService : 创建作业批改通知
+@enduml
