@@ -3741,3 +3741,71 @@ body.student-theme {
 .student-theme .stat-card:hover {
     border-color: rgba(13, 148, 136, 0.46);
 }
+
+body.student-theme,
+body.teacher-theme,
+body.teacher-shell-body {
+    overflow-x: hidden;
+}
+
+.student-theme .main-content,
+.teacher-shell-body .main-content,
+.student-theme #mainContent,
+.teacher-shell-body #mainContent {
+    max-width: 100%;
+}
+
+.student-theme .content-container,
+.teacher-shell-body .teacher-content,
+.student-theme .stats-cards,
+.student-theme .charts-section,
+.student-theme .chart-card,
+.student-theme .recent-activities {
+    min-width: 0;
+    max-width: 100%;
+}
+
+@media (max-width: 768px) {
+    .student-theme .sidebar,
+    .student-theme #sidebar,
+    .teacher-shell-body .sidebar,
+    .teacher-shell-body #sidebar {
+        left: 0;
+        width: 280px;
+        transform: translateX(-100%);
+        background-color: transparent;
+    }
+
+    .student-theme .sidebar.collapsed,
+    .student-theme #sidebar.collapsed,
+    .teacher-shell-body .sidebar.collapsed,
+    .teacher-shell-body #sidebar.collapsed {
+        width: 280px;
+        transform: translateX(0);
+    }
+
+    .student-theme .main-content,
+    .student-theme .main-content.collapsed,
+    .student-theme #mainContent,
+    .student-theme #mainContent.collapsed,
+    .teacher-shell-body .main-content,
+    .teacher-shell-body .main-content.collapsed,
+    .teacher-shell-body #mainContent,
+    .teacher-shell-body #mainContent.collapsed {
+        margin-left: 0;
+        width: 100%;
+        max-width: 100vw;
+    }
+
+    .student-theme .content-container,
+    .teacher-shell-body .teacher-content {
+        padding-left: 16px;
+        padding-right: 16px;
+        overflow-x: hidden;
+    }
+
+    .student-theme .stats-cards,
+    .student-theme .charts-section {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
