@@ -106,41 +106,52 @@ function New-SessionSnapshot {
     }
 }
 
-Write-Host "Requesting captcha from $BaseUrl/api/auth/captcha ..."
-$webSession = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
-$captchaResponse = Invoke-WithGatewayRetry {
-    Invoke-WebRequest `
+function Invoke-LoginAttempt {
+    Write-Host "Requesting captcha from $BaseUrl/api/auth/captcha ..."
+    $attemptWebSession = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
+    $captchaResponse = Invoke-WebRequest `
         -UseBasicParsing `
         -Uri "$BaseUrl/api/auth/captcha?timestamp=$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())" `
         -Method GET `
-        -WebSession $webSession
-}
+        -WebSession $attemptWebSession
 
-$captchaKey = [string]$captchaResponse.Headers["X-Captcha-Key"]
-if ([string]::IsNullOrWhiteSpace($captchaKey)) {
-    throw "Gateway captcha response did not include X-Captcha-Key."
-}
+    $captchaKey = [string]$captchaResponse.Headers["X-Captcha-Key"]
+    if ([string]::IsNullOrWhiteSpace($captchaKey)) {
+        throw "Gateway captcha response did not include X-Captcha-Key."
+    }
 
-$redisKey = "$CaptchaPrefix$captchaKey"
-$captchaCode = Get-RedisCaptchaCode -ContainerName $RedisContainer -RedisKey $redisKey
+    $redisKey = "$CaptchaPrefix$captchaKey"
+    $captchaCode = Get-RedisCaptchaCode -ContainerName $RedisContainer -RedisKey $redisKey
 
-Write-Host "Logging in as $Username using captcha key $captchaKey ..."
-$loginBody = @{
-    username   = $Username
-    password   = $Password
-    captcha    = $captchaCode
-    captchaKey = $captchaKey
-} | ConvertTo-Json -Compress
+    Write-Host "Logging in as $Username using captcha key $captchaKey ..."
+    $loginBody = @{
+        username   = $Username
+        password   = $Password
+        captcha    = $captchaCode
+        captchaKey = $captchaKey
+    } | ConvertTo-Json -Compress
 
-$loginResponse = Invoke-WithGatewayRetry {
-    Invoke-RestMethod `
+    $loginResponse = Invoke-RestMethod `
         -UseBasicParsing `
         -Uri "$BaseUrl/api/auth/login" `
         -Method POST `
         -ContentType "application/json" `
         -Body $loginBody `
-        -WebSession $webSession
+        -WebSession $attemptWebSession
+
+    [pscustomobject]@{
+        CaptchaKey    = $captchaKey
+        CaptchaCode   = $captchaCode
+        LoginResponse = $loginResponse
+        WebSession    = $attemptWebSession
+    }
 }
+
+$loginAttempt = Invoke-WithGatewayRetry -Operation { Invoke-LoginAttempt }
+$captchaKey = $loginAttempt.CaptchaKey
+$captchaCode = $loginAttempt.CaptchaCode
+$loginResponse = $loginAttempt.LoginResponse
+$webSession = $loginAttempt.WebSession
 
 if (-not $loginResponse.success -or -not $loginResponse.data) {
     throw "Login failed: $($loginResponse | ConvertTo-Json -Compress -Depth 10)"

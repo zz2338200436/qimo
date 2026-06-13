@@ -1967,6 +1967,7 @@ async function init() {
         currentPage === 'teacher-courses.html' ||
         currentPage === 'teacher-notifications.html' ||
         currentPage === 'teacher-settings.html' ||
+        currentPage === 'teacher-ai-tools.html' ||
         currentPage === 'teacher-warning.html' ||
         currentPage === 'teacher-knowledge.html';
     

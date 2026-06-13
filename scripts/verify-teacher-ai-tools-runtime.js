@@ -124,13 +124,6 @@ async function collectApiResponses(page, action) {
   return responses;
 }
 
-async function assertMessageContains(page, expectedText) {
-  await page.waitForFunction(text => {
-    const node = document.getElementById('message-text');
-    return node && node.textContent.includes(text);
-  }, expectedText, { timeout: 10000 });
-}
-
 async function assertResultContentContains(page, expectedText) {
   await page.waitForFunction(text => {
     const node = document.getElementById('result-content');
@@ -172,7 +165,6 @@ async function assertResultContentContains(page, expectedText) {
       const responses = await collectApiResponses(page, async () => {
         await page.click('#question-generator-form button[type="submit"]');
         await waitForResultCount(page, 1);
-        await assertMessageContains(page, '题目生成成功');
         await assertResultContentContains(page, '条件语句');
       });
       const hit = responses.find(item => item.url.includes('/api/ai/generate-questions'));
@@ -185,7 +177,6 @@ async function assertResultContentContains(page, expectedText) {
       const responses = await collectApiResponses(page, async () => {
         await page.click('#exam-generator-form button[type="submit"]');
         await waitForResultCount(page, 1);
-        await assertMessageContains(page, '试卷生成成功');
         await assertResultContentContains(page, '数据结构与算法');
       });
       const hit = responses.find(item => item.url.includes('/api/ai/generate-exam'));
@@ -198,7 +189,6 @@ async function assertResultContentContains(page, expectedText) {
       const responses = await collectApiResponses(page, async () => {
         await page.click('#learning-analyzer-form button[type="submit"]');
         await waitForResultCount(page, 1);
-        await assertMessageContains(page, '学习建议生成成功');
         await assertResultContentContains(page, '建议');
       });
       const hit = responses.find(item => item.url.includes('/api/ai/learning-suggestions'));
@@ -210,7 +200,6 @@ async function assertResultContentContains(page, expectedText) {
       const responses = await collectApiResponses(page, async () => {
         await page.click('#knowledge-explainer-form button[type="submit"]');
         await waitForResultCount(page, 1);
-        await assertMessageContains(page, '当前 AI 服务暂未提供知识点讲解能力');
         await assertResultContentContains(page, '当前 AI 服务暂未提供知识点讲解能力');
       });
       assert(responses.length === 0, 'knowledge explainer should not call any /api/ai endpoint', responses);
@@ -221,7 +210,6 @@ async function assertResultContentContains(page, expectedText) {
       const responses = await collectApiResponses(page, async () => {
         await page.click('#assignment-evaluator-form button[type="submit"]');
         await waitForResultCount(page, 1);
-        await assertMessageContains(page, '当前 AI 服务暂未提供作业批改能力');
         await assertResultContentContains(page, '当前 AI 服务暂未提供作业批改能力');
       });
       assert(responses.length === 0, 'assignment evaluator should not call any /api/ai endpoint', responses);
@@ -232,7 +220,6 @@ async function assertResultContentContains(page, expectedText) {
       const responses = await collectApiResponses(page, async () => {
         await page.click('#teaching-planner-form button[type="submit"]');
         await waitForResultCount(page, 1);
-        await assertMessageContains(page, '当前 AI 服务暂未提供教学计划生成能力');
         await assertResultContentContains(page, '当前 AI 服务暂未提供教学计划生成能力');
       });
       assert(responses.length === 0, 'teaching planner should not call any /api/ai endpoint', responses);

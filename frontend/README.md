@@ -14,6 +14,51 @@ that serves `frontend/dist` and proxies `/api/**` to the Gateway at `http://loca
 This keeps browser-based verification aligned with the production "frontend -> gateway -> services" path
 without reintroducing page-level hardcoded backend hosts.
 
+For day-to-day IDEA development, use Docker only for infrastructure and run the static frontend locally:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-idea-dev-frontend.ps1
+```
+
+The script starts `mysql`, `redis`, `rabbitmq`, `registry-server`, and `config-server`, then starts the
+Python frontend server on `http://localhost:5500`. Start Java business services from IDEA with
+`SPRING_PROFILES_ACTIVE=dev` and `CONFIG_SERVER_URL=http://localhost:8888`.
+
+After the IDEA Java services are running, verify the development path with:
+
+```powershell
+node .\scripts\verify-idea-dev-runtime-smoke.js
+```
+
+This checks `5500 -> gateway -> auth-service` captcha loading, `X-Captcha-Key` exposure, gateway static
+frontend routing, and Agent panel assets.
+
+To verify the Agent panel against IDEA-started services, run the Java services with the same dev profile and
+disable external LLM calls for deterministic local checks:
+
+```text
+SPRING_PROFILES_ACTIVE=dev
+CONFIG_SERVER_URL=http://localhost:8888
+AGENT_LLM_ENABLED=false
+```
+
+Generate fresh browser sessions before each Agent smoke run. The helper requests a new captcha for every
+gateway retry, reads the matching Redis captcha value, and writes the authenticated session snapshot:
+
+```powershell
+.\scripts\get-dev-auth-session.ps1 -Role teacher -OutFile .runtime-logs\teacher-session-agent-runtime.json
+.\scripts\get-dev-auth-session.ps1 -Role student -OutFile .runtime-logs\student-session-agent-runtime.json
+```
+
+Then run the Agent runtime smoke:
+
+```powershell
+node .\scripts\verify-agent-idea-runtime-smoke.js .runtime-logs\teacher-session-agent-runtime.json .runtime-logs\student-session-agent-runtime.json
+```
+
+This covers teacher read-only Agent queries, assignment action preview and confirmation, session detail loading,
+and student pending-assignment Agent queries through the real `5500 -> gateway -> agent-service` path.
+
 Nginx deployment config now lives at:
 
 `deploy/nginx/nginx.conf`

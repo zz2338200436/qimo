@@ -13,6 +13,7 @@ function assertNotIncludes(content, needle, message) {
 }
 
 const pageContent = fs.readFileSync('frontend/dist/teacher-ai-tools.html', 'utf8');
+const apiContent = fs.readFileSync('frontend/dist/api.js', 'utf8');
 
 [
   'id="teacher-ai-tools-availability-banner"',
@@ -71,5 +72,11 @@ const pageContent = fs.readFileSync('frontend/dist/teacher-ai-tools.html', 'utf8
     'teacher ai tools should not keep local fake AI generation or unsupported filter inputs.'
   );
 });
+
+assertIncludes(
+  apiContent,
+  "currentPage === 'teacher-ai-tools.html'",
+  'api.js should treat teacher-ai-tools.html as a page with its own initialization so it does not call assignment boot helpers.'
+);
 
 console.log('teacher ai tools contract OK');
