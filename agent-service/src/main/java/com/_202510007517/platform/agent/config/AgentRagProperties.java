@@ -4,6 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @ConfigurationProperties(prefix = "agent.rag")
 public class AgentRagProperties {
@@ -27,9 +28,18 @@ public class AgentRagProperties {
     }
 
     public void setDocumentPaths(List<String> documentPaths) {
-        this.documentPaths = documentPaths == null || documentPaths.isEmpty()
+        if (documentPaths == null || documentPaths.isEmpty()) {
+            this.documentPaths = new ArrayList<>(List.of("docs/rag-knowledge-base.md"));
+            return;
+        }
+
+        List<String> configuredDocumentPaths = documentPaths.stream()
+                .filter(Objects::nonNull)
+                .filter(documentPath -> !documentPath.isBlank())
+                .toList();
+        this.documentPaths = configuredDocumentPaths.isEmpty()
                 ? new ArrayList<>(List.of("docs/rag-knowledge-base.md"))
-                : new ArrayList<>(documentPaths);
+                : new ArrayList<>(configuredDocumentPaths);
     }
 
     public String getEmbeddingBaseUrl() {
