@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -25,7 +26,13 @@ public class RagMarkdownDocumentLoader {
             if (configuredPath == null || configuredPath.isBlank()) {
                 continue;
             }
-            Path path = Path.of(configuredPath).toAbsolutePath().normalize();
+            Path path;
+            try {
+                path = Path.of(configuredPath).toAbsolutePath().normalize();
+            } catch (InvalidPathException ex) {
+                log.info("rag document path is invalid: {}", configuredPath);
+                continue;
+            }
             if (!Files.exists(path)) {
                 log.info("rag document path does not exist: {}", path);
                 continue;
@@ -71,7 +78,7 @@ public class RagMarkdownDocumentLoader {
             return new ParsedMarkdown(Map.of(), raw == null ? "" : raw);
         }
         String normalized = raw.replace("\r\n", "\n");
-        int end = normalized.indexOf("\n---", 3);
+        int end = frontMatterEnd(normalized);
         if (end < 0) {
             return new ParsedMarkdown(Map.of(), raw);
         }
@@ -87,6 +94,27 @@ public class RagMarkdownDocumentLoader {
         return new ParsedMarkdown(metadata, content);
     }
 
+    private int frontMatterEnd(String normalized) {
+        int searchFrom = 3;
+        while (searchFrom < normalized.length()) {
+            int lineStart = normalized.indexOf('\n', searchFrom);
+            if (lineStart < 0) {
+                return -1;
+            }
+            int delimiterStart = lineStart + 1;
+            int lineEnd = normalized.indexOf('\n', delimiterStart);
+            String line = lineEnd < 0 ? normalized.substring(delimiterStart) : normalized.substring(delimiterStart, lineEnd);
+            if ("---".equals(line)) {
+                return lineStart;
+            }
+            if (line.isBlank()) {
+                return -1;
+            }
+            searchFrom = delimiterStart;
+        }
+        return -1;
+    }
+
     private String title(Map<String, String> metadata, String content, Path file) {
         String explicit = metadata.get("title");
         if (explicit != null && !explicit.isBlank()) {
@@ -97,7 +125,9 @@ public class RagMarkdownDocumentLoader {
             return matcher.group(1).trim();
         }
         String fileName = file.getFileName().toString();
-        return fileName.endsWith(".md") ? fileName.substring(0, fileName.length() - 3) : fileName;
+        return fileName.toLowerCase(java.util.Locale.ROOT).endsWith(".md")
+                ? fileName.substring(0, fileName.length() - 3)
+                : fileName;
     }
 
     private boolean isMarkdown(Path path) {
