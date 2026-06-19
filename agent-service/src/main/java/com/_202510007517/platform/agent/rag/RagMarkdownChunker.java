@@ -2,6 +2,7 @@ package com._202510007517.platform.agent.rag;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -15,9 +16,10 @@ public class RagMarkdownChunker {
         }
         List<Section> sections = sections(document.title(), content);
         List<RagChunk> chunks = new ArrayList<>();
+        Map<String, String> metadata = document.metadata() == null ? Map.of() : document.metadata();
         int order = 1;
         for (Section section : sections) {
-            String text = stripLeadingHeadings(section.content()).trim();
+            String text = section.content().trim();
             if (text.isBlank()) {
                 continue;
             }
@@ -27,8 +29,8 @@ public class RagMarkdownChunker {
                     document.title(),
                     section.title(),
                     document.sourcePath(),
-                    valueOrDefault(document.metadata().get("roleScope"), "all"),
-                    document.metadata().get("courseId"),
+                    valueOrDefault(metadata.get("roleScope"), "all"),
+                    metadata.get("courseId"),
                     text,
                     order
             ));
@@ -47,6 +49,10 @@ public class RagMarkdownChunker {
             return List.of(new Section(documentTitle, stripTopTitle(content)));
         }
         List<Section> sections = new ArrayList<>();
+        String intro = stripTopTitle(content.substring(0, boundaries.get(0).start())).trim();
+        if (!intro.isBlank()) {
+            sections.add(new Section(documentTitle, intro));
+        }
         for (int i = 0; i < boundaries.size(); i++) {
             SectionBoundary current = boundaries.get(i);
             int end = i + 1 < boundaries.size() ? boundaries.get(i + 1).start() : content.length();
@@ -57,10 +63,6 @@ public class RagMarkdownChunker {
 
     private String stripTopTitle(String content) {
         return content.replaceFirst("(?s)^#\\s+.+?(\\R\\R|\\R)", "").trim();
-    }
-
-    private String stripLeadingHeadings(String content) {
-        return content.replaceFirst("(?s)^#{1,6}\\s+.+?(\\R\\R|\\R)", "").trim();
     }
 
     private String valueOrDefault(String value, String fallback) {
