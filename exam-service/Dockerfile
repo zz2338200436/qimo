@@ -5,9 +5,13 @@ ARG JAR_NAME=exam-service-0.1.0-SNAPSHOT.jar
 
 WORKDIR /workspace
 COPY . .
-RUN mvn --batch-mode -pl ${MODULE_NAME} -am package -DskipTests
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn --batch-mode --settings docker/maven-settings.xml -pl ${MODULE_NAME} -am package -DskipTests
 
 FROM eclipse-temurin:17-jre-jammy
+
+ARG MODULE_NAME=exam-service
+ARG JAR_NAME=exam-service-0.1.0-SNAPSHOT.jar
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
