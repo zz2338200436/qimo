@@ -5,6 +5,7 @@ import com._202510007517.platform.ai.api.dto.GenerateQuestionsRequestDTO;
 import com._202510007517.platform.ai.api.dto.LearningSuggestionRequestDTO;
 import com._202510007517.platform.ai.service.AiGenerationService;
 import com._202510007517.platform.ai.config.AiServiceExceptionHandler;
+import com._202510007517.platform.ai.service.AiQuestionBankQueryService;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.test.web.servlet.MockMvc;
@@ -34,7 +35,7 @@ class AiControllerTest {
                         "questions", List.of(
                                 Map.of("id", 1, "content", "Java基础相关题目 1", "difficulty", "中等",
                                         "type", "选择题", "options", List.of("选项A", "选项B"), "answer", "A"))));
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new AiController(service)).build();
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller(service)).build();
 
         mockMvc.perform(post("/api/ai/generate-questions")
                         .header("X-User-Id", "7")
@@ -65,7 +66,7 @@ class AiControllerTest {
                         "duration", 90,
                         "difficulty", "中等",
                         "questions", List.of(Map.of("id", 1, "type", "选择题", "score", 10))));
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new AiController(service)).build();
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller(service)).build();
 
         mockMvc.perform(post("/api/ai/generate-exam")
                         .header("X-User-Id", "7")
@@ -93,7 +94,7 @@ class AiControllerTest {
                 .thenReturn(Map.of(
                         "studentId", 42L,
                         "suggestions", List.of("建议加强函数概念的理解")));
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new AiController(service)).build();
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller(service)).build();
 
         mockMvc.perform(post("/api/ai/learning-suggestions")
                         .header("X-User-Id", "42")
@@ -110,7 +111,7 @@ class AiControllerTest {
     @Test
     void missingUserIdentityReturnsBadRequest() throws Exception {
         AiGenerationService service = mock(AiGenerationService.class);
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new AiController(service)).build();
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller(service)).build();
 
         mockMvc.perform(post("/api/ai/generate-questions")
                         .contentType("application/json")
@@ -130,7 +131,7 @@ class AiControllerTest {
     @Test
     void invalidGenerateQuestionsRequestUsesResponseResultEnvelope() throws Exception {
         AiGenerationService service = mock(AiGenerationService.class);
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new AiController(service))
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller(service))
                 .setControllerAdvice(new AiServiceExceptionHandler(new MockEnvironment()))
                 .build();
 
@@ -149,5 +150,9 @@ class AiControllerTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message").value("参数校验失败"));
+    }
+
+    private static AiController controller(AiGenerationService service) {
+        return new AiController(service, mock(AiQuestionBankQueryService.class));
     }
 }

@@ -4,10 +4,12 @@ import com._202510007517.platform.ai.api.dto.GenerateExamRequestDTO;
 import com._202510007517.platform.ai.api.dto.GenerateQuestionsRequestDTO;
 import com._202510007517.platform.ai.api.dto.LearningSuggestionRequestDTO;
 import com._202510007517.platform.ai.service.AiGenerationService;
+import com._202510007517.platform.ai.service.AiQuestionBankQueryService;
 import com._202510007517.platform.common.web.CommonTraceConstants;
 import com._202510007517.platform.common.web.ResponseResult;
 import jakarta.validation.Valid;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -22,9 +24,12 @@ import java.util.Map;
 public class AiController {
 
     private final AiGenerationService aiGenerationService;
+    private final AiQuestionBankQueryService questionBankQueryService;
 
-    public AiController(AiGenerationService aiGenerationService) {
+    public AiController(AiGenerationService aiGenerationService,
+                        AiQuestionBankQueryService questionBankQueryService) {
         this.aiGenerationService = aiGenerationService;
+        this.questionBankQueryService = questionBankQueryService;
     }
 
     @PostMapping("/generate-questions")
@@ -41,6 +46,16 @@ public class AiController {
                 aiGenerationService.generateQuestions(userId, resolveRole(activeRole, roles), request),
                 "生成题目成功",
                 200);
+    }
+
+    @GetMapping("/question-bank/summary")
+    public ResponseResult<Map<String, Object>> questionBankSummary(
+            @RequestHeader(value = CommonTraceConstants.USER_ID_HEADER, required = false) String userIdHeader) {
+        Long userId = resolveUserId(userIdHeader);
+        if (userId == null) {
+            return ResponseResult.failure("缺少用户身份", 400);
+        }
+        return ResponseResult.success(questionBankQueryService.summary(), "查询题库成功", 200);
     }
 
     @PostMapping("/generate-exam")

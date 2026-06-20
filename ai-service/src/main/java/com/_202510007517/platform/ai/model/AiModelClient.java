@@ -24,4 +24,8 @@ public interface AiModelClient {
     default String modelName() {
         return "local-mock-model";
     }
+
+    default String modelName(String requestType) {
+        return modelName();
+    }
 }

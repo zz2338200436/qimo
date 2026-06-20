@@ -69,7 +69,7 @@ public class AiGenerationService {
                 requestType,
                 toJson(request),
                 toJson(response),
-                modelClient.modelName(),
+                modelClient.modelName(requestType),
                 SUCCESS,
                 null,
                 latencyMs));
