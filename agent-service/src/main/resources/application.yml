@@ -1,0 +1,67 @@
+server:
+  port: 8092
+
+spring:
+  application:
+    name: agent-service
+  profiles:
+    default: dev
+
+agent:
+  llm:
+    enabled: true
+    provider: openai
+    base-url: https://token-plan-cn.xiaomimimo.com/v1
+    api-key: ${XIAOMI_API_KEY:}
+    model-name: mimo-v2.5
+    minimum-confidence: 0.7
+    temperature: 0.0
+    timeout-seconds: 60
+  rag:
+    enabled: ${AGENT_RAG_ENABLED:false}
+    document-paths:
+      - ${AGENT_RAG_DOCUMENT_PATH:docs/rag-knowledge-base.md}
+    embedding-base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+    embedding-model: ${OLLAMA_EMBEDDING_MODEL:qwen3-embedding:0.6b}
+    max-chunks: ${AGENT_RAG_MAX_CHUNKS:4}
+    min-score: ${AGENT_RAG_MIN_SCORE:0.0}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+    import:
+      - configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+    import:
+      - optional:classpath:application-common.yml
+  cloud:
+    config:
+      enabled: false
+agent:
+  llm:
+    enabled: false
+  rag:
+    enabled: false
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker | prod
+    import:
+      - configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+  cloud:
+    config:
+      fail-fast: true
+      retry:
+        initial-interval: 1000
+        max-attempts: 6
+        max-interval: 5000
+        multiplier: 1.5
