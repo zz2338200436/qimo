@@ -1,4 +1,5 @@
 @startuml
+left to right direction
 [*] --> 未提交
 未提交 --> 已提交 : 学生提交答案
 已提交 --> 自动阅卷中 : 客观题可评分

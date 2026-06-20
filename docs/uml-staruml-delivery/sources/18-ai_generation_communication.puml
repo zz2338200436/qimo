@@ -1,4 +1,5 @@
 @startuml
+left to right direction
 object 教师
 object AiGenerationRequest
 object AiService

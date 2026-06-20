@@ -1,4 +1,5 @@
 @startuml
+left to right direction
 object "student:UserEntity" as student {
   id = 10023
   realName = 张三

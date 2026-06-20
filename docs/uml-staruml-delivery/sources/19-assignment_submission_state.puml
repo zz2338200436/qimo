@@ -1,4 +1,5 @@
 @startuml
+left to right direction
 [*] --> 未提交
 未提交 --> 草稿 : 保存草稿
 草稿 --> 已提交 : 提交作业

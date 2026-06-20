@@ -1,4 +1,5 @@
 @startuml
+left to right direction
 [*] --> 已创建
 已创建 --> 待投递 : 保存通知
 待投递 --> 投递失败 : MQ/通道异常

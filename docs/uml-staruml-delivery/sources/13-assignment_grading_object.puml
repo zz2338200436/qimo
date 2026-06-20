@@ -1,4 +1,5 @@
 @startuml
+left to right direction
 object "teacher:User" as teacher
 object "assignment:Assignment" as assignment
 object "submission:AssignmentSubmission" as sub
