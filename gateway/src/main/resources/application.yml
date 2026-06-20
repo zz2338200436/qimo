@@ -1,17 +1,11 @@
 spring:
   application:
     name: gateway
+  profiles:
+    default: dev
   config:
     import:
-      - optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
-      - optional:classpath:application-common.yml
-  cloud:
-    gateway:
-      server:
-        webflux:
-          enabled: true
-server:
-  port: 8080
+      - configserver:${CONFIG_SERVER_URL:http://localhost:8888}
 
 gateway:
   cors:
@@ -34,17 +28,6 @@ gateway:
       - X-Captcha-Key
     allow-credentials: true
     max-age-seconds: 1800
-  security:
-    whitelist-paths:
-      - /api/auth/login
-      - /api/auth/refresh
-      - /api/auth/captcha
-      - /api/public/captcha
-      - /api/errors/browser
-      - /api/errors/browser/batch
-    jwt:
-      clock-skew-seconds: 30
-      jti-blacklist-prefix: "AUTH:JTI_BLACKLIST:"
 
 ---
 spring:
@@ -62,9 +45,6 @@ spring:
   config:
     activate:
       on-profile: docker | prod
-    import:
-      - configserver:${CONFIG_SERVER_URL:http://localhost:8888}
-      - optional:classpath:application-common.yml
   cloud:
     config:
       fail-fast: true

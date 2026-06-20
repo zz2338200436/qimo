@@ -20,10 +20,14 @@ class GatewayRouteConfigTest {
         Properties centralProperties = loadGatewayProperties();
         Properties localProperties = loadLocalGatewayProperties();
 
-        assertThat(readRouteIds(centralProperties)).contains("auth-route", "analysis-route", "ai-route");
+        assertThat(readRouteIds(centralProperties)).contains("auth-route", "analysis-route", "ai-route", "agent-route");
         assertThat(centralProperties.getProperty("spring.cloud.gateway.routes[0].id")).isNull();
         assertThat(localProperties.getProperty(routeKey(0, "id"))).isNull();
         assertThat(localProperties.getProperty("spring.cloud.gateway.routes[0].id")).isNull();
+        assertThat(centralProperties.getProperty("resilience4j.timelimiter.configs.default.timeout-duration"))
+                .isEqualTo("15s");
+        assertThat(centralProperties.getProperty("resilience4j.timelimiter.configs.default.cancel-running-future"))
+                .isEqualTo("false");
     }
 
     @Test
@@ -87,6 +91,42 @@ class GatewayRouteConfigTest {
     }
 
     @Test
+    void agentRouteIsConfiguredBeforeLegacyFallbackWithUserRateLimit() {
+        Properties properties = loadGatewayProperties();
+        List<String> routeIds = readRouteIds(properties);
+
+        int agentIndex = routeIds.indexOf("agent-route");
+        int legacyIndex = routeIds.indexOf("frontend-static-route");
+
+        assertThat(agentIndex).isNotNegative();
+        assertThat(legacyIndex).isGreaterThan(agentIndex);
+        assertThat(properties.getProperty(routeKey(agentIndex, "uri")))
+                .isEqualTo("lb://agent-service");
+        assertThat(properties.getProperty(routePredicateKey(agentIndex, 0)))
+                .isEqualTo("Path=/api/agent/**");
+        assertThat(properties.getProperty(routePredicateKey(agentIndex, 1)))
+                .isEqualTo("Method=GET,POST,PUT,DELETE");
+        assertThat(properties.getProperty(routeFilterKey(agentIndex, 0, "name")))
+                .isEqualTo("CircuitBreaker");
+        assertThat(properties.getProperty(routeFilterArgKey(agentIndex, 0, "name")))
+                .isEqualTo("agent-service");
+        assertThat(properties.getProperty(routeFilterArgKey(agentIndex, 0, "fallbackUri")))
+                .isEqualTo("forward:/_fallback/agent-service");
+        assertThat(properties.getProperty("gateway.rate-limit.routes.agent-route.replenish-rate"))
+                .isEqualTo("10");
+        assertThat(properties.getProperty("gateway.rate-limit.routes.agent-route.burst-capacity"))
+                .isEqualTo("20");
+        assertThat(properties.getProperty("gateway.rate-limit.routes.agent-route.requested-tokens"))
+                .isEqualTo("1");
+        assertThat(properties.getProperty("resilience4j.timelimiter.instances.agent-service.timeout-duration"))
+                .isEqualTo("75s");
+        assertThat(properties.getProperty("resilience4j.timelimiter.instances.agent-service.cancel-running-future"))
+                .isEqualTo("false");
+        assertThat(properties.getProperty("resilience4j.circuitbreaker.instances.agent-service.slow-call-duration-threshold"))
+                .isEqualTo("65s");
+    }
+
+    @Test
     void studentExamSubmitRouteIsCoreWithDedicatedLimitsAndCircuitBreaker() {
         Properties properties = loadGatewayProperties();
         List<String> routeIds = readRouteIds(properties);
@@ -138,6 +178,10 @@ class GatewayRouteConfigTest {
                 .isEqualTo("exam-service-teacher");
         assertThat(properties.getProperty(routeFilterArgKey(teacherExamIndex, 0, "fallbackUri")))
                 .isEqualTo("forward:/_fallback/exam-service");
+        assertThat(properties.getProperty("resilience4j.timelimiter.instances.exam-service-teacher.timeout-duration"))
+                .isEqualTo("5s");
+        assertThat(properties.getProperty("resilience4j.timelimiter.instances.exam-service-teacher.cancel-running-future"))
+                .isEqualTo("false");
     }
 
     @Test
@@ -171,12 +215,19 @@ class GatewayRouteConfigTest {
                 .contains("/api/system/student/courses")
                 .contains("/api/system/teacher/courses")
                 .contains("/api/system/time-ranges");
-        assertThat(localProperties.getProperty("gateway.security.whitelist-paths[3]"))
-                .isEqualTo("/api/public/captcha");
-        assertThat(localProperties.getProperty("gateway.security.whitelist-paths[4]"))
-                .isEqualTo("/api/errors/browser");
-        assertThat(localProperties.getProperty("gateway.security.whitelist-paths[5]"))
-                .isEqualTo("/api/errors/browser/batch");
+        assertThat(readIndexedValues(properties, "gateway.security.whitelist-paths"))
+                .contains("/api/public/captcha", "/api/errors/browser", "/api/errors/browser/batch");
+    }
+
+    @Test
+    void agentFrontendAssetsAreWhitelistedSoChatPanelCanBootstrap() {
+        Properties properties = loadGatewayProperties();
+
+        assertThat(readIndexedValues(properties, "gateway.security.whitelist-paths"))
+                .contains(
+                        "/agent-chat-panel.js",
+                        "/agent-chat-panel.css",
+                        "/agent-history-panel.js");
     }
 
     @Test
@@ -263,7 +314,7 @@ class GatewayRouteConfigTest {
         int authSecuredIndex = routeIds.indexOf("auth-secured");
         assertThat(authSecuredIndex).isNotNegative();
         assertThat(properties.getProperty(routeKey(authSecuredIndex, "uri")))
-                .isEqualTo("lb://auth-service");
+                .isEqualTo("${AUTH_SERVICE_URL:http://localhost:8081}");
         assertThat(properties.getProperty(routePredicateKey(authSecuredIndex, 0)))
                 .contains("/api/student/change-password");
         assertThat(routeIds).doesNotContain("legacy-student-route");
@@ -401,6 +452,17 @@ class GatewayRouteConfigTest {
             }
         }
         return -1;
+    }
+
+    private static List<String> readIndexedValues(Properties properties, String prefix) {
+        List<String> values = new ArrayList<>();
+        for (int index = 0; ; index++) {
+            String value = properties.getProperty(prefix + "[" + index + "]");
+            if (value == null) {
+                return values;
+            }
+            values.add(value);
+        }
     }
 
     private static Path repoRoot() {

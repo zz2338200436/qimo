@@ -67,7 +67,10 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     }
 
     private boolean isWhitelisted(String path) {
-        return securityProperties.getWhitelistPaths().stream().anyMatch(path::startsWith);
+        return securityProperties.getWhitelistPaths().stream()
+                .anyMatch(whitelistPath -> "/".equals(whitelistPath)
+                        ? "/".equals(path)
+                        : path.startsWith(whitelistPath));
     }
 
     private void putIfPresent(ServerWebExchange exchange, String key, String value) {
