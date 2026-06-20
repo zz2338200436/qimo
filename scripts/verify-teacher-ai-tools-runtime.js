@@ -148,81 +148,25 @@ async function assertResultContentContains(page, expectedText) {
       'http://localhost:5500/teacher-ai-tools.html'
     );
 
-    await runStep(results, 'teacher ai tools banner renders truthful availability', async () => {
-      const bannerText = await page.locator('#teacher-ai-tools-availability-banner').innerText();
-      assert(
-        bannerText.includes('当前已接通：题目生成、试卷生成、学习建议') &&
-        bannerText.includes('知识点讲解、作业批改、教学计划暂不可用'),
-        'availability banner should describe connected and unavailable abilities',
-        bannerText
-      );
+    await runStep(results, 'teacher ai tools does not render unfinished capability banner', async () => {
+      const bannerCount = await page.locator('#teacher-ai-tools-availability-banner').count();
+      const visibleText = await page.locator('body').innerText();
+      assert(bannerCount === 0, 'unfinished capability banner should be removed from teacher page', bannerCount);
+      assert(!visibleText.includes('当前已接通：题目生成、试卷生成、学习建议'), 'connected capability banner copy should not render', visibleText);
+      assert(!visibleText.includes('暂未接通'), 'unfinished capability chips should not render', visibleText);
     });
 
-    await runStep(results, 'teacher ai tools generate questions hits real api and renders results', async () => {
-      await activateTool(page, 'question-generator');
-      await page.fill('#question-topic', '条件语句');
-      await page.fill('#question-count', '3');
-      const responses = await collectApiResponses(page, async () => {
-        await page.click('#question-generator-form button[type="submit"]');
-        await waitForResultCount(page, 1);
-        await assertResultContentContains(page, '条件语句');
-      });
-      const hit = responses.find(item => item.url.includes('/api/ai/generate-questions'));
-      assert(hit && hit.status === 200, 'generate questions should call /api/ai/generate-questions successfully', responses);
-    });
-
-    await runStep(results, 'teacher ai tools generate exam hits real api and renders results', async () => {
-      await activateTool(page, 'exam-generator');
-      await page.fill('#exam-course-name', '数据结构与算法');
-      const responses = await collectApiResponses(page, async () => {
-        await page.click('#exam-generator-form button[type="submit"]');
-        await waitForResultCount(page, 1);
-        await assertResultContentContains(page, '数据结构与算法');
-      });
-      const hit = responses.find(item => item.url.includes('/api/ai/generate-exam'));
-      assert(hit && hit.status === 200, 'generate exam should call /api/ai/generate-exam successfully', responses);
-    });
-
-    await runStep(results, 'teacher ai tools learning suggestions hit real api and render results', async () => {
-      await activateTool(page, 'learning-analyzer');
-      await page.fill('#analyze-student', '42');
-      const responses = await collectApiResponses(page, async () => {
-        await page.click('#learning-analyzer-form button[type="submit"]');
-        await waitForResultCount(page, 1);
-        await assertResultContentContains(page, '建议');
-      });
-      const hit = responses.find(item => item.url.includes('/api/ai/learning-suggestions'));
-      assert(hit && hit.status === 200, 'learning suggestions should call /api/ai/learning-suggestions successfully', responses);
-    });
-
-    await runStep(results, 'teacher ai tools unsupported knowledge explainer stays honest', async () => {
-      await activateTool(page, 'knowledge-explainer');
-      const responses = await collectApiResponses(page, async () => {
-        await page.click('#knowledge-explainer-form button[type="submit"]');
-        await waitForResultCount(page, 1);
-        await assertResultContentContains(page, '当前 AI 服务暂未提供知识点讲解能力');
-      });
-      assert(responses.length === 0, 'knowledge explainer should not call any /api/ai endpoint', responses);
-    });
-
-    await runStep(results, 'teacher ai tools unsupported assignment evaluator stays honest', async () => {
-      await activateTool(page, 'assignment-evaluator');
-      const responses = await collectApiResponses(page, async () => {
-        await page.click('#assignment-evaluator-form button[type="submit"]');
-        await waitForResultCount(page, 1);
-        await assertResultContentContains(page, '当前 AI 服务暂未提供作业批改能力');
-      });
-      assert(responses.length === 0, 'assignment evaluator should not call any /api/ai endpoint', responses);
-    });
-
-    await runStep(results, 'teacher ai tools unsupported teaching planner stays honest', async () => {
-      await activateTool(page, 'teaching-planner');
-      const responses = await collectApiResponses(page, async () => {
-        await page.click('#teaching-planner-form button[type="submit"]');
-        await waitForResultCount(page, 1);
-        await assertResultContentContains(page, '当前 AI 服务暂未提供教学计划生成能力');
-      });
-      assert(responses.length === 0, 'teaching planner should not call any /api/ai endpoint', responses);
+    await runStep(results, 'teacher ai tools removes tool cards, forms, and demo shortcuts', async () => {
+      const visibleText = await page.locator('body').innerText();
+      const toolGridCount = await page.locator('.ai-tools-grid').count();
+      const toolCardCount = await page.locator('.ai-tool-card-title').count();
+      const formSectionCount = await page.locator('.form-section').count();
+      const quickCommandCount = await page.locator('[data-agent-command]').count();
+      assert(toolGridCount === 0, 'AI tool grid should be removed from teacher page', toolGridCount);
+      assert(toolCardCount === 0, 'AI tool cards should be removed from teacher page', toolCardCount);
+      assert(formSectionCount === 0, 'hidden local AI tool forms should be removed from teacher page', formSectionCount);
+      assert(quickCommandCount === 0, 'agent demo shortcut buttons should be removed', quickCommandCount);
+      assert(!visibleText.includes('可以试试查询课程'), 'agent panel should not render static example prompt', visibleText);
     });
 
     console.log(`Teacher AI tools runtime verifier passed: ${results.length}`);

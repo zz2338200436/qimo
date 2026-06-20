@@ -18,6 +18,9 @@ if (-not (Test-Path $targetRoot)) {
 
 $includePaths = @(
     'api.js',
+    'agent-chat-panel.css',
+    'agent-chat-panel.js',
+    'agent-history-panel.js',
     'common-ui.js',
     'default-avatar.svg',
     'i18n.js',
