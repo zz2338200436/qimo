@@ -11,7 +11,7 @@
     <!-- Chart.js -->
     <script src="lib/chart.umd.min.js"></script>
     <!-- 全局样式文件 -->
-    <link href="styles.css?v=20260523-1" rel="stylesheet">
+    <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
     <link rel="icon" href="data:,">
     <style>
         /* 页面优化样式 */
@@ -23,7 +23,7 @@
 
         /* 筛选区域优化 */
         .filter-section {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
             border-radius: 16px;
             padding: 28px;
             margin-bottom: 28px;
@@ -88,7 +88,7 @@
 
         .filter-actions .btn-primary {
             background: white;
-            color: #3b82f6;
+            color: #0d9488;
         }
 
         .filter-actions .btn-outline-secondary {
@@ -128,7 +128,7 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%);
+            background: linear-gradient(90deg, #0d9488 0%, #0f766e 100%);
         }
 
         .stat-card:hover {
@@ -159,9 +159,9 @@
             align-items: center;
             justify-content: center;
             font-size: 24px;
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
             color: white;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
         }
 
         .stat-value {
@@ -242,13 +242,13 @@
         }
 
         .chart-action-btn:hover {
-            border-color: #3b82f6;
-            color: #3b82f6;
-            background: rgba(59, 130, 246, 0.05);
+            border-color: #0d9488;
+            color: #0d9488;
+            background: rgba(13, 148, 136, 0.05);
         }
 
         .chart-action-btn.active {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
             color: white;
             border-color: transparent;
         }
@@ -301,8 +301,8 @@
         }
 
         .knowledge-item:hover {
-            border-color: #3b82f6;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+            border-color: #0d9488;
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.1);
         }
 
         .knowledge-item-header {
@@ -322,7 +322,7 @@
         .knowledge-item-mastery {
             font-size: 18px;
             font-weight: 700;
-            color: #3b82f6;
+            color: #0d9488;
         }
 
         .mastery-bar {
@@ -344,7 +344,7 @@
         }
 
         .mastery-fill.good {
-            background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+            background: linear-gradient(90deg, #0d9488 0%, #0f766e 100%);
         }
 
         .mastery-fill.needs-improvement {
@@ -487,8 +487,8 @@
         }
 
         .plan-item-status.pending {
-            background: rgba(59, 130, 246, 0.1);
-            color: #3b82f6;
+            background: rgba(13, 148, 136, 0.1);
+            color: #0d9488;
         }
 
         /* 加载状态 */
@@ -511,7 +511,7 @@
             width: 48px;
             height: 48px;
             border: 4px solid #e2e8f0;
-            border-top-color: #3b82f6;
+            border-top-color: #0d9488;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -613,7 +613,7 @@
     <!-- 加载侧边栏组件 -->
     <script>
         $(function() {
-        $('#sidebar-container').load('components/sidebar-nav.html?v=20260523-1', function() {
+        $('#sidebar-container').load('components/sidebar-nav.html?v=20260608-theme-4', function() {
                 highlightActiveNavItem();
                 // 初始化侧边栏状态
                 setTimeout(initializeSidebar, 100); // 延迟执行，确保侧边栏已经加载
@@ -805,8 +805,8 @@
                         <svg width="120" height="120" viewBox="0 0 120 120">
                             <defs>
                                 <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
-                                    <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
+                                    <stop offset="0%" style="stop-color:#0d9488;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#0f766e;stop-opacity:1" />
                                 </linearGradient>
                             </defs>
                             <circle class="progress-circle-circle" cx="60" cy="60" r="45"></circle>
@@ -834,8 +834,8 @@
     <!-- jQuery -->
     
     <!-- API服务文件 -->
-<script src="api.js?v=20260523-1"></script>
-<script src="common-ui.js?v=20260523-1"></script>
+<script src="api.js?v=20260608-theme-4"></script>
+<script src="common-ui.js?v=20260608-theme-4"></script>
     
     <!-- 页面脚本 -->
     <script>
@@ -959,7 +959,7 @@
                         bodyFont: {
                             size: 13
                         },
-                        borderColor: '#3b82f6',
+                        borderColor: '#0d9488',
                         borderWidth: 2,
                         cornerRadius: 8
                     }
@@ -1005,9 +1005,9 @@
                     return {
                         label: dataset.label || '成绩趋势',
                         data: baseData,
-                        backgroundColor: dataset.backgroundColor || 'rgba(59, 130, 246, 0.8)',
+                        backgroundColor: dataset.backgroundColor || 'rgba(13, 148, 136, 0.8)',
                         borderRadius: dataset.borderRadius ?? 8,
-                        borderColor: dataset.borderColor || '#3b82f6',
+                        borderColor: dataset.borderColor || '#0d9488',
                         borderWidth: dataset.borderWidth ?? 2
                     };
                 }
@@ -1015,11 +1015,11 @@
                 return {
                     label: dataset.label || '成绩趋势',
                     data: baseData,
-                    borderColor: dataset.borderColor || '#3b82f6',
-                    backgroundColor: dataset.backgroundColor || 'rgba(59, 130, 246, 0.1)',
+                    borderColor: dataset.borderColor || '#0d9488',
+                    backgroundColor: dataset.backgroundColor || 'rgba(13, 148, 136, 0.1)',
                     tension: dataset.tension ?? 0.3,
                     fill: dataset.fill ?? true,
-                    pointBackgroundColor: dataset.pointBackgroundColor || '#3b82f6',
+                    pointBackgroundColor: dataset.pointBackgroundColor || '#0d9488',
                     pointBorderColor: dataset.pointBorderColor || '#fff',
                     pointBorderWidth: dataset.pointBorderWidth ?? 2,
                     pointRadius: dataset.pointRadius ?? 5,
@@ -1077,11 +1077,11 @@
                 {
                     label: '成绩趋势',
                     data: [],
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderColor: '#0d9488',
+                    backgroundColor: 'rgba(13, 148, 136, 0.1)',
                     tension: 0.3,
                     fill: true,
-                    pointBackgroundColor: '#3b82f6',
+                    pointBackgroundColor: '#0d9488',
                     pointBorderColor: '#fff',
                     pointBorderWidth: 2,
                     pointRadius: 5,
@@ -1140,9 +1140,9 @@
                 {
                     label: '学习时长 (小时)',
                     data: [],
-                    backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                    backgroundColor: 'rgba(13, 148, 136, 0.8)',
                     borderRadius: 8,
-                    borderColor: '#3b82f6',
+                    borderColor: '#0d9488',
                     borderWidth: 2
                 }
             ]
@@ -1168,7 +1168,7 @@
                                 bodyFont: {
                                     size: 13
                                 },
-                                borderColor: '#3b82f6',
+                                borderColor: '#0d9488',
                                 borderWidth: 2,
                                 cornerRadius: 8,
                                 callbacks: {
@@ -1299,11 +1299,11 @@
                 datasets: [{
                     label: '成绩趋势',
                     data: new Array(labels.length).fill(0),
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderColor: '#0d9488',
+                    backgroundColor: 'rgba(13, 148, 136, 0.1)',
                     tension: 0.3,
                     fill: true,
-                    pointBackgroundColor: '#3b82f6',
+                    pointBackgroundColor: '#0d9488',
                     pointBorderColor: '#fff',
                     pointBorderWidth: 2,
                     pointRadius: 5,
@@ -1330,9 +1330,9 @@
                 datasets: [{
                     label: '学习时长 (小时)',
                     data: new Array(labels.length).fill(0),
-                    backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                    backgroundColor: 'rgba(13, 148, 136, 0.8)',
                     borderRadius: 8,
-                    borderColor: '#3b82f6',
+                    borderColor: '#0d9488',
                     borderWidth: 2
                 }]
             };
@@ -1502,11 +1502,11 @@
                         datasets: [{
                             label: '成绩趋势',
                             data: scoreData,
-                            borderColor: '#3b82f6',
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderColor: '#0d9488',
+                            backgroundColor: 'rgba(13, 148, 136, 0.1)',
                             tension: 0.3,
                             fill: true,
-                            pointBackgroundColor: '#3b82f6',
+                            pointBackgroundColor: '#0d9488',
                             pointBorderColor: '#fff',
                             pointBorderWidth: 2,
                             pointRadius: 5,
@@ -1527,11 +1527,11 @@
                     datasets: [{
                         label: '成绩趋势',
                         data: new Array(timeLabels.length).fill(0),
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderColor: '#0d9488',
+                        backgroundColor: 'rgba(13, 148, 136, 0.1)',
                         tension: 0.3,
                         fill: true,
-                        pointBackgroundColor: '#3b82f6',
+                        pointBackgroundColor: '#0d9488',
                         pointBorderColor: '#fff',
                         pointBorderWidth: 2,
                         pointRadius: 5,
@@ -1659,9 +1659,9 @@
                         datasets: [{
                             label: '学习时长 (小时)',
                             data: data.length > 0 ? data : new Array(labels.length || 7).fill(0),
-                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                            backgroundColor: 'rgba(13, 148, 136, 0.8)',
                             borderRadius: 8,
-                            borderColor: '#3b82f6',
+                            borderColor: '#0d9488',
                             borderWidth: 2
                         }]
                     };
@@ -1686,9 +1686,9 @@
                         datasets: [{
                             label: '学习时长 (小时)',
                             data: new Array(defaultLabels.length).fill(0),
-                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                            backgroundColor: 'rgba(13, 148, 136, 0.8)',
                             borderRadius: 8,
-                            borderColor: '#3b82f6',
+                            borderColor: '#0d9488',
                             borderWidth: 2
                         }]
                     };
@@ -1715,9 +1715,9 @@
                     datasets: [{
                         label: '学习时长 (小时)',
                         data: new Array(defaultLabels.length).fill(0),
-                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                        backgroundColor: 'rgba(13, 148, 136, 0.8)',
                         borderRadius: 8,
-                        borderColor: '#3b82f6',
+                        borderColor: '#0d9488',
                         borderWidth: 2
                     }]
                 };

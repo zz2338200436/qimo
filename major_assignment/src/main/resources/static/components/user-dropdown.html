@@ -26,16 +26,16 @@
     }
 
     .user-dropdown-btn:focus {
-        outline: 2px solid #3b82f6;
+        outline: 2px solid #0d9488;
         outline-offset: 2px;
     }
 
-    /* 用户头像 - 默认学生端蓝色主题 */
+    /* 用户头像 - 默认学生端青绿色主题 */
     .user-dropdown-avatar {
         width: 40px;
         height: 40px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -147,22 +147,70 @@
         color: #ef4444;
     }
 
-    /* 教师端紫色主题：通过在容器上添加 teacher-theme 类启用 */
+    /* 教师端蓝色主题：通过在容器上添加 teacher-theme 类启用 */
     .user-dropdown-container.teacher-theme .user-dropdown-avatar {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
     }
 
     .user-dropdown-container.teacher-theme .user-dropdown-name {
-        color: #4c1d95;
+        color: #1d4ed8;
     }
 
-    .user-dropdown-container.teacher-theme .user-dropdown-role,
+    .user-dropdown-container.teacher-theme .user-dropdown-role {
+        color: #475569;
+    }
+
     .user-dropdown-container.teacher-theme .user-dropdown-arrow {
-        color: #7c3aed;
+        color: #2563eb;
     }
 
     .user-dropdown-container.teacher-theme .user-dropdown-btn:hover {
-        background-color: #f3e8ff;
+        background-color: #eff6ff;
+    }
+
+    .user-dropdown-container.teacher-theme .user-dropdown-btn:focus {
+        outline-color: #2563eb;
+    }
+
+    .user-dropdown-container.teacher-theme .user-dropdown-item:hover {
+        background-color: #eff6ff;
+    }
+
+    .user-dropdown-container.teacher-theme .user-dropdown-item i {
+        color: #2563eb;
+    }
+
+    /* 学生端青绿色主题：通过在容器上添加 student-theme 类启用 */
+    .user-dropdown-container.student-theme .user-dropdown-avatar {
+        background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+    }
+
+    .user-dropdown-container.student-theme .user-dropdown-name {
+        color: #0f766e;
+    }
+
+    .user-dropdown-container.student-theme .user-dropdown-role {
+        color: #475569;
+    }
+
+    .user-dropdown-container.student-theme .user-dropdown-arrow {
+        color: #0d9488;
+    }
+
+    .user-dropdown-container.student-theme .user-dropdown-btn:hover {
+        background-color: #f0fdfa;
+    }
+
+    .user-dropdown-container.student-theme .user-dropdown-btn:focus {
+        outline-color: #0d9488;
+    }
+
+    .user-dropdown-container.student-theme .user-dropdown-item:hover {
+        background-color: #f0fdfa;
+    }
+
+    .user-dropdown-container.student-theme .user-dropdown-item i {
+        color: #0d9488;
     }
 
     /* 响应式设计 */
@@ -242,6 +290,7 @@
         // 初始化组件
         init() {
             this.bindEvents();
+            this.applyRoleTheme(this.resolveRole());
             this.loadUserInfo();
         }
 
@@ -396,33 +445,59 @@
                     const roleElement = document.querySelector('.user-dropdown-role');
                     if (roleElement) {
                         let roleText = '用户';
-                        let isTeacherSide = false;
-                        const activeRole = user.activeRole || sessionStorage.getItem('activeRole') || sessionStorage.getItem('role');
-                        if (this.userType === 'teacher' || activeRole === 'TEACHER') {
+                        const resolvedRole = this.resolveRole(user);
+                        if (resolvedRole === 'teacher') {
                             roleText = '课程教师';
-                            isTeacherSide = true;
-                        } else if (this.userType === 'student' || activeRole === 'STUDENT') {
+                        } else if (resolvedRole === 'student') {
                             roleText = '学生用户';
                         }
                         if (Array.isArray(user.roles)) {
-                            if (!isTeacherSide && user.roles.includes('TEACHER') && !user.roles.includes('STUDENT')) {
+                            if (resolvedRole !== 'teacher' && user.roles.includes('TEACHER') && !user.roles.includes('STUDENT')) {
                                 roleText = '课程教师';
-                                isTeacherSide = true;
                             } else if (roleText === '用户' && user.roles.includes('STUDENT')) {
                                 roleText = '学生用户';
                             }
                         }
                         roleElement.textContent = roleText;
 
-                        // 根据角色为教师端添加紫色主题
-                        if (isTeacherSide && this.container) {
-                            this.container.classList.add('teacher-theme');
-                        }
+                        this.applyRoleTheme(resolvedRole);
                     }
                 }
             } catch (error) {
                 console.error('加载用户信息失败:', error);
             }
+        }
+
+        resolveRole(user) {
+            const explicitType = (this.userType || '').toLowerCase();
+            const activeRole = String(
+                user?.activeRole ||
+                sessionStorage.getItem('activeRole') ||
+                sessionStorage.getItem('role') ||
+                ''
+            ).toUpperCase();
+            const bodyClass = document.body?.className || '';
+
+            if (explicitType === 'teacher' || activeRole === 'TEACHER' || bodyClass.includes('teacher')) {
+                return 'teacher';
+            }
+
+            if (explicitType === 'student' || activeRole === 'STUDENT' || bodyClass.includes('student-theme')) {
+                return 'student';
+            }
+
+            if (Array.isArray(user?.roles)) {
+                if (user.roles.includes('TEACHER') && !user.roles.includes('STUDENT')) return 'teacher';
+                if (user.roles.includes('STUDENT')) return 'student';
+            }
+
+            return null;
+        }
+
+        applyRoleTheme(role) {
+            if (!this.container) return;
+            this.container.classList.toggle('teacher-theme', role === 'teacher');
+            this.container.classList.toggle('student-theme', role === 'student');
         }
 
         // 更新用户信息（外部调用）

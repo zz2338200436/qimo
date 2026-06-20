@@ -10,42 +10,57 @@
     <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Google Fonts -->
         <style>
+        :root {
+            --teacher-primary: #2563eb;
+            --teacher-primary-strong: #1d4ed8;
+            --teacher-shell: #0f172a;
+            --teacher-accent: #38bdf8;
+            --student-primary: #0d9488;
+            --student-primary-strong: #0f766e;
+            --student-accent: #14b8a6;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background:
+                radial-gradient(circle at 18% 20%, rgba(20, 184, 166, 0.24), transparent 30%),
+                radial-gradient(circle at 82% 18%, rgba(56, 189, 248, 0.2), transparent 32%),
+                linear-gradient(135deg, var(--teacher-shell) 0%, #1e293b 42%, var(--student-primary-strong) 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            color: #0f172a;
         }
         
         .welcome-container {
             text-align: center;
-            background: white;
-            border-radius: 24px;
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(255, 255, 255, 0.72);
+            border-radius: 20px;
             padding: 60px 40px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
             max-width: 600px;
             width: 100%;
         }
         
         .welcome-icon {
             font-size: 80px;
-            color: #667eea;
+            color: var(--student-primary);
             margin-bottom: 20px;
         }
         
         .welcome-title {
             font-size: 32px;
             font-weight: 700;
-            color: #333;
+            color: #0f172a;
             margin-bottom: 10px;
         }
         
         .welcome-subtitle {
             font-size: 16px;
-            color: #666;
+            color: #64748b;
             margin-bottom: 40px;
         }
         
@@ -64,31 +79,35 @@
             font-size: 18px;
             font-weight: 600;
             text-decoration: none;
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             transition: all 0.3s ease;
             border: 2px solid transparent;
         }
         
         .student-btn {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            background: linear-gradient(135deg, var(--student-primary) 0%, var(--student-primary-strong) 100%);
             color: white;
         }
         
         .student-btn:hover {
-            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            background: linear-gradient(135deg, var(--student-primary-strong) 0%, #115e59 100%);
             transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+            box-shadow: 0 10px 25px rgba(13, 148, 136, 0.3);
+            color: white;
         }
         
         .teacher-btn {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            background: linear-gradient(135deg, var(--teacher-primary) 0%, var(--teacher-primary-strong) 100%);
             color: white;
         }
         
         .teacher-btn:hover {
-            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            background: linear-gradient(135deg, var(--teacher-primary-strong) 0%, #1e40af 100%);
             transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.32);
+            color: white;
         }
         
         .login-btn i {
@@ -120,7 +139,7 @@
             <a href="student-login.html" class="login-btn student-btn">
                 <i class="fa fa-user-circle-o"></i> 学生登录
             </a>
-            <a href="teacher-login.html?v=20260523-1" class="login-btn teacher-btn">
+            <a href="teacher-login.html?v=20260608-theme-4" class="login-btn teacher-btn">
                 <i class="fa fa-user-md"></i> 教师登录
             </a>
         </div>
@@ -133,7 +152,7 @@
             try {
                 const user = JSON.parse(sessionStorage.getItem('user') || 'null');
                 if (user?.roles?.includes('TEACHER')) {
-                    window.location.href = 'teacher-dashboard.html?v=20260523-1';
+                    window.location.href = 'teacher-dashboard.html?v=20260608-theme-4';
                     return;
                 }
                 if (user?.roles?.includes('STUDENT')) {

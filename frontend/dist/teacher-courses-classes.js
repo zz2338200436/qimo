@@ -95,7 +95,7 @@
         uniqueClassesMap.forEach(cls => {
             const courseCount = cls.courses ? cls.courses.length : 0;
             const courseDisplay = courseCount > 1
-                ? `${cls.courseName} <span style="color: #667eea; font-weight: bold;">(${courseCount}门课程)</span>`
+                ? `${cls.courseName} <span style="color: #2563eb; font-weight: bold;">(${courseCount}门课程)</span>`
                 : cls.courseName;
             const majorDisplay = cls.majorName && cls.majorName !== 'null' ? cls.majorName : '未设置';
             const teacherDisplay = cls.teacherName && cls.teacherName !== 'null' ? cls.teacherName : '未设置';
@@ -105,12 +105,12 @@
                 <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">${cls.className}</h3>
-                        <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px;">${cls.year}级</span>
+                        <span class="badge" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px;">${cls.year}级</span>
                     </div>
                     <div class="card-meta">
-                        <p><i class="fa fa-book" style="margin-right: 8px; color: #667eea;"></i>课程：${courseDisplay}</p>
-                        <p><i class="fa fa-graduation-cap" style="margin-right: 8px; color: #667eea;"></i>专业：${majorDisplay}</p>
-                        <p><i class="fa fa-user" style="margin-right: 8px; color: #667eea;"></i>班主任：${teacherDisplay}</p>
+                        <p><i class="fa fa-book" style="margin-right: 8px; color: #2563eb;"></i>课程：${courseDisplay}</p>
+                        <p><i class="fa fa-graduation-cap" style="margin-right: 8px; color: #2563eb;"></i>专业：${majorDisplay}</p>
+                        <p><i class="fa fa-user" style="margin-right: 8px; color: #2563eb;"></i>班主任：${teacherDisplay}</p>
                     </div>
                     <div class="card-stats">
                         <div class="stat-item">

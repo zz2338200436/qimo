@@ -11,7 +11,7 @@
     <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Chart.js -->
     <script src="lib/chart.umd.min.js"></script>
-    <link href="styles.css?v=20260523-1" rel="stylesheet">
+    <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
     <style>
         /* 全局样式 */
         body {
@@ -26,7 +26,7 @@
             position: fixed;
             top: 0;
             left: 0;
-            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
             color: white;
             transition: width 0.3s;
             overflow-x: hidden;
@@ -431,35 +431,6 @@
             }
         }
         
-        /* 分页样式 */
-        .pagination {
-            display: flex;
-            justify-content: center;
-            margin-top: 24px;
-            gap: 8px;
-        }
-        
-        .page-link {
-            padding: 10px 16px;
-            border-radius: 10px;
-            border: 1px solid #e2e8f0;
-            background: white;
-            color: #64748b;
-            transition: all 0.3s ease;
-        }
-        
-        .page-link:hover {
-            background: #f8fafc;
-            color: #667eea;
-            border-color: #667eea;
-        }
-        
-        .page-link.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-color: #667eea;
-        }
-        
         /* 标签样式 */
         .badge {
             padding: 4px 8px;
@@ -574,7 +545,7 @@
     <div id="sidebar-container"></div>
     <script>
         // 加载侧边栏组件
-        fetch('components/teacher-sidebar-nav.html?v=20260523-1')
+        fetch('components/teacher-sidebar-nav.html?v=20260608-theme-4')
             .then(response => response.text())
             .then(data => {
                 document.getElementById('sidebar-container').innerHTML = data;
@@ -596,7 +567,7 @@
                 <button class="toggle-btn"><i class="fa fa-bars"></i></button>
                 <h2 class="page-title">学情预警</h2>
             </div>
-            <!-- 用户下拉菜单组件（教师端紫色主题） -->
+            <!-- 用户下拉菜单组件（教师端蓝色主题） -->
             <div id="userDropdownContainer"></div>
         </nav>
         
@@ -944,7 +915,7 @@
                     // 仅在真正401未授权时跳转到登录页面
                     if (response.status === 401 || data.code === 401) {
                         console.error('未授权，请重新登录');
-                        window.location.href = 'teacher-login.html';
+                        window.location.href = 'teacher-login.html?v=20260608-theme-4';
                         return Promise.reject(new Error('未授权，请重新登录'));
                     }
                     // 其他错误返回Promise reject，不跳转登录
@@ -2527,13 +2498,13 @@
                     return true;
                 } else {
                     // 用户未登录，重定向到登录页面
-                    window.location.href = 'teacher-login.html';
+                    window.location.href = 'teacher-login.html?v=20260608-theme-4';
                     return false;
                 }
             } catch (error) {
                 console.error('登录检查失败:', error);
                 // 登录检查失败，重定向到登录页面
-                window.location.href = 'teacher-login.html';
+                window.location.href = 'teacher-login.html?v=20260608-theme-4';
                 return false;
             }
         }
@@ -2703,7 +2674,7 @@
             if (!container) return;
 
             try {
-            const resp = await fetch('components/user-dropdown.html?v=20260523-1');
+            const resp = await fetch('components/user-dropdown.html?v=20260608-theme-4');
                 if (!resp.ok) {
                     console.error('加载用户下拉组件失败:', resp.status, resp.statusText);
                     return;
@@ -2741,11 +2712,11 @@
             const isLoggedIn = await checkLogin();
             if (!isLoggedIn) {
                 // 如果未登录，重定向到登录页面
-                window.location.href = 'teacher-login.html';
+                window.location.href = 'teacher-login.html?v=20260608-theme-4';
                 return;
             }
 
-            // 加载右上角用户下拉菜单（教师端紫色主题）
+            // 加载右上角用户下拉菜单（教师端蓝色主题）
             await loadUserDropdownForTeacher('userDropdownContainer');
 
             // 加载班级、课程和学生数据

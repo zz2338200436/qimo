@@ -10,16 +10,16 @@
     <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Google Fonts -->
         <!-- 全局样式文件 -->
-    <link href="styles.css?v=20260523-1" rel="stylesheet">
+    <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
     <!-- API服务文件 -->
-    <script src="api.js?v=20260523-1"></script>
+    <script src="api.js?v=20260608-theme-4"></script>
 </head>
 <body class="teacher-shell-body">
 <!-- 侧边栏导航组件 -->
 <div id="sidebar-container"></div>
 <script>
     // 加载侧边栏组件
-    fetch('components/teacher-sidebar-nav.html?v=20260523-1')
+    fetch('components/teacher-sidebar-nav.html?v=20260608-theme-4')
         .then(response => response.text())
         .then(data => {
             document.getElementById('sidebar-container').innerHTML = data;
@@ -53,7 +53,7 @@
         </div>
         
         <div class="navbar-right">
-            <!-- 用户下拉菜单组件（教师端紫色主题） -->
+            <!-- 用户下拉菜单组件（教师端蓝色主题） -->
             <div id="userDropdownContainer"></div>
         </div>
     </nav>
@@ -155,7 +155,7 @@
         if (!container) return;
 
         try {
-            const resp = await fetch('components/user-dropdown.html?v=20260523-1');
+            const resp = await fetch('components/user-dropdown.html?v=20260608-theme-4');
             if (!resp.ok) {
                 console.error('加载用户下拉组件失败:', resp.status, resp.statusText);
                 return;
@@ -192,11 +192,11 @@
         const user = sessionStorage.getItem('user');
         const token = sessionStorage.getItem('token');
         if (!user || !token) {
-            window.location.href = 'teacher-login.html?v=20260523-1';
+            window.location.href = 'teacher-login.html?v=20260608-theme-4';
             return;
         }
 
-        // 加载右上角用户下拉菜单（教师端紫色主题）
+        // 加载右上角用户下拉菜单（教师端蓝色主题）
         await loadUserDropdownForTeacher('userDropdownContainer');
 
         // 初始化通知表单

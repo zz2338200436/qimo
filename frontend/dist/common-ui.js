@@ -230,7 +230,7 @@
     function requireTeacherSession(options = {}) {
         const user = sessionStorage.getItem('user');
         if (!user) {
-            global.location.href = options.redirectUrl || 'teacher-login.html?v=20260523-1';
+            global.location.href = options.redirectUrl || 'teacher-login.html?v=20260608-theme-4';
             return false;
         }
 
@@ -240,7 +240,7 @@
             console.warn('解析教师登录信息失败，已清理本地状态:', error);
             sessionStorage.removeItem('token');
             sessionStorage.removeItem('user');
-            global.location.href = options.redirectUrl || 'teacher-login.html?v=20260523-1';
+            global.location.href = options.redirectUrl || 'teacher-login.html?v=20260608-theme-4';
             return false;
         }
 
@@ -253,7 +253,7 @@
             return false;
         }
 
-        const response = await fetch('components/user-dropdown.html?v=20260523-1');
+        const response = await fetch('components/user-dropdown.html?v=20260608-theme-4');
         if (!response.ok) {
             throw new Error(`加载用户下拉组件失败: ${response.status} ${response.statusText}`);
         }
@@ -289,7 +289,7 @@
             return false;
         }
 
-        const response = await fetch(options.componentUrl || 'components/teacher-sidebar-nav.html?v=20260523-1');
+        const response = await fetch(options.componentUrl || 'components/teacher-sidebar-nav.html?v=20260608-theme-4');
         if (!response.ok) {
             throw new Error(`加载教师侧边栏失败: ${response.status} ${response.statusText}`);
         }
@@ -297,12 +297,13 @@
         container.innerHTML = await response.text();
 
         global.setTimeout(() => {
+            highlightActiveNavItem({ selector: '.sidebar .menu-item, .menu-item' });
+            initializeSidebar();
             if (typeof global.initSidebar === 'function') {
                 global.initSidebar();
-            } else {
-                highlightActiveNavItem({ selector: '.sidebar .menu-item, .menu-item' });
-                initializeSidebar();
             }
+            highlightActiveNavItem({ selector: '.sidebar .menu-item, .menu-item' });
+            initializeSidebar();
         }, Number.isFinite(options.delayMs) ? options.delayMs : 100);
 
         return true;

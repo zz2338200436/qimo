@@ -379,7 +379,7 @@
     }
 
     async function bootstrapTeacherCoursesPage() {
-        if (!CommonUI.requireTeacherSession({ redirectUrl: 'teacher-login.html?v=20260523-1' })) {
+        if (!CommonUI.requireTeacherSession({ redirectUrl: 'teacher-login.html?v=20260608-theme-4' })) {
             return;
         }
         if (global.loadFrontendCapabilities) {

@@ -11,17 +11,17 @@
     <script src="lib/jquery-3.6.0.min.js"></script>
     <script src="lib/bootstrap.bundle.min.js"></script>
     <!-- 全局样式文件 -->
-    <link href="styles.css?v=20260523-1" rel="stylesheet">
+    <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
     <!-- API服务文件 -->
-    <script src="api.js?v=20260523-1"></script>
-    <script src="common-ui.js?v=20260523-1"></script>
+    <script src="api.js?v=20260608-theme-4"></script>
+    <script src="common-ui.js?v=20260608-theme-4"></script>
 </head>
 <body class="student-theme">
 <!-- 侧边栏导航组件 -->
 <div id="sidebar-container"></div>
 <script>
     $(function() {
-        $('#sidebar-container').load('components/sidebar-nav.html?v=20260523-1', function() {
+        $('#sidebar-container').load('components/sidebar-nav.html?v=20260608-theme-4', function() {
             CommonUI.highlightActiveNavItem({ selector: '.sidebar-nav a, .menu-item, .sidebar .menu-item' });
         });
     });
@@ -386,7 +386,7 @@
             switch (notification.type) {
                 case 'system':
                     iconClass = 'fas fa-bell';
-                    iconColor = '#3b82f6';
+                    iconColor = '#0d9488';
                     break;
                 case 'course':
                     iconClass = 'fas fa-book';

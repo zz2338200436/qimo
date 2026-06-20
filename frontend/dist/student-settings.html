@@ -8,7 +8,7 @@
     <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Google Fonts -->
         <!-- 全局样式文件 -->
-    <link href="styles.css?v=20260523-1" rel="stylesheet">
+    <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -98,7 +98,7 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -190,8 +190,8 @@
         }
         
         .form-control:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            border-color: #0d9488;
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
             outline: none;
         }
         
@@ -204,8 +204,8 @@
         }
         
         .form-select:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            border-color: #0d9488;
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
             outline: none;
         }
         
@@ -220,8 +220,8 @@
         }
         
         .form-check-input:checked {
-            background-color: #3b82f6;
-            border-color: #3b82f6;
+            background-color: #0d9488;
+            border-color: #0d9488;
         }
         
         .form-check-label {
@@ -240,7 +240,7 @@
         }
         
         .btn-primary {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
             color: white;
         }
         
@@ -283,7 +283,7 @@
             position: absolute;
             bottom: 0;
             right: 0;
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
             color: white;
             width: 36px;
             height: 36px;
@@ -583,8 +583,8 @@
     <script src="lib/bootstrap.bundle.min.js"></script>
     
     <!-- API服务 - 必须在主脚本之前加载 -->
-    <script src="api.js?v=20260523-1"></script>
-    <script src="common-ui.js?v=20260523-1"></script>
+    <script src="api.js?v=20260608-theme-4"></script>
+    <script src="common-ui.js?v=20260608-theme-4"></script>
     
     <script>
         // 高亮当前导航项
@@ -614,7 +614,7 @@
             
             // 初始化组件加载
             $(function() {
-                $('#sidebar-container').load('components/sidebar-nav.html?v=20260523-1', function() {
+                $('#sidebar-container').load('components/sidebar-nav.html?v=20260608-theme-4', function() {
                     highlightActiveNavItem();
                     // 初始化侧边栏状态
                     setTimeout(initializeSidebar, 100); // 延迟执行，确保侧边栏已经加载

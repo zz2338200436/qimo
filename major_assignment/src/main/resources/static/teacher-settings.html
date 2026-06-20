@@ -8,7 +8,7 @@
     <link href="lib/bootstrap.min.css" rel="stylesheet">
     <link href="lib/font-awesome.min.css" rel="stylesheet">
     
-    <link href="styles.css?v=20260523-1" rel="stylesheet">
+    <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
     <style>
         /* 全局样式 */
         body {
@@ -23,7 +23,7 @@
             position: fixed;
             top: 0;
             left: 0;
-            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
             color: white;
             transition: width 0.3s ease;
             overflow-x: hidden;
@@ -289,7 +289,7 @@
     <div id="sidebar-container"></div>
     <script>
         // 加载侧边栏组件
-        fetch('components/teacher-sidebar-nav.html?v=20260523-1')
+        fetch('components/teacher-sidebar-nav.html?v=20260608-theme-4')
             .then(response => response.text())
             .then(data => {
                 document.getElementById('sidebar-container').innerHTML = data;
@@ -315,7 +315,7 @@
                 <button class="toggle-btn" id="toggleBtn"><i class="fa fa-bars"></i></button>
                 <h2 class="page-title">设置</h2>
             </div>
-            <!-- 用户下拉菜单组件（教师端紫色主题） -->
+            <!-- 用户下拉菜单组件（教师端蓝色主题） -->
             <div id="userDropdownContainer"></div>
         </nav>
         
@@ -413,7 +413,7 @@
     <!-- Bootstrap 5 JS -->
     <script src="lib/bootstrap.bundle.min.js"></script>
     <!-- API服务 -->
-    <script src="api.js?v=20260523-1"></script>
+    <script src="api.js?v=20260608-theme-4"></script>
     <script>
         // 全局变量存储原始用户信息
         let originalProfileData = {
@@ -428,7 +428,7 @@
             if (!container) return;
 
             try {
-                const resp = await fetch('components/user-dropdown.html?v=20260523-1');
+                const resp = await fetch('components/user-dropdown.html?v=20260608-theme-4');
                 if (!resp.ok) {
                     console.error('加载用户下拉组件失败:', resp.status, resp.statusText);
                     return;
@@ -470,7 +470,7 @@
                 return;
             }
 
-            // 加载右上角用户下拉菜单（教师端紫色主题）
+            // 加载右上角用户下拉菜单（教师端蓝色主题）
             await loadUserDropdownForTeacher('userDropdownContainer');
 
             // 获取当前用户信息
