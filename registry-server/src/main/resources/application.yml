@@ -13,6 +13,9 @@ eureka:
     hostname: ${EUREKA_HOST:localhost}
 
 management:
+  health:
+    rabbit:
+      enabled: false
   endpoints:
     web:
       exposure:

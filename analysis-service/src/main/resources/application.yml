@@ -1,47 +1,11 @@
 spring:
   application:
     name: analysis-service
+  profiles:
+    default: dev
   config:
     import:
-      - optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
-      - optional:classpath:application-common.yml
-  rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:}
-  datasource:
-    url: ${ANALYSIS_DB_URL:${DB_URL:jdbc:mysql://localhost:3306/sc_analysis?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}}
-    username: ${ANALYSIS_DB_USERNAME:${DB_USERNAME:dev_user}}
-    password: ${ANALYSIS_DB_PASSWORD:${DB_PASSWORD:}}
-    driver-class-name: com.mysql.cj.jdbc.Driver
-  flyway:
-    enabled: ${ANALYSIS_FLYWAY_ENABLED:true}
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-  jpa:
-    hibernate:
-      ddl-auto: none
-    open-in-view: false
-  cloud:
-    function:
-      definition: assignmentSubmittedAnalysisConsumer;examFinishedAnalysisConsumer
-    stream:
-      bindings:
-        assignmentSubmittedAnalysisConsumer-in-0:
-          destination: assignment.submitted
-          group: analysis-service
-        examFinishedAnalysisConsumer-in-0:
-          destination: exam.finished
-          group: analysis-service
-
-server:
-  port: 8086
-
-platform:
-  outbox:
-    relay:
-      binding-name: ${ANALYSIS_OUTBOX_BINDING_NAME:early.warning.raised}
+      - configserver:${CONFIG_SERVER_URL:http://localhost:8888}
 
 ---
 spring:
@@ -59,9 +23,6 @@ spring:
   config:
     activate:
       on-profile: docker | prod
-    import:
-      - configserver:${CONFIG_SERVER_URL:http://localhost:8888}
-      - optional:classpath:application-common.yml
   cloud:
     config:
       fail-fast: true

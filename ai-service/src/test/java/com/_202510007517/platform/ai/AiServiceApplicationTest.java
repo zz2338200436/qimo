@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.Environment;
+import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest(
         classes = AiServiceApplication.class,
@@ -18,6 +19,7 @@ import org.springframework.core.env.Environment;
                 "spring.datasource.password=",
                 "spring.datasource.driver-class-name=org.h2.Driver"
         })
+@ActiveProfiles("test")
 class AiServiceApplicationTest {
 
     @Autowired

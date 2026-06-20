@@ -1,41 +1,11 @@
 spring:
   application:
     name: auth-service
+  profiles:
+    default: dev
   config:
     import:
-      - optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
-      - optional:classpath:application-common.yml
-  datasource:
-    url: ${AUTH_DB_URL:${DB_URL:jdbc:mysql://localhost:3306/sc_auth?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}}
-    username: ${AUTH_DB_USERNAME:${DB_USERNAME:dev_user}}
-    password: ${AUTH_DB_PASSWORD:${DB_PASSWORD:}}
-    driver-class-name: com.mysql.cj.jdbc.Driver
-  jpa:
-    hibernate:
-      ddl-auto: none
-    open-in-view: false
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
-      database: ${REDIS_DATABASE:0}
-  flyway:
-    enabled: ${AUTH_FLYWAY_ENABLED:true}
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-
-server:
-  port: 8081
-
-auth:
-  active-kid: ${AUTH_ACTIVE_KID:dev}
-  access-token-ttl: ${AUTH_ACCESS_TOKEN_TTL:30m}
-  refresh-token-ttl: ${AUTH_REFRESH_TOKEN_TTL:7d}
-  key-rotation-grace: ${AUTH_KEY_ROTATION_GRACE:48h}
-  captcha-prefix: "CAPTCHA:IMG:"
-  jti-blacklist-prefix: "AUTH:JTI_BLACKLIST:"
-  refresh-token-prefix: "AUTH:REFRESH:"
+      - configserver:${CONFIG_SERVER_URL:http://localhost:8888}
 
 ---
 spring:
@@ -53,9 +23,6 @@ spring:
   config:
     activate:
       on-profile: docker | prod
-    import:
-      - configserver:${CONFIG_SERVER_URL:http://localhost:8888}
-      - optional:classpath:application-common.yml
   cloud:
     config:
       fail-fast: true
