@@ -8,7 +8,8 @@
     <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Google Fonts -->
         <!-- 全局样式文件 -->
-    <link href="styles.css?v=20260523-1" rel="stylesheet">
+    <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
+    <link href="agent-chat-panel.css?v=20260617-agent-2" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -100,7 +101,7 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -162,7 +163,7 @@
             padding: 14px 18px;
             border-radius: 12px;
             background: #eff6ff;
-            color: #1d4ed8;
+            color: #0f766e;
             border: 1px solid #bfdbfe;
             font-size: 14px;
             line-height: 1.6;
@@ -170,7 +171,7 @@
         
         .assistant-icon {
             font-size: 64px;
-            color: #3b82f6;
+            color: #0d9488;
             margin-bottom: 24px;
         }
         
@@ -228,7 +229,7 @@
         }
         
         .message.user .message-avatar {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
             color: white;
         }
         
@@ -246,7 +247,7 @@
         }
         
         .message.user .message-content {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
             color: white;
             border-bottom-right-radius: 4px;
         }
@@ -281,12 +282,12 @@
         
         .chat-input:focus {
             outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            border-color: #0d9488;
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
         }
         
         .send-btn {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
             color: white;
             border: none;
             border-radius: 12px;
@@ -300,7 +301,7 @@
         
         .send-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
         }
         
         /* 快速提问按钮 */
@@ -323,9 +324,9 @@
         }
         
         .quick-question-btn:hover {
-            background: #3b82f6;
+            background: #0d9488;
             color: white;
-            border-color: #3b82f6;
+            border-color: #0d9488;
         }
         
         /* 响应式设计 */
@@ -373,6 +374,40 @@
                     </div>
                 </div>
                 
+                <div class="agent-panel" data-agent-panel data-agent-role="STUDENT">
+                    <div class="agent-panel-header">
+                        <div>
+                            <h3 class="agent-panel-title">Agent 学习助手</h3>
+                            <p class="agent-panel-subtitle">可以查询作业、考试、通知、学习统计，也可以生成学习建议；提交作业会先展示确认卡片。</p>
+                        </div>
+                        <span class="agent-panel-status"><i class="fa fa-circle"></i> 已接入企业 Agent</span>
+                    </div>
+                    <div class="agent-panel-body">
+                        <div class="agent-messages" data-agent-messages>
+                            <div class="agent-message agent-message-agent">
+                                <div class="agent-message-avatar">
+                                    <i class="fa fa-magic"></i>
+                                </div>
+                                <div class="agent-message-body">
+                                    <p>你好！现在你可以直接用一句话操作学习平台，比如“查看我的作业列表”或“生成我的学习建议”。</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="agent-quick-row">
+                            <button type="button" class="btn btn-outline-success btn-sm" data-agent-command="查看我的作业列表">查看作业</button>
+                            <button type="button" class="btn btn-outline-success btn-sm" data-agent-command="查看考试列表">查看考试</button>
+                            <button type="button" class="btn btn-outline-success btn-sm" data-agent-command="查看我的通知">查看通知</button>
+                            <button type="button" class="btn btn-outline-success btn-sm" data-agent-command="生成我的学习建议">学习建议</button>
+                        </div>
+                        <form class="agent-form" data-agent-form>
+                            <textarea class="form-control" data-agent-input placeholder="输入 Agent 指令，例如：查看学习统计，或：提交数据库实验作业，内容是..."></textarea>
+                            <button type="submit" class="btn btn-success" data-agent-submit>
+                                <i class="fa fa-paper-plane"></i> 发送
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
                 <div class="chat-container">
                     <div class="chat-messages" id="chatMessages">
                         <!-- 欢迎消息 -->
@@ -401,6 +436,21 @@
                         </form>
                     </div>
                 </div>
+                <section class="agent-history-panel" data-agent-history-panel>
+                    <div class="agent-history-header">
+                        <div>
+                            <h3>Agent 操作历史</h3>
+                            <p>查看最近会话、消息记录和已确认的学习操作。</p>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-success" data-agent-history-refresh>
+                            <i class="fa fa-refresh"></i> 刷新
+                        </button>
+                    </div>
+                    <div class="agent-history-body">
+                        <div class="agent-history-list" data-agent-history-list></div>
+                        <div class="agent-history-detail" data-agent-history-detail></div>
+                    </div>
+                </section>
             </div>
         </div>
     </main>
@@ -477,7 +527,7 @@
             
             // 初始化组件加载
             $(function() {
-                $('#sidebar-container').load('components/sidebar-nav.html?v=20260523-1', function() {
+                $('#sidebar-container').load('components/sidebar-nav.html?v=20260608-theme-4', function() {
                     highlightActiveNavItem();
                     // 初始化侧边栏状态
                     setTimeout(initializeSidebar, 100); // 延迟执行，确保侧边栏已经加载
@@ -500,16 +550,18 @@
                 assistantModeBanner.textContent = '当前 JWT 微服务环境已接通：AI学习建议。自由问答暂不可用，请先使用学习建议能力。';
             }
             
-            chatForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                const message = chatInput.value.trim();
-                
-                if (message) {
-                    addMessage('user', message);
-                    chatInput.value = '';
-                    await handleStudentAiRequest(message);
-                }
-            });
+            if (chatForm && chatInput) {
+                chatForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const message = chatInput.value.trim();
+
+                    if (message) {
+                        addMessage('user', message);
+                        chatInput.value = '';
+                        await handleStudentAiRequest(message);
+                    }
+                });
+            }
         });
         
         // 检查用户登录状态
@@ -522,7 +574,7 @@
             
             // 加载用户下拉组件
             if ($('#userDropdownContainer').length > 0) {
-                $('#userDropdownContainer').load('components/user-dropdown.html?v=20260523-1', function() {
+                $('#userDropdownContainer').load('components/user-dropdown.html?v=20260608-theme-4', function() {
                     // 组件加载完成后初始化
                     if (typeof UserDropdown !== 'undefined') {
                         new UserDropdown('userDropdownContainer');
@@ -660,11 +712,19 @@
         // 快速提问
         function sendQuickQuestion(question) {
             const chatInput = document.getElementById('chatInput');
+            if (!chatInput) {
+                return;
+            }
             chatInput.value = question;
-            document.getElementById('chatForm').dispatchEvent(new Event('submit'));
+            const chatForm = document.getElementById('chatForm');
+            if (chatForm) {
+                chatForm.dispatchEvent(new Event('submit'));
+            }
         }
     </script>
     <!-- API服务 -->
-    <script src="api.js?v=20260523-1"></script>
+    <script src="api.js?v=20260608-theme-4"></script>
+    <script src="agent-chat-panel.js?v=20260617-agent-3"></script>
+    <script src="agent-history-panel.js?v=20260617-agent-history-2"></script>
 </body>
 </html>
