@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: ${USER_DB_URL:jdbc:mysql://mysql:3306/sc_user?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${USER_DB_USERNAME:dev_user}
+    password: ${USER_DB_PASSWORD:dev_only_pwd}

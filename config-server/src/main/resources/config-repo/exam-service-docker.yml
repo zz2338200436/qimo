@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: ${EXAM_DB_URL:jdbc:mysql://mysql:3306/sc_exam?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${EXAM_DB_USERNAME:dev_user}
+    password: ${EXAM_DB_PASSWORD:dev_only_pwd}

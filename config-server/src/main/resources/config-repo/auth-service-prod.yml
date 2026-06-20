@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: ${AUTH_DB_URL}
+    username: ${AUTH_DB_USERNAME:${DB_USERNAME}}
+    password: ${AUTH_DB_PASSWORD:${DB_PASSWORD}}
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      database: ${REDIS_DATABASE:0}

@@ -52,6 +52,26 @@ class ConfigServerApplicationTest {
                 .contains("health,info,prometheus");
     }
 
+    @Test
+    void nativeRepositoryServesEnvironmentSpecificDatabaseSettings() {
+        Environment dev = environmentRepository.findOne("exam-service", "dev", null);
+        Environment docker = environmentRepository.findOne("exam-service", "docker", null);
+        Environment prod = environmentRepository.findOne("exam-service", "prod", null);
+
+        assertThat(findPropertyValue(dev, "spring.datasource.url"))
+                .contains("${EXAM_DB_URL:${DB_URL:jdbc:mysql://localhost:3306/sc_exam?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}}");
+        assertThat(findPropertyValue(dev, "spring.datasource.password"))
+                .contains("${EXAM_DB_PASSWORD:${DB_PASSWORD:root}}");
+
+        assertThat(findPropertyValue(docker, "spring.datasource.url"))
+                .contains("${EXAM_DB_URL:jdbc:mysql://mysql:3306/sc_exam?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}");
+        assertThat(findPropertyValue(docker, "spring.datasource.password"))
+                .contains("${EXAM_DB_PASSWORD:dev_only_pwd}");
+
+        assertThat(findPropertyValue(prod, "spring.datasource.password"))
+                .contains("${EXAM_DB_PASSWORD:${DB_PASSWORD}}");
+    }
+
     private static Optional<String> findPropertyValue(Environment environment, String key) {
         return environment.getPropertySources().stream()
                 .map(PropertySource::getSource)

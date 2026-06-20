@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: ${COURSE_DB_URL:jdbc:mysql://mysql:3306/sc_course?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${COURSE_DB_USERNAME:dev_user}
+    password: ${COURSE_DB_PASSWORD:dev_only_pwd}

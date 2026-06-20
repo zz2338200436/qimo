@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: ${NOTIFICATION_DB_URL}
+    username: ${NOTIFICATION_DB_USERNAME:${DB_USERNAME}}
+    password: ${NOTIFICATION_DB_PASSWORD:${DB_PASSWORD}}

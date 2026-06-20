@@ -1,3 +1,17 @@
+server:
+  port: 8088
+
 spring:
   datasource:
     url: ${AI_DB_URL:${DB_URL:jdbc:mysql://localhost:3306/sc_ai?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}}
+    username: ${AI_DB_USERNAME:${DB_USERNAME:root}}
+    password: ${AI_DB_PASSWORD:${DB_PASSWORD:root}}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  flyway:
+    enabled: ${AI_FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
