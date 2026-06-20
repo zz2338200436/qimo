@@ -45,4 +45,7 @@ public class Course {
     
     // 教师姓名（通过JOIN查询获取，非数据库表字段）
     private String teacherName;
+
+    // 学生视角课程学习进度（通过服务层动态计算，非数据库表字段）
+    private Integer progress;
 }

@@ -253,7 +253,16 @@ public class CourseServiceImpl implements CourseService {
     @Override
     public List<Course> findStudentCourses(Long studentId) {
         // 调用StudentMapper的getStudentCourses方法获取学生课程
-        return studentMapper.getStudentCourses(studentId);
+        List<Course> courses = studentMapper.getStudentCourses(studentId);
+        if (courses != null) {
+            for (Course course : courses) {
+                if (course != null && course.getId() != null) {
+                    Integer progress = studentMapper.getCourseProgress(studentId, course.getId());
+                    course.setProgress(progress != null ? progress : 0);
+                }
+            }
+        }
+        return courses;
     }
     
     // 班级管理相关方法实现

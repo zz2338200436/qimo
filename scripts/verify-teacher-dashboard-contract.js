@@ -13,6 +13,7 @@ function assertNotIncludes(content, needle, message) {
 }
 
 const pageContent = fs.readFileSync('frontend/dist/teacher-dashboard.html', 'utf8');
+const apiContent = fs.readFileSync('frontend/dist/api.js', 'utf8');
 
 const showLoadingStateCount = (pageContent.match(/function showLoadingState\(/g) || []).length;
 if (showLoadingStateCount !== 1) {
@@ -40,10 +41,17 @@ if (hideLoadingStateCount !== 1) {
   'function startTeacherDashboardAutoRefresh() {',
   'function initializeTeacherDashboardPage() {',
   'function buildChartLoadingStateMarkup() {',
+  'function setChartLoadingState(isLoading) {',
   'function appendStatCardLoadingOverlays() {',
   'function replaceChartContainersWithLoadingState() {',
   'function removeStatCardLoadingOverlays() {',
   'function removeChartContainerLoadingStates() {',
+  'echarts.getInstanceByDom(averageScoreChartElement) || echarts.init(averageScoreChartElement)',
+  'echarts.getInstanceByDom(submissionRateChartElement) || echarts.init(submissionRateChartElement)',
+  'function resizeDashboardCharts() {',
+  'function bindDashboardChartResizeHandler() {',
+  'let dashboardChartsResizeBound = false;',
+  'await loadDashboardContent({ skipRecentActivities: true, manageLoading: false });',
   'function ensureContentContainerReady() {',
   'function ensureTeacherApiReady() {',
   'function getTeacherDashboardApi() {',
@@ -155,6 +163,25 @@ if (hideLoadingStateCount !== 1) {
 });
 
 [
+  'function buildTeacherCourseAverageScores(courses, submissions, assignments = []) {',
+  'function buildTeacherAssignmentSubmissionTrend(assignments) {',
+  'const assignmentTrend = buildTeacherAssignmentSubmissionTrend(assignments);',
+  'if (assignmentTrend) {',
+  'return assignmentTrend;',
+  'const averageScores = buildTeacherCourseAverageScores(courses, submissions, assignments);',
+  'submittedCount',
+  'totalStudents',
+  'submissionCount',
+  'studentCount'
+].forEach(snippet => {
+  assertIncludes(
+    apiContent,
+    snippet,
+    'teacher dashboard API aggregation contract mismatch.'
+  );
+});
+
+[
   'id="totalCoursesChangeLabel"',
   'id="totalStudentsChangeLabel"',
   'id="pendingAssignmentsChangeLabel"',
@@ -192,6 +219,8 @@ if (hideLoadingStateCount !== 1) {
   "const statsCards = document.querySelectorAll('.stats-card .stat-value');",
   "card.innerHTML = '<i class=\"fa fa-spinner fa-spin\"></i>';",
   "container.innerHTML = '<div class=\"loading-state\"><i class=\"fa fa-spinner fa-spin fa-3x\"></i><p>加载中...</p></div>';",
+  'container.innerHTML = buildChartLoadingStateMarkup();',
+  "window.addEventListener('resize', function() {",
   "console.error('contentContainer 未初始化');",
   "console.error('teacherAPI 未定义');",
   "<i class=\"fa fa-book fa-3x text-muted\"></i>",

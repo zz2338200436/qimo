@@ -14,18 +14,18 @@
     <script src="lib/bootstrap.bundle.min.js"></script>
     <script src="lib/echarts.min.js"></script>
     <!-- 全局样式文件 -->
-    <link href="styles.css?v=20260523-1" rel="stylesheet">
+    <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
     <link rel="icon" href="data:,">
     <!-- API服务文件 -->
-    <script src="api.js?v=20260523-1"></script>
-    <script src="common-ui.js?v=20260523-1"></script>
+    <script src="api.js?v=20260608-theme-4"></script>
+    <script src="common-ui.js?v=20260608-theme-4"></script>
 </head>
 <body class="student-theme">
 <!-- 侧边栏导航组件 -->
 <div id="sidebar-container"></div>
 <script>
     $(function() {
-        $('#sidebar-container').load('components/sidebar-nav.html?v=20260523-1', function() {
+        $('#sidebar-container').load('components/sidebar-nav.html?v=20260608-theme-4', function() {
             CommonUI.highlightActiveNavItem({ selector: '.sidebar .menu-item, .menu-item' });
             CommonUI.initializeSidebar();
         });
@@ -330,7 +330,7 @@
             return 0;
         }
 
-        return 35;
+        return 0;
     }
 
     function buildCourseProgressChartData(courseList) {
@@ -892,9 +892,77 @@
         run();
     }
 
+    function normalizeProgressValue(value) {
+        if (value && typeof value === 'object') {
+            value = value.progress ?? value.progressPercentage ?? value.completionRate ??
+                value.completionPercentage ?? value.mastery ?? value.masteryRate ?? value.averageMastery ?? 0;
+        }
+        if (typeof value === 'string') {
+            value = value.replace('%', '').trim();
+        }
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            return 0;
+        }
+        const percentage = numericValue > 0 && numericValue <= 1 ? numericValue * 100 : numericValue;
+        return Math.max(0, Math.min(100, Math.round(percentage * 10) / 10));
+    }
+
+    async function enrichCourseProgressFromStats(chartsData, normalizedCourseProgress) {
+        if (!chartsData || normalizedCourseProgress.some(value => value > 0)) {
+            return normalizedCourseProgress;
+        }
+        try {
+            const apiService = new APIService();
+            const statsResponse = await apiService.get('/api/student/stats');
+            const knowledgePoints = statsResponse && statsResponse.success && statsResponse.data
+                ? statsResponse.data.knowledgePoints
+                : [];
+            if (!Array.isArray(knowledgePoints) || knowledgePoints.length === 0) {
+                return normalizedCourseProgress;
+            }
+            const progressByCourse = new Map();
+            knowledgePoints.forEach(point => {
+                const courseName = point.courseName || point.course || point.name;
+                const progress = normalizeProgressValue(point.mastery ?? point.masteryRate ?? point.averageMastery);
+                if (!courseName || progress <= 0) {
+                    return;
+                }
+                const current = progressByCourse.get(courseName) || { total: 0, count: 0 };
+                current.total += progress;
+                current.count += 1;
+                progressByCourse.set(courseName, current);
+            });
+            if (progressByCourse.size === 0) {
+                return normalizedCourseProgress;
+            }
+            return (chartsData.courseNames || []).map((name, index) => {
+                const current = progressByCourse.get(name);
+                return current ? Math.round((current.total / current.count) * 10) / 10 : normalizedCourseProgress[index] || 0;
+            });
+        } catch (error) {
+            console.warn('课程进度兜底计算失败:', error);
+            return normalizedCourseProgress;
+        }
+    }
+
     // 更新图表数据
-    function updateCharts(chartsData) {
+    async function updateCharts(chartsData) {
         if (!chartsData) return;
+        const courseRows = Array.isArray(chartsData.courses) ? chartsData.courses : [];
+        const normalizedCourseNames = Array.isArray(chartsData.courseNames) && chartsData.courseNames.length > 0
+            ? chartsData.courseNames
+            : courseRows.map(course => course.courseName || course.name || course.title || '未命名课程');
+        let normalizedCourseProgress = Array.isArray(chartsData.courseProgress)
+            ? chartsData.courseProgress.map(value => normalizeProgressValue(value))
+            : [];
+        if (courseRows.length > 0 && (normalizedCourseProgress.length === 0 || normalizedCourseProgress.every(value => value === 0))) {
+            normalizedCourseProgress = courseRows.map(course => normalizeProgressValue(course));
+        }
+        normalizedCourseProgress = await enrichCourseProgressFromStats(
+            { ...chartsData, courseNames: normalizedCourseNames },
+            normalizedCourseProgress
+        );
 
         // 学习时间分布图表
         const studyTimeChart = echarts.init(document.getElementById('studyTimeChart'));
@@ -923,17 +991,17 @@
                     data: chartsData.studyTime || [],
                     smooth: true,
                     lineStyle: {
-                        color: '#3b82f6'
+                        color: '#0d9488'
                     },
                     areaStyle: {
                         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
                             {
                                 offset: 0,
-                                color: 'rgba(59, 130, 246, 0.3)'
+                                color: 'rgba(13, 148, 136, 0.3)'
                             },
                             {
                                 offset: 1,
-                                color: 'rgba(59, 130, 246, 0.05)'
+                                color: 'rgba(13, 148, 136, 0.05)'
                             }
                         ])
                     }
@@ -963,22 +1031,22 @@
             },
             yAxis: {
                 type: 'category',
-                data: chartsData.courseNames || []
+                data: normalizedCourseNames
             },
             series: [
                 {
                     name: '完成进度(%)',
                     type: 'bar',
-                    data: chartsData.courseProgress || [],
+                    data: normalizedCourseProgress,
                     itemStyle: {
                         color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
                             {
                                 offset: 0,
-                                color: '#3b82f6'
+                                color: '#0d9488'
                             },
                             {
                                 offset: 1,
-                                color: '#1d4ed8'
+                                color: '#0f766e'
                             }
                         ])
                     }
@@ -1023,7 +1091,7 @@
             switch (activity.type) {
                 case 'course':
                     iconClass = 'fas fa-book';
-                    iconColor = '#3b82f6';
+                    iconColor = '#0d9488';
                     break;
                 case 'assignment':
                     iconClass = 'fas fa-file-alt';

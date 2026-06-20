@@ -13,7 +13,7 @@
     <script src="lib/chart.umd.min.js"></script>
     <!-- SheetJS for Excel export -->
     <script src="lib/xlsx.full.min.js"></script>
-    <link href="styles.css?v=20260523-1" rel="stylesheet">
+    <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
     <style>
         /* 全局样式 */
         body {
@@ -27,7 +27,7 @@
         .sidebar {
             width: 280px;
             height: 100vh;
-            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
             color: white;
             position: fixed;
             top: 0;
@@ -193,7 +193,7 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -306,7 +306,7 @@
         }
         
         .stat-icon.courses {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
             color: white;
         }
         
@@ -498,35 +498,6 @@
             background-color: #f8f9fa;
         }
         
-        /* 分页样式 */
-        .pagination {
-            display: flex;
-            justify-content: center;
-            margin-top: 24px;
-            gap: 8px;
-        }
-        
-        .page-link {
-            padding: 10px 16px;
-            border-radius: 10px;
-            border: 1px solid #e2e8f0;
-            background: white;
-            color: #64748b;
-            transition: all 0.3s ease;
-        }
-        
-        .page-link:hover {
-            background: #f8fafc;
-            color: #667eea;
-            border-color: #667eea;
-        }
-        
-        .page-link.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-color: #667eea;
-        }
-        
         /* 响应式设计 */
         @media (max-width: 768px) {
             .sidebar {
@@ -619,7 +590,7 @@
     <div id="sidebar-container"></div>
     <script>
         // 加载侧边栏组件
-        fetch('components/teacher-sidebar-nav.html?v=20260523-1')
+        fetch('components/teacher-sidebar-nav.html?v=20260608-theme-4')
             .then(response => response.text())
             .then(data => {
                 document.getElementById('sidebar-container').innerHTML = data;
@@ -649,7 +620,7 @@
             </div>
             
             <div class="navbar-right">
-                <!-- 用户下拉菜单组件（教师端紫色主题） -->
+                <!-- 用户下拉菜单组件（教师端蓝色主题） -->
                 <div id="userDropdownContainer"></div>
             </div>
         </nav>
@@ -812,7 +783,7 @@
         </div>
     </main>
     <!-- API服务 -->
-<script src="api.js?v=20260523-1"></script>
+<script src="api.js?v=20260608-theme-4"></script>
     
     <!-- Bootstrap 5 JS -->
 <script src="lib/bootstrap.bundle.min.js"></script>
@@ -2479,7 +2450,7 @@ const TEACHER_DASHBOARD_API_BASE = '/api';
             if (!container) return;
 
             try {
-            const resp = await fetch('components/user-dropdown.html?v=20260523-1');
+            const resp = await fetch('components/user-dropdown.html?v=20260608-theme-4');
                 if (!resp.ok) {
                     console.error('加载用户下拉组件失败:', resp.status, resp.statusText);
                     return;
@@ -2531,7 +2502,7 @@ const TEACHER_DASHBOARD_API_BASE = '/api';
                 return;
             }
 
-            // 加载右上角用户下拉菜单（教师端紫色主题）
+            // 加载右上角用户下拉菜单（教师端蓝色主题）
             await loadUserDropdownForTeacher('userDropdownContainer');
 
             // 初始化班级和课程列表
@@ -3221,20 +3192,39 @@ const TEACHER_DASHBOARD_API_BASE = '/api';
                     };
                 }
                 
+                const groupedScores = new Map();
+                trendArray.forEach((item, index) => {
+                    const rawDate = item.date || item.occurredAt || item.occurred_at || item.submitDate || '';
+                    const dateStr = rawDate ? String(rawDate).slice(0, 10) : `第${index + 1}次`;
+                    const rawScore = item.averageScore ?? item.avgScore ?? item.score ?? item.scoreRate;
+                    let score = Number(rawScore);
+                    if (!Number.isFinite(score)) {
+                        score = 0;
+                    }
+                    if (item.scoreRate !== undefined && item.score === undefined && score <= 1) {
+                        score *= 100;
+                    }
+                    if (!groupedScores.has(dateStr)) {
+                        groupedScores.set(dateStr, []);
+                    }
+                    groupedScores.get(dateStr).push(score);
+                });
+
                 const labels = [];
                 const scores = [];
-                
-                trendArray.forEach(item => {
-                    const dateStr = item.date || '';
-                    // 根据时间范围生成友好标签
-                    let label = dateStr;
-                    if (timeRange === 'week' || timeRange === 'month' || timeRange === 'quarter') {
-                        // 显示MM-DD
-                        label = dateStr.slice(5);
-                    }
-                    labels.push(label);
-                    scores.push(Math.round((item.averageScore || 0) * 10) / 10);
-                });
+                Array.from(groupedScores.entries())
+                    .sort(([left], [right]) => String(left).localeCompare(String(right)))
+                    .forEach(([dateStr, values]) => {
+                        let label = dateStr;
+                        if (timeRange === 'week' || timeRange === 'month' || timeRange === 'quarter') {
+                            if (dateStr.length >= 10) {
+                                label = dateStr.slice(5);
+                            }
+                        }
+                        const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+                        labels.push(label);
+                        scores.push(Math.round(average * 10) / 10);
+                    });
                 
                 return { labels, scores, isEmpty: false, message: '' };
             } catch (error) {

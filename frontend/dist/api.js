@@ -1779,6 +1779,165 @@ function extractTeacherNumericValue(record, keys = [], fallback = 0) {
     return fallback;
 }
 
+function getTeacherAssignmentCourseKey(assignment) {
+    const courseId = assignment?.courseId ?? assignment?.course_id;
+    if (courseId !== undefined && courseId !== null && courseId !== '') {
+        return `id:${courseId}`;
+    }
+    const courseName = assignment?.courseName ?? assignment?.course?.courseName ?? assignment?.name;
+    return courseName ? `name:${courseName}` : null;
+}
+
+function buildTeacherAssignmentCourseLookup(assignments) {
+    const lookup = new Map();
+    assignments.forEach(assignment => {
+        if (assignment?.id === undefined || assignment?.id === null) {
+            return;
+        }
+        const key = getTeacherAssignmentCourseKey(assignment);
+        if (key) {
+            lookup.set(String(assignment.id), key);
+        }
+    });
+    return lookup;
+}
+
+function getTeacherSubmissionCourseKey(submission, assignmentCourseLookup) {
+    const courseId = submission?.courseId ?? submission?.course_id;
+    if (courseId !== undefined && courseId !== null && courseId !== '') {
+        return `id:${courseId}`;
+    }
+    const courseName = submission?.courseName ?? submission?.course?.courseName;
+    if (courseName) {
+        return `name:${courseName}`;
+    }
+    const assignmentId = submission?.assignmentId ?? submission?.assignment_id;
+    if (assignmentId !== undefined && assignmentId !== null) {
+        return assignmentCourseLookup.get(String(assignmentId)) ?? null;
+    }
+    return null;
+}
+
+function resolveTeacherSubmissionScorePercent(submission) {
+    const scoreRate = Number(submission?.scoreRate ?? submission?.score_rate);
+    if (Number.isFinite(scoreRate) && scoreRate >= 0) {
+        return scoreRate <= 1 ? scoreRate * 100 : scoreRate;
+    }
+
+    const score = Number(submission?.score);
+    if (!Number.isFinite(score)) {
+        return null;
+    }
+
+    const maxScore = Number(submission?.maxScore ?? submission?.max_score);
+    if (Number.isFinite(maxScore) && maxScore > 0 && maxScore !== 100) {
+        return (score / maxScore) * 100;
+    }
+
+    return score;
+}
+
+function buildTeacherCourseAverageScores(courses, submissions, assignments = []) {
+    const assignmentCourseLookup = buildTeacherAssignmentCourseLookup(assignments);
+    const scoresByCourse = new Map();
+
+    submissions.forEach(submission => {
+        const score = resolveTeacherSubmissionScorePercent(submission);
+        if (!Number.isFinite(score)) {
+            return;
+        }
+
+        const courseKey = getTeacherSubmissionCourseKey(submission, assignmentCourseLookup);
+        if (!courseKey) {
+            return;
+        }
+
+        const bucket = scoresByCourse.get(courseKey) ?? { total: 0, count: 0 };
+        bucket.total += score;
+        bucket.count += 1;
+        scoresByCourse.set(courseKey, bucket);
+    });
+
+    return courses.map(course => {
+        const directScore = Number(course?.averageScore ?? course?.avgScore ?? course?.avg_score ?? course?.courseAverageScore);
+        if (Number.isFinite(directScore)) {
+            return Math.round(directScore);
+        }
+
+        const courseKeys = [
+            course?.id !== undefined && course?.id !== null ? `id:${course.id}` : null,
+            course?.courseName || course?.name ? `name:${course.courseName || course.name}` : null
+        ].filter(Boolean);
+
+        for (const key of courseKeys) {
+            const bucket = scoresByCourse.get(key);
+            if (bucket && bucket.count > 0) {
+                return Math.round(bucket.total / bucket.count);
+            }
+        }
+
+        return 0;
+    });
+}
+
+function getTeacherAssignmentTrendLabel(assignment) {
+    const title = assignment?.title || assignment?.assignmentTitle || assignment?.name;
+    if (title) {
+        return title.length > 12 ? `${title.slice(0, 12)}...` : title;
+    }
+
+    const date = parseDateValue(assignment?.publishDate ?? assignment?.dueDate ?? assignment?.deadline ?? assignment?.createdAt);
+    if (date) {
+        return `${date.getMonth() + 1}/${date.getDate()}`;
+    }
+
+    return `作业${assignment?.id ?? ''}`.trim();
+}
+
+function buildTeacherAssignmentSubmissionTrend(assignments) {
+    const assignmentRates = assignments
+        .map(assignment => {
+            const submittedCount = Number(
+                assignment?.submittedCount ??
+                assignment?.submissionCount ??
+                assignment?.submitted_count ??
+                assignment?.submission_count
+            );
+            const totalStudents = Number(
+                assignment?.totalStudents ??
+                assignment?.studentCount ??
+                assignment?.total_students ??
+                assignment?.student_count
+            );
+
+            if (!Number.isFinite(submittedCount) || !Number.isFinite(totalStudents) || totalStudents <= 0) {
+                return null;
+            }
+
+            const timestamp = parseDateValue(
+                assignment?.publishDate ?? assignment?.dueDate ?? assignment?.deadline ?? assignment?.createdAt
+            )?.getTime() ?? 0;
+
+            return {
+                label: getTeacherAssignmentTrendLabel(assignment),
+                rate: Math.min(Math.round((submittedCount / totalStudents) * 100), 100),
+                timestamp
+            };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .slice(-7);
+
+    if (assignmentRates.length === 0) {
+        return null;
+    }
+
+    return {
+        submissionRateDays: assignmentRates.map(item => item.label),
+        submissionRates: assignmentRates.map(item => item.rate)
+    };
+}
+
 function buildTeacherRecentActivities(submissions, assignments, exams) {
     const submissionActivities = submissions.map(item => ({
         activityType: item?.graded ? '作业批改' : '作业提交',
@@ -1809,6 +1968,11 @@ function buildTeacherRecentActivities(submissions, assignments, exams) {
 }
 
 function buildTeacherSubmissionTrend(assignments, submissions) {
+    const assignmentTrend = buildTeacherAssignmentSubmissionTrend(assignments);
+    if (assignmentTrend) {
+        return assignmentTrend;
+    }
+
     const submissionRateDays = Array.from({ length: 7 }, (_, index) => {
         const date = new Date();
         date.setDate(date.getDate() - (6 - index));
@@ -1897,12 +2061,7 @@ async function buildTeacherDashboardSnapshot(params = {}, options = {}) {
         isFutureWithinDays(assignment?.dueDate ?? assignment?.deadline ?? assignment?.endTime, 7)
     ).length;
     const courseNames = courses.map(course => course?.courseName || course?.name || `课程${course?.id ?? ''}`.trim()).filter(Boolean);
-    const averageScores = courses.map(course => extractTeacherNumericValue(course, [
-        'averageScore',
-        'avgScore',
-        'avg_score',
-        'courseAverageScore'
-    ]));
+    const averageScores = buildTeacherCourseAverageScores(courses, submissions, assignments);
     const recentActivities = buildTeacherRecentActivities(submissions, assignments, exams);
     const { submissionRateDays, submissionRates } = buildTeacherSubmissionTrend(assignments, submissions);
 

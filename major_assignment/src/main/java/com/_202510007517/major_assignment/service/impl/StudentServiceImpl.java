@@ -43,7 +43,20 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @Transactional(readOnly = true)
     public List<Course> getStudentCourses(Long studentId) {
-        return studentMapper.getStudentCourses(studentId);
+        List<Course> courses = studentMapper.getStudentCourses(studentId);
+        populateCourseProgress(studentId, courses);
+        return courses;
+    }
+
+    private void populateCourseProgress(Long studentId, List<Course> courses) {
+        if (courses != null) {
+            for (Course course : courses) {
+                if (course != null && course.getId() != null) {
+                    Integer progress = studentMapper.getCourseProgress(studentId, course.getId());
+                    course.setProgress(progress != null ? progress : 0);
+                }
+            }
+        }
     }
 
     @Override
@@ -70,6 +83,7 @@ public class StudentServiceImpl implements StudentService {
                 courseCategory,
                 trimmedSearch
         );
+        populateCourseProgress(studentId, pagedCourses);
 
         return PageUtils.buildPageResponse(pagedCourses, window.page(), window.size(), totalElements);
     }

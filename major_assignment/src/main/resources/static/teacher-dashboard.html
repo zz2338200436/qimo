@@ -13,9 +13,9 @@
         <!-- ECharts JS -->
     <script src="lib/echarts.min.js"></script>
     <!-- API服务 -->
-    <script src="api.js?v=20260523-1"></script>
-    <script src="common-ui.js?v=20260523-1"></script>
-    <link href="styles.css?v=20260523-1" rel="stylesheet">
+    <script src="api.js?v=20260608-theme-4"></script>
+    <script src="common-ui.js?v=20260608-theme-4"></script>
+    <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -28,7 +28,7 @@
         .sidebar {
             width: 280px;
             height: 100vh;
-            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
             color: white;
             position: fixed;
             top: 0;
@@ -183,7 +183,7 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -264,7 +264,7 @@
         }
         
         .stat-icon.courses {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0f172a 0%, #2563eb 100%);
             color: white;
         }
         
@@ -275,6 +275,11 @@
         
         .stat-icon.assignments {
             background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .stat-icon.exams {
+            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
             color: white;
         }
         
@@ -329,6 +334,20 @@
         
         .chart-container {
             height: 300px;
+            position: relative;
+        }
+
+        .chart-loading-overlay {
+            position: absolute;
+            inset: 0;
+            background-color: rgba(255, 255, 255, 0.72);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            z-index: 5;
+            pointer-events: none;
         }
         
         /* 最近活动 */
@@ -556,12 +575,6 @@
                 <button class="toggle-btn" id="toggleBtn">
                     <i class="fa fa-bars"></i>
                 </button>
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb mb-0">
-                        <li class="breadcrumb-item"><a href="teacher-dashboard.html" id="breadcrumbHomeLink">首页</a></li>
-                        <li class="breadcrumb-item active" aria-current="page">仪表盘</li>
-                    </ol>
-                </nav>
                 <h1 class="page-title">仪表盘</h1>
             </div>
             
@@ -621,7 +634,7 @@
                 <div class="stat-card teacher-stat-panel">
                     <div class="stat-header">
                         <div class="stat-title">待批改考试</div>
-                        <div class="stat-icon" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
+                        <div class="stat-icon exams">
                             <i class="fa fa-calendar-check"></i>
                         </div>
                     </div>
@@ -706,12 +719,16 @@
 
         function startTeacherDashboardAutoRefresh() {
             setInterval(async () => {
-                await loadDashboardContent({ skipRecentActivities: true });
+                try {
+                    await loadDashboardContent({ skipRecentActivities: true, manageLoading: false });
+                } catch (error) {
+                    console.warn('教师仪表盘自动刷新失败:', error);
+                }
             }, 30000);
         }
 
         async function initializeTeacherDashboardPage() {
-            // 加载右上角用户下拉菜单（与学生端保持一致，教师端为紫色主题）
+            // 加载右上角用户下拉菜单（与学生端保持一致，教师端为蓝色主题）
             await loadUserDropdownForTeacher('userDropdownContainer');
             bindDashboardHeaderActions();
 
@@ -728,7 +745,7 @@
         // 页面加载完成后初始化数据
         window.onload = async function() {
             try {
-                if (!CommonUI.requireTeacherSession({ redirectUrl: 'teacher-login.html?v=20260523-1' })) {
+                if (!CommonUI.requireTeacherSession({ redirectUrl: 'teacher-login.html?v=20260608-theme-4' })) {
                     return;
                 }
                 await initializeTeacherDashboardPage();
@@ -822,11 +839,30 @@
 
         function buildChartLoadingStateMarkup() {
             return `
-                <div class="loading-state" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
-                    <i class="fa fa-spinner fa-spin fa-3x" style="color: #667eea;"></i>
+                <div class="loading-state chart-loading-overlay">
+                    <i class="fa fa-spinner fa-spin fa-3x" style="color: #2563eb;"></i>
                     <p style="margin-top: 10px; color: #475569;">加载中...</p>
                 </div>
             `;
+        }
+
+        function setChartLoadingState(isLoading) {
+            const chartContainers = document.querySelectorAll('.chart-container');
+            chartContainers.forEach(container => {
+                const existingOverlay = Array.from(container.children)
+                    .find(child => child.classList.contains('chart-loading-overlay'));
+
+                if (isLoading) {
+                    if (!existingOverlay) {
+                        container.insertAdjacentHTML('beforeend', buildChartLoadingStateMarkup());
+                    }
+                    return;
+                }
+
+                if (existingOverlay) {
+                    existingOverlay.remove();
+                }
+            });
         }
 
         function appendStatCardLoadingOverlays() {
@@ -838,7 +874,7 @@
                 const loadingOverlay = document.createElement('div');
                 loadingOverlay.className = 'loading-overlay';
                 loadingOverlay.innerHTML = `
-                    <i class="fa fa-spinner fa-spin fa-2x" style="color: #667eea;"></i>
+                    <i class="fa fa-spinner fa-spin fa-2x" style="color: #2563eb;"></i>
                     <p style="margin-top: 8px; font-size: 14px; color: #475569;">加载中...</p>
                 `;
                 card.appendChild(loadingOverlay);
@@ -846,10 +882,7 @@
         }
 
         function replaceChartContainersWithLoadingState() {
-            const chartContainers = document.querySelectorAll('.chart-container');
-            chartContainers.forEach(container => {
-                container.innerHTML = buildChartLoadingStateMarkup();
-            });
+            setChartLoadingState(true);
         }
 
         function removeStatCardLoadingOverlays() {
@@ -860,10 +893,7 @@
         }
 
         function removeChartContainerLoadingStates() {
-            const loadingStates = document.querySelectorAll('.loading-state');
-            loadingStates.forEach(state => {
-                state.remove();
-            });
+            setChartLoadingState(false);
         }
 
         function ensureContentContainerReady() {
@@ -1083,6 +1113,26 @@
         }
         
         // 初始化图表
+        let dashboardChartsResizeBound = false;
+
+        function resizeDashboardCharts() {
+            ['averageScoreChart', 'submissionRateChart'].forEach(chartElementId => {
+                const chartElement = document.getElementById(chartElementId);
+                const chart = chartElement ? echarts.getInstanceByDom(chartElement) : null;
+                if (chart) {
+                    chart.resize();
+                }
+            });
+        }
+
+        function bindDashboardChartResizeHandler() {
+            if (dashboardChartsResizeBound) {
+                return;
+            }
+            window.addEventListener('resize', resizeDashboardCharts);
+            dashboardChartsResizeBound = true;
+        }
+
         function initCharts(data) {
             // 确保DOM元素已加载完成
             const averageScoreChartElement = document.getElementById('averageScoreChart');
@@ -1094,7 +1144,7 @@
             }
             
             // 班级平均分对比图表
-            const averageScoreChart = echarts.init(averageScoreChartElement);
+            const averageScoreChart = echarts.getInstanceByDom(averageScoreChartElement) || echarts.init(averageScoreChartElement);
             
             // 准备平均分数据，确保处理空数据情况
             const courseNames = data?.courseNames || [];
@@ -1134,8 +1184,8 @@
                     data: buildChartSeriesData(averageScores),
                     itemStyle: {
                         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                            {offset: 0, color: '#667eea'},
-                            {offset: 1, color: '#764ba2'}
+                            {offset: 0, color: '#2563eb'},
+                            {offset: 1, color: '#1d4ed8'}
                         ])
                     },
                     emphasis: {
@@ -1145,10 +1195,10 @@
             };
             
             // 设置平均分图表选项
-            averageScoreChart.setOption(averageScoreOption);
+            averageScoreChart.setOption(averageScoreOption, true);
             
             // 作业提交率趋势图表
-            const submissionRateChart = echarts.init(submissionRateChartElement);
+            const submissionRateChart = echarts.getInstanceByDom(submissionRateChartElement) || echarts.init(submissionRateChartElement);
             
             // 准备提交率数据，确保处理空数据情况
             const submissionRateDays = data?.submissionRateDays || [];
@@ -1182,30 +1232,26 @@
                     stack: '总量',
                     data: buildChartSeriesData(submissionRates),
                     lineStyle: {
-                        color: '#667eea'
+                        color: '#2563eb'
                     },
                     areaStyle: {
                         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                            {offset: 0, color: 'rgba(102, 126, 234, 0.3)'},
-                            {offset: 1, color: 'rgba(102, 126, 234, 0.1)'}
+                            {offset: 0, color: 'rgba(37, 99, 235, 0.3)'},
+                            {offset: 1, color: 'rgba(37, 99, 235, 0.1)'}
                         ])
                     }
                 }]
             };
             
             // 设置提交率图表选项
-            submissionRateChart.setOption(submissionRateOption);
+            submissionRateChart.setOption(submissionRateOption, true);
             
             // 窗口大小变化时重新绘制图表
-            window.addEventListener('resize', function() {
-                averageScoreChart.resize();
-                submissionRateChart.resize();
-            });
+            bindDashboardChartResizeHandler();
             
             // 初始绘制完成后，强制调整一次大小
             setTimeout(() => {
-                averageScoreChart.resize();
-                submissionRateChart.resize();
+                resizeDashboardCharts();
             }, 100);
         }
         
@@ -1344,7 +1390,7 @@
         // 辅助函数：获取活动颜色
         function getActivityColor(activityType) {
             const colorMap = {
-                '作业提交': '#667eea',
+                '作业提交': '#2563eb',
                 '作业批改': '#3b82f6',
                 '考试发布': '#10b981',
                 '考试批改': '#059669',
@@ -1957,7 +2003,7 @@
             if (action) {
                 params.set('action', action);
             }
-            window.location.href = `teacher-assignments.html?${params.toString()}&v=20260523-1`;
+            window.location.href = `teacher-assignments.html?${params.toString()}&v=20260608-theme-4`;
         }
 
         function viewAssignment(assignmentId) {
@@ -1991,7 +2037,7 @@
             if (action) {
                 params.set('action', action);
             }
-            window.location.href = `teacher-assignments.html?${params.toString()}&v=20260523-1`;
+            window.location.href = `teacher-assignments.html?${params.toString()}&v=20260608-theme-4`;
         }
 
         // 查看考试详情

@@ -11,7 +11,7 @@
     <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Chart.js -->
     <script src="lib/chart.umd.min.js"></script>
-    <link href="styles.css?v=20260523-1" rel="stylesheet">
+    <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
     <style>
         /* 全局样式 */
         body {
@@ -26,7 +26,7 @@
             position: fixed;
             top: 0;
             left: 0;
-            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
             color: white;
             transition: width 0.3s ease;
             overflow-x: hidden;
@@ -194,7 +194,7 @@
         }
         
         .filter-badge {
-            background-color: #667eea;
+            background-color: #2563eb;
             color: white;
             padding: 4px 10px;
             border-radius: 12px;
@@ -262,7 +262,7 @@
             right: 30px;
             width: 50px;
             height: 50px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
             color: white;
             border: none;
             border-radius: 50%;
@@ -271,14 +271,14 @@
             align-items: center;
             justify-content: center;
             font-size: 1.2rem;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
             transition: all 0.3s ease;
             z-index: 1000;
         }
         
         .back-to-top:hover {
             transform: translateY(-5px);
-            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.5);
         }
         
         .back-to-top.show {
@@ -551,6 +551,7 @@
             padding: 15px;
             margin-bottom: 15px;
             transition: all 0.3s;
+            background: #fff;
         }
         
         .knowledge-card:hover {
@@ -616,40 +617,65 @@
         .rating i {
             margin-right: 2px;
         }
+
+        .knowledge-card-body {
+            display: grid;
+            grid-template-columns: minmax(220px, 1.1fr) minmax(200px, 1fr) minmax(180px, 0.8fr) 176px;
+            gap: 18px;
+            align-items: center;
+        }
+
+        .knowledge-card-metric p,
+        .knowledge-card-meta p,
+        .knowledge-card-risk p {
+            margin-bottom: 8px;
+            color: #334155;
+            line-height: 1.45;
+        }
+
+        .knowledge-card-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+            justify-self: end;
+            width: 150px;
+        }
+
+        .knowledge-card-actions .btn {
+            width: 100%;
+            min-height: 40px;
+            border-radius: 8px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 1200px) {
+            .knowledge-card-body {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .knowledge-card-actions {
+                grid-column: 1 / -1;
+                grid-template-columns: repeat(3, minmax(112px, 1fr));
+                justify-self: stretch;
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .knowledge-card-body {
+                grid-template-columns: 1fr;
+            }
+
+            .knowledge-card-actions {
+                grid-template-columns: 1fr;
+            }
+        }
         
         /* 图表样式 */
         .radar-chart-container {
             position: relative;
             height: 350px;
-        }
-        
-        /* 分页样式 */
-        .pagination {
-            display: flex;
-            justify-content: center;
-            margin-top: 24px;
-            gap: 8px;
-        }
-        
-        .page-link {
-            padding: 10px 16px;
-            border-radius: 10px;
-            border: 1px solid #e2e8f0;
-            background: white;
-            color: #64748b;
-            transition: all 0.3s ease;
-        }
-        
-        .page-link:hover {
-            background: #f8fafc;
-            color: #667eea;
-            border-color: #667eea;
-        }
-        
-        .page-link.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-color: #667eea;
         }
         
         /* 详情模态框样式 */
@@ -664,7 +690,7 @@
     <div id="sidebar-container"></div>
     <script>
         // 加载侧边栏组件
-        fetch('components/teacher-sidebar-nav.html?v=20260523-1')
+        fetch('components/teacher-sidebar-nav.html?v=20260608-theme-4')
             .then(response => response.text())
             .then(data => {
                 document.getElementById('sidebar-container').innerHTML = data;
@@ -695,7 +721,7 @@
                 <button class="toggle-btn"><i class="fa fa-bars"></i></button>
                 <h2 class="page-title">知识点薄弱分析</h2>
             </div>
-            <!-- 用户下拉菜单组件（教师端紫色主题） -->
+            <!-- 用户下拉菜单组件（教师端蓝色主题） -->
             <div id="userDropdownContainer"></div>
         </nav>
         
@@ -957,7 +983,7 @@
 <script src="lib/bootstrap.bundle.min.js"></script>
     
     <!-- API服务 -->
-<script src="api.js?v=20260523-1"></script>
+<script src="api.js?v=20260608-theme-4"></script>
     
     <!-- 页面脚本 -->
     <script>
@@ -1118,7 +1144,7 @@
             if (!container) return;
 
             try {
-            const resp = await fetch('components/user-dropdown.html?v=20260523-1');
+            const resp = await fetch('components/user-dropdown.html?v=20260608-theme-4');
                 if (!resp.ok) {
                     console.error('加载用户下拉组件失败:', resp.status, resp.statusText);
                     return;
@@ -1164,7 +1190,7 @@
                 || (Array.isArray(parsedUser?.roles) && parsedUser.roles.includes('TEACHER'))
                 || parsedUser?.activeRole === 'TEACHER';
             if (!user || !token || !hasTeacherRole) {
-                window.location.href = 'teacher-login.html?v=20260523-1';
+                window.location.href = 'teacher-login.html?v=20260608-theme-4';
                 return false;
             }
             return true;
@@ -1700,6 +1726,10 @@
             };
         }
     }
+
+    async function getKnowledgePointList(options = {}) {
+        return fetchKnowledgePointList(options);
+    }
     
     // 获取知识点数据
     async function getKnowledgeData(filters, page = 1, size = pageSize) {
@@ -1794,7 +1824,7 @@
             return analysisData;
         }
 
-        const rawPointList = await fetchKnowledgePointList();
+        const rawPointList = await getKnowledgePointList();
         if (!rawPointList.success || !Array.isArray(rawPointList.data)) {
             return analysisData;
         }
@@ -2633,19 +2663,19 @@
             <div class="progress">
                 <div class="progress-bar bg-${levelInfo.color}" role="progressbar" style="width: ${masteryRate}%" aria-valuenow="${masteryRate}" aria-valuemin="0" aria-valuemax="100"></div>
             </div>
-            <div class="row">
-                <div class="col-md-3">
+            <div class="knowledge-card-body">
+                <div class="knowledge-card-metric">
                     <p><strong>掌握程度：</strong>${masteryRate}%</p>
                     <div class="rating">${getRatingStars(masteryRate)}</div>
                 </div>
-                <div class="col-md-3">
+                <div class="knowledge-card-meta">
                     <p><strong>难度级别：</strong>${point.difficulty || '未知'}</p>
                     <p><strong>排序索引：</strong>${point.orderIndex || 0}</p>
                 </div>
-                <div class="col-md-3">
+                <div class="knowledge-card-risk">
                     <p><strong>待改进学生：</strong>${atRiskStudentCount}人</p>
                 </div>
-                <div class="col-md-3 text-right">
+                <div class="knowledge-card-actions">
                     <button class="btn btn-sm btn-primary" onclick="viewKnowledgeDetail('${point.knowledgePointId}')">查看详情</button>
                     <button class="btn btn-sm btn-warning" onclick="editKnowledge('${point.knowledgePointId}')">编辑</button>
                     <button class="btn btn-sm btn-danger" onclick="deleteKnowledge('${point.knowledgePointId}')">删除</button>
