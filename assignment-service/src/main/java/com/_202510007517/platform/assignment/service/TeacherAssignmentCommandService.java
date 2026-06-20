@@ -47,15 +47,18 @@ public class TeacherAssignmentCommandService {
     private final AssignmentRepository assignmentRepository;
     private final CourseFeignClient courseFeignClient;
     private final OutboxEventRepository outboxEventRepository;
+    private final AssignmentKnowledgeMasterySynchronizer knowledgeMasterySynchronizer;
     private final ObjectMapper objectMapper;
 
     public TeacherAssignmentCommandService(AssignmentRepository assignmentRepository,
                                            CourseFeignClient courseFeignClient,
                                            OutboxEventRepository outboxEventRepository,
+                                           AssignmentKnowledgeMasterySynchronizer knowledgeMasterySynchronizer,
                                            ObjectMapper objectMapper) {
         this.assignmentRepository = assignmentRepository;
         this.courseFeignClient = courseFeignClient;
         this.outboxEventRepository = outboxEventRepository;
+        this.knowledgeMasterySynchronizer = knowledgeMasterySynchronizer;
         this.objectMapper = objectMapper;
     }
 
@@ -127,6 +130,7 @@ public class TeacherAssignmentCommandService {
         assignmentRepository.updateSubmission(submission);
 
         refreshAssignmentSummary(assignment);
+        knowledgeMasterySynchronizer.syncAfterAssignmentGraded(assignment, submission);
         persistAssignmentGradedEvent(assignment, submission);
         return toSubmissionDto(submission);
     }

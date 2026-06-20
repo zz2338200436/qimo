@@ -24,6 +24,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class TeacherAssignmentCommandServiceTest {
@@ -43,6 +44,7 @@ class TeacherAssignmentCommandServiceTest {
                 repository,
                 courseFeignClient,
                 new InMemoryOutboxEventRepository(),
+                mock(AssignmentKnowledgeMasterySynchronizer.class),
                 new ObjectMapper().findAndRegisterModules());
 
         AssignmentDTO created = service.createAssignment(7L, request(
@@ -74,6 +76,7 @@ class TeacherAssignmentCommandServiceTest {
                 repository,
                 courseFeignClient,
                 new InMemoryOutboxEventRepository(),
+                mock(AssignmentKnowledgeMasterySynchronizer.class),
                 new ObjectMapper().findAndRegisterModules());
 
         AssignmentDTO updated = service.updateAssignment(7L, 2001L, request(
@@ -100,6 +103,7 @@ class TeacherAssignmentCommandServiceTest {
                 repository,
                 courseFeignClient,
                 new InMemoryOutboxEventRepository(),
+                mock(AssignmentKnowledgeMasterySynchronizer.class),
                 new ObjectMapper().findAndRegisterModules());
 
         service.deleteAssignment(7L, 2001L);
@@ -112,10 +116,12 @@ class TeacherAssignmentCommandServiceTest {
         FakeAssignmentRepository repository = new FakeAssignmentRepository();
         CourseFeignClient courseFeignClient = mock(CourseFeignClient.class);
         InMemoryOutboxEventRepository outboxEventRepository = new InMemoryOutboxEventRepository();
+        AssignmentKnowledgeMasterySynchronizer knowledgeMasterySynchronizer = mock(AssignmentKnowledgeMasterySynchronizer.class);
         TeacherAssignmentCommandService service = new TeacherAssignmentCommandService(
                 repository,
                 courseFeignClient,
                 outboxEventRepository,
+                knowledgeMasterySynchronizer,
                 new ObjectMapper().findAndRegisterModules());
 
         TeacherAssignmentGradeRequestDTO request = new TeacherAssignmentGradeRequestDTO();
@@ -137,6 +143,7 @@ class TeacherAssignmentCommandServiceTest {
         assertThat(outboxEventRepository.savedEvents.get(0).eventId()).startsWith("assignment-graded-3001-95-");
         assertThat(outboxEventRepository.savedEvents.get(0).eventId()).hasSizeLessThanOrEqualTo(64);
         assertThat(outboxEventRepository.savedEvents.get(0).eventId()).isNotEqualTo("assignment-graded-3001");
+        verify(knowledgeMasterySynchronizer).syncAfterAssignmentGraded(repository.assignment, repository.submission);
     }
 
     @Test
@@ -148,6 +155,7 @@ class TeacherAssignmentCommandServiceTest {
                 repository,
                 courseFeignClient,
                 outboxEventRepository,
+                mock(AssignmentKnowledgeMasterySynchronizer.class),
                 new ObjectMapper().findAndRegisterModules());
 
         TeacherAssignmentGradeRequestDTO first = new TeacherAssignmentGradeRequestDTO();
@@ -179,6 +187,7 @@ class TeacherAssignmentCommandServiceTest {
                 repository,
                 courseFeignClient,
                 outboxEventRepository,
+                mock(AssignmentKnowledgeMasterySynchronizer.class),
                 new ObjectMapper().findAndRegisterModules());
 
         TeacherAssignmentGradeRequestDTO request = new TeacherAssignmentGradeRequestDTO();
@@ -208,6 +217,7 @@ class TeacherAssignmentCommandServiceTest {
                 repository,
                 courseFeignClient,
                 new InMemoryOutboxEventRepository(),
+                mock(AssignmentKnowledgeMasterySynchronizer.class),
                 new ObjectMapper().findAndRegisterModules());
 
         assertThatThrownBy(() -> service.createAssignment(7L, request(
