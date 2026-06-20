@@ -36,6 +36,8 @@
         <module>notification-service</module>
         <module>ai-service-api</module>
         <module>ai-service</module>
+        <module>agent-service-api</module>
+        <module>agent-service</module>
         <module>legacy-adapter</module>
     </modules>
 </project>

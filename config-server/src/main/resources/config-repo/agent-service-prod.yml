@@ -1,0 +1,10 @@
+spring:
+  datasource:
+    url: ${AGENT_DB_URL}
+    username: ${AGENT_DB_USERNAME:${DB_USERNAME}}
+    password: ${AGENT_DB_PASSWORD:${DB_PASSWORD}}
+
+agent:
+  llm:
+    enabled: ${AGENT_LLM_ENABLED:true}
+    api-key: ${AGENT_LLM_API_KEY:${XIAOMI_API_KEY}}

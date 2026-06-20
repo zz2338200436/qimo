@@ -1,0 +1,28 @@
+server:
+  port: 8092
+
+spring:
+  datasource:
+    url: ${AGENT_DB_URL:${DB_URL:jdbc:mysql://localhost:3306/sc_agent?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}}
+    username: ${AGENT_DB_USERNAME:${DB_USERNAME:root}}
+    password: ${AGENT_DB_PASSWORD:${DB_PASSWORD:root}}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  flyway:
+    enabled: ${AGENT_FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+
+agent:
+  llm:
+    enabled: ${AGENT_LLM_ENABLED:true}
+    provider: ${AGENT_LLM_PROVIDER:openai}
+    base-url: ${AGENT_LLM_BASE_URL:https://token-plan-cn.xiaomimimo.com/v1}
+    api-key: ${AGENT_LLM_API_KEY:${XIAOMI_API_KEY:}}
+    model-name: ${AGENT_LLM_MODEL_NAME:mimo-v2.5}
+    minimum-confidence: ${AGENT_LLM_MINIMUM_CONFIDENCE:0.7}
+    temperature: ${AGENT_LLM_TEMPERATURE:0.0}
+    timeout-seconds: ${AGENT_LLM_TIMEOUT_SECONDS:60}

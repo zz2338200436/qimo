@@ -109,6 +109,9 @@ services:
       - "8888:8888"
     environment:
       EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS: file:/config-repo
+    volumes:
+      - ./config-server/src/main/resources/config-repo:/config-repo:ro
     depends_on:
       registry-server:
         condition: service_healthy
@@ -128,6 +131,8 @@ services:
       DB_PASSWORD: root
       REDIS_HOST: redis
       REDIS_PORT: 6379
+    volumes:
+      - ./major_assignment/src/main/resources/static:/app/static:ro
     depends_on:
       mysql:
         condition: service_healthy
@@ -350,6 +355,33 @@ services:
     networks:
       - qimo-platform
 
+  agent-service:
+    build:
+      context: .
+      dockerfile: agent-service/Dockerfile
+    image: qimo/agent-service:dev
+    ports:
+      - "8092:8092"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_SERVER_URL: http://registry-server:8761/eureka/
+      CONFIG_SERVER_URL: http://config-server:8888
+      AGENT_DB_URL: jdbc:mysql://mysql:3306/sc_agent?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      AGENT_DB_USERNAME: dev_user
+      AGENT_DB_PASSWORD: dev_only_pwd
+      AGENT_LLM_ENABLED: "false"
+      AGENT_LLM_API_KEY: ${AGENT_LLM_API_KEY:-}
+      XIAOMI_API_KEY: ${XIAOMI_API_KEY:-}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      registry-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    networks:
+      - qimo-platform
+
   legacy-adapter:
     build:
       context: .
@@ -385,6 +417,8 @@ services:
       SPRING_PROFILES_ACTIVE: docker
       EUREKA_SERVER_URL: http://registry-server:8761/eureka/
       CONFIG_SERVER_URL: http://config-server:8888
+      AUTH_SERVICE_URL: http://auth-service:8081
+      LEGACY_FRONTEND_URL: http://legacy-monolith:8080
       LEGACY_BASE_URL: http://legacy-monolith:8080
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
@@ -412,6 +446,8 @@ services:
       notification-service:
         condition: service_healthy
       ai-service:
+        condition: service_healthy
+      agent-service:
         condition: service_healthy
       legacy-adapter:
         condition: service_healthy
