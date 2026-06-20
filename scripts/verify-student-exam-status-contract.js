@@ -21,6 +21,22 @@ const checks = [
     test: /exam\.status === ['"]submitted['"]\s*\?\s*['"][^'"]*已提交[^'"]*['"]/m
   },
   {
+    description: 'fetchExams should mark unsubmitted expired exams as ended',
+    test: /else\s+if\s*\(\s*endTime\s*<\s*now\s*\)\s*\{\s*status\s*=\s*['"]ended['"]/m
+  },
+  {
+    description: 'syncExamDetailToCache should keep unsubmitted expired exams ended',
+    test: /else\s+if\s*\(\s*endTime\s*&&\s*endTime\s*<\s*now\s*\)\s*\{\s*status\s*=\s*['"]ended['"]/m
+  },
+  {
+    description: 'renderExams should show ended status label',
+    test: /exam\.status === ['"]ended['"]\s*\?\s*['"][^'"]*已结束[^'"]*['"]/m
+  },
+  {
+    description: 'exam filters should include ended exams',
+    test: /filterExams\(['"]ended['"]\)[^<]*>已结束</m
+  },
+  {
     description: 'renderExams should avoid startExam button for submitted exams',
     test: /if\s*\(\s*exam\.status === ['"]upcoming['"] \|\| exam\.status === ['"]ongoing['"]\s*\)/m
   },

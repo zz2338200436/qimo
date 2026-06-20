@@ -1,4 +1,42 @@
 (function attachTeacherAssignmentsExamCrud(global) {
+    function normalizeExamDateTimeText(value) {
+        return String(value || '').trim().replace(' ', 'T');
+    }
+
+    function serializeExamLocalDateTime(value) {
+        const normalized = normalizeExamDateTimeText(value);
+        if (!normalized) {
+            return '';
+        }
+        const withoutOffset = normalized.replace(/([+-]\d{2}:?\d{2}|Z)$/i, '');
+        const withoutMillis = withoutOffset.split('.')[0];
+        return withoutMillis.length === 16 ? `${withoutMillis}:00` : withoutMillis;
+    }
+
+    function parseExamDateTimeForInput(value) {
+        const normalized = serializeExamLocalDateTime(value);
+        return normalized ? normalized.slice(0, 16) : '';
+    }
+
+    function buildExamEndLocalDateTime(startValue, durationMinutes) {
+        const normalizedStart = parseExamDateTimeForInput(startValue);
+        const duration = parseInt(durationMinutes, 10);
+        if (!normalizedStart || !Number.isFinite(duration)) {
+            return '';
+        }
+
+        const [datePart, timePart] = normalizedStart.split('T');
+        const [year, month, day] = datePart.split('-').map(Number);
+        const [hours, minutes] = timePart.split(':').map(Number);
+        const endDateTime = new Date(year, month - 1, day, hours, minutes + duration, 0);
+        const endYear = endDateTime.getFullYear();
+        const endMonth = String(endDateTime.getMonth() + 1).padStart(2, '0');
+        const endDay = String(endDateTime.getDate()).padStart(2, '0');
+        const endHours = String(endDateTime.getHours()).padStart(2, '0');
+        const endMinutes = String(endDateTime.getMinutes()).padStart(2, '0');
+        return `${endYear}-${endMonth}-${endDay}T${endHours}:${endMinutes}:00`;
+    }
+
     function formatDateTime(dateTimeString) {
         if (!dateTimeString) {
             return '';
@@ -15,16 +53,7 @@
     }
 
     function formatDateTimeLocal(dateTimeString) {
-        if (!dateTimeString) {
-            return '';
-        }
-        const date = new Date(dateTimeString);
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        return `${year}-${month}-${day}T${hours}:${minutes}`;
+        return parseExamDateTimeForInput(dateTimeString);
     }
 
     async function viewExam(examId) {
@@ -80,9 +109,15 @@
                         </div>
                     `;
                 }
+                const viewExamTitle = document.getElementById('viewExamModalLabel');
+                if (viewExamTitle) {
+                    viewExamTitle.textContent = '考试详情';
+                }
                 const viewExamSubmissionsButton = document.getElementById('view-exam-submissions-btn');
                 if (viewExamSubmissionsButton) {
                     viewExamSubmissionsButton.dataset.examId = String(examId);
+                    delete viewExamSubmissionsButton.dataset.assignmentId;
+                    viewExamSubmissionsButton.textContent = '查看提交列表';
                 }
                 const modal = new bootstrap.Modal(document.getElementById('viewExamModal'));
                 modal.show();
@@ -111,7 +146,7 @@
                 document.getElementById('edit-exam-title').value = exam.title;
                 document.getElementById('edit-exam-course').value = exam.courseId;
                 document.getElementById('edit-exam-description').value = exam.description;
-                document.getElementById('edit-exam-start').value = formatDateTimeLocal(exam.startTime);
+                document.getElementById('edit-exam-start').value = parseExamDateTimeForInput(exam.startTime);
                 document.getElementById('edit-exam-duration').value = exam.duration;
 
                 const modal = new bootstrap.Modal(document.getElementById('editExamModal'));
@@ -173,9 +208,6 @@
 
             showLoading();
 
-            const startDateTime = new Date(examStart);
-            const endDateTime = new Date(startDateTime.getTime() + parseInt(examDuration) * 60000);
-
             const apiService = new APIService();
             const teacherAPI = new TeacherAPI(apiService);
 
@@ -183,9 +215,9 @@
                 title: examTitle,
                 courseId: parseInt(examCourse),
                 description: examDescription,
-                startTime: startDateTime.toISOString(),
-                endTime: endDateTime.toISOString(),
-                publishDate: new Date().toISOString(),
+                startTime: serializeExamLocalDateTime(examStart),
+                endTime: buildExamEndLocalDateTime(examStart, examDuration),
+                publishDate: serializeExamLocalDateTime(new Date().toLocaleString('sv-SE').replace(' ', 'T')),
                 duration: parseInt(examDuration),
                 isActive: true,
                 isOnline: true,
@@ -216,6 +248,9 @@
 
     global.formatDateTime = formatDateTime;
     global.formatDateTimeLocal = formatDateTimeLocal;
+    global.serializeExamLocalDateTime = serializeExamLocalDateTime;
+    global.parseExamDateTimeForInput = parseExamDateTimeForInput;
+    global.buildExamEndLocalDateTime = buildExamEndLocalDateTime;
     global.viewExam = viewExam;
     global.editExam = editExam;
     global.deleteExam = deleteExam;

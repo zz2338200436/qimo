@@ -8,11 +8,12 @@ function assertIncludes(content, needle, message) {
 
 const apiContent = fs.readFileSync('frontend/dist/api.js', 'utf8');
 const examPublishContent = fs.readFileSync('frontend/dist/teacher-assignments-exam-publish.js', 'utf8');
+const examCrudContent = fs.readFileSync('frontend/dist/teacher-assignments-exam-crud.js', 'utf8');
 const pageContent = fs.readFileSync('frontend/dist/teacher-assignments.html', 'utf8');
 
 assertIncludes(
   pageContent,
-  'api.js?v=20260602-1',
+  'api.js?v=20260611-assignment-detail-1',
   'teacher assignments page should bust cache for the fixed API module.'
 );
 
@@ -36,6 +37,7 @@ assertIncludes(
 
 [
   'async function submitAddExam() {',
+  'serializeExamLocalDateTime(examStart)',
   'const result = await teacherAPI.createExam(examData);',
   'if (!result || result.success === false) {',
   "showMessage('考试发布失败：' + (result?.message || 'API返回空结果'), 'error');",
@@ -51,6 +53,34 @@ assertIncludes(
     snippet,
     'teacher assignments exam publish module contract mismatch.'
   );
+});
+
+[
+  'function serializeExamLocalDateTime(value) {',
+  'function parseExamDateTimeForInput(value) {',
+  'function buildExamEndLocalDateTime(startValue, durationMinutes) {',
+  'global.serializeExamLocalDateTime = serializeExamLocalDateTime;',
+  'global.parseExamDateTimeForInput = parseExamDateTimeForInput;',
+  'global.buildExamEndLocalDateTime = buildExamEndLocalDateTime;',
+  'document.getElementById(\'edit-exam-start\').value = parseExamDateTimeForInput(exam.startTime);',
+  'startTime: serializeExamLocalDateTime(examStart),',
+  'endTime: buildExamEndLocalDateTime(examStart, examDuration),'
+].forEach(snippet => {
+  assertIncludes(
+    examCrudContent,
+    snippet,
+    'teacher assignments exam CRUD module should keep datetime-local values as local wall-clock time.'
+  );
+});
+
+[
+  'startDateTime.toISOString()',
+  'endDateTime.toISOString()',
+  'new Date(examStart)'
+].forEach(snippet => {
+  if (examPublishContent.includes(snippet) || examCrudContent.includes(snippet)) {
+    throw new Error(`Teacher exam publish/edit should not convert datetime-local values to UTC. Found: ${snippet}`);
+  }
 });
 
 [

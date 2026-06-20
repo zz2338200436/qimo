@@ -251,24 +251,19 @@ public class ExamController extends BaseController {
             exam.setDescription((String) requestBody.get("description"));
             exam.setCourseId(courseId);
             
-            // 处理日期字符串，转换为Date对象
-            // ISO格式字符串（如：2025-12-24T08:00:00.000Z）需要设置为UTC时区
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-            sdf.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
-            
             String startTimeStr = (String) requestBody.getOrDefault("startTime", requestBody.get("start_time"));
             if (startTimeStr != null) {
-                exam.setStartTime(sdf.parse(startTimeStr));
+                exam.setStartTime(parseExamDateTime(startTimeStr));
             }
             
             String endTimeStr = (String) requestBody.getOrDefault("endTime", requestBody.get("end_time"));
             if (endTimeStr != null) {
-                exam.setEndTime(sdf.parse(endTimeStr));
+                exam.setEndTime(parseExamDateTime(endTimeStr));
             }
             
             String publishDateStr = (String) requestBody.getOrDefault("publishDate", requestBody.get("publish_date"));
             if (publishDateStr != null) {
-                exam.setPublishDate(sdf.parse(publishDateStr));
+                exam.setPublishDate(parseExamDateTime(publishDateStr));
             }
             
             // 处理布尔值
@@ -378,24 +373,19 @@ public class ExamController extends BaseController {
             existingExam.setCourseId(courseId);
             existingExam.setTeacherId(teacherId);
             
-            // 处理日期字符串，转换为Date对象
-            // ISO格式字符串（如：2025-12-24T08:00:00.000Z）需要设置为UTC时区
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-            sdf.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
-            
             String startTimeStr = (String) requestBody.getOrDefault("startTime", requestBody.get("start_time"));
             if (startTimeStr != null) {
-                existingExam.setStartTime(sdf.parse(startTimeStr));
+                existingExam.setStartTime(parseExamDateTime(startTimeStr));
             }
             
             String endTimeStr = (String) requestBody.getOrDefault("endTime", requestBody.get("end_time"));
             if (endTimeStr != null) {
-                existingExam.setEndTime(sdf.parse(endTimeStr));
+                existingExam.setEndTime(parseExamDateTime(endTimeStr));
             }
             
             String publishDateStr = (String) requestBody.getOrDefault("publishDate", requestBody.get("publish_date"));
             if (publishDateStr != null) {
-                existingExam.setPublishDate(sdf.parse(publishDateStr));
+                existingExam.setPublishDate(parseExamDateTime(publishDateStr));
             }
             
             // 处理布尔值
@@ -442,6 +432,34 @@ public class ExamController extends BaseController {
             LogUtil.logError(logger, "删除考试失败，考试ID: " + id, e);
             return ResponseResult.failure("删除考试失败", 500);
         }
+    }
+
+    private Date parseExamDateTime(String value) throws ParseException {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        String normalized = value.trim();
+        if (normalized.endsWith("Z") || normalized.matches(".*[+-]\\d{2}:?\\d{2}$")) {
+            ParseException lastFailure = null;
+            for (String pattern : List.of("yyyy-MM-dd'T'HH:mm:ss.SSSX", "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", "yyyy-MM-dd'T'HH:mm:ssX", "yyyy-MM-dd'T'HH:mm:ssXXX")) {
+                try {
+                    SimpleDateFormat isoFormat = new SimpleDateFormat(pattern);
+                    isoFormat.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+                    return isoFormat.parse(normalized);
+                } catch (ParseException e) {
+                    lastFailure = e;
+                }
+            }
+            throw lastFailure;
+        }
+
+        String localDateTime = normalized.replace('T', ' ');
+        if (localDateTime.length() == 16) {
+            localDateTime += ":00";
+        }
+        SimpleDateFormat localFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        return localFormat.parse(localDateTime);
     }
     
     @GetMapping("/{id}")

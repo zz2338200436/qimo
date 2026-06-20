@@ -13,6 +13,8 @@
             || document.querySelector('#submissions-content tbody');
     }
 
+    const VIEW_ACTION_BUTTON_CLASS = 'btn teacher-action-view btn-sm';
+
     function renderTableMessage(tbody, colspan, message, className = 'text-center') {
         if (!tbody) {
             return;
@@ -178,7 +180,7 @@
                     <td>${statusBadge}</td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn" onclick="viewAssignment(${assignment.id})" style="background-color: #4f46e5; color: white; padding: 6px 12px; border-radius: 8px; font-size: 12px; border: none; margin-right: 4px;">
+                            <button class="${VIEW_ACTION_BUTTON_CLASS}" onclick="viewAssignment(${assignment.id})">
                                 <i class="fa fa-eye"></i> 查看
                             </button>
                             <button class="btn" onclick="editAssignment(${assignment.id})" style="background-color: #e5e7eb; color: #374151; padding: 6px 12px; border-radius: 8px; font-size: 12px; border: 1px solid #d1d5db; margin-right: 4px;">
@@ -276,7 +278,7 @@
                     <td>${statusBadge}</td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn btn-primary btn-sm" onclick="viewExam(${exam.id})">
+                            <button class="${VIEW_ACTION_BUTTON_CLASS}" onclick="viewExam(${exam.id})">
                                 <i class="fa fa-eye"></i> 查看
                             </button>
                             <button class="btn btn-secondary btn-sm" onclick="editExam(${exam.id})">
@@ -402,7 +404,7 @@
             }
 
             const actionButtons = submissionId != null ? `
-                <button class="btn btn-primary btn-sm" onclick="viewSubmission(${submissionId})">
+                <button class="${VIEW_ACTION_BUTTON_CLASS}" onclick="viewSubmission(${submissionId})">
                     <i class="fa fa-eye"></i> 查看
                 </button>
                 ${normalizedStatus !== 'graded' ? `

@@ -6,6 +6,12 @@ function assertIncludes(content, needle, message) {
   }
 }
 
+function assertNotIncludes(content, needle, message) {
+  if (content.includes(needle)) {
+    throw new Error(`${message} Found: ${needle}`);
+  }
+}
+
 const gradingModule = fs.readFileSync('frontend/dist/teacher-assignments-grading.js', 'utf8');
 const signature = 'async function submitGradeSubmission()';
 const lastStart = gradingModule.lastIndexOf(signature);
@@ -24,6 +30,12 @@ assertIncludes(
   activeFunctionBody,
   'await loadAssignments();',
   'Active submitGradeSubmission should refresh the outer assignment list after grading.'
+);
+
+assertNotIncludes(
+  activeFunctionBody,
+  'await viewSubmission(submissionId);',
+  'Active submitGradeSubmission should not reopen the submission detail modal after grading.'
 );
 
 console.log('teacher grade refresh contract OK');

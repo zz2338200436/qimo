@@ -8,11 +8,11 @@
 
             const response = await teacherAPI.getAssignmentById(assignmentId);
             if (response.success) {
-                const assignment = response.data;
+                const assignment = response.data?.assignment || response.data;
                 const viewExamBody = document.getElementById('viewExamBody');
                 if (viewExamBody) {
                     viewExamBody.innerHTML = `
-                        <div class="exam-detail">
+                        <div class="assignment-detail">
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <strong>作业标题:</strong> ${assignment.title}
@@ -40,6 +40,16 @@
                             </div>
                         </div>
                     `;
+                }
+                const viewExamTitle = document.getElementById('viewExamModalLabel');
+                if (viewExamTitle) {
+                    viewExamTitle.textContent = '作业详情';
+                }
+                const viewExamSubmissionsButton = document.getElementById('view-exam-submissions-btn');
+                if (viewExamSubmissionsButton) {
+                    viewExamSubmissionsButton.dataset.assignmentId = String(assignmentId);
+                    delete viewExamSubmissionsButton.dataset.examId;
+                    viewExamSubmissionsButton.textContent = '查看提交列表';
                 }
                 const modal = new bootstrap.Modal(document.getElementById('viewExamModal'));
                 modal.show();

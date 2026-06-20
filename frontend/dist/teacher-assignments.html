@@ -9,10 +9,10 @@
     <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Google Fonts -->
 
-    <link href="styles.css?v=20260523-1" rel="stylesheet">
+    <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
     <!-- Bootstrap 5 JS -->
     <script src="lib/bootstrap.bundle.min.js"></script>
-    <script src="common-ui.js?v=20260523-1"></script>
+    <script src="common-ui.js?v=20260608-theme-4"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -25,7 +25,7 @@
         .sidebar {
             width: 280px;
             height: 100vh;
-            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
             color: white;
             position: fixed;
             top: 0;
@@ -180,7 +180,7 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -241,13 +241,13 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
             color: white;
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 5px 15px rgba(37, 99, 235, 0.4);
         }
 
         .btn-secondary {
@@ -320,8 +320,8 @@
 
         .tab-item.active {
             background: white;
-            color: #667eea;
-            border-bottom: 3px solid #667eea;
+            color: #2563eb;
+            border-bottom: 3px solid #2563eb;
         }
 
         .tab-content {
@@ -363,8 +363,8 @@
         .search-group input:focus,
         .search-group select:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
 
         /* 表格样式 */
@@ -406,6 +406,21 @@
             gap: 8px;
         }
 
+        .action-buttons .teacher-action-view {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            border: 1px solid rgba(37, 99, 235, 0.18);
+            color: #fff;
+            box-shadow: 0 6px 14px rgba(37, 99, 235, 0.16);
+        }
+
+        .action-buttons .teacher-action-view:hover,
+        .action-buttons .teacher-action-view:focus-visible {
+            background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+            color: #fff;
+            box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+            transform: translateY(-1px);
+        }
+
         /* 标签样式 */
         .badge {
             padding: 6px 12px;
@@ -415,8 +430,8 @@
         }
 
         .badge-primary {
-            background: rgba(102, 126, 234, 0.2);
-            color: #667eea;
+            background: rgba(37, 99, 235, 0.2);
+            color: #2563eb;
         }
 
         .badge-success {
@@ -531,8 +546,8 @@
         .form-group select:focus,
         .form-group textarea:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
 
         .form-group textarea {
@@ -553,35 +568,6 @@
 
         .input-group input {
             flex: 1;
-        }
-
-        /* 分页样式 */
-        .pagination {
-            display: flex;
-            justify-content: center;
-            margin-top: 24px;
-            gap: 8px;
-        }
-
-        .page-link {
-            padding: 10px 16px;
-            border-radius: 10px;
-            border: 1px solid #e2e8f0;
-            background: white;
-            color: #64748b;
-            transition: all 0.3s ease;
-        }
-
-        .page-link:hover {
-            background: #f8fafc;
-            color: #667eea;
-            border-color: #667eea;
-        }
-
-        .page-link.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-color: #667eea;
         }
 
         /* 统计卡片 */
@@ -620,7 +606,7 @@
         }
 
         .stat-icon-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
             color: white;
         }
 
@@ -730,7 +716,7 @@
             width: 50px;
             height: 50px;
             border: 5px solid #f3f3f3;
-            border-top: 5px solid #667eea;
+            border-top: 5px solid #2563eb;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -828,7 +814,7 @@
             </div>
 
             <div class="navbar-right">
-                <!-- 用户下拉菜单组件（教师端紫色主题） -->
+                <!-- 用户下拉菜单组件（教师端蓝色主题） -->
                 <div id="userDropdownContainer"></div>
             </div>
         </nav>
@@ -1647,15 +1633,15 @@
         <div class="loading-spinner"></div>
     </div>
     <!-- 引入外部API脚本 -->
-    <script src="api.js?v=20260602-1"></script>
-    <script src="teacher-assignments-assignment-crud.js?v=20260524-1"></script>
+    <script src="api.js?v=20260611-assignment-detail-1"></script>
+    <script src="teacher-assignments-assignment-crud.js?v=20260611-assignment-detail-1"></script>
 <script src="teacher-assignments-assignment-publish.js?v=20260602-2"></script>
-    <script src="teacher-assignments-lists.js?v=20260524-1"></script>
-    <script src="teacher-assignments-exam-crud.js?v=20260524-1"></script>
+    <script src="teacher-assignments-lists.js?v=20260609-view-action-1"></script>
+    <script src="teacher-assignments-exam-crud.js?v=20260611-assignment-detail-1"></script>
     <script src="teacher-assignments-exam-publish.js?v=20260602-1"></script>
     <script src="teacher-assignments-shell.js?v=20260602-2"></script>
     <script src="teacher-assignments-submission-filters.js?v=20260524-1"></script>
-    <script src="teacher-assignments-grading.js?v=20260602-1"></script>
+    <script src="teacher-assignments-grading.js?v=20260611-content-display-1"></script>
 
     <script>
         // 通用函数：为教师端加载右上角用户下拉菜单，并执行组件内脚本
@@ -1665,7 +1651,7 @@
 
         // 初始化页面
         document.addEventListener('DOMContentLoaded', async function() {
-            if (!CommonUI.requireTeacherSession({ redirectUrl: 'teacher-login.html?v=20260523-1' })) {
+            if (!CommonUI.requireTeacherSession({ redirectUrl: 'teacher-login.html?v=20260608-theme-4' })) {
                 return;
             }
             if (window.loadFrontendCapabilities) {

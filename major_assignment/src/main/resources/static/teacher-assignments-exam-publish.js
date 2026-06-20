@@ -56,9 +56,6 @@
 
             showLoading();
 
-            const startDateTime = new Date(examStart);
-            const endDateTime = new Date(startDateTime.getTime() + parseInt(examDuration) * 60000);
-
             const apiService = new APIService();
             const teacherAPI = new TeacherAPI(apiService);
 
@@ -66,9 +63,9 @@
                 title: examTitle,
                 courseId: parseInt(examCourse),
                 description: examDescription,
-                startTime: startDateTime.toISOString(),
-                endTime: endDateTime.toISOString(),
-                publishDate: new Date().toISOString(),
+                startTime: serializeExamLocalDateTime(examStart),
+                endTime: buildExamEndLocalDateTime(examStart, examDuration),
+                publishDate: serializeExamLocalDateTime(new Date().toLocaleString('sv-SE').replace(' ', 'T')),
                 duration: parseInt(examDuration),
                 isActive: true,
                 isOnline: true,

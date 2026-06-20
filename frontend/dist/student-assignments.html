@@ -10,14 +10,14 @@
     <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Google Fonts -->
         <!-- 全局样式文件 -->
-    <link href="styles.css?v=20260523-1" rel="stylesheet">
+    <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
 </head>
 <body class="student-theme">
 <!-- 侧边栏导航组件 -->
 <div id="sidebar-container"></div>
 <script>
     $(function() {
-        $('#sidebar-container').load('components/sidebar-nav.html?v=20260523-1', function() {
+        $('#sidebar-container').load('components/sidebar-nav.html?v=20260608-theme-4', function() {
             highlightActiveNavItem();
         });
     });
@@ -100,6 +100,7 @@
                         <div>
                             <button class="filter-btn active" onclick="filterExams('all')">全部</button>
                             <button class="filter-btn" onclick="filterExams('upcoming')">即将到来</button>
+                            <button class="filter-btn" onclick="filterExams('ended')">已结束</button>
                             <button class="filter-btn" onclick="filterExams('completed')">已完成</button>
                             <button class="filter-btn" onclick="filterExams('graded')">已批改</button>
                         </div>
@@ -148,7 +149,7 @@
 <script src="lib/bootstrap.bundle.min.js"></script>
 
 <!-- API服务 -->
-<script src="api.js?v=20260523-1"></script>
+<script src="api.js?v=20260608-theme-4"></script>
 
 <!-- 页面功能脚本 -->
 <script>
@@ -508,7 +509,7 @@
                 </div>
                 <div class="item-status">
                     <span class="status-badge ${exam.status}">
-                        ${exam.status === 'upcoming' ? '即将到来' : exam.status === 'ongoing' ? '进行中' : exam.status === 'submitted' ? '已提交' : exam.status === 'completed' ? '已完成' : '已批改'}
+                        ${exam.status === 'upcoming' ? '即将到来' : exam.status === 'ongoing' ? '进行中' : exam.status === 'submitted' ? '已提交' : exam.status === 'ended' ? '已结束' : exam.status === 'completed' ? '已完成' : '已批改'}
                     </span>
                     ${exam.score ? `<span class="score">${exam.score}分</span>` : ''}
                 </div>
@@ -534,7 +535,7 @@
         if (examDetail.submission) {
             status = examDetail.submission.graded ? 'graded' : 'submitted';
         } else if (endTime && endTime < now) {
-            status = 'completed';
+            status = 'ended';
         } else if (startTime && endTime && startTime <= now && endTime >= now) {
             status = 'ongoing';
         }
@@ -812,7 +813,7 @@
                 if (exam.submission) {
                     status = exam.submission.graded ? 'graded' : 'submitted';
                 } else if (endTime < now) {
-                    status = 'completed';
+                    status = 'ended';
                 } else if (startTime <= now && endTime >= now) {
                     status = 'ongoing';
                 }
@@ -909,13 +910,13 @@
         const user = sessionStorage.getItem('user');
         const sessionContext = window.getStudentSessionContext ? window.getStudentSessionContext() : null;
         if (!user && !(sessionContext && sessionContext.canRender)) {
-            window.location.href = 'student-login.html?v=20260523-1';
+            window.location.href = 'student-login.html?v=20260608-theme-4';
             return false;
         }
         
         // 加载用户下拉组件
         if ($('#userDropdownContainer').length > 0) {
-        $('#userDropdownContainer').load('components/user-dropdown.html?v=20260523-1', function() {
+        $('#userDropdownContainer').load('components/user-dropdown.html?v=20260608-theme-4', function() {
                 if (typeof UserDropdown !== 'undefined') {
                     new UserDropdown('userDropdownContainer');
                 }

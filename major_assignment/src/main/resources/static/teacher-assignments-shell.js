@@ -274,7 +274,7 @@
         if (action) {
             params.set('action', action);
         }
-        window.location.href = `teacher-assignments.html?${params.toString()}&v=20260523-1`;
+        window.location.href = `teacher-assignments.html?${params.toString()}&v=20260608-theme-4`;
     }
 
     function buildExamSearchParams() {

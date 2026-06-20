@@ -8,6 +8,32 @@
         }
     }
 
+    function hideModalById(modalId) {
+        const modalElement = document.getElementById(modalId);
+        const modal = modalElement ? bootstrap.Modal.getInstance(modalElement) : null;
+        if (modal && modalElement.classList.contains('show')) {
+            modal.hide();
+        }
+    }
+
+    function formatSubmissionContent(value) {
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        const text = String(value);
+        try {
+            const parsed = JSON.parse(text);
+            if (parsed && typeof parsed === 'object' && parsed.content !== undefined && parsed.content !== null) {
+                return String(parsed.content);
+            }
+        } catch (error) {
+            // Plain text submissions are displayed as-is.
+        }
+
+        return text;
+    }
+
     async function gradeAssignment(assignmentId) {
         try {
             const modalElement = document.getElementById('gradeAssignmentModal');
@@ -84,7 +110,7 @@
             const score = submission.graded
                 ? (submission.score !== null ? `${submission.score}分` : '-')
                 : '-';
-            const content = submission.content || '-';
+            const content = formatSubmissionContent(submission.content) || '-';
             const contentPreview = content.length > 50 ? `${content.substring(0, 50)}...` : content;
             const studentName = submission.studentName || `学生${submission.studentId || '-'}`;
 
@@ -124,11 +150,13 @@
 
             const submission = data.data;
             document.getElementById('grade-submission-id').value = submissionId;
-            document.getElementById('grade-submission-content').value = submission.content || '';
+            document.getElementById('grade-submission-content').value = formatSubmissionContent(submission.content);
             document.getElementById('grade-score').value = submission.score || '';
             document.getElementById('grade-comment').value = submission.teacherComment || '';
 
-            const modal = new bootstrap.Modal(document.getElementById('gradeSubmissionModal'));
+            hideModalById('viewSubmissionModal');
+
+            const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('gradeSubmissionModal'));
             modal.show();
         } catch (error) {
             console.error('打开批改模态框失败:', error);
@@ -138,9 +166,10 @@
 
     function openExamSubmissionListFromViewModal() {
         const viewExamSubmissionsButton = document.getElementById('view-exam-submissions-btn');
+        const assignmentId = viewExamSubmissionsButton?.dataset?.assignmentId;
         const examId = viewExamSubmissionsButton?.dataset?.examId;
-        if (!examId) {
-            showMessage('缺少考试信息，无法查看提交列表', 'error');
+        if (!assignmentId && !examId) {
+            showMessage('缺少作业或考试信息，无法查看提交列表', 'error');
             return;
         }
 
@@ -148,6 +177,11 @@
         const modal = bootstrap.Modal.getInstance(viewExamModal);
         if (modal) {
             modal.hide();
+        }
+
+        if (assignmentId) {
+            gradeAssignment(parseInt(assignmentId, 10));
+            return;
         }
 
         gradeExam(parseInt(examId, 10));
@@ -220,7 +254,7 @@
                 : '-';
             const timeTaken = submission.timeTaken !== null ? `${submission.timeTaken}分钟` : '-';
             const studentName = submission.studentName || `学生${submission.studentId || '-'}`;
-            const content = submission.content || submission.answerContent || '';
+            const content = formatSubmissionContent(submission.content || submission.answerContent || '');
             const contentPreview = content.length > 50 ? `${content.substring(0, 50)}...` : (content || '-');
 
             row.innerHTML = `
@@ -250,7 +284,7 @@
             const submission = data.data;
             document.getElementById('grade-exam-submission-id').value = submissionId;
             document.getElementById('grade-exam-submission-content').value =
-                submission.content || submission.answerContent || '（无提交内容）';
+                formatSubmissionContent(submission.content || submission.answerContent || '') || '（无提交内容）';
             document.getElementById('grade-exam-score').value = submission.score || '';
             document.getElementById('grade-exam-comment').value = submission.teacherComment || '';
 
@@ -349,8 +383,9 @@
                 modalTitle.textContent = `${studentName}的提交详情`;
             }
 
-            const contentHtml = submission.content
-                ? `<div class="submission-content" style="white-space: pre-wrap; word-break: break-word;">${escapeSubmissionText(submission.content)}</div>`
+            const displayContent = formatSubmissionContent(submission.content);
+            const contentHtml = displayContent
+                ? `<div class="submission-content" style="white-space: pre-wrap; word-break: break-word;">${escapeSubmissionText(displayContent)}</div>`
                 : '<p class="text-muted">暂无提交内容</p>';
 
             const submissionHTML = `
@@ -410,7 +445,9 @@
             document.getElementById('gradeSubmissionForm').reset();
             document.getElementById('grade-submission-id').value = submissionId;
 
-            const modal = new bootstrap.Modal(document.getElementById('gradeSubmissionModal'));
+            hideModalById('viewSubmissionModal');
+
+            const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('gradeSubmissionModal'));
             modal.show();
         } catch (error) {
             console.error('Failed to grade submission:', error);
@@ -426,7 +463,9 @@
             document.getElementById('grade-comment').value = submission.teacherComment || '';
             currentSubmissionId = submissionId;
 
-            const modal = new bootstrap.Modal(document.getElementById('gradeSubmissionModal'));
+            hideModalById('viewSubmissionModal');
+
+            const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('gradeSubmissionModal'));
             modal.show();
         } catch (error) {
             console.error('Failed to regrade submission:', error);
@@ -473,10 +512,7 @@
             await loadAssignments();
             loadSubmissions();
 
-            const viewModal = bootstrap.Modal.getInstance(document.getElementById('viewSubmissionModal'));
-            if (viewModal) {
-                await viewSubmission(submissionId);
-            }
+            hideModalById('viewSubmissionModal');
         } catch (error) {
             console.error('Failed to submit grade:', error);
             showMessage(`提交批改成绩失败: ${error.message}`, 'error');

@@ -13,7 +13,7 @@ const gradingContent = fs.readFileSync('frontend/dist/teacher-assignments-gradin
   'id="viewSubmissionModal"',
   'id="viewSubmissionBody"',
   'id="gradeSubmissionBtn"',
-  'teacher-assignments-grading.js?v=20260602-1'
+  'teacher-assignments-grading.js?v=20260611-content-display-1'
 ].forEach(snippet => {
   assertIncludes(
     pageContent,
