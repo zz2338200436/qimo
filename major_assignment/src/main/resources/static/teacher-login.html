@@ -54,7 +54,17 @@
         .captcha-group { display: flex; gap: 12px; align-items: flex-start; }
         .captcha-input { flex: 1; }
         .captcha-image { width: 120px; height: 58px; border-radius: 12px; overflow: hidden; border: 2px solid #e2e8f0; cursor: pointer; }
-        .captcha-image img { width: 100%; height: 100%; object-fit: cover; }
+        .captcha-image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+        .captcha-image.is-loading,
+        .captcha-image.is-unavailable { display: flex; align-items: center; justify-content: center; padding: 8px; text-align: center; }
+        .captcha-image.is-loading { border-color: #dbeafe; background: #f8fafc; color: #64748b; }
+        .captcha-image.is-unavailable { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }
+        .captcha-image.is-loading img,
+        .captcha-image.is-unavailable img { display: none; }
+        .captcha-loading,
+        .captcha-fallback { display: none; font-size: 12px; line-height: 1.35; font-weight: 600; }
+        .captcha-image.is-loading .captcha-loading,
+        .captcha-image.is-unavailable .captcha-fallback { display: block; }
         .remember-me { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
         .remember-me input[type="checkbox"] { width: 18px; height: 18px; accent-color: #2563eb; }
         .remember-me label { font-size: 14px; color: #64748b; margin: 0; cursor: pointer; }
@@ -116,8 +126,10 @@
                     <label for="captcha" data-i18n="login.form.captcha">验证码</label>
                     <div class="captcha-group">
                         <input type="text" id="captcha" data-i18n-placeholder="login.form.captcha_placeholder" placeholder="请输入验证码" class="captcha-input" required>
-                        <div class="captcha-image">
-                            <img id="captchaImage" src="/api/auth/captcha" alt="验证码">
+                        <div class="captcha-image" role="button" tabindex="0" aria-label="刷新验证码">
+                            <img id="captchaImage" alt="验证码">
+                            <span class="captcha-loading">验证码加载中...</span>
+                            <span class="captcha-fallback">验证码服务未连接<br>点击重试</span>
                         </div>
                     </div>
                 </div>
@@ -142,8 +154,8 @@
             <a href="#" class="lang-btn" data-lang="ja-JP">日本語</a>
         </div>
     </div>
-<script src="i18n.js?v=20260523-1"></script>
-<script src="api.js?v=20260523-1"></script>
+<script src="i18n.js?v=20260608-theme-4"></script>
+<script src="api.js?v=20260608-theme-4"></script>
 
     <script>
         var teacherCaptchaKey = '';
@@ -165,20 +177,47 @@
 
         async function refreshTeacherCaptcha() {
             var captchaImage = document.getElementById('captchaImage');
+            var captchaBox = captchaImage ? captchaImage.closest('.captcha-image') : null;
+            if (!captchaImage) return;
+            teacherCaptchaKey = '';
+            if (captchaImage.dataset.objectUrl) {
+                URL.revokeObjectURL(captchaImage.dataset.objectUrl);
+                delete captchaImage.dataset.objectUrl;
+            }
+            captchaImage.removeAttribute('src');
+            if (captchaBox) {
+                captchaBox.classList.remove('is-unavailable');
+                captchaBox.classList.add('is-loading');
+            }
+            var controller = new AbortController();
+            var timeoutId = window.setTimeout(function() {
+                controller.abort();
+            }, 3000);
             try {
                 var response = await fetch('/api/auth/captcha?timestamp=' + Date.now(), {
-                    credentials: 'include'
+                    credentials: 'include',
+                    signal: controller.signal
                 });
                 if (!response.ok) {
                     throw new Error('Failed to load captcha');
                 }
                 teacherCaptchaKey = response.headers.get('X-Captcha-Key') || '';
                 var blob = await response.blob();
-                captchaImage.src = URL.createObjectURL(blob);
+                var objectUrl = URL.createObjectURL(blob);
+                captchaImage.src = objectUrl;
+                captchaImage.dataset.objectUrl = objectUrl;
+                if (captchaBox) {
+                    captchaBox.classList.remove('is-loading', 'is-unavailable');
+                }
             } catch (error) {
                 console.error('Captcha load error:', error);
                 captchaImage.removeAttribute('src');
-                showLoginMessage(I18nManager.t('login.errors.request_failed'), 'error');
+                if (captchaBox) {
+                    captchaBox.classList.remove('is-loading');
+                    captchaBox.classList.add('is-unavailable');
+                }
+            } finally {
+                window.clearTimeout(timeoutId);
             }
         }
 
@@ -186,7 +225,16 @@
             await I18nManager.init();
             I18nManager.bindLanguageSwitcher();
             var captchaImage = document.getElementById('captchaImage');
-            captchaImage.addEventListener('click', refreshTeacherCaptcha);
+            var captchaBox = captchaImage ? captchaImage.closest('.captcha-image') : null;
+            if (captchaBox) {
+                captchaBox.addEventListener('click', refreshTeacherCaptcha);
+                captchaBox.addEventListener('keydown', function(event) {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        refreshTeacherCaptcha();
+                    }
+                });
+            }
             await refreshTeacherCaptcha();
             
             document.getElementById('loginForm').addEventListener('submit', async function(e) {
@@ -224,7 +272,7 @@
                             return role === 'TEACHER';
                         });
                         if (hasTeacherRole) {
-                            window.location.href = 'teacher-dashboard.html?v=20260523-1';
+                            window.location.href = 'teacher-dashboard.html?v=20260608-theme-4';
                         } else {
                             showLoginMessage(I18nManager.t('login.errors.not_teacher'), 'error');
                             await refreshTeacherCaptcha();
