@@ -24,6 +24,7 @@
         <spring-boot.version>3.5.3</spring-boot.version>
         <spring-cloud.version>2025.0.0</spring-cloud.version>
         <spring-cloud-contract.version>4.3.0</spring-cloud-contract.version>
+        <langchain4j.version>1.16.2</langchain4j.version>
         <resilience4j.version>2.2.0</resilience4j.version>
         <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
         <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
