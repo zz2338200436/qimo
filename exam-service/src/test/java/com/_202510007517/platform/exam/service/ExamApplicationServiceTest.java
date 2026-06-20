@@ -347,6 +347,34 @@ class ExamApplicationServiceTest {
     }
 
     @Test
+    void listTeacherExamsAcceptsDatetimeLocalValuesWhenResolvingStatus() {
+        ExamRecord exam = new ExamRecord();
+        exam.setId(9001L);
+        exam.setTitle("TeacherExamDatetimeLocal");
+        exam.setCourseId(2L);
+        exam.setTeacherId(7L);
+        exam.setStartTime("2026-06-11T09:43:00");
+        exam.setEndTime("2026-06-11T11:13:00");
+        exam.setPublishDate("2026-06-11T09:40:00");
+        exam.setDuration(90);
+        exam.setActive(true);
+        exam.setOnline(true);
+        exam.setLocation("");
+
+        when(examRepository.findByTeacherId(7L)).thenReturn(List.of(exam));
+        when(courseFeignClient.getCourse(2L)).thenReturn(courseDto(2L, "CourseSmokeA"));
+        when(courseFeignClient.listTeacherClasses(7L, null, null, null, null, 2L)).thenReturn(List.of());
+        when(examRepository.countSubmissionsByExamId(9001L)).thenReturn(0);
+
+        Map<String, Object> page = examApplicationService.listTeacherExams(7L, 1, 10, "id", "DESC", null, null, null);
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> content = (List<Map<String, Object>>) page.get("content");
+        assertThat(content).hasSize(1);
+        assertThat(content.get(0)).containsEntry("startTime", "2026-06-11T09:43:00");
+    }
+
+    @Test
     void getTeacherExamReturnsInternalDtoForOwnedExam() {
         when(examRepository.findExam(9001L)).thenReturn(Optional.of(openExam));
         when(courseFeignClient.getCourse(2L)).thenReturn(courseDto(2L, "CourseSmokeA"));
@@ -413,6 +441,32 @@ class ExamApplicationServiceTest {
 
         assertThat(created.getId()).isEqualTo(9005L);
         verify(examRepository).replaceExamClasses(9005L, Set.of(2L));
+    }
+
+    @Test
+    void updateTeacherExamAcceptsDatetimeLocalValuesFromTeacherForm() {
+        TeacherExamUpsertRequestDTO request = new TeacherExamUpsertRequestDTO();
+        request.setTitle("TeacherExamCrudSmokeUpdated");
+        request.setDescription("teacher exam updated");
+        request.setCourseId(2L);
+        request.setStartTime("2026-06-11T09:43:00");
+        request.setEndTime("2026-06-11T11:13:00");
+        request.setPublishDate("2026-06-11T09:40:00");
+        request.setDuration(90L);
+        request.setIsActive(true);
+        request.setIsOnline(true);
+        request.setLocation("");
+
+        when(examRepository.findExam(9001L)).thenReturn(Optional.of(openExam));
+        when(courseFeignClient.getCourse(2L)).thenReturn(courseDto(2L, "CourseSmokeA"));
+        when(examRepository.findExam(9001L)).thenReturn(Optional.of(openExam), Optional.of(openExam));
+
+        examApplicationService.updateTeacherExam(7L, 9001L, request);
+
+        ArgumentCaptor<ExamRecord> updateCaptor = ArgumentCaptor.forClass(ExamRecord.class);
+        verify(examRepository).update(updateCaptor.capture());
+        assertThat(updateCaptor.getValue().getStartTime()).isEqualTo("2026-06-11 09:43:00");
+        assertThat(updateCaptor.getValue().getEndTime()).isEqualTo("2026-06-11 11:13:00");
     }
 
     @Test

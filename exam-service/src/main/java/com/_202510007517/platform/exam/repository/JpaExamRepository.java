@@ -103,7 +103,7 @@ public class JpaExamRepository implements ExamRepository {
             return Optional.empty();
         }
         return submissionJpaRepository.findByExamIdAndStudentId(examId, studentId)
-                .map(entity -> toRecord(entity, titleForExam(examId), nameForStudent(studentId)));
+                .map(entity -> toRecord(entity, titleForExam(examId), null));
     }
 
     @Override
@@ -120,7 +120,7 @@ public class JpaExamRepository implements ExamRepository {
             entity.setScore(null);
             entity.setTeacherComment(null);
             submissionJpaRepository.save(entity);
-            return findSubmission(examId, studentId).orElseThrow();
+            return toRecord(entity, titleForExam(examId), null);
         }
 
         ExamSubmissionEntity entity = new ExamSubmissionEntity();
@@ -132,8 +132,8 @@ public class JpaExamRepository implements ExamRepository {
         entity.setGraded(false);
         entity.setScore(null);
         entity.setTeacherComment(null);
-        submissionJpaRepository.save(entity);
-        return findSubmission(examId, studentId).orElseThrow();
+        ExamSubmissionEntity saved = submissionJpaRepository.save(entity);
+        return toRecord(saved, titleForExam(examId), null);
     }
 
     @Override
@@ -244,12 +244,8 @@ public class JpaExamRepository implements ExamRepository {
     @Transactional(readOnly = true)
     public List<ExamSubmissionRecord> findSubmissionsByExamId(Long examId) {
         String examTitle = titleForExam(examId);
-        Map<Long, String> studentNames = loadStudentNames(
-                submissionJpaRepository.findByExamIdOrderBySubmissionDateDescIdDesc(examId).stream()
-                        .map(ExamSubmissionEntity::getStudentId)
-                        .toList());
         return submissionJpaRepository.findByExamIdOrderBySubmissionDateDescIdDesc(examId).stream()
-                .map(entity -> toRecord(entity, examTitle, studentNames.get(entity.getStudentId())))
+                .map(entity -> toRecord(entity, examTitle, null))
                 .toList();
     }
 
@@ -275,9 +271,8 @@ public class JpaExamRepository implements ExamRepository {
             return List.of();
         }
         int endIndex = Math.min(filtered.size(), safeOffset + safeLimit);
-        Map<Long, String> studentNames = loadStudentNames(filtered.stream().map(ExamSubmissionEntity::getStudentId).toList());
         return filtered.subList(safeOffset, endIndex).stream()
-                .map(entity -> toRecord(entity, titleForExam(entity.getExamId(), teacherExams), studentNames.get(entity.getStudentId())))
+                .map(entity -> toRecord(entity, titleForExam(entity.getExamId(), teacherExams), null))
                 .toList();
     }
 
@@ -297,7 +292,7 @@ public class JpaExamRepository implements ExamRepository {
             return Optional.empty();
         }
         return submissionJpaRepository.findById(submissionId)
-                .map(entity -> toRecord(entity, titleForExam(entity.getExamId()), nameForStudent(entity.getStudentId())));
+                .map(entity -> toRecord(entity, titleForExam(entity.getExamId()), null));
     }
 
     @Override
@@ -456,8 +451,12 @@ public class JpaExamRepository implements ExamRepository {
             return Map.of();
         }
         LinkedHashMap<Long, String> names = new LinkedHashMap<>();
-        for (UserLookupEntity user : userLookupJpaRepository.findByIdIn(new LinkedHashSet<>(studentIds))) {
-            names.put(user.getId(), user.getName());
+        try {
+            for (UserLookupEntity user : userLookupJpaRepository.findByIdIn(new LinkedHashSet<>(studentIds))) {
+                names.put(user.getId(), user.getName());
+            }
+        } catch (RuntimeException ignored) {
+            return Map.of();
         }
         return names;
     }
@@ -475,7 +474,14 @@ public class JpaExamRepository implements ExamRepository {
     }
 
     private String nameForStudent(Long studentId) {
-        return userLookupJpaRepository.findById(studentId).map(UserLookupEntity::getName).orElse(null);
+        if (studentId == null) {
+            return null;
+        }
+        try {
+            return userLookupJpaRepository.findById(studentId).map(UserLookupEntity::getName).orElse(null);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 
     private ExamRecord toRecord(ExamEntity entity) {

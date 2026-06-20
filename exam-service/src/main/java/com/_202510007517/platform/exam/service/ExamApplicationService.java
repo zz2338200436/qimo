@@ -30,6 +30,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -147,6 +149,10 @@ public class ExamApplicationService {
                 .reversed()
                 .thenComparing(item -> item.getId() == null ? Long.MIN_VALUE : item.getId(), Comparator.reverseOrder()));
         return scores;
+    }
+
+    public List<StudentScoreDTO> listStudentExamScores(Long studentId) {
+        return examRepository.findStudentExamScores(studentId);
     }
 
     public Map<String, Object> listTeacherExams(Long teacherId,
@@ -609,9 +615,16 @@ public class ExamApplicationService {
         if (value == null || value.isBlank()) {
             return null;
         }
-        return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                .withZone(ZoneOffset.UTC)
-                .format(Instant.parse(value));
+        String normalized = value.trim();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        if (!normalized.endsWith("Z") && !normalized.matches(".*[+-]\\d{2}:?\\d{2}$")) {
+            String localDateTime = normalized.replace('T', ' ');
+            if (localDateTime.length() == 16) {
+                localDateTime += ":00";
+            }
+            return LocalDateTime.parse(localDateTime, formatter).format(formatter);
+        }
+        return formatter.withZone(ZoneOffset.UTC).format(Instant.parse(normalized));
     }
 
     private static boolean matchesTeacherExamStatus(ExamRecord exam, String status) {
@@ -649,9 +662,21 @@ public class ExamApplicationService {
     }
 
     private static Instant parseExamDateTime(String value) {
-        return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                .withZone(ZoneOffset.UTC)
-                .parse(value, Instant::from);
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim();
+        if (normalized.endsWith("Z") || normalized.matches(".*[+-]\\d{2}:?\\d{2}$")) {
+            return Instant.parse(normalized);
+        }
+
+        String localDateTime = normalized.replace('T', ' ');
+        if (localDateTime.length() == 16) {
+            localDateTime += ":00";
+        }
+        return LocalDateTime.parse(localDateTime, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                .atZone(ZoneId.systemDefault())
+                .toInstant();
     }
 
     private static int safePage(Integer page) {

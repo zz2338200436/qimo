@@ -72,7 +72,7 @@ class JpaExamRepositoryTest {
         assertThat(repository.isExamVisibleToClasses(9001L, List.of(501L))).isTrue();
         assertThat(repository.isExamVisibleToClasses(9001L, List.of(503L))).isFalse();
         assertThat(submission).isPresent();
-        assertThat(submission.orElseThrow().getStudentName()).isEqualTo("Alice");
+        assertThat(submission.orElseThrow().getStudentName()).isNull();
         assertThat(submissionCount).isEqualTo(2);
         assertThat(examSubmissions).extracting(ExamSubmissionRecord::getId).containsExactly(9102L, 9101L);
     }
