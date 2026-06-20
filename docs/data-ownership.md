@@ -1,7 +1,7 @@
 ---
 title: 数据所有权矩阵
-version: v0.2
-last_updated: 2026-05-13
+version: v0.3
+last_updated: 2026-06-12
 author: 架构组
 ---
 
@@ -33,6 +33,7 @@ author: 架构组
 | Analysis_Service | `sc_analysis` | 掌握度、成绩趋势、学情预警、分析触发任务 | 由事件和定时只读拉取构建分析 read model。 |
 | Notification_Service | `sc_notification` | 站内信、通知投递记录 | 不拥有业务事实，只保存通知事实和阅读状态。 |
 | AI_Service | `sc_ai` | AI 请求、生成结果、提示词版本 | AI 不直接写业务库，业务落库由拥有者服务完成。 |
+| Agent_Service | `sc_agent` | Agent 会话、动作预览、确认状态、执行结果、审计日志 | Agent 不直接写业务拥有者表；确认后的执行委托给对应服务 API。 |
 | Platform Audit | `sc_platform` | 审计日志 | 由公共审计组件写入，业务服务只提交审计事件。 |
 
 ## 3. 数据所有权矩阵
@@ -68,6 +69,9 @@ author: 架构组
 | `notifications` | Notification_Service | `sc_notification` | 通知内容、接收人、已读状态。 | Gateway/User 只通过 Notification API 查询当前用户通知。 |
 | `ai_prompts` | AI_Service | `sc_ai` | 提示词模板、版本、启停状态。 | Exam、Assignment 可通过 AI API 选择模板，不直连。 |
 | `ai_generations` | AI_Service | `sc_ai` | AI 调用记录、输入摘要、输出摘要、模型元数据。 | 业务服务可读取生成任务结果；业务落库仍由业务拥有者完成。 |
+| `agent_sessions` | Agent_Service | `sc_agent` | Agent 对话会话与用户角色上下文。 | 管理端可通过 Agent API 查询，不跨库读取。 |
+| `agent_actions` | Agent_Service | `sc_agent` | Agent 动作预览、确认状态、幂等 key、执行结果和错误信息。 | 仅 Agent_Service 写入；业务事实仍以目标服务为准。 |
+| `agent_audit_logs` | Agent_Service | `sc_agent` | Agent 发起的业务操作审计记录。 | 管理端审计查询通过 Agent API 或后续统一审计聚合读取。 |
 | `audit_logs` | Platform Audit | `sc_platform` | 审计日志统一写入，记录 actor、动作、资源和快照。 | 管理端只读查询；业务服务不跨库查询。 |
 | `outbox_event` | 生产事件的本地服务 | 各服务本地 Schema | 每个生产者服务各建一张本地 outbox 表，例如 `sc_assignment.outbox_event`。 | 仅本服务 relay job 读取并发布，不给其他业务服务查询。 |
 | `processed_event` | 消费事件的本地服务 | 各服务本地 Schema | 每个消费者服务各建一张本地去重表，例如 `sc_analysis.processed_event`。 | 仅本服务幂等处理器读写。 |
@@ -140,3 +144,4 @@ author: 架构组
 | ---- | ------ | -------- |
 | 2026-05-13 | Codex | 完成服务与表所有权矩阵、Redis 归属、跨 Schema 访问铁律和 outbox/processed 事件表归属规则。 |
 | 2026-05-10 | 架构组 | 初版骨架。 |
+| 2026-06-12 | Codex | 补充 Agent_Service 数据所有权与 Agent 会话/动作/审计表归属。 |

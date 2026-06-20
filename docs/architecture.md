@@ -1,7 +1,7 @@
 ---
 title: 目标架构与组件选型
-version: v0.2
-last_updated: 2026-05-20
+version: v0.3
+last_updated: 2026-06-12
 author: 架构组
 ---
 
@@ -36,7 +36,7 @@ flowchart LR
 | 项目 | 候选 | 选定 | 理由 | 备选切换条件 |
 | --- | --- | --- | --- | --- |
 | 注册中心 | Eureka / Nacos / Consul | Eureka Server | 与当前仓库已锁定的 Spring Cloud 2025.0.0 栈兼容，落地轻，便于先完成服务注册发现主链路 | 若后续切向 Kubernetes 原生服务发现，可评估 Spring Cloud Kubernetes |
-| 配置管理 | `application.yml` + 环境变量 / Spring Cloud Config / Nacos Config / Apollo | `application.yml` + 环境变量（阶段 2 过渡态） | 当前先收敛注册发现与网关主链路，避免在首轮剥离同时引入第二个基础设施依赖 | 若后续需要集中化动态配置，再补 Spring Cloud Config 或 Apollo |
+| 配置管理 | `application.yml` + 环境变量 / Spring Cloud Config / Nacos Config / Apollo | Spring Cloud Config Server（native 配置仓库） | 统一管理 Gateway、业务服务、`agent-service` 与 `legacy-adapter` 的端口、数据源、注册发现和治理参数，减少本地配置漂移 | 若后续需要动态刷新、加密配置或多团队治理，可切换 Git 后端、Vault 或 Apollo |
 
 ### 3.2 API 网关
 
@@ -60,12 +60,13 @@ Gateway 统一按 `(clientIp, userId, routeId)` 分桶限流，默认单实例�
 | 核心 | 考试提交：`/api/exams/{id}/submit`；当前切流路径为 `/api/student/exams/{id}/submit` | `student-exam-submit-route` | `POST` | `exam-service` | `replenish-rate=40`, `burst-capacity=80`, `requested-tokens=1`, `Retry-After=1s` | `exam-service-student-submit` | `failure-rate-threshold=30`, `minimum-number-of-calls=20`, `slow-call-duration-threshold=2s` |
 | 常规 | 其他已切流业务接口 | 各业务 routeId | `GET/POST/PUT/DELETE` | 对应业务服务 | `replenish-rate=20`, `burst-capacity=40`, `requested-tokens=1`, `Retry-After=1s` | 默认与服务名或调用名一致 | `failure-rate-threshold=50`, `minimum-number-of-calls=10`, `slow-call-duration-threshold=2s` |
 | 专项 | AI 生成接口 `/api/ai/**` | `ai-route` | `POST` | `ai-service` | `replenish-rate=2`, `burst-capacity=4`, `requested-tokens=1`, `Retry-After=3s` | `ai-service` | 继承默认熔断阈值 |
+| 专项 | Agent 自然语言操作入口 `/api/agent/**` | `agent-route` | `GET/POST/PUT/DELETE` | `agent-service` | `replenish-rate=10`, `burst-capacity=20`, `requested-tokens=1`, `Retry-After=2s` | `agent-service` | 继承默认熔断阈值 |
 
 配置来源：
 
-- `gateway/src/main/resources/application.yml` 的 `gateway.rate-limit.routes.student-exam-submit-route` 固化考试提交的宽松限流覆盖值。
-- `gateway/src/main/resources/application.yml` 的 `resilience4j.circuitbreaker.instances.exam-service-student-submit` 固化考试提交的严格熔断覆盖值。
-- 后续接入集中配置中心后，同名配置项可迁移到配置中心，但必须保持本文档中的核心接口清单同步更新。
+- `config-server/src/main/resources/config-repo/gateway.yml` 的 `gateway.rate-limit.routes.student-exam-submit-route` 固化考试提交的宽松限流覆盖值。
+- `config-server/src/main/resources/config-repo/gateway.yml` 的 `resilience4j.circuitbreaker.instances.exam-service-student-submit` 固化考试提交的严格熔断覆盖值。
+- Gateway 与业务服务的运行时参数以配置中心为准，本文档中的核心接口清单需要同步更新。
 
 ### 3.5 消息与事件
 
@@ -116,6 +117,7 @@ flowchart TB
 - `user-service`：用户档案、角色、教师/学生基础信息。
 - `common`：公共响应、异常、MDC、Feign 与指标配置。
 - `auth-service-api` / `user-service-api`：纯 Feign 接口与 DTO，不承载实现。
+- `agent-service`：自然语言业务操作入口，拥有 Agent 会话、动作预览、确认状态和审计记录；不直接写课程、作业、考试、分析、通知、用户或 AI 业务表，执行时通过服务 API 调用数据拥有者。
 - `legacy-adapter`：过渡期兼容层，承接旧单体向新网关的双路由迁移。
 
 ## 6. 非功能性约束
@@ -129,3 +131,4 @@ flowchart TB
 | 2026-05-10 | 架构组 | 初版骨架 |
 | 2026-05-12 | Codex | 注册发现切换为 Eureka，配置管理说明调整为本地配置过渡方案 |
 | 2026-05-20 | Codex | 补充考试提交核心接口清单及 Gateway 限流、Resilience4j 熔断阈值差异 |
+| 2026-06-12 | Codex | 补充 Agent 服务边界及 Gateway `agent-route` 限流说明 |

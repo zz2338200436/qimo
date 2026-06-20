@@ -23,7 +23,7 @@ author: 架构组
 
 当前交付同时支持两种运行方式：
 
-- 本地 Docker Compose：使用根目录 `docker-compose.yml` 启动 MySQL、Redis、RabbitMQ、Prometheus、Grafana、Registry、Gateway、旧单体与 8 个业务服务。
+- 本地 Docker Compose：使用根目录 `docker-compose.yml` 启动 MySQL、Redis、RabbitMQ、Prometheus、Grafana、Registry、Config Server、Gateway、旧单体与 9 个业务服务。
 - 观测栈独立启动：使用 `docker-compose.obs.yml` 单独拉起 Prometheus、Grafana、Loki、Promtail、Tempo。
 
 ### 2.2 中间件
@@ -53,6 +53,7 @@ author: 架构组
   - `sc_analysis`
   - `sc_notification`
   - `sc_ai`
+  - `sc_agent`
   - `sc_platform`
 - 该脚本还会创建开发账号：
   - 用户名 `dev_user`
@@ -84,6 +85,7 @@ author: 架构组
 - `analysis-service`
 - `notification-service`
 - `ai-service`
+- `agent-service`
 - `major_assignment`（仅过渡期兼容与 `legacy-route` 联调）
 
 ### 3.2 镜像命名
@@ -114,7 +116,7 @@ docker compose up -d --build
 - 观测组件：`prometheus`、`grafana`
 - 平台服务：`registry-server`、`gateway`
 - 过渡服务：`legacy-monolith`
-- 业务服务：`auth-service`、`user-service`、`course-service`、`assignment-service`、`exam-service`、`analysis-service`、`notification-service`、`ai-service`
+- 业务服务：`auth-service`、`user-service`、`course-service`、`assignment-service`、`exam-service`、`analysis-service`、`notification-service`、`ai-service`、`agent-service`
 
 ### 4.3 过渡期兼容
 
@@ -167,6 +169,7 @@ Gateway 仍保留 `legacy-route` 时，`docker-compose.yml` 中会同时启动 `
 - MySQL：`{DOMAIN}_DB_URL`、`{DOMAIN}_DB_USERNAME`、`{DOMAIN}_DB_PASSWORD`
 - Redis：`REDIS_HOST`、`REDIS_PORT`、`REDIS_PASSWORD`
 - RabbitMQ：`RABBITMQ_HOST`、`RABBITMQ_PORT`、`RABBITMQ_USERNAME`、`RABBITMQ_PASSWORD`
+- Agent LLM：`AGENT_LLM_ENABLED`、`AGENT_LLM_API_KEY`、`XIAOMI_API_KEY`
 - OTLP Trace：`MANAGEMENT_OTLP_TRACING_EXPORT_ENABLED`、`OTEL_EXPORTER_OTLP_ENDPOINT`
 
 ## 8. 运维手册

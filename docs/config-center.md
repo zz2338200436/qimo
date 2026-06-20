@@ -15,20 +15,19 @@ config-server/src/main/resources/config-repo/
 主要文件：
 
 ```text
-application.yml              # 所有 Config Client 共享的 Eureka 与 Actuator 配置
-gateway.yml                  # 网关路由、限流与 Resilience4j 熔断配置
-auth-service.yml             # 认证服务令牌时长等配置
-user-service.yml             # 用户服务数据库 URL 模板
-course-service.yml           # 课程服务数据库 URL 模板
-assignment-service.yml       # 作业服务 RabbitMQ 基础配置
-exam-service.yml             # 考试服务数据库 URL 模板
-analysis-service.yml         # 学情分析服务 RabbitMQ 基础配置
-notification-service.yml     # 通知服务 RabbitMQ 基础配置
-ai-service.yml               # AI 服务数据库 URL 模板
-legacy-adapter.yml           # 旧系统适配服务数据库 URL 模板
+application.yml              # 所有 Config Client 共享的 Eureka、Actuator、RabbitMQ、Outbox 基线配置
+application-dev.yml          # IDEA / 本机联调环境，依赖 localhost
+application-docker.yml       # Docker Compose 环境，依赖 mysql / redis / rabbitmq / registry-server 容器名
+application-prod.yml         # 生产环境模板，敏感值必须由环境变量注入
+gateway.yml                  # 网关端口、CORS、安全白名单、路由、限流与 Resilience4j 熔断配置
+{service}.yml                # 服务端口、数据源、Flyway、JPA、消息绑定和业务开关
+{service}-docker.yml         # Docker 环境覆盖项，数据库默认 dev_user / dev_only_pwd
+{service}-prod.yml           # 生产环境覆盖项，不提供明文密码默认值
 ```
 
-运行时配置不再内置 JWT 私钥或统一默认数据库密码。数据库、RabbitMQ、Redis、JWT 正式密钥等敏感值应通过环境变量、受保护的配置仓库或后续的 Vault/加密配置注入。
+Config Server 现在统一管理 `dev`、`docker`、`prod` 三类环境配置。`dev` 环境用于 IDEA 本地开发，数据库密码默认 `root`；`docker` 环境继续沿用 Compose 初始化账号 `dev_user / dev_only_pwd`；`prod` 环境只保留环境变量占位，不提供明文密码默认值。
+
+运行时配置不再散落在各业务服务本地 `application.yml`。数据库、RabbitMQ、Redis、JWT 正式密钥等生产敏感值应通过环境变量、受保护的配置仓库或后续的 Vault/加密配置注入。
 
 本地开发未配置 `auth.keys.*` 或 `gateway.security.jwt.public-keys.*` 时，认证服务和网关会使用代码中按固定开发 seed 生成的开发 RSA 密钥对兜底，方便课堂演示和本机联调。生产环境应显式配置真实密钥，并避免使用开发兜底。
 
@@ -43,7 +42,7 @@ spring:
           routes:
 ```
 
-旧的 `spring.cloud.gateway.routes` 前缀不再用于本项目配置，避免启动时出现配置迁移提示。网关本地 `application.yml` 只保留端口、Config Client、CORS 和安全白名单等启动基线配置。
+旧的 `spring.cloud.gateway.routes` 前缀不再用于本项目配置，避免启动时出现配置迁移提示。网关本地 `application.yml` 只保留应用名和 Config Client 启动基线；端口、CORS、安全白名单和路由均由配置中心管理。
 
 ## 客户端接入
 
@@ -59,20 +58,24 @@ exam-service
 analysis-service
 notification-service
 ai-service
+agent-service
 legacy-adapter
 ```
 
-每个客户端通过下面的导入顺序读取配置：
+每个客户端本地 `application.yml` 只保留应用名、默认 profile 和配置中心导入：
 
 ```yaml
 spring:
+  application:
+    name: exam-service
+  profiles:
+    default: dev
   config:
     import:
-      - optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
-      - optional:classpath:application-common.yml
+      - configserver:${CONFIG_SERVER_URL:http://localhost:8888}
 ```
 
-`optional:` 用于保证本地开发时即使配置中心未启动，服务仍可使用本地默认配置启动。
+这意味着本地 IDEA 联调也应先启动 Config Server（可以通过 `scripts/start-dev-infra.ps1` 拉起 Docker 中的 `config-server`，也可以直接运行 `ConfigServerApplication`），再启动各业务服务。配置中心未启动时，业务服务会快速失败，避免误用过期的本地配置。
 
 测试环境通过 `test` profile 和 Maven Surefire 系统属性关闭 Config Client：
 
@@ -83,13 +86,10 @@ spring:
       enabled: false
 ```
 
-Docker/生产环境启用 `docker | prod` profile，使用非 `optional` 的配置中心导入，并开启 fail-fast 与 retry：
+Docker/生产环境启用 `docker | prod` profile，并开启 fail-fast 与 retry：
 
 ```yaml
 spring:
-  config:
-    import:
-      - configserver:${CONFIG_SERVER_URL:http://localhost:8888}
   cloud:
     config:
       fail-fast: true
@@ -99,12 +99,12 @@ spring:
 
 ## Docker 启动顺序
 
-`docker-compose.yml` 中新增 `config-server` 和 `legacy-adapter`，所有 Config Client 容器均设置 `SPRING_PROFILES_ACTIVE=docker`。MySQL、Redis、RabbitMQ 在 Compose 中声明健康检查；各 Spring Boot 服务的 Dockerfile 通过 `/actuator/health` 声明健康检查。服务依赖使用 `condition: service_healthy`，避免只等容器创建完成就启动客户端。
+`docker-compose.yml` 中新增 `config-server`、`agent-service` 和 `legacy-adapter`，所有 Config Client 容器均设置 `SPRING_PROFILES_ACTIVE=docker`。MySQL、Redis、RabbitMQ 在 Compose 中声明健康检查；各 Spring Boot 服务的 Dockerfile 通过 `/actuator/health` 声明健康检查。服务依赖使用 `condition: service_healthy`，避免只等容器创建完成就启动客户端。
 
 启动顺序为：
 
 ```text
-mysql / redis / rabbitmq -> registry-server -> config-server -> business services / legacy-adapter -> gateway
+mysql / redis / rabbitmq -> registry-server -> config-server -> business services / agent-service / legacy-adapter -> gateway
 ```
 
 容器环境中客户端通过：
@@ -140,11 +140,16 @@ Prometheus 已补全 registry、config、gateway、业务服务和 legacy-adapte
 ```text
 http://localhost:8888/actuator/health
 http://localhost:8888/application/default
+http://localhost:8888/application/dev
+http://localhost:8888/application/docker
 http://localhost:8888/gateway/default
-http://localhost:8888/auth-service/default
+http://localhost:8888/exam-service/dev
+http://localhost:8888/exam-service/docker
+http://localhost:8888/exam-service/prod
+http://localhost:8888/agent-service/docker
 ```
 
-`gateway/default` 应返回 `gateway.yml` 与 `application.yml` 两类配置源，并包含 `spring.cloud.gateway.server.webflux.routes`、限流和熔断配置。
+`gateway/default` 应返回 `gateway.yml` 与 `application.yml` 两类配置源，并包含 `spring.cloud.gateway.server.webflux.routes`、限流和熔断配置。`exam-service/dev` 应返回 localhost 数据库连接和 `root` 默认密码，`exam-service/docker` 应返回 mysql 容器连接和 `dev_only_pwd` 默认密码，`exam-service/prod` 应只返回环境变量占位。`agent-service/docker` 应返回 `sc_agent` 数据源，并默认关闭 `agent.llm.enabled`，避免本地 Compose 在未提供模型 API key 时启动失败。
 
 ## 报告表述
 

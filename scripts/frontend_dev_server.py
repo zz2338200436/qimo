@@ -15,6 +15,12 @@ GATEWAY_PORT = 8080
 
 
 class FrontendProxyHandler(http.server.SimpleHTTPRequestHandler):
+    def end_headers(self) -> None:
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+        super().end_headers()
+
     def translate_path(self, path: str) -> str:
         request_path = urlsplit(path).path
         if request_path.startswith("/"):
@@ -52,7 +58,7 @@ class FrontendProxyHandler(http.server.SimpleHTTPRequestHandler):
         if content_length > 0:
             body = self.rfile.read(content_length)
 
-        connection = http.client.HTTPConnection(GATEWAY_HOST, GATEWAY_PORT, timeout=30)
+        connection = http.client.HTTPConnection(GATEWAY_HOST, GATEWAY_PORT, timeout=90)
         try:
             headers = {key: value for key, value in self.headers.items()}
             headers["Host"] = f"{GATEWAY_HOST}:{GATEWAY_PORT}"
@@ -81,8 +87,12 @@ class FrontendProxyHandler(http.server.SimpleHTTPRequestHandler):
         super().log_message(format, *args)
 
 
+class ReusableThreadingTCPServer(socketserver.ThreadingTCPServer):
+    allow_reuse_address = True
+
+
 def main() -> None:
-    with socketserver.ThreadingTCPServer(("0.0.0.0", 5500), FrontendProxyHandler) as httpd:
+    with ReusableThreadingTCPServer(("0.0.0.0", 5500), FrontendProxyHandler) as httpd:
         httpd.serve_forever()
 
 

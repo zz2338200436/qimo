@@ -20,6 +20,8 @@ For day-to-day IDEA development, use Docker only for infrastructure and run the 
 powershell -ExecutionPolicy Bypass -File .\scripts\start-idea-dev-frontend.ps1
 ```
 
+This is the only retained local startup script. Start Java services from IDEA rather than jar launchers.
+
 The script starts `mysql`, `redis`, `rabbitmq`, `registry-server`, and `config-server`, then starts the
 Python frontend server on `http://localhost:5500`. Start Java business services from IDEA with
 `SPRING_PROFILES_ACTIVE=dev` and `CONFIG_SERVER_URL=http://localhost:8888`.

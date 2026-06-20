@@ -4,7 +4,8 @@
 
 ## 前置条件
 
-- 启动完整的本地运行环境。
+- 运行 `powershell -ExecutionPolicy Bypass -File .\scripts\start-idea-dev-frontend.ps1` 启动基础设施和前端预览。
+- 通过 IDEA 以 `SPRING_PROFILES_ACTIVE=dev` 和 `CONFIG_SERVER_URL=http://localhost:8888` 启动 Java 服务。
 - 打开前端页面：`http://localhost:5500`。
 - 使用教师账号，例如 `teacher7`。
 - 使用学生账号，例如 `student42`。
@@ -95,12 +96,13 @@
 
 ```powershell
 mvn test
+node scripts\verify-idea-dev-workflow-contract.js
+node scripts\verify-idea-dev-runtime-smoke.js
 node scripts\verify-gateway-api-smoke.js
 node scripts\verify-teacher-jwt-pages.js .\.runtime-logs\teacher-session-full-smoke.json
 node scripts\verify-student-jwt-pages.js .\.runtime-logs\student-session-full-smoke.json
 node scripts\verify-teacher-browser-crud.js .\.runtime-logs\teacher-session-full-smoke.json .\.runtime-logs\student-session-full-smoke.json
 node scripts\verify-student-browser-crud.js .\.runtime-logs\teacher-session-full-smoke.json .\.runtime-logs\student-session-full-smoke.json
-node scripts\verify-runtime-jvm-limits.js
 ```
 
 通过标准：
