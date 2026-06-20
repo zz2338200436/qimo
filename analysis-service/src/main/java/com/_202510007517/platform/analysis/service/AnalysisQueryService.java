@@ -13,6 +13,8 @@ import com._202510007517.platform.exam.api.feign.ExamFeignClient;
 import com._202510007517.platform.user.api.dto.UserProfileDTO;
 import com._202510007517.platform.user.api.feign.UserFeignClient;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -32,20 +34,21 @@ public class AnalysisQueryService {
     private final UserFeignClient userFeignClient;
     private final AssignmentFeignClient assignmentFeignClient;
     private final ExamFeignClient examFeignClient;
+    private final JdbcTemplate jdbcTemplate;
 
     public AnalysisQueryService(AnalysisRepository analysisRepository) {
-        this(analysisRepository, null, null, null, null);
+        this(analysisRepository, null, null, null, null, null);
     }
 
     public AnalysisQueryService(AnalysisRepository analysisRepository, CourseFeignClient courseFeignClient) {
-        this(analysisRepository, courseFeignClient, null, null, null);
+        this(analysisRepository, courseFeignClient, null, null, null, null);
     }
 
     public AnalysisQueryService(
             AnalysisRepository analysisRepository,
             CourseFeignClient courseFeignClient,
             UserFeignClient userFeignClient) {
-        this(analysisRepository, courseFeignClient, userFeignClient, null, null);
+        this(analysisRepository, courseFeignClient, userFeignClient, null, null, null);
     }
 
     public AnalysisQueryService(
@@ -53,7 +56,16 @@ public class AnalysisQueryService {
             CourseFeignClient courseFeignClient,
             UserFeignClient userFeignClient,
             AssignmentFeignClient assignmentFeignClient) {
-        this(analysisRepository, courseFeignClient, userFeignClient, assignmentFeignClient, null);
+        this(analysisRepository, courseFeignClient, userFeignClient, assignmentFeignClient, null, null);
+    }
+
+    public AnalysisQueryService(
+            AnalysisRepository analysisRepository,
+            CourseFeignClient courseFeignClient,
+            UserFeignClient userFeignClient,
+            AssignmentFeignClient assignmentFeignClient,
+            ExamFeignClient examFeignClient) {
+        this(analysisRepository, courseFeignClient, userFeignClient, assignmentFeignClient, examFeignClient, null);
     }
 
     @Autowired
@@ -62,12 +74,14 @@ public class AnalysisQueryService {
             CourseFeignClient courseFeignClient,
             UserFeignClient userFeignClient,
             AssignmentFeignClient assignmentFeignClient,
-            ExamFeignClient examFeignClient) {
+            ExamFeignClient examFeignClient,
+            JdbcTemplate jdbcTemplate) {
         this.analysisRepository = analysisRepository;
         this.courseFeignClient = courseFeignClient;
         this.userFeignClient = userFeignClient;
         this.assignmentFeignClient = assignmentFeignClient;
         this.examFeignClient = examFeignClient;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public List<ScoreTrendDTO> listScoreTrend(Long teacherId, Long classId, Long courseId, String timeRange) {
@@ -109,11 +123,18 @@ public class AnalysisQueryService {
         if (masteryRows.isEmpty()) {
             return List.of();
         }
+        Map<Long, String> knowledgePointNames = resolveKnowledgePointNames(masteryRows);
         Map<Long, List<KnowledgeMasteryDTO>> rowsByKnowledgePoint = groupByKnowledgePoint(masteryRows);
         List<Map<String, Object>> stats = new ArrayList<>();
         int orderIndex = 1;
         for (Map.Entry<Long, List<KnowledgeMasteryDTO>> entry : rowsByKnowledgePoint.entrySet()) {
-            stats.add(toKnowledgeMasterySummary(entry.getKey(), entry.getValue(), orderIndex++));
+            Map<String, Object> summary = toKnowledgeMasterySummary(entry.getKey(), entry.getValue(), orderIndex++);
+            String displayName = knowledgePointNames.get(entry.getKey());
+            if (displayName != null) {
+                summary.put("knowledgePointName", displayName);
+                summary.put("pointName", displayName);
+            }
+            stats.add(summary);
         }
         return stats;
     }
@@ -159,6 +180,7 @@ public class AnalysisQueryService {
             }
             rowsByKnowledgePoint.computeIfAbsent(effectiveKnowledgePointId(row), ignored -> new ArrayList<>()).add(row);
         }
+        Map<Long, String> knowledgePointNames = resolveKnowledgePointNames(masteryRows);
 
         List<Map<String, Object>> distribution = new ArrayList<>();
         List<Map<String, Object>> weakTopics = new ArrayList<>();
@@ -166,7 +188,7 @@ public class AnalysisQueryService {
         int orderIndex = 1;
         for (Map.Entry<Long, List<KnowledgeMasteryDTO>> entry : rowsByKnowledgePoint.entrySet()) {
             Map<String, Object> summary = toKnowledgeMasterySummary(entry.getKey(), entry.getValue(), orderIndex++);
-            String knowledgePointName = knowledgePointDisplayName(entry.getValue().get(0), requestedCourse);
+            String knowledgePointName = knowledgePointDisplayName(entry.getValue().get(0), requestedCourse, knowledgePointNames);
             distribution.add(Map.of(
                     "knowledgePointId", summary.get("knowledgePointId"),
                     "knowledgePointName", knowledgePointName,
@@ -188,7 +210,7 @@ public class AnalysisQueryService {
                     .orElse(0.0)));
         }
 
-        List<Map<String, Object>> atRiskStudents = buildAtRiskStudents(teacherId, masteryRows, requestedCourse);
+        List<Map<String, Object>> atRiskStudents = buildAtRiskStudents(teacherId, masteryRows, requestedCourse, knowledgePointNames);
         Map<String, Object> analysis = new LinkedHashMap<>();
         analysis.put("courseName", requestedCourse.pageCourseName());
         analysis.put("className", requestedClass.pageClassName());
@@ -219,7 +241,25 @@ public class AnalysisQueryService {
         if (studentId == null) {
             throw new IllegalArgumentException("缺少学生身份");
         }
-        return analysisRepository.getStudentLearningStats(studentId, semester, courseId, timeRange);
+        Map<String, Object> stats = new LinkedHashMap<>(
+                analysisRepository.getStudentLearningStats(studentId, semester, courseId, timeRange));
+        Object knowledgePoints = stats.get("knowledgePoints");
+        if (knowledgePoints instanceof List<?> rows) {
+            List<Map<String, Object>> normalizedRows = new ArrayList<>();
+            for (Object row : rows) {
+                if (row instanceof Map<?, ?> map) {
+                    Map<String, Object> normalizedRow = new LinkedHashMap<>();
+                    for (Map.Entry<?, ?> entry : map.entrySet()) {
+                        if (entry.getKey() instanceof String key) {
+                            normalizedRow.put(key, entry.getValue());
+                        }
+                    }
+                    normalizedRows.add(normalizedRow);
+                }
+            }
+            stats.put("knowledgePoints", withResolvedStudentKnowledgePointNames(normalizedRows));
+        }
+        return stats;
     }
 
     public List<Map<String, Object>> listStudentKnowledgePoints(
@@ -230,7 +270,8 @@ public class AnalysisQueryService {
         if (studentId == null) {
             throw new IllegalArgumentException("缺少学生身份");
         }
-        return analysisRepository.listStudentKnowledgePoints(studentId, semester, courseId, timeRange);
+        return withResolvedStudentKnowledgePointNames(
+                analysisRepository.listStudentKnowledgePoints(studentId, semester, courseId, timeRange));
     }
 
     public Map<String, Object> getStudentKnowledgePointDetail(Long studentId, Long knowledgePointId) {
@@ -240,7 +281,11 @@ public class AnalysisQueryService {
         if (knowledgePointId == null) {
             throw new IllegalArgumentException("缺少知识点ID");
         }
-        return analysisRepository.getStudentKnowledgePointDetail(studentId, knowledgePointId);
+        return withResolvedStudentKnowledgePointNames(List.of(
+                analysisRepository.getStudentKnowledgePointDetail(studentId, knowledgePointId)))
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("知识点详情解析失败"));
     }
 
     private static Instant resolveSince(String timeRange) {
@@ -333,9 +378,12 @@ public class AnalysisQueryService {
         return row.knowledgePointId() == null ? row.courseId() : row.knowledgePointId();
     }
 
-    private static String knowledgePointDisplayName(KnowledgeMasteryDTO row, CourseMetadata requestedCourse) {
+    private static String knowledgePointDisplayName(
+            KnowledgeMasteryDTO row,
+            CourseMetadata requestedCourse,
+            Map<Long, String> knowledgePointNames) {
         if (row.knowledgePointId() != null) {
-            return "知识点 " + row.knowledgePointId();
+            return knowledgePointNames.getOrDefault(row.knowledgePointId(), "知识点 " + row.knowledgePointId());
         }
         if (requestedCourse != null) {
             return requestedCourse.nameFor(row.courseId());
@@ -346,7 +394,8 @@ public class AnalysisQueryService {
     private List<Map<String, Object>> buildAtRiskStudents(
             Long teacherId,
             List<KnowledgeMasteryDTO> masteryRows,
-            CourseMetadata requestedCourse) {
+            CourseMetadata requestedCourse,
+            Map<Long, String> knowledgePointNames) {
         Map<Long, List<KnowledgeMasteryDTO>> rowsByStudent = new LinkedHashMap<>();
         for (KnowledgeMasteryDTO row : masteryRows) {
             if (row.studentId() == null || row.masteryScore() == null || toMasteryRate(row) >= 60.0) {
@@ -361,7 +410,7 @@ public class AnalysisQueryService {
             for (KnowledgeMasteryDTO row : entry.getValue()) {
                 Map<String, Object> weakPoint = new LinkedHashMap<>();
                 weakPoint.put("knowledgePointId", effectiveKnowledgePointId(row));
-                weakPoint.put("knowledgePointName", knowledgePointDisplayName(row, requestedCourse));
+                weakPoint.put("knowledgePointName", knowledgePointDisplayName(row, requestedCourse, knowledgePointNames));
                 weakPoint.put("sourceType", row.lastSourceType());
                 weakPoint.put("sourceId", row.lastSourceId());
                 weakPoint.put("sourceName", resolveSourceName(teacherId, row));
@@ -375,6 +424,104 @@ public class AnalysisQueryService {
             students.add(student);
         }
         return students;
+    }
+
+    private Map<Long, String> resolveKnowledgePointNames(List<KnowledgeMasteryDTO> masteryRows) {
+        if (jdbcTemplate == null || masteryRows.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> knowledgePointIds = masteryRows.stream()
+                .map(KnowledgeMasteryDTO::knowledgePointId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (knowledgePointIds.isEmpty()) {
+            return Map.of();
+        }
+
+        String placeholders = String.join(",", knowledgePointIds.stream().map(ignored -> "?").toList());
+        try {
+            return jdbcTemplate.query(
+                    "SELECT id, point_name FROM sc_course.teacher_knowledge_points WHERE id IN (" + placeholders + ")",
+                    rs -> {
+                        Map<Long, String> names = new LinkedHashMap<>();
+                        while (rs.next()) {
+                            names.put(rs.getLong("id"), rs.getString("point_name"));
+                        }
+                        return names;
+                    },
+                    knowledgePointIds.toArray());
+        } catch (DataAccessException ignored) {
+            return Map.of();
+        }
+    }
+
+    private List<Map<String, Object>> withResolvedStudentKnowledgePointNames(List<Map<String, Object>> rows) {
+        if (jdbcTemplate == null || rows.isEmpty()) {
+            return rows;
+        }
+        List<Long> knowledgePointIds = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            Object idValue = row.get("knowledgePointId");
+            if (idValue instanceof Number number) {
+                Long knowledgePointId = number.longValue();
+                if (!knowledgePointIds.contains(knowledgePointId)) {
+                    knowledgePointIds.add(knowledgePointId);
+                }
+            }
+        }
+        if (knowledgePointIds.isEmpty()) {
+            return rows;
+        }
+        Map<Long, String> names = resolveKnowledgePointNamesByIds(knowledgePointIds);
+        if (names.isEmpty()) {
+            return rows;
+        }
+        List<Map<String, Object>> resolvedRows = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            Map<String, Object> resolved = new LinkedHashMap<>(row);
+            Object idValue = resolved.get("knowledgePointId");
+            Long knowledgePointId = idValue instanceof Number number ? number.longValue() : null;
+            String pointName = knowledgePointId == null ? null : names.get(knowledgePointId);
+            if (pointName != null && !pointName.isBlank()) {
+                resolved.put("name", pointName);
+                resolved.put("pointName", pointName);
+                resolved.put("description", pointName + " 的掌握汇总");
+            }
+            resolvedRows.add(resolved);
+        }
+        return resolvedRows;
+    }
+
+    private Map<Long, String> resolveKnowledgePointNamesByIds(List<Long> knowledgePointIds) {
+        String placeholders = String.join(",", knowledgePointIds.stream().map(ignored -> "?").toList());
+        try {
+            return jdbcTemplate.query(
+                    "SELECT id, point_name FROM sc_course.teacher_knowledge_points WHERE id IN (" + placeholders + ")",
+                    rs -> {
+                        Map<Long, String> names = new LinkedHashMap<>();
+                        while (rs.next()) {
+                            names.put(rs.getLong("id"), rs.getString("point_name"));
+                        }
+                        return names;
+                    },
+                    knowledgePointIds.toArray());
+        } catch (DataAccessException ignored) {
+            try {
+                return jdbcTemplate.query(
+                        "SELECT id, point_name FROM teacher_knowledge_points WHERE id IN (" + placeholders + ")",
+                        rs -> {
+                            Map<Long, String> names = new LinkedHashMap<>();
+                            while (rs.next()) {
+                                names.put(rs.getLong("id"), rs.getString("point_name"));
+                            }
+                            return names;
+                        },
+                        knowledgePointIds.toArray());
+            } catch (DataAccessException fallbackIgnored) {
+                return Map.of();
+            }
+        }
     }
 
     private static double toMasteryRate(KnowledgeMasteryDTO row) {

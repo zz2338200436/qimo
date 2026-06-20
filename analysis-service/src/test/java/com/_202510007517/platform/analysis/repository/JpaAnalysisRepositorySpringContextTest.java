@@ -16,7 +16,7 @@ class JpaAnalysisRepositorySpringContextTest {
             .withUserConfiguration(RepositoryConfiguration.class);
 
     @Test
-    void createsRepositoryBeanWithJdbcTemplateConstructor() {
+    void createsRepositoryBeanWithJpaRepositoryConstructor() {
         contextRunner.run(context ->
                 assertThat(context).hasSingleBean(JpaAnalysisRepository.class));
     }

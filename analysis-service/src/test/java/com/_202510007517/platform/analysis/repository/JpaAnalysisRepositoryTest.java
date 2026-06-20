@@ -22,7 +22,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(
         classes = AnalysisServiceApplication.class,
-        webEnvironment = SpringBootTest.WebEnvironment.MOCK)
+        webEnvironment = SpringBootTest.WebEnvironment.MOCK,
+        properties = {
+                "spring.config.import=",
+                "spring.cloud.config.enabled=false"
+        })
 class JpaAnalysisRepositoryTest {
 
     private static final String DATABASE_NAME = "analysis-repository-jpa-" + UUID.randomUUID();
@@ -35,6 +39,7 @@ class JpaAnalysisRepositoryTest {
 
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.config.import", () -> "");
         registry.add("eureka.client.enabled", () -> "false");
         registry.add("eureka.client.register-with-eureka", () -> "false");
         registry.add("eureka.client.fetch-registry", () -> "false");
@@ -128,7 +133,7 @@ class JpaAnalysisRepositoryTest {
 
     @Test
     void listsStudentKnowledgePointsFromAnalysisReadModel() {
-        seedKnowledgeMastery(21, 42, 2, 3, "0.7500", "2026-05-19 12:00:00");
+        seedKnowledgeMastery(21, 42, 2, 201L, 3, "0.7500", "2026-05-19 12:00:00");
         seedKnowledgeMastery(22, 42, 3, 1, "0.5000", "2026-05-19 13:00:00");
         seedKnowledgeMastery(23, 43, 2, 5, "0.9000", "2026-05-19 14:00:00");
 
@@ -141,25 +146,26 @@ class JpaAnalysisRepositoryTest {
         assertThat(rows)
                 .singleElement()
                 .satisfies(point -> assertThat(point)
-                        .containsEntry("id", 2L)
+                        .containsEntry("id", 201L)
                         .containsEntry("courseId", 2L)
-                        .containsEntry("name", "课程 2")
-                        .containsEntry("pointName", "课程 2")
+                        .containsEntry("name", "知识点 201")
+                        .containsEntry("pointName", "知识点 201")
                         .containsEntry("courseName", "课程 2")
-                        .containsEntry("description", "课程 2 的知识点掌握汇总")
+                        .containsEntry("description", "知识点 201 的掌握汇总")
                         .containsEntry("mastery", 75.0)
                         .containsEntry("practiceCount", 3));
     }
 
     @Test
     void getsStudentKnowledgePointDetailFromAnalysisReadModel() {
-        seedKnowledgeMastery(21, 42, 2, 5, "0.9000", "2026-05-19 12:00:00");
+        seedKnowledgeMastery(21, 42, 2, 201L, 5, "0.9000", "2026-05-19 12:00:00");
 
-        Map<String, Object> point = repository.getStudentKnowledgePointDetail(42L, 2L);
+        Map<String, Object> point = repository.getStudentKnowledgePointDetail(42L, 201L);
 
         assertThat(point)
-                .containsEntry("id", 2L)
+                .containsEntry("id", 201L)
                 .containsEntry("courseId", 2L)
+                .containsEntry("name", "知识点 201")
                 .containsEntry("mastery", 90.0)
                 .containsEntry("practiceCount", 5)
                 .containsEntry("difficulty", "中等");
@@ -337,7 +343,7 @@ class JpaAnalysisRepositoryTest {
             int evidenceCount,
             String masteryScore,
             String updatedAt) {
-        seedKnowledgeMastery(id, studentId, courseId, null, evidenceCount, masteryScore, updatedAt);
+        seedKnowledgeMastery(id, studentId, courseId, (Integer) null, evidenceCount, masteryScore, updatedAt);
     }
 
     private void seedKnowledgeMastery(
@@ -358,6 +364,29 @@ class JpaAnalysisRepositoryTest {
                 studentId,
                 courseId,
                 classId,
+                masteryScore,
+                evidenceCount,
+                updatedAt);
+    }
+
+    private void seedKnowledgeMastery(
+            long id,
+            long studentId,
+            long courseId,
+            Long knowledgePointId,
+            int evidenceCount,
+            String masteryScore,
+            String updatedAt) {
+        jdbcTemplate.update("""
+                        INSERT INTO kp_mastery (
+                            id, student_id, course_id, knowledge_point_id, mastery_score, evidence_count, updated_at
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """,
+                id,
+                studentId,
+                courseId,
+                knowledgePointId,
                 masteryScore,
                 evidenceCount,
                 updatedAt);

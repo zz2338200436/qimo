@@ -334,7 +334,7 @@ public class JpaAnalysisRepository implements AnalysisRepository {
         }
 
         TaskScoreSummary scoreSummary = readTaskScoreSummary(studentId, courseId);
-        List<Map<String, Object>> knowledgePoints = readKnowledgePointStats(studentId, courseId);
+        List<Map<String, Object>> knowledgePoints = readKnowledgePointStats(studentId, courseId, true);
         double knowledgeMastery = averageKnowledgeMastery(knowledgePoints);
 
         Map<String, Object> response = new LinkedHashMap<>();
@@ -361,13 +361,13 @@ public class JpaAnalysisRepository implements AnalysisRepository {
             String semester,
             Long courseId,
             String timeRange) {
-        return readKnowledgePointStats(studentId, courseId);
+        return readKnowledgePointStats(studentId, courseId, false);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Map<String, Object> getStudentKnowledgePointDetail(Long studentId, Long knowledgePointId) {
-        return readKnowledgePointStats(studentId, knowledgePointId).stream()
+        return readKnowledgePointStats(studentId, null, false).stream()
                 .filter(point -> knowledgePointId.equals(point.get("id")))
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("知识点不存在"));
@@ -435,15 +435,19 @@ public class JpaAnalysisRepository implements AnalysisRepository {
         return new TaskScoreSummary(completedTasks, averageScore);
     }
 
-    private List<Map<String, Object>> readKnowledgePointStats(Long studentId, Long courseId) {
-        return knowledgeMasteryJpaRepository.findAll((root, query, cb) -> {
+    private List<Map<String, Object>> readKnowledgePointStats(Long studentId, Long courseId, boolean includeCourseLevel) {
+        List<KnowledgeMasteryEntity> rows = knowledgeMasteryJpaRepository.findAll((root, query, cb) -> {
                     List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
                     predicates.add(cb.equal(root.get("studentId"), studentId));
                     if (courseId != null) {
                         predicates.add(cb.equal(root.get("courseId"), courseId));
                     }
+                    if (!includeCourseLevel) {
+                        predicates.add(cb.notEqual(root.get("knowledgePointId"), COURSE_LEVEL_KNOWLEDGE_POINT_ID));
+                    }
                     return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
-                }).stream()
+                });
+        return rows.stream()
                 .sorted((left, right) -> {
                     int updatedCompare = right.getUpdatedAt().compareTo(left.getUpdatedAt());
                     if (updatedCompare != 0) {
