@@ -34,4 +34,39 @@ class QuestionBankPropertiesTest {
         assertThat(properties.getMinScore()).isEqualTo(0.15);
         assertThat(properties.isAllowReload()).isTrue();
     }
+
+    @Test
+    void providesSafeDefaults() {
+        QuestionBankProperties properties = new QuestionBankProperties();
+
+        assertThat(properties.isEnabled()).isFalse();
+        assertThat(properties.getDocumentPaths()).containsExactly("docs/question-bank");
+        assertThat(properties.getEmbeddingBaseUrl()).isEqualTo("http://localhost:11434");
+        assertThat(properties.getEmbeddingModel()).isEqualTo("qwen3-embedding:0.6b");
+        assertThat(properties.getMaxCandidates()).isEqualTo(50);
+        assertThat(properties.getMinScore()).isEqualTo(0.15);
+        assertThat(properties.isAllowReload()).isTrue();
+    }
+
+    @Test
+    void fallsBackToSafeValuesWhenDefensiveInputsAreInvalid() {
+        QuestionBankProperties properties = new QuestionBankProperties();
+
+        properties.setDocumentPaths(List.of("", "   "));
+        properties.setMaxCandidates(0);
+        properties.setMinScore(-0.1);
+
+        assertThat(properties.getDocumentPaths()).containsExactly("docs/question-bank");
+        assertThat(properties.getMaxCandidates()).isEqualTo(1);
+        assertThat(properties.getMinScore()).isEqualTo(0.0);
+    }
+
+    @Test
+    void filtersNullAndBlankDocumentPaths() {
+        QuestionBankProperties properties = new QuestionBankProperties();
+
+        properties.setDocumentPaths(java.util.Arrays.asList(null, "", "docs/custom-question-bank", "   "));
+
+        assertThat(properties.getDocumentPaths()).containsExactly("docs/custom-question-bank");
+    }
 }
