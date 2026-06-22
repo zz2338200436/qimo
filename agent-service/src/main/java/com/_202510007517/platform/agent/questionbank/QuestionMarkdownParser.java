@@ -1,14 +1,17 @@
 package com._202510007517.platform.agent.questionbank;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class QuestionMarkdownParser {
+    private static final Logger log = LoggerFactory.getLogger(QuestionMarkdownParser.class);
     private static final Pattern QUESTION_HEADING = Pattern.compile("(?m)^## Question\\s*$");
 
     public List<QuestionChunk> parse(QuestionBankDocument document) {
@@ -19,34 +22,47 @@ public class QuestionMarkdownParser {
             if (block.isBlank()) {
                 continue;
             }
-            Map<String, String> fields = parseScalarFields(block);
-            String topic = required("topic", valueOrDefault(fields.get("topic"), metadata.get("topic")), document.sourcePath());
-            String difficulty = required("difficulty", fields.get("difficulty"), document.sourcePath());
-            String type = required("type", fields.get("type"), document.sourcePath());
-            String content = required("content", fields.get("content"), document.sourcePath());
-            String answer = required("answer", fields.get("answer"), document.sourcePath());
-            String roleScope = valueOrDefault(fields.get("roleScope"), valueOrDefault(metadata.get("roleScope"), "all"));
-            String analysis = trimToNull(fields.get("analysis"));
-            List<String> tags = parseTags(valueOrDefault(fields.get("tags"), metadata.get("tags")));
-            List<String> options = parseOptions(block);
-            questions.add(new QuestionChunk(
-                    document.documentId() + "#" + order,
-                    document.sourcePath(),
-                    document.title(),
-                    topic,
-                    difficulty,
-                    type,
-                    tags,
-                    content,
-                    options,
-                    answer,
-                    analysis,
-                    roleScope,
-                    order
-            ));
+            String context = questionContext(document.sourcePath(), order);
+            try {
+                questions.add(parseQuestion(document, metadata, block, order, context));
+            } catch (IllegalArgumentException ex) {
+                log.warn("skipping malformed question block [{}]: {}", context, ex.getMessage());
+            }
             order++;
         }
         return questions;
+    }
+
+    private QuestionChunk parseQuestion(QuestionBankDocument document,
+                                        Map<String, String> metadata,
+                                        String block,
+                                        int order,
+                                        String context) {
+        Map<String, String> fields = parseScalarFields(block);
+        String topic = required("topic", valueOrDefault(fields.get("topic"), metadata.get("topic")), context);
+        String difficulty = required("difficulty", fields.get("difficulty"), context);
+        String type = required("type", fields.get("type"), context);
+        String content = required("content", fields.get("content"), context);
+        String answer = required("answer", fields.get("answer"), context);
+        String roleScope = valueOrDefault(fields.get("roleScope"), valueOrDefault(metadata.get("roleScope"), "all"));
+        String analysis = trimToNull(fields.get("analysis"));
+        List<String> tags = parseTags(valueOrDefault(fields.get("tags"), metadata.get("tags")));
+        List<String> options = parseOptions(block);
+        return new QuestionChunk(
+                document.documentId() + "#" + order,
+                document.sourcePath(),
+                document.title(),
+                topic,
+                difficulty,
+                type,
+                tags,
+                content,
+                options,
+                answer,
+                analysis,
+                roleScope,
+                order
+        );
     }
 
     private List<String> questionBlocks(String rawContent) {
@@ -142,12 +158,16 @@ public class QuestionMarkdownParser {
                 .toList();
     }
 
-    private String required(String fieldName, String value, String sourcePath) {
+    private String required(String fieldName, String value, String context) {
         String normalized = trimToNull(value);
         if (normalized == null) {
-            throw new IllegalArgumentException("question bank field '" + fieldName + "' is required: " + sourcePath);
+            throw new IllegalArgumentException("question bank field '" + fieldName + "' is required: " + context);
         }
         return normalized;
+    }
+
+    private String questionContext(String sourcePath, int order) {
+        return (sourcePath == null || sourcePath.isBlank() ? "unknown-source" : sourcePath) + ", question #" + order;
     }
 
     private boolean looksLikeField(String line) {
