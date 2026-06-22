@@ -364,9 +364,25 @@ class RuleBasedIntentRecognitionServiceTest {
 
     @Test
     void recognizesAiGenerationCommands() {
-        assertThat(service.recognize("生成五道Java选择题").intent()).isEqualTo(AgentIntent.GENERATE_QUESTIONS);
+        RecognizedIntent generateQuestions = service.recognize("生成五道Java选择题");
+        assertThat(generateQuestions.intent()).isEqualTo(AgentIntent.GENERATE_QUESTIONS);
+        assertThat(generateQuestions.slots())
+                .containsEntry("count", 5)
+                .containsEntry("topic", "Java")
+                .containsEntry("type", "SINGLE_CHOICE");
         assertThat(service.recognize("帮我生成一份Java模拟试卷").intent()).isEqualTo(AgentIntent.GENERATE_EXAM);
         assertThat(service.recognize("生成我的学习建议").intent()).isEqualTo(AgentIntent.GENERATE_LEARNING_SUGGESTIONS);
+    }
+
+    @Test
+    void extractsQuestionGenerationTopicCountAndDifficulty() {
+        RecognizedIntent result = service.recognize("生成2道Java基础中等难度题");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.GENERATE_QUESTIONS);
+        assertThat(result.slots())
+                .containsEntry("count", 2)
+                .containsEntry("topic", "Java基础")
+                .containsEntry("difficulty", "中等");
     }
 
     @Test

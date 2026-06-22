@@ -8,6 +8,7 @@ import com._202510007517.platform.agent.client.AnalysisEdgeClient;
 import com._202510007517.platform.agent.client.NotificationEdgeClient;
 import com._202510007517.platform.agent.client.TeacherAnalysisEdgeClient;
 import com._202510007517.platform.agent.domain.AgentAuditLogEntity;
+import com._202510007517.platform.agent.questionbank.QuestionRagService;
 import com._202510007517.platform.agent.repository.AgentActionRepository;
 import com._202510007517.platform.agent.repository.AgentAuditLogRepository;
 import com._202510007517.platform.agent.repository.AgentSessionRepository;
@@ -37,6 +38,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentCaptor.forClass;
 import org.mockito.ArgumentCaptor;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -51,7 +53,10 @@ import static org.mockito.Mockito.when;
                 "spring.datasource.url=jdbc:h2:mem:agent-edge-tools;MODE=MySQL;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1",
                 "spring.datasource.username=sa",
                 "spring.datasource.password=",
-                "spring.datasource.driver-class-name=org.h2.Driver"
+                "spring.datasource.driver-class-name=org.h2.Driver",
+                "agent.question-bank.enabled=true",
+                "agent.question-bank.document-paths[0]=../docs/question-bank/java/java-basic-sample.md",
+                "agent.question-bank.min-score=0.0"
         })
 class AgentEdgeToolTest {
 
@@ -79,11 +84,15 @@ class AgentEdgeToolTest {
     @MockitoBean
     private AiEdgeClient aiEdgeClient;
 
+    @MockitoBean(name = "questionBankEmbeddingClient")
+    private QuestionRagService.EmbeddingClient questionBankEmbeddingClient;
+
     @BeforeEach
     void clearData() {
         auditLogRepository.deleteAll();
         actionRepository.deleteAll();
         sessionRepository.deleteAll();
+        when(questionBankEmbeddingClient.embed(any())).thenReturn(List.of(1.0, 0.0));
     }
 
     @Test
@@ -539,17 +548,30 @@ class AgentEdgeToolTest {
     }
 
     @Test
-    void generateQuestionsExecutesThroughAiServiceWithoutConfirmation() {
-        when(aiEdgeClient.generateQuestions(eq("7"), eq("TEACHER"), eq("TEACHER"), any(GenerateQuestionsRequestDTO.class)))
-                .thenReturn(ResponseResult.success(Map.of("questions", List.of("题目1"))));
-
-        AgentChatResponseDTO response = orchestrator.chat(7L, "TEACHER", null, "生成五道Java选择题");
+    void generateQuestionsExecutesThroughLocalQuestionBankWithoutConfirmation() {
+        AgentChatResponseDTO response = orchestrator.chat(7L, "TEACHER", null, "生成五道Java基础中等题");
 
         assertThat(response.getResponseType()).isEqualTo("DATA");
         @SuppressWarnings("unchecked")
         Map<String, Object> data = (Map<String, Object>) response.getData();
-        assertThat(data).containsEntry("status", "EXECUTED").containsKey("aiResult");
-        verify(aiEdgeClient).generateQuestions(eq("7"), eq("TEACHER"), eq("TEACHER"), any(GenerateQuestionsRequestDTO.class));
+        assertThat(data)
+                .containsEntry("status", "EXECUTED")
+                .containsEntry("topic", "Java基础")
+                .containsEntry("difficulty", "中等")
+                .containsKey("questions")
+                .containsKey("aiResult");
+        verify(aiEdgeClient, never()).generateQuestions(any(), any(), any(), any());
+    }
+
+    @Test
+    void questionBankSummaryUsesLocalDocumentSummary() {
+        AgentChatResponseDTO response = orchestrator.chat(7L, "TEACHER", null, "现在题库有什么题目");
+
+        assertThat(response.getResponseType()).isEqualTo("DATA");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) response.getData();
+        assertThat(data).containsEntry("status", "EXECUTED").containsKey("questionBank");
+        verify(aiEdgeClient, never()).questionBankSummary(any(), any(), any());
     }
 
     @Test
@@ -568,7 +590,12 @@ class AgentEdgeToolTest {
     @Test
     void generateExamRequiresConfirmationThenExecutesThroughAiService() {
         when(aiEdgeClient.generateExam(eq("7"), eq("TEACHER"), eq("TEACHER"), any(GenerateExamRequestDTO.class)))
-                .thenReturn(ResponseResult.success(Map.of("exam", "Java 模拟试卷")));
+                .thenReturn(ResponseResult.success(Map.of(
+                        "title", "Java 模拟试卷",
+                        "courseName", "Java",
+                        "questions", List.of(Map.of("content", "题目1")),
+                        "source", "question-bank"
+                )));
 
         AgentChatResponseDTO preview = orchestrator.chat(7L, "TEACHER", null, "帮我生成一份Java模拟试卷");
 
@@ -580,6 +607,11 @@ class AgentEdgeToolTest {
                 preview.getActionPreview().getIdempotencyKey());
 
         assertThat(result.getStatus()).isEqualTo("EXECUTED");
-        assertThat(result.getResult()).containsKey("aiResult");
+        assertThat(result.getResult())
+                .containsEntry("title", "Java 模拟试卷")
+                .containsEntry("courseName", "Java")
+                .containsEntry("source", "question-bank")
+                .containsKey("questions")
+                .containsKey("aiResult");
     }
 }

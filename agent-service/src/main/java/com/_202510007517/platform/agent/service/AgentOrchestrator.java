@@ -109,6 +109,7 @@ public class AgentOrchestrator {
         clearPendingContext(session);
         if (!confirmationPolicy.requiresConfirmation(recognizedIntent.intent())) {
             response = dataResponse(session, recognizedIntent.intent(), recognizedIntent.slots(), userId, userRole);
+            saveGeneratedQuestionsForAssignment(session, recognizedIntent.intent(), response.getData());
             sessionService.saveAssistantMessage(session.getId(), response, recognizedIntent);
             return response;
         }
@@ -275,6 +276,50 @@ public class AgentOrchestrator {
         session.setPendingIntent(null);
         session.setPendingSlotsJson(null);
         sessionService.save(session);
+    }
+
+    private void saveGeneratedQuestionsForAssignment(AgentSessionEntity session, AgentIntent intent, Object data) {
+        if (intent != AgentIntent.GENERATE_QUESTIONS || !(data instanceof Map<?, ?> rawData)) {
+            return;
+        }
+        Map<?, ?> source = rawData;
+        Object questions = source.get("questions");
+        if (!(questions instanceof List<?> questionList) || questionList.isEmpty()) {
+            Object nested = rawData.get("aiResult");
+            if (nested instanceof Map<?, ?> nestedMap) {
+                source = nestedMap;
+                questions = nestedMap.get("questions");
+            }
+        }
+        if (!(questions instanceof List<?> questionList) || questionList.isEmpty()) {
+            return;
+        }
+        Map<String, Object> pendingSlots = new LinkedHashMap<>();
+        Object topic = source.get("topic");
+        if (topic != null && !String.valueOf(topic).isBlank()) {
+            pendingSlots.put("title", String.valueOf(topic) + "课堂练习");
+        }
+        pendingSlots.put("content", formatGeneratedQuestions(questionList));
+        savePendingContext(session, new RecognizedIntent(AgentIntent.PUBLISH_ASSIGNMENT, 0.8, pendingSlots));
+    }
+
+    private String formatGeneratedQuestions(List<?> questions) {
+        StringBuilder builder = new StringBuilder("题目如下：");
+        for (int index = 0; index < questions.size(); index++) {
+            Object question = questions.get(index);
+            builder.append(System.lineSeparator()).append(index + 1).append(". ");
+            if (question instanceof Map<?, ?> questionMap) {
+                Object content = questionMap.get("content");
+                builder.append(content == null ? "" : content);
+                Object answer = questionMap.get("answer");
+                if (answer != null && !String.valueOf(answer).isBlank()) {
+                    builder.append(System.lineSeparator()).append("答案：").append(answer);
+                }
+                continue;
+            }
+            builder.append(question);
+        }
+        return builder.toString();
     }
 
     private AgentChatResponseDTO textResponse(AgentSessionEntity session, String message) {

@@ -1,8 +1,7 @@
 package com._202510007517.platform.agent.tool;
 
-import com._202510007517.platform.agent.client.AiEdgeClient;
 import com._202510007517.platform.agent.model.AgentIntent;
-import com._202510007517.platform.common.web.ResponseResult;
+import com._202510007517.platform.agent.questionbank.QuestionBankSummaryService;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -11,10 +10,10 @@ import java.util.Map;
 @Component
 public class QuestionBankSummaryTool implements AgentTool {
 
-    private final AiEdgeClient aiClient;
+    private final QuestionBankSummaryService summaryService;
 
-    public QuestionBankSummaryTool(AiEdgeClient aiClient) {
-        this.aiClient = aiClient;
+    public QuestionBankSummaryTool(QuestionBankSummaryService summaryService) {
+        this.summaryService = summaryService;
     }
 
     @Override
@@ -24,12 +23,10 @@ public class QuestionBankSummaryTool implements AgentTool {
 
     @Override
     public Map<String, Object> execute(Long userId, String userRole, Map<String, Object> request) {
-        ResponseResult<Map<String, Object>> response = aiClient.questionBankSummary(
-                String.valueOf(userId), userRole, userRole);
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("status", response.isSuccess() ? "EXECUTED" : "FAILED");
-        result.put("questionBank", response.getData());
-        result.put("message", response.getMessage());
+        result.put("status", "EXECUTED");
+        result.put("questionBank", summaryService.summary());
+        result.put("message", "题库查询完成。");
         return result;
     }
 }

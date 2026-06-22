@@ -3,15 +3,20 @@ package com._202510007517.platform.agent.service;
 import com._202510007517.platform.agent.AgentServiceApplication;
 import com._202510007517.platform.agent.api.dto.AgentExecutionResultDTO;
 import com._202510007517.platform.agent.api.dto.AgentChatResponseDTO;
+import com._202510007517.platform.agent.api.dto.AgentSessionDTO;
 import com._202510007517.platform.agent.domain.AgentActionEntity;
+import com._202510007517.platform.agent.client.AiEdgeClient;
+import com._202510007517.platform.agent.questionbank.QuestionRagService;
 import com._202510007517.platform.agent.rag.RagKnowledgeService;
 import com._202510007517.platform.agent.repository.AgentActionRepository;
 import com._202510007517.platform.agent.repository.AgentAuditLogRepository;
 import com._202510007517.platform.agent.client.TeacherAssignmentEdgeClient;
+import com._202510007517.platform.ai.api.dto.GenerateQuestionsRequestDTO;
 import com._202510007517.platform.assignment.api.dto.AssignmentDTO;
 import com._202510007517.platform.assignment.api.dto.AssignmentStudentScoreDTO;
 import com._202510007517.platform.assignment.api.dto.AssignmentSubmitRequestDTO;
 import com._202510007517.platform.assignment.api.dto.AssignmentSubmissionDTO;
+import com._202510007517.platform.assignment.api.dto.TeacherAssignmentUpsertRequestDTO;
 import com._202510007517.platform.assignment.api.feign.AssignmentFeignClient;
 import com._202510007517.platform.course.api.dto.CourseAssignmentDTO;
 import com._202510007517.platform.course.api.dto.CourseDTO;
@@ -47,7 +52,10 @@ import static org.mockito.Mockito.when;
                 "spring.datasource.url=jdbc:h2:mem:agent-orchestrator;MODE=MySQL;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1",
                 "spring.datasource.username=sa",
                 "spring.datasource.password=",
-                "spring.datasource.driver-class-name=org.h2.Driver"
+                "spring.datasource.driver-class-name=org.h2.Driver",
+                "agent.question-bank.enabled=true",
+                "agent.question-bank.document-paths[0]=../docs/question-bank/java/java-basic-sample.md",
+                "agent.question-bank.min-score=0.0"
         })
 class AgentOrchestratorTest {
 
@@ -67,6 +75,9 @@ class AgentOrchestratorTest {
     private TeacherAssignmentEdgeClient teacherAssignmentEdgeClient;
 
     @MockitoBean
+    private AiEdgeClient aiEdgeClient;
+
+    @MockitoBean
     private AssignmentFeignClient assignmentFeignClient;
 
     @MockitoBean
@@ -75,10 +86,14 @@ class AgentOrchestratorTest {
     @MockitoBean
     private RagKnowledgeService ragKnowledgeService;
 
+    @MockitoBean(name = "questionBankEmbeddingClient")
+    private QuestionRagService.EmbeddingClient questionBankEmbeddingClient;
+
     @BeforeEach
     void clearActions() {
         auditLogRepository.deleteAll();
         actionRepository.deleteAll();
+        when(questionBankEmbeddingClient.embed(any())).thenReturn(List.of(1.0, 0.0));
         when(generalChatService.reply(any(), any(), any()))
                 .thenReturn("我是课程平台里的 AI 助手，可以聊天，也可以帮你处理课程、班级、作业和通知。");
     }
@@ -246,6 +261,17 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void asksForTopicBeforeGeneratingQuestionsWhenRequestIsTooGeneric() {
+        AgentChatResponseDTO response = orchestrator.chat(7L, "TEACHER", null, "随机生成五道课堂练习题");
+
+        assertThat(response.getResponseType()).isEqualTo("TEXT");
+        assertThat(response.getActionPreview()).isNull();
+        assertThat(response.getMessage()).contains("主题");
+        verify(aiEdgeClient, never()).generateQuestions(any(), any(), any(), any(GenerateQuestionsRequestDTO.class));
+        assertThat(actionRepository.findAll()).isEmpty();
+    }
+
+    @Test
     void mergesFollowUpSlotsIntoPendingAssignmentPublishIntent() {
         stubJavaCourse();
 
@@ -263,6 +289,47 @@ class AgentOrchestratorTest {
                 .containsEntry("dueDate", "明晚")
                 .containsEntry("maxScore", 100);
         assertThat(actionRepository.findAll()).hasSize(1);
+    }
+
+    @Test
+    void reusesGeneratedQuestionsAsAssignmentContentInFollowUpPublish() {
+        stubJavaCourse();
+        AssignmentDTO assignment = new AssignmentDTO();
+        assignment.setId(99L);
+        assignment.setTitle("Java课堂练习");
+        when(teacherAssignmentEdgeClient.createAssignment(eq("7"), any()))
+                .thenReturn(ResponseResult.created(assignment));
+
+        AgentChatResponseDTO generated = orchestrator.chat(7L, "TEACHER", null,
+                "生成2道Java基础中等难度题");
+        AgentSessionDTO generatedSession = orchestrator.getSession(7L, "TEACHER", Long.valueOf(generated.getSessionId()));
+        assertThat(generatedSession.getPendingIntent()).isEqualTo("PUBLISH_ASSIGNMENT");
+        assertThat(String.valueOf(generatedSession.getPendingSlots().get("content")))
+                .contains("Java中用于表示一个类继承另一个类的关键字是哪个？")
+                .contains("char类型在Java中可以直接表示Unicode字符。");
+        AgentChatResponseDTO preview = orchestrator.chat(7L, "TEACHER", generated.getSessionId(),
+                "给Java课程发布作业，标题是Java课堂练习，截止明晚，满分100");
+
+        assertThat(preview.getResponseType()).isEqualTo("ACTION_PREVIEW");
+        assertThat(preview.getActionPreview().getPreview())
+                .containsEntry("title", "Java课堂练习")
+                .containsEntry("courseId", 12L);
+        assertThat(String.valueOf(preview.getActionPreview().getPreview().get("content")))
+                .contains("Java中用于表示一个类继承另一个类的关键字是哪个？")
+                .contains("char类型在Java中可以直接表示Unicode字符。");
+
+        AgentExecutionResultDTO result = orchestrator.confirm(
+                7L,
+                "TEACHER",
+                preview.getActionPreview().getActionId(),
+                preview.getActionPreview().getIdempotencyKey());
+
+        assertThat(result.getStatus()).isEqualTo("EXECUTED");
+        var requestCaptor = forClass(TeacherAssignmentUpsertRequestDTO.class);
+        verify(teacherAssignmentEdgeClient).createAssignment(eq("7"), requestCaptor.capture());
+        assertThat(requestCaptor.getValue().getDescription())
+                .contains("Java中用于表示一个类继承另一个类的关键字是哪个？")
+                .contains("char类型在Java中可以直接表示Unicode字符。");
     }
 
     @Test

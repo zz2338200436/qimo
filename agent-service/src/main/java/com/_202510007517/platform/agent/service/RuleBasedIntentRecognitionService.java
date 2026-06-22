@@ -49,6 +49,7 @@ public class RuleBasedIntentRecognitionService implements IntentRecognitionServi
     private static final Pattern COURSE_ID_PATTERN = Pattern.compile("课程(?:ID)?\\s*(\\d+)");
     private static final Pattern NOTIFICATION_ID_PATTERN = Pattern.compile("通知(?:ID)?\\s*(\\d+)");
     private static final Pattern NOTIFICATION_TYPE_PATTERN = Pattern.compile("类型是([^，,。；;]+)");
+    private static final Pattern QUESTION_COUNT_PATTERN = Pattern.compile("(\\d+)\\s*道|([一二三四五六七八九十两])\\s*道");
 
     @Override
     public RecognizedIntent recognize(String message) {
@@ -281,7 +282,75 @@ public class RuleBasedIntentRecognitionService implements IntentRecognitionServi
                 slots.put("answers", parsedAnswers);
             }
         }
+        extractQuestionGenerationSlots(slots, text);
         return slots;
+    }
+
+    private static void extractQuestionGenerationSlots(Map<String, Object> slots, String text) {
+        if (!(containsAny(text, "生成", "出") && containsAny(text, "题", "题目", "选择题"))) {
+            return;
+        }
+
+        Matcher countMatcher = QUESTION_COUNT_PATTERN.matcher(text);
+        if (countMatcher.find()) {
+            String arabic = countMatcher.group(1);
+            if (arabic != null) {
+                slots.put("count", Integer.parseInt(arabic));
+            } else {
+                Integer count = chineseNumber(countMatcher.group(2));
+                if (count != null) {
+                    slots.put("count", count);
+                }
+            }
+        }
+
+        if (containsAny(text, "简单难度", "简单", "easy", "入门")) {
+            slots.put("difficulty", "简单");
+        } else if (containsAny(text, "中等难度", "中等", "medium", "中级")) {
+            slots.put("difficulty", "中等");
+        } else if (containsAny(text, "困难难度", "困难", "hard", "高级")) {
+            slots.put("difficulty", "困难");
+        }
+
+        if (text.contains("选择题")) {
+            slots.put("type", "SINGLE_CHOICE");
+        } else if (text.contains("判断题")) {
+            slots.put("type", "TRUE_FALSE");
+        } else if (text.contains("填空题")) {
+            slots.put("type", "FILL_BLANK");
+        } else if (containsAny(text, "简答题", "问答题")) {
+            slots.put("type", "SHORT_ANSWER");
+        }
+
+        String topic = text
+                .replaceAll("[0-9]+\\s*道", "")
+                .replaceAll("[一二三四五六七八九十两]\\s*道", "")
+                .replace("随机", "")
+                .replace("帮我", "")
+                .replace("请", "")
+                .replace("生成", "")
+                .replace("出", "")
+                .replace("中等难度", "")
+                .replace("简单难度", "")
+                .replace("困难难度", "")
+                .replace("中等", "")
+                .replace("简单", "")
+                .replace("困难", "")
+                .replace("选择题", "")
+                .replace("判断题", "")
+                .replace("填空题", "")
+                .replace("简答题", "")
+                .replace("问答题", "")
+                .replace("课堂练习题", "")
+                .replace("课堂练习", "")
+                .replace("练习题", "")
+                .replace("题目", "")
+                .replace("题", "")
+                .replaceAll("\\s+", "")
+                .trim();
+        if (!topic.isBlank()) {
+            slots.put("topic", topic);
+        }
     }
 
     private static void putIfFound(Map<String, Object> slots, String key, Pattern pattern, String text) {
@@ -418,6 +487,25 @@ public class RuleBasedIntentRecognitionService implements IntentRecognitionServi
             }
         }
         return answers;
+    }
+
+    private static Integer chineseNumber(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return switch (value.trim()) {
+            case "一" -> 1;
+            case "二", "两" -> 2;
+            case "三" -> 3;
+            case "四" -> 4;
+            case "五" -> 5;
+            case "六" -> 6;
+            case "七" -> 7;
+            case "八" -> 8;
+            case "九" -> 9;
+            case "十" -> 10;
+            default -> null;
+        };
     }
 
     private static RecognizedIntent unknown() {
