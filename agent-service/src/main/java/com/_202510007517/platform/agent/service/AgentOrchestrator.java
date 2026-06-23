@@ -41,6 +41,7 @@ public class AgentOrchestrator {
     private final ToolRegistry toolRegistry;
     private final AgentPermissionPolicy permissionPolicy;
     private final AgentConfirmationPolicy confirmationPolicy;
+    private final AgentAssignmentDraftService assignmentDraftService;
     private final AgentContextEnrichmentService contextEnrichmentService;
     private final AgentSlotRequirementService slotRequirementService;
     private final GeneralChatService generalChatService;
@@ -57,6 +58,7 @@ public class AgentOrchestrator {
                              ToolRegistry toolRegistry,
                              AgentPermissionPolicy permissionPolicy,
                              AgentConfirmationPolicy confirmationPolicy,
+                             AgentAssignmentDraftService assignmentDraftService,
                              AgentContextEnrichmentService contextEnrichmentService,
                              AgentSlotRequirementService slotRequirementService,
                              GeneralChatService generalChatService,
@@ -72,6 +74,7 @@ public class AgentOrchestrator {
         this.toolRegistry = toolRegistry;
         this.permissionPolicy = permissionPolicy;
         this.confirmationPolicy = confirmationPolicy;
+        this.assignmentDraftService = assignmentDraftService;
         this.contextEnrichmentService = contextEnrichmentService;
         this.slotRequirementService = slotRequirementService;
         this.generalChatService = generalChatService;
@@ -81,6 +84,12 @@ public class AgentOrchestrator {
 
     @Transactional
     public AgentChatResponseDTO chat(Long userId, String userRole, String sessionId, String message) {
+        return chat(userId, userRole, sessionId, message, Map.of());
+    }
+
+    @Transactional
+    public AgentChatResponseDTO chat(Long userId, String userRole, String sessionId, String message,
+                                     Map<String, Object> pageContext) {
         AgentSessionEntity session = sessionService.resolveSession(userId, userRole, sessionId);
         sessionService.saveMessage(session.getId(), "USER", message, null);
         RecognizedIntent recognizedIntent = mergePendingContext(session, intentRecognitionService.recognize(message));
@@ -98,6 +107,7 @@ public class AgentOrchestrator {
             sessionService.saveAssistantMessage(session.getId(), response, recognizedIntent);
             return response;
         }
+        recognizedIntent = assignmentDraftService.enrich(recognizedIntent, message, pageContext);
         recognizedIntent = contextEnrichmentService.enrich(userId, userRole, recognizedIntent);
         var missingSlots = slotRequirementService.missingSlots(recognizedIntent, message);
         if (!missingSlots.isEmpty()) {

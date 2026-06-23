@@ -67,6 +67,10 @@ public class RuleBasedIntentRecognitionService implements IntentRecognitionServi
         if (containsAny(text, "发布作业", "布置作业", "创建作业")) {
             return AgentIntent.PUBLISH_ASSIGNMENT;
         }
+        if (containsAny(text, "发布到班级", "发到班级", "布置到班级")
+                && containsAny(text, "题", "题目", "这个题", "这道题")) {
+            return AgentIntent.PUBLISH_ASSIGNMENT;
+        }
         if (containsAny(text, "更新作业", "修改作业", "编辑作业")) {
             return AgentIntent.UPDATE_ASSIGNMENT;
         }
@@ -348,9 +352,24 @@ public class RuleBasedIntentRecognitionService implements IntentRecognitionServi
                 .replace("题", "")
                 .replaceAll("\\s+", "")
                 .trim();
-        if (!topic.isBlank()) {
+        if (isMeaningfulQuestionTopic(topic)) {
             slots.put("topic", topic);
         }
+    }
+
+    private static boolean isMeaningfulQuestionTopic(String topic) {
+        if (topic == null || topic.isBlank()) {
+            return false;
+        }
+        String normalized = topic.trim()
+                .replace("课程", "")
+                .replace("练习", "")
+                .replace("课堂", "")
+                .replace("题库", "")
+                .replace("随机", "")
+                .replace("综合", "")
+                .replaceAll("\\s+", "");
+        return !normalized.isBlank();
     }
 
     private static void putIfFound(Map<String, Object> slots, String key, Pattern pattern, String text) {

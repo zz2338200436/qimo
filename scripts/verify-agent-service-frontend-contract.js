@@ -51,44 +51,44 @@ const pageChecks = [
   {
     file: 'major_assignment/src/main/resources/static/student-ai-assistant.html',
     snippets: [
-      'agent-chat-panel.css?v=20260617-agent-2',
+      'agent-chat-panel.css?v=20260620-agent-stream-1',
       'data-agent-history-panel',
       'data-agent-panel data-agent-role="STUDENT"',
       'data-agent-command="查看我的作业列表"',
-      'agent-chat-panel.js?v=20260617-agent-3',
+      'agent-chat-panel.js?v=20260620-agent-stream-1',
       'agent-history-panel.js?v=20260617-agent-history-2',
     ],
   },
   {
     file: 'major_assignment/src/main/resources/static/teacher-ai-tools.html',
     snippets: [
-      'agent-chat-panel.css?v=20260617-agent-2',
+      'agent-chat-panel.css?v=20260620-agent-stream-1',
       'data-agent-history-panel',
       'data-agent-panel data-agent-role="TEACHER"',
       'data-agent-history-toggle',
-      'agent-chat-panel.js?v=20260617-agent-3',
+      'agent-chat-panel.js?v=20260620-agent-stream-1',
       'agent-history-panel.js?v=20260617-agent-history-2',
     ],
   },
   {
     file: 'frontend/dist/student-ai-assistant.html',
     snippets: [
-      'agent-chat-panel.css?v=20260617-agent-2',
+      'agent-chat-panel.css?v=20260620-agent-stream-1',
       'data-agent-history-panel',
       'data-agent-panel data-agent-role="STUDENT"',
       'data-agent-command="查看我的作业列表"',
-      'agent-chat-panel.js?v=20260617-agent-3',
+      'agent-chat-panel.js?v=20260620-agent-stream-1',
       'agent-history-panel.js?v=20260617-agent-history-2',
     ],
   },
   {
     file: 'frontend/dist/teacher-ai-tools.html',
     snippets: [
-      'agent-chat-panel.css?v=20260617-agent-2',
+      'agent-chat-panel.css?v=20260620-agent-stream-1',
       'data-agent-history-panel',
       'data-agent-panel data-agent-role="TEACHER"',
       'data-agent-history-toggle',
-      'agent-chat-panel.js?v=20260617-agent-3',
+      'agent-chat-panel.js?v=20260620-agent-stream-1',
       'agent-history-panel.js?v=20260617-agent-history-2',
     ],
   },
@@ -102,8 +102,16 @@ for (const check of pageChecks) {
 }
 
 const panelScript = read('major_assignment/src/main/resources/static/agent-chat-panel.js');
+const frontendAgentChatPanel = read('frontend/dist/agent-chat-panel.js');
+const staticAgentChatPanel = panelScript;
 [
   "this.request('/api/agent/chat'",
+  "/api/agent/chat/stream",
+  'response.body.getReader()',
+  "'Accept': 'text/event-stream'",
+  "'X-User-Id'",
+  "'X-Active-Role'",
+  "'X-Roles'",
   '`/api/agent/actions/${preview.actionId}/confirm`',
   '`/api/agent/actions/${preview.actionId}/cancel`',
   'cancel(preview',
@@ -115,9 +123,18 @@ const panelScript = read('major_assignment/src/main/resources/static/agent-chat-
   'persistCurrentSessionId(sessionId) {',
   "window.sessionStorage.setItem(this.sessionStorageKey, sessionId);",
   "window.addEventListener('agent-session-selected'",
+  'AgentStreamFallback',
   'global.initAgentChatPanels = initAll',
 ].forEach(snippet => {
   assertIncludes(panelScript, snippet, 'Agent panel script should call the Agent service and expose initializer.');
+});
+
+[
+  'buildPageContext()',
+  'context: this.buildPageContext()',
+].forEach(snippet => {
+  assertIncludes(frontendAgentChatPanel, snippet, 'Frontend agent chat panel should send page context.');
+  assertIncludes(staticAgentChatPanel, snippet, 'Static agent chat panel should send page context.');
 });
 
 assertNotIncludes(

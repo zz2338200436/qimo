@@ -386,6 +386,24 @@ class RuleBasedIntentRecognitionServiceTest {
     }
 
     @Test
+    void doesNotExtractGenericTopicForRandomQuestionGeneration() {
+        RecognizedIntent result = service.recognize("生成随机题目十道");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.GENERATE_QUESTIONS);
+        assertThat(result.slots())
+                .containsEntry("count", 10)
+                .doesNotContainKey("topic");
+    }
+
+    @Test
+    void doesNotExtractGenericTopicForClassExercisePrompt() {
+        RecognizedIntent result = service.recognize("生成课堂练习题");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.GENERATE_QUESTIONS);
+        assertThat(result.slots()).doesNotContainKey("topic");
+    }
+
+    @Test
     void recognizesQuestionBankQueries() {
         assertThat(service.recognize("现在题库有什么题目").intent()).isEqualTo(AgentIntent.QUERY_QUESTION_BANK);
         assertThat(service.recognize("查询题库有哪些知识点").intent()).isEqualTo(AgentIntent.QUERY_QUESTION_BANK);

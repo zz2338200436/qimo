@@ -18,12 +18,14 @@
     }
 
     const AGENT_FIELD_LABELS = {
-        status: '状态',
-        aiResult: '处理结果',
         difficulty: '难度',
         count: '数量',
+        actualCount: '实际数量',
+        partial: '数量不足',
         topic: '主题',
+        topicCount: '主题数',
         questions: '题目',
+        questionCount: '题目数',
         responseType: '响应类型',
         message: '消息',
         data: '数据',
@@ -44,11 +46,25 @@
         updatedAt: '更新时间',
         score: '分值',
         answer: '答案',
+        analysis: '解析',
         explanation: '解析',
         type: '类型',
         content: '内容',
-        options: '选项'
+        options: '选项',
+        source: '题目来源',
+        sourcePath: '来源文件',
+        knowledgePoints: '知识点',
+        totalScore: '总分',
+        totalQuestions: '题目总数',
+        totalKnowledgePoints: '知识点总数',
+        duration: '时长',
+        courseName: '课程名称'
     };
+
+    /** 不展示给用户的内部字段 */
+    const SKIP_META_KEYS = new Set(['aiResult', 'status', 'responseType', 'actionId', 'riskLevel',
+        'idempotencyKey', 'secondConfirmationRequired', 'secondConfirmationPhrase',
+        'secondConfirmationPrompt', 'sessionId', 'createdAt', 'updatedAt', 'actionPreview']);
 
     const AGENT_VALUE_LABELS = {
         EXECUTED: '已执行',
@@ -87,6 +103,16 @@
             return escapeHtml(AGENT_VALUE_LABELS[value] || value);
         }
         return escapeHtml(value);
+    }
+
+    function isChipValue(value) {
+        if (value == null || value === '') {
+            return false;
+        }
+        if (Array.isArray(value)) {
+            return value.length > 0 && value.every(item => item == null || ['string', 'number', 'boolean'].includes(typeof item));
+        }
+        return typeof value !== 'object';
     }
 
     function getApiService() {
@@ -236,6 +262,73 @@
         `;
     }
 
+    function buildCollapsibleMeta(summaryChipsHtml, detailHtml) {
+        if (!detailHtml) {
+            return summaryChipsHtml || '';
+        }
+        const id = `agent-meta-${Math.random().toString(36).slice(2, 9)}`;
+        return `
+            <div class="agent-metadata-summary-bar">
+                <button type="button" class="agent-metadata-toggle"
+                        data-agent-meta-toggle="${id}"
+                        aria-expanded="false"
+                        aria-controls="${id}">
+                    <i class="fa fa-caret-right" aria-hidden="true"></i> 详情
+                </button>
+                ${summaryChipsHtml}
+            </div>
+            <div class="agent-metadata-collapse" id="${id}" style="max-height:0;opacity:0;margin-top:0;" aria-hidden="true">
+                ${detailHtml}
+            </div>
+        `;
+    }
+
+    function buildMetaChips(entries) {
+        // 挑几个关键字段展示为摘要标签（最多4个），跳过内部字段
+        const visibleEntries = entries.filter(([key]) => !SKIP_META_KEYS.has(key));
+        const priorityKeys = ['topic', 'difficulty', 'count', 'actualCount', 'totalQuestions', 'totalKnowledgePoints', 'topicCount', 'partial', 'type', 'title', 'intent', 'message'];
+        const chips = [];
+        for (const key of priorityKeys) {
+            const entry = visibleEntries.find(([k]) => k === key);
+            if (entry) {
+                const [, val] = entry;
+                if (!isChipValue(val)) {
+                    continue;
+                }
+                const v = renderScalarValue(val);
+                if (v && v !== '无') {
+                    chips.push(`<span class="agent-metadata-chip">${escapeHtml(formatAgentLabel(key))}：${v}</span>`);
+                }
+            }
+        }
+        // 如果没有匹配到优先级键，取前3个
+        if (chips.length === 0) {
+            for (const [key, val] of visibleEntries.filter(([, value]) => isChipValue(value)).slice(0, 3)) {
+                const v = renderScalarValue(val);
+                if (v && v !== '无') {
+                    chips.push(`<span class="agent-metadata-chip">${escapeHtml(formatAgentLabel(key))}：${v}</span>`);
+                }
+            }
+        }
+        return chips.join('');
+    }
+
+    function initMetaToggles(root) {
+        if (!root) return;
+        root.querySelectorAll('[data-agent-meta-toggle]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = document.getElementById(btn.getAttribute('data-agent-meta-toggle'));
+                if (!target) return;
+                const isOpen = btn.getAttribute('aria-expanded') === 'true';
+                btn.setAttribute('aria-expanded', String(!isOpen));
+                target.setAttribute('aria-hidden', String(isOpen));
+                target.style.maxHeight = isOpen ? '0' : (target.scrollHeight + 16) + 'px';
+                target.style.opacity = isOpen ? '0' : '1';
+                target.style.marginTop = isOpen ? '0' : '10px';
+            });
+        });
+    }
+
     function renderCollectionPayload(value) {
         if (Array.isArray(value.courses) && value.courses.every(isCourseLike)) {
             return `${renderCollectionSummary(value, 'courses')}${renderCourseList(value.courses)}`;
@@ -277,6 +370,73 @@
         return `<div class="agent-question-list">${questions.map((question, index) => renderQuestionCard(question, index)).join('')}</div>`;
     }
 
+    function isQuestionBankPayload(value) {
+        return value
+            && typeof value === 'object'
+            && !Array.isArray(value)
+            && Array.isArray(value.questions)
+            && value.questions.length > 0
+            && hasValue(value.totalQuestions);
+    }
+
+    function isQuestionBankEnvelope(value) {
+        return value
+            && typeof value === 'object'
+            && !Array.isArray(value)
+            && isQuestionBankPayload(value.questionBank);
+    }
+
+    function renderQuestionBankPayload(value) {
+        const summaryEntries = Object.entries(value)
+            .filter(([key]) => !SKIP_META_KEYS.has(key))
+            .filter(([key]) => !['questions', 'topics', 'difficultyBreakdown', 'topicDifficultyBreakdown'].includes(key))
+            .filter(([, item]) => item != null && item !== '');
+        const chipsHtml = buildMetaChips(summaryEntries);
+        const detailHtml = summaryEntries.length
+            ? `<dl class="agent-result-summary">
+                ${summaryEntries.map(([key, item]) => `
+                    <div>
+                        <dt>${escapeHtml(formatAgentLabel(key))}</dt>
+                        <dd>${renderValue(item)}</dd>
+                    </div>
+                `).join('')}
+            </dl>`
+            : '';
+        const metaHtml = buildCollapsibleMeta(chipsHtml, detailHtml);
+        return `${metaHtml}${renderQuestionList(value.questions)}`;
+    }
+
+    function renderQuestionBankEnvelope(value) {
+        return renderQuestionBankPayload({
+            ...value.questionBank,
+            message: value.message || value.questionBank.message
+        });
+    }
+
+    function extractLegacyQuestionPayload(value) {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) {
+            return null;
+        }
+        if (Array.isArray(value.questions) && value.questions.every(isQuestionLike)) {
+            return null;
+        }
+        const legacyQuestions = [
+            value.aiResult?.questions,
+            value.aiResult?.exam?.questions
+        ].find(item => Array.isArray(item) && item.every(isQuestionLike));
+        if (!legacyQuestions) {
+            return null;
+        }
+        const source = value.aiResult?.exam && Array.isArray(value.aiResult.exam.questions)
+            ? value.aiResult.exam
+            : value.aiResult;
+        return {
+            ...source,
+            ...value,
+            questions: legacyQuestions
+        };
+    }
+
     function renderValue(value) {
         if (value == null) {
             return '<span class="text-muted">无</span>';
@@ -297,15 +457,23 @@
             if (isCourseDetailPayload(value)) {
                 return renderCourseDetailCard(value.course);
             }
+            if (isQuestionBankEnvelope(value)) {
+                return renderQuestionBankEnvelope(value);
+            }
+            if (isQuestionBankPayload(value)) {
+                return renderQuestionBankPayload(value);
+            }
             const collectionHtml = renderCollectionPayload(value);
             if (collectionHtml) {
                 return collectionHtml;
             }
             if (Array.isArray(value.questions) && value.questions.every(isQuestionLike)) {
                 const summaryEntries = Object.entries(value)
+                    .filter(([key]) => !SKIP_META_KEYS.has(key))
                     .filter(([key]) => key !== 'questions')
                     .filter(([, item]) => item != null && item !== '');
-                const summary = summaryEntries.length
+                const chipsHtml = buildMetaChips(summaryEntries);
+                const detailHtml = summaryEntries.length
                     ? `<dl class="agent-result-summary">
                         ${summaryEntries.map(([key, item]) => `
                             <div>
@@ -315,7 +483,12 @@
                         `).join('')}
                     </dl>`
                     : '';
-                return `${summary}${renderQuestionList(value.questions)}`;
+                const metaHtml = buildCollapsibleMeta(chipsHtml, detailHtml);
+                return `${metaHtml}${renderQuestionList(value.questions)}`;
+            }
+            const legacyQuestions = extractLegacyQuestionPayload(value);
+            if (legacyQuestions) {
+                return renderValue(legacyQuestions);
             }
             if (isCourseLike(value)) {
                 return renderCourseCard(value);
@@ -323,11 +496,13 @@
             if (isQuestionLike(value)) {
                 return renderQuestionCard(value, 0);
             }
-            const entries = Object.entries(value);
+            const entries = Object.entries(value)
+                .filter(([key]) => !SKIP_META_KEYS.has(key));
             if (entries.length === 0) {
                 return '<span class="text-muted">暂无数据</span>';
             }
-            return `
+            const chipsHtml = buildMetaChips(entries);
+            const detailHtml = `
                 <dl class="agent-result-map">
                     ${entries.map(([key, item]) => `
                         <div>
@@ -337,6 +512,7 @@
                     `).join('')}
                 </dl>
             `;
+            return buildCollapsibleMeta(chipsHtml, detailHtml);
         }
         return renderScalarValue(value);
     }
@@ -436,8 +612,25 @@
             }
             const message = createMessage(role, html, state);
             this.messagesEl.appendChild(message);
-            this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+            this.scrollMessagesToBottom();
             return message;
+        }
+
+        appendEmpty(role, state) {
+            return this.append(role, '', state);
+        }
+
+        scrollMessagesToBottom() {
+            if (!this.messagesEl) {
+                return;
+            }
+            this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+            requestAnimationFrame(() => {
+                if (!this.messagesEl) {
+                    return;
+                }
+                this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+            });
         }
 
         showThinking() {
@@ -513,6 +706,47 @@
             }
         }
 
+        buildPageContext() {
+            const context = {
+                page: document.body?.dataset?.page || document.documentElement?.dataset?.page || location.pathname
+            };
+            const selectedQuestion = window.agentSelectedQuestion || window.currentQuestion || null;
+            if (selectedQuestion && typeof selectedQuestion === 'object') {
+                if (selectedQuestion.id) {
+                    context.selectedQuestionId = Number(selectedQuestion.id);
+                    context.selectedQuestionIds = [Number(selectedQuestion.id)];
+                }
+                if (selectedQuestion.score || selectedQuestion.points) {
+                    context.selectedQuestionScore = Number(selectedQuestion.score || selectedQuestion.points);
+                }
+                if (selectedQuestion.type || selectedQuestion.questionType) {
+                    context.selectedQuestionType = selectedQuestion.type || selectedQuestion.questionType;
+                }
+                if (selectedQuestion.content || selectedQuestion.title) {
+                    context.selectedQuestionContent = selectedQuestion.content || selectedQuestion.title;
+                }
+            }
+            const selectedQuestionIds = window.agentSelectedQuestionIds || window.selectedQuestionIds;
+            if (Array.isArray(selectedQuestionIds) && selectedQuestionIds.length > 0) {
+                context.selectedQuestionIds = selectedQuestionIds
+                    .map(item => Number(item))
+                    .filter(item => Number.isFinite(item));
+            }
+            const currentCourseId = window.agentCurrentCourseId || window.currentCourseId;
+            if (currentCourseId) {
+                context.currentCourseId = Number(currentCourseId);
+            }
+            const currentClassId = window.agentCurrentClassId || window.currentClassId;
+            if (currentClassId) {
+                context.currentClassId = Number(currentClassId);
+            }
+            const questionFilter = window.agentQuestionFilter || window.currentQuestionFilter;
+            if (questionFilter && typeof questionFilter === 'object') {
+                context.questionFilter = { ...questionFilter };
+            }
+            return context;
+        }
+
         async send(message) {
             if (!message) {
                 return;
@@ -523,16 +757,33 @@
             this.setLoading(true);
             this.showThinking();
             try {
-                const payload = await this.request('/api/agent/chat', {
-                    message,
-                    sessionId: this.sessionId
-                }, this.currentController);
-                this.sessionId = payload.sessionId || this.sessionId;
-                this.persistCurrentSessionId(this.sessionId);
-                this.notifySessionChanged(this.sessionId);
+                await this.sendStream(message);
                 this.removeThinking();
-                this.renderResponse(payload);
             } catch (error) {
+                if (error?.name === 'AgentStreamFallback') {
+                    try {
+                        const requestBody = {
+                            message,
+                            sessionId: this.sessionId,
+                            context: this.buildPageContext()
+                        };
+                        const payload = await this.request('/api/agent/chat', requestBody, this.currentController);
+                        this.sessionId = payload.sessionId || this.sessionId;
+                        this.persistCurrentSessionId(this.sessionId);
+                        this.notifySessionChanged(this.sessionId);
+                        this.removeThinking();
+                        this.renderResponse(payload);
+                        return;
+                    } catch (fallbackError) {
+                        this.removeThinking();
+                        if (fallbackError?.name === 'AbortError') {
+                            this.append('agent', '<p class="text-muted">已暂停本次请求。</p>');
+                        } else {
+                            this.append('agent', `<p class="text-danger">${escapeHtml(fallbackError.message || '请求失败')}</p>`);
+                        }
+                        return;
+                    }
+                }
                 this.removeThinking();
                 if (error?.name === 'AbortError') {
                     this.append('agent', '<p class="text-muted">已暂停本次请求。</p>');
@@ -569,9 +820,203 @@
             return response.data || response;
         }
 
+        async sendStream(message) {
+            const payload = await this.requestStream('/api/agent/chat/stream', {
+                message,
+                sessionId: this.sessionId,
+                context: this.buildPageContext()
+            }, this.currentController);
+            this.sessionId = payload.sessionId || this.sessionId;
+            this.persistCurrentSessionId(this.sessionId);
+            this.notifySessionChanged(this.sessionId);
+            return payload;
+        }
+
+        async requestStream(url, body, controller) {
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'text/event-stream'
+            };
+            const csrfToken = typeof getCsrfToken === 'function' ? getCsrfToken() : null;
+            const userId = window.sessionStorage.getItem('userId');
+            const activeRole = window.sessionStorage.getItem('activeRole') || window.sessionStorage.getItem('role');
+            const roles = window.sessionStorage.getItem('roles') || activeRole;
+            if (csrfToken) {
+                headers['X-XSRF-TOKEN'] = csrfToken;
+            }
+            if (userId) {
+                headers['X-User-Id'] = userId;
+            }
+            if (activeRole) {
+                headers['X-Active-Role'] = activeRole;
+            }
+            if (roles) {
+                headers['X-Roles'] = roles;
+            }
+            const token = window.sessionStorage.getItem('token');
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(url, {
+                method: 'POST',
+                credentials: 'include',
+                headers,
+                body: JSON.stringify(body),
+                signal: controller?.signal
+            });
+
+            if (!response.ok) {
+                if (response.status >= 500) {
+                    const fallbackError = new Error('流式接口不可用');
+                    fallbackError.name = 'AgentStreamFallback';
+                    throw fallbackError;
+                }
+                throw new Error(await response.text().catch(() => '') || '请求失败');
+            }
+
+            if (!response.body) {
+                const fallbackError = new Error('流式接口不可用');
+                fallbackError.name = 'AgentStreamFallback';
+                throw fallbackError;
+            }
+
+            return this.consumeSseResponse(response, controller);
+        }
+
+        async consumeSseResponse(response, controller) {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';
+            let assistantMessage = this.thinkingEl;
+            if (assistantMessage) {
+                this.thinkingEl = null;
+            } else {
+                assistantMessage = this.appendEmpty('agent', 'thinking');
+            }
+            let assistantText = '';
+            let finalPayload = null;
+            let streamStarted = false;
+
+            const updateAssistantText = (text) => {
+                assistantText = text;
+                if (!assistantMessage) {
+                    assistantMessage = this.appendEmpty('agent');
+                }
+                assistantMessage.classList.remove('agent-message-thinking');
+                const body = assistantMessage.querySelector('.agent-message-body');
+                if (body) {
+                    body.dataset.rawText = text;
+                    body.innerHTML = `<p>${renderAgentText(text)}</p>`;
+                }
+            };
+
+            const drainBuffer = () => {
+                const blocks = buffer.split(/\r?\n\r?\n/);
+                buffer = blocks.pop() || '';
+                return blocks;
+            };
+
+            try {
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) {
+                        break;
+                    }
+                    streamStarted = true;
+                    buffer += decoder.decode(value, { stream: true });
+                    for (const block of drainBuffer()) {
+                        const event = this.parseSseEvent(block);
+                        if (!event) {
+                            continue;
+                        }
+                        if (event.name === 'session' && event.data?.sessionId) {
+                            this.sessionId = event.data.sessionId;
+                            this.persistCurrentSessionId(this.sessionId);
+                            this.notifySessionChanged(this.sessionId);
+                            continue;
+                        }
+                        if (event.name === 'delta' && event.data?.text) {
+                            updateAssistantText(assistantText + event.data.text);
+                            continue;
+                        }
+                        if (event.name === 'result' && event.data) {
+                            finalPayload = event.data;
+                            if (finalPayload.sessionId) {
+                                this.sessionId = finalPayload.sessionId;
+                                this.persistCurrentSessionId(this.sessionId);
+                                this.notifySessionChanged(this.sessionId);
+                            }
+                            if (finalPayload.responseType === 'TEXT') {
+                                updateAssistantText(finalPayload.message || assistantText || '已处理');
+                            } else {
+                                if (assistantMessage) {
+                                    assistantMessage.remove();
+                                    assistantMessage = null;
+                                }
+                                this.renderResponse(finalPayload);
+                            }
+                            continue;
+                        }
+                        if (event.name === 'error') {
+                            throw new Error(event.data?.message || '请求失败');
+                        }
+                    }
+                    if (controller?.signal.aborted) {
+                        throw new DOMException('Request paused', 'AbortError');
+                    }
+                }
+            } catch (error) {
+                if (!streamStarted) {
+                    const fallbackError = new Error(error.message || '流式接口不可用');
+                    fallbackError.name = 'AgentStreamFallback';
+                    throw fallbackError;
+                }
+                throw error;
+            } finally {
+                reader.releaseLock?.();
+            }
+
+            if (finalPayload) {
+                return finalPayload;
+            }
+            return {
+                sessionId: this.sessionId,
+                responseType: 'TEXT',
+                message: assistantText || '已处理'
+            };
+        }
+
+        parseSseEvent(block) {
+            const lines = block.split(/\r?\n/);
+            let name = '';
+            const dataParts = [];
+            for (const line of lines) {
+                if (line.startsWith('event:')) {
+                    name = line.slice(6).trim();
+                } else if (line.startsWith('data:')) {
+                    dataParts.push(line.slice(5).trim());
+                }
+            }
+            if (!name) {
+                return null;
+            }
+            const dataText = dataParts.join('\n');
+            if (!dataText) {
+                return { name, data: {} };
+            }
+            try {
+                return { name, data: JSON.parse(dataText) };
+            } catch (error) {
+                return { name, data: { text: dataText } };
+            }
+        }
+
         renderResponse(payload) {
             if (payload.responseType === 'ACTION_PREVIEW') {
                 this.renderPreview(payload.actionPreview);
+                initMetaToggles(this.root);
+                this.scrollMessagesToBottom();
                 return;
             }
             if (payload.responseType === 'DATA') {
@@ -579,9 +1024,12 @@
                     <p><strong>${renderAgentText(payload.message || '执行完成')}</strong></p>
                     <div class="agent-data-result">${renderValue(payload.data)}</div>
                 `);
+                initMetaToggles(this.root);
+                this.scrollMessagesToBottom();
                 return;
             }
             this.append('agent', `<p>${renderAgentText(payload.message || '已处理')}</p>`);
+            this.scrollMessagesToBottom();
         }
 
         renderPreview(preview) {
@@ -616,6 +1064,8 @@
             const dismissButton = card?.querySelector('[data-agent-dismiss]');
             confirmButton?.addEventListener('click', () => this.confirm(preview, confirmButton));
             dismissButton?.addEventListener('click', () => this.cancel(preview, dismissButton, confirmButton, card));
+            initMetaToggles(this.root);
+            this.scrollMessagesToBottom();
         }
 
         async cancel(preview, dismissButton, confirmButton, card) {
@@ -674,6 +1124,8 @@
                         <p><strong>${escapeHtml(result.message || '需要二级确认')}</strong></p>
                         <div class="agent-data-result">${renderValue(payload)}</div>
                     `);
+                    initMetaToggles(this.root);
+                    this.scrollMessagesToBottom();
                     return;
                 }
                 const failed = result.status === 'FAILED';
@@ -685,6 +1137,8 @@
                     <p><strong>${escapeHtml(result.message || '操作已执行')}</strong></p>
                     <div class="agent-data-result">${renderValue(result.result || {})}</div>
                 `);
+                initMetaToggles(this.root);
+                this.scrollMessagesToBottom();
             } catch (error) {
                 button.disabled = false;
                 button.innerHTML = '<i class="fa fa-check"></i> 确认执行';

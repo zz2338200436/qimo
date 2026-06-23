@@ -54,7 +54,7 @@ import static org.mockito.Mockito.when;
                 "spring.datasource.password=",
                 "spring.datasource.driver-class-name=org.h2.Driver",
                 "agent.question-bank.enabled=true",
-                "agent.question-bank.document-paths[0]=../docs/question-bank/java/java-basic-sample.md",
+                "agent.question-bank.document-paths[0]=docs/question-bank/java/java-basic-sample.md",
                 "agent.question-bank.min-score=0.0"
         })
 class AgentOrchestratorTest {
@@ -261,12 +261,17 @@ class AgentOrchestratorTest {
     }
 
     @Test
-    void asksForTopicBeforeGeneratingQuestionsWhenRequestIsTooGeneric() {
+    void executesRandomQuestionGenerationWhenRequestIsGenericButExplicitlyRandom() {
         AgentChatResponseDTO response = orchestrator.chat(7L, "TEACHER", null, "随机生成五道课堂练习题");
 
-        assertThat(response.getResponseType()).isEqualTo("TEXT");
-        assertThat(response.getActionPreview()).isNull();
-        assertThat(response.getMessage()).contains("主题");
+        assertThat(response.getResponseType()).isEqualTo("DATA");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) response.getData();
+        assertThat(data)
+                .containsEntry("status", "EXECUTED")
+                .containsEntry("count", 5)
+                .containsEntry("topic", "随机题目")
+                .containsKey("questions");
         verify(aiEdgeClient, never()).generateQuestions(any(), any(), any(), any(GenerateQuestionsRequestDTO.class));
         assertThat(actionRepository.findAll()).isEmpty();
     }
@@ -330,6 +335,54 @@ class AgentOrchestratorTest {
         assertThat(requestCaptor.getValue().getDescription())
                 .contains("Java中用于表示一个类继承另一个类的关键字是哪个？")
                 .contains("char类型在Java中可以直接表示Unicode字符。");
+    }
+
+    @Test
+    void usesPageContextToCreateSelectedQuestionAssignmentPreview() {
+        stubJavaCourse();
+
+        AgentChatResponseDTO response = orchestrator.chat(
+                7L,
+                "TEACHER",
+                null,
+                "把这个题发布到班级",
+                Map.of(
+                        "page", "teacher-question-bank",
+                        "selectedQuestionIds", List.of(91022),
+                        "selectedQuestionScore", 2,
+                        "selectedQuestionType", "TRUE_FALSE",
+                        "selectedQuestionContent", "服务注册中心通常保存服务实例的地址、端口和健康状态等信息。",
+                        "currentCourseId", 12
+                ));
+
+        assertThat(response.getResponseType()).isEqualTo("ACTION_PREVIEW");
+        assertThat(response.getActionPreview().getIntent()).isEqualTo("PUBLISH_ASSIGNMENT");
+        assertThat(response.getActionPreview().getPreview())
+                .containsEntry("courseId", 12L)
+                .containsEntry("questionIds", List.of(91022L))
+                .containsEntry("maxScore", 2)
+                .containsEntry("selectionMode", "SELECTED_QUESTIONS");
+        assertThat(String.valueOf(response.getActionPreview().getPreview().get("title"))).contains("服务注册中心");
+    }
+
+    @Test
+    void selectedQuestionPublishWithoutCourseOnlyAsksForPublishTarget() {
+        AgentChatResponseDTO response = orchestrator.chat(
+                7L,
+                "TEACHER",
+                null,
+                "把这个题发布到班级",
+                Map.of(
+                        "selectedQuestionIds", List.of(91022),
+                        "selectedQuestionScore", 2,
+                        "selectedQuestionType", "TRUE_FALSE",
+                        "selectedQuestionContent", "服务注册中心通常保存服务实例的地址、端口和健康状态等信息。"
+                ));
+
+        assertThat(response.getResponseType()).isEqualTo("TEXT");
+        assertThat(response.getMessage())
+                .isEqualTo("我已准备好作业内容、标题、截止时间和满分。还需要选择发布课程或班级。");
+        assertThat(actionRepository.findAll()).isEmpty();
     }
 
     @Test

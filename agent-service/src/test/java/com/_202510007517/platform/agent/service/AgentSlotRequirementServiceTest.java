@@ -239,4 +239,111 @@ class AgentSlotRequirementServiceTest {
 
         assertThat(prompt).isEqualTo("还需要补充标题、满分、截止时间，我才能继续处理发布作业。");
     }
+
+    @Test
+    void selectedQuestionDraftOnlyRequiresPublishTargetWhenDefaultsArePresent() {
+        RecognizedIntent intent = new RecognizedIntent(
+                AgentIntent.PUBLISH_ASSIGNMENT,
+                0.9,
+                Map.of(
+                        "selectionMode", "SELECTED_QUESTIONS",
+                        "questionIds", List.of(91022L),
+                        "title", "服务注册中心判断题练习",
+                        "dueDate", "2026-06-30 23:59:59",
+                        "maxScore", 2
+                ),
+                List.of());
+
+        List<String> missingSlots = service.missingSlots(intent, "把这个题发布到班级");
+
+        assertThat(missingSlots).containsExactly("课程或班级");
+    }
+
+    @Test
+    void publishAssignmentPromptAsksOnlyForPublishTarget() {
+        String prompt = service.buildPrompt(AgentIntent.PUBLISH_ASSIGNMENT, List.of("课程或班级"));
+
+        assertThat(prompt).isEqualTo("我已准备好作业内容、标题、截止时间和满分。还需要选择发布课程或班级。");
+    }
+
+    @Test
+    void requiresTopicForGenerateQuestionsWhenOnlyGenericExercisePhraseIsProvided() {
+        RecognizedIntent intent = new RecognizedIntent(
+                AgentIntent.GENERATE_QUESTIONS,
+                0.9,
+                Map.of(),
+                List.of()
+        );
+
+        List<String> missingSlots = service.missingSlots(intent, "生成五道课堂练习题");
+
+        assertThat(missingSlots).containsExactly("主题");
+    }
+
+    @Test
+    void acceptsGenerateQuestionsWhenConcreteTopicIsProvided() {
+        RecognizedIntent intent = new RecognizedIntent(
+                AgentIntent.GENERATE_QUESTIONS,
+                0.9,
+                Map.of("topic", "Java基础", "count", 5),
+                List.of()
+        );
+
+        List<String> missingSlots = service.missingSlots(intent, "随机生成五道Java基础课堂练习题");
+
+        assertThat(missingSlots).isEmpty();
+    }
+
+    @Test
+    void allowsRandomGenerateQuestionsWithoutTopic() {
+        RecognizedIntent intent = new RecognizedIntent(
+                AgentIntent.GENERATE_QUESTIONS,
+                0.9,
+                Map.of("count", 10),
+                List.of()
+        );
+
+        List<String> missingSlots = service.missingSlots(intent, "生成随机题目十道");
+
+        assertThat(missingSlots).isEmpty();
+    }
+
+    @Test
+    void ignoresUpstreamOptionalMissingSlotsForRandomQuestionGeneration() {
+        RecognizedIntent intent = new RecognizedIntent(
+                AgentIntent.GENERATE_QUESTIONS,
+                0.95,
+                Map.of("count", 10),
+                List.of("topic", "difficulty")
+        );
+
+        List<String> missingSlots = service.missingSlots(intent, "生成随机题目十道");
+
+        assertThat(missingSlots).isEmpty();
+    }
+
+    @Test
+    void rewritesUpstreamTopicHintToConcreteQuestionTopicPrompt() {
+        RecognizedIntent intent = new RecognizedIntent(
+                AgentIntent.GENERATE_QUESTIONS,
+                0.95,
+                Map.of(),
+                List.of("topic", "difficulty")
+        );
+
+        List<String> missingSlots = service.missingSlots(intent, "生成课堂练习题");
+
+        assertThat(missingSlots).containsExactly("主题");
+    }
+
+    @Test
+    void buildPromptGuidesTeacherWhenQuestionTopicIsMissing() {
+        String prompt = service.buildPrompt(AgentIntent.GENERATE_QUESTIONS, List.of("主题"));
+
+        assertThat(prompt)
+                .contains("补充出题主题")
+                .contains("Java基础")
+                .contains("服务注册与发现")
+                .contains("随机生成10道中等题目");
+    }
 }

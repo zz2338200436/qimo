@@ -21,11 +21,12 @@ public class AgentSlotRequirementService {
 
         switch (intent) {
             case PUBLISH_ASSIGNMENT -> {
-                requireAny(missing, slots, "课程", "courseId", "courseName");
+                requirePublishTarget(missing, slots);
                 require(missing, slots, "标题", "title");
                 requireDueDate(missing, slots, message);
                 require(missing, slots, "满分", "maxScore");
                 requireNumberIfPresent(missing, slots, "课程ID", "courseId");
+                requireNumberIfPresent(missing, slots, "班级ID", "classId");
                 requireNumberIfPresent(missing, slots, "满分", "maxScore");
             }
             case UPDATE_ASSIGNMENT -> {
@@ -152,6 +153,10 @@ public class AgentSlotRequirementService {
                 require(missing, slots, "type", "type");
                 requireNumberListIfPresent(missing, slots, "studentIds", "studentIds");
             }
+            case GENERATE_QUESTIONS -> {
+                removeQuestionGenerationHints(missing);
+                requireQuestionTopic(missing, slots, message);
+            }
             default -> {
                 return new ArrayList<>(missing);
             }
@@ -160,7 +165,9 @@ public class AgentSlotRequirementService {
     }
 
     private void removeSatisfiedMissingSlots(Set<String> missing, Map<String, Object> slots) {
+        removeIfSatisfied(missing, slots, "课程或班级", "courseId", "courseName", "classId", "className");
         removeIfSatisfied(missing, slots, "课程", "courseId", "courseName");
+        removeIfSatisfied(missing, slots, "班级", "classId", "className");
         removeIfSatisfied(missing, slots, "作业", "assignmentId", "assignmentTitle");
         removeIfSatisfied(missing, slots, "考试", "examId", "examTitle");
         removeIfSatisfied(missing, slots, "标题", "title");
@@ -202,6 +209,13 @@ public class AgentSlotRequirementService {
     }
 
     public String buildPrompt(AgentIntent intent, List<String> missingSlots) {
+        if (intent == AgentIntent.PUBLISH_ASSIGNMENT && missingSlots.size() == 1
+                && missingSlots.contains("课程或班级")) {
+            return "我已准备好作业内容、标题、截止时间和满分。还需要选择发布课程或班级。";
+        }
+        if (intent == AgentIntent.GENERATE_QUESTIONS && missingSlots.contains("主题")) {
+            return "还需要补充出题主题，我才能继续生成题目。请按这个顺序补充：1. 课程名或知识点，例如“Java基础”或“服务注册与发现”；2. 可选难度，例如“中等”；3. 可选数量和题型，例如“10道选择题”。也可以直接说：“随机生成10道中等题目”。";
+        }
         return "还需要补充" + missingSlots.stream()
                 .map(this::describeMissingSlot)
                 .distinct()
@@ -214,12 +228,15 @@ public class AgentSlotRequirementService {
             case "更明确的课程", "可识别课程" -> "课程标识，例如课程名+学期+班级，或直接提供课程ID";
             case "更明确的作业", "可识别作业" -> "作业标识，例如作业标题或作业ID";
             case "更明确的考试", "可识别考试" -> "考试标识，例如考试标题或考试ID";
+            case "课程或班级" -> "发布课程或班级";
             case "title" -> "标题";
             case "maxScore" -> "满分";
             case "dueDate" -> "截止时间";
             case "courseId", "courseName" -> "课程";
+            case "classId", "className" -> "班级";
             case "assignmentId", "assignmentTitle" -> "作业";
             case "examId", "examTitle" -> "考试";
+            case "主题" -> "出题主题（课程名或知识点）";
             default -> missingSlot;
         };
     }
@@ -240,6 +257,42 @@ public class AgentSlotRequirementService {
         if (!hasAny(slots, keys)) {
             missing.add(label);
         }
+    }
+
+    private void requirePublishTarget(Set<String> missing, Map<String, Object> slots) {
+        if (!hasAny(slots, "courseId", "courseName", "classId", "className")) {
+            missing.add("课程或班级");
+        }
+    }
+
+    private void removeQuestionGenerationHints(Set<String> missing) {
+        missing.remove("topic");
+        missing.remove("difficulty");
+        missing.remove("count");
+        missing.remove("type");
+    }
+
+    private void requireQuestionTopic(Set<String> missing, Map<String, Object> slots, String message) {
+        if (isRandomQuestionRequest(message, slots)) {
+            return;
+        }
+        Object topic = slots.get("topic");
+        if (topic instanceof String text && !text.isBlank() && !isGenericQuestionTopic(text)) {
+            return;
+        }
+        if (message != null && !message.isBlank() && !isGenericQuestionTopic(message)) {
+            return;
+        }
+        missing.add("主题");
+    }
+
+    private boolean isRandomQuestionRequest(String message, Map<String, Object> slots) {
+        String text = message == null ? "" : message;
+        if (!text.contains("随机")) {
+            return false;
+        }
+        Object topic = slots.get("topic");
+        return !(topic instanceof String topicText) || topicText.isBlank() || isGenericQuestionTopic(topicText);
     }
 
     private boolean hasAny(Map<String, Object> slots, String... keys) {
@@ -289,6 +342,37 @@ public class AgentSlotRequirementService {
         return false;
     }
 
+    private boolean isGenericQuestionTopic(String value) {
+        String text = value == null ? "" : value.trim();
+        if (text.isBlank()) {
+            return true;
+        }
+        String normalized = text
+                .replaceAll("\\d+", "")
+                .replaceAll("[一二三四五六七八九十百千两]+道", "")
+                .replace("随机", "")
+                .replace("生成", "")
+                .replace("帮我", "")
+                .replace("课堂", "")
+                .replace("练习", "")
+                .replace("练习题", "")
+                .replace("题目", "")
+                .replace("题", "")
+                .replace("选择", "")
+                .replace("选择题", "")
+                .replace("中等难度", "")
+                .replace("简单难度", "")
+                .replace("困难难度", "")
+                .replace("中等", "")
+                .replace("简单", "")
+                .replace("困难", "")
+                .replace("容易", "")
+                .replace("高难度", "")
+                .replace("低难度", "")
+                .replaceAll("\\s+", "");
+        return normalized.isBlank() || "综合".equals(normalized) || "综合练习".equals(text.trim());
+    }
+
     private String displayName(AgentIntent intent) {
         return switch (intent) {
             case PUBLISH_ASSIGNMENT -> "发布作业";
@@ -317,6 +401,7 @@ public class AgentSlotRequirementService {
             case DELETE_NOTIFICATION -> "删除通知";
             case SEND_NOTIFICATION -> "发送通知";
             case SEND_BATCH_NOTIFICATION -> "批量发送通知";
+            case GENERATE_QUESTIONS -> "生成题目";
             default -> "这个请求";
         };
     }

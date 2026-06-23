@@ -6,10 +6,12 @@ import com._202510007517.platform.agent.api.dto.AgentChatRequestDTO;
 import com._202510007517.platform.agent.api.dto.AgentChatResponseDTO;
 import com._202510007517.platform.agent.api.dto.AgentExecutionResultDTO;
 import com._202510007517.platform.agent.api.dto.AgentSessionDTO;
+import com._202510007517.platform.agent.service.AgentChatStreamingService;
 import com._202510007517.platform.agent.service.AgentOrchestrator;
 import com._202510007517.platform.common.web.CommonTraceConstants;
 import com._202510007517.platform.common.web.ResponseResult;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 
@@ -25,9 +28,11 @@ import java.util.List;
 public class AgentController {
 
     private final AgentOrchestrator orchestrator;
+    private final AgentChatStreamingService streamingService;
 
-    public AgentController(AgentOrchestrator orchestrator) {
+    public AgentController(AgentOrchestrator orchestrator, AgentChatStreamingService streamingService) {
         this.orchestrator = orchestrator;
+        this.streamingService = streamingService;
     }
 
     @PostMapping("/chat")
@@ -41,7 +46,26 @@ public class AgentController {
             return ResponseResult.failure("缺少用户身份", 400);
         }
         String role = resolveRole(activeRoleHeader, rolesHeader);
-        return ResponseResult.success(orchestrator.chat(userId, role, request.getSessionId(), request.getMessage()));
+        return ResponseResult.success(orchestrator.chat(
+                userId,
+                role,
+                request.getSessionId(),
+                request.getMessage(),
+                request.getContext()));
+    }
+
+    @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter chatStream(
+            @RequestHeader(value = CommonTraceConstants.USER_ID_HEADER, required = false) String userIdHeader,
+            @RequestHeader(value = CommonTraceConstants.ACTIVE_ROLE_HEADER, required = false) String activeRoleHeader,
+            @RequestHeader(value = CommonTraceConstants.ROLES_HEADER, required = false) String rolesHeader,
+            @RequestBody @Valid AgentChatRequestDTO request) {
+        Long userId = resolveUserId(userIdHeader);
+        if (userId == null) {
+            throw new IllegalArgumentException("缺少用户身份");
+        }
+        String role = resolveRole(activeRoleHeader, rolesHeader);
+        return streamingService.streamChat(userId, role, request);
     }
 
     @PostMapping("/actions/{actionId}/confirm")
