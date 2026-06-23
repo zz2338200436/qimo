@@ -49,6 +49,7 @@ Desktop.ini
 .kiro/steering/
 
 # ---------- Runtime / smoke-test scratch ----------
+.worktrees/
 .runtime-logs/
 data/
 *.pid
