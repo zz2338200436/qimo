@@ -1,6 +1,7 @@
 package com._202510007517.platform.agent.tool;
 
 import com._202510007517.platform.agent.client.TeacherAnalysisEdgeClient;
+import com._202510007517.platform.agent.client.TeacherKnowledgeAnalysisEdgeClient;
 import com._202510007517.platform.analysis.api.dto.KnowledgeMasteryDTO;
 import com._202510007517.platform.common.web.ResponseResult;
 import org.junit.jupiter.api.Test;
@@ -19,7 +20,8 @@ import static org.mockito.Mockito.when;
 class KnowledgeMasteryQueryToolTest {
 
     private final TeacherAnalysisEdgeClient analysisClient = mock(TeacherAnalysisEdgeClient.class);
-    private final KnowledgeMasteryQueryTool tool = new KnowledgeMasteryQueryTool(analysisClient);
+    private final TeacherKnowledgeAnalysisEdgeClient knowledgeAnalysisClient = mock(TeacherKnowledgeAnalysisEdgeClient.class);
+    private final KnowledgeMasteryQueryTool tool = new KnowledgeMasteryQueryTool(analysisClient, knowledgeAnalysisClient);
 
     @Test
     void forwardsStudentAndCourseToAnalysisService() {
@@ -47,11 +49,24 @@ class KnowledgeMasteryQueryToolTest {
     }
 
     @Test
-    void rejectsMissingStudentOrCourseBeforeRemoteCall() {
+    void rejectsMissingCourseWhenStudentDetailQueryLacksCourseId() {
         Map<String, Object> result = tool.execute(7L, "TEACHER", Map.of("studentId", "21"));
 
         assertThat(result).containsEntry("status", "VALIDATION_FAILED")
-                .containsEntry("message", "缺少学生ID或课程ID。");
+                .containsEntry("message", "缺少课程ID。");
+        verifyNoInteractions(analysisClient, knowledgeAnalysisClient);
+    }
+
+    @Test
+    void usesAggregateTeacherKnowledgeAnalysisWhenStudentIdIsMissing() {
+        when(knowledgeAnalysisClient.getKnowledgePointAnalysis("7", 3L, null, null, null))
+                .thenReturn(ResponseResult.success(Map.of("courseName", "课程 3")));
+
+        Map<String, Object> result = tool.execute(7L, "TEACHER", Map.of("courseId", 3));
+
+        assertThat(result).containsEntry("status", "EXECUTED")
+                .containsEntry("knowledgeAnalysis", Map.of("courseName", "课程 3"));
+        verify(knowledgeAnalysisClient).getKnowledgePointAnalysis("7", 3L, null, null, null);
         verifyNoInteractions(analysisClient);
     }
 }

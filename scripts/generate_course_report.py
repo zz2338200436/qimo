@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import re
 from pathlib import Path
 from textwrap import wrap
 
@@ -16,7 +18,11 @@ from docx.shared import Cm, Inches, Pt, RGBColor
 ROOT = Path(__file__).resolve().parents[1]
 ASSET_DIR = ROOT / ".report_assets"
 OUTPUT = ROOT / "智能学习辅助系统-分布式框架技术项目设计文档.docx"
+OUTPUT_PDF = ROOT / "智能学习辅助系统-分布式框架技术项目设计文档.pdf"
 LOGO = ROOT / ".firecrawl" / "template.converted.files" / "image002.png"
+UML_DELIVERY_DIR = ROOT / "docs" / "uml-staruml-delivery"
+UML_SPEC = UML_DELIVERY_DIR / "sources" / "uml-model-spec.json"
+UML_IMAGE_DIR = UML_DELIVERY_DIR / "images"
 
 FONT_SONG = "宋体"
 FONT_HEI = "黑体"
@@ -66,6 +72,28 @@ def set_run_font(run, cn=FONT_SONG, en=FONT_EN, size: Pt | None = None, bold=Non
     r_fonts.set(qn("w:cs"), en)
 
 
+def set_style_font(style, cn=FONT_SONG, en=FONT_EN, size: Pt | None = None, bold=None, color=None):
+    style.font.name = en
+    if size is not None:
+        style.font.size = size
+    if bold is not None:
+        style.font.bold = bold
+    if color is not None:
+        style.font.color.rgb = RGBColor.from_string(color)
+    r_pr = style._element.rPr
+    if r_pr is None:
+        r_pr = OxmlElement("w:rPr")
+        style._element.append(r_pr)
+    r_fonts = r_pr.rFonts
+    if r_fonts is None:
+        r_fonts = OxmlElement("w:rFonts")
+        r_pr.append(r_fonts)
+    r_fonts.set(qn("w:eastAsia"), cn)
+    r_fonts.set(qn("w:ascii"), en)
+    r_fonts.set(qn("w:hAnsi"), en)
+    r_fonts.set(qn("w:cs"), en)
+
+
 def set_paragraph_body(paragraph, indent=True, align=WD_ALIGN_PARAGRAPH.JUSTIFY):
     paragraph.alignment = align
     fmt = paragraph.paragraph_format
@@ -92,6 +120,7 @@ def add_caption(doc: Document, text: str):
     fmt.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
     fmt.space_before = Pt(0)
     fmt.space_after = Pt(6)
+    fmt.keep_with_next = True
     run = p.add_run(text)
     set_run_font(run, FONT_SONG, FONT_EN, Pt(10.5), bold=False)
     return p
@@ -172,7 +201,7 @@ def add_matrix_table(doc: Document, headers: list[str], rows: list[list[str]], w
     for idx, header in enumerate(headers):
         cell = table.rows[0].cells[idx]
         cell.width = Cm(widths_cm[idx])
-        set_cell_shading(cell, "D9EAF7")
+        set_cell_shading(cell, "EDEDED")
         set_cell_text(cell, header, bold=True, align=WD_ALIGN_PARAGRAPH.CENTER, size=Pt(10.5))
     for row in rows:
         cells = table.add_row().cells
@@ -259,6 +288,31 @@ def configure_document(doc: Document):
     h3.paragraph_format.space_before = Pt(6)
     h3.paragraph_format.space_after = Pt(6)
     h3.paragraph_format.first_line_indent = Pt(24)
+
+    for style_name in ("TOC 1", "toc 1"):
+        try:
+            toc1 = styles[style_name]
+        except KeyError:
+            continue
+        set_style_font(toc1, FONT_HEI, FONT_EN, Pt(12), bold=False)
+        toc1.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+        toc1.paragraph_format.left_indent = Pt(0)
+        toc1.paragraph_format.first_line_indent = Pt(0)
+        toc1.paragraph_format.space_before = Pt(0)
+        toc1.paragraph_format.space_after = Pt(0)
+        break
+    for style_name in ("TOC 2", "toc 2"):
+        try:
+            toc2 = styles[style_name]
+        except KeyError:
+            continue
+        set_style_font(toc2, FONT_SONG, FONT_EN, Pt(12), bold=False)
+        toc2.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+        toc2.paragraph_format.left_indent = Pt(48)
+        toc2.paragraph_format.first_line_indent = Pt(0)
+        toc2.paragraph_format.space_before = Pt(0)
+        toc2.paragraph_format.space_after = Pt(0)
+        break
 
 
 def add_heading(doc: Document, text: str, level: int):
@@ -422,52 +476,68 @@ def make_architecture_diagram(path: Path):
         else:
             draw_centered(d, xy, wrap_cn(title, 14), box_title, fill=(20, 40, 70), line_gap=8)
 
-    d.text((60, 38), "智能学习辅助系统微服务总体架构", font=title_font, fill=(20, 40, 70))
+    d.text((60, 38), "智能学习辅助系统 Spring Cloud 总体架构", font=title_font, fill=(20, 40, 70))
 
-    layer_label("访问层", 145, "#EAF4FF")
-    arch_box((250, 125, 520, 245), "前端页面", "教师端 / 学生端 / 登录页", "#EAF4FF")
-    arch_box((670, 105, 1000, 265), "网关服务", "统一入口、JWT鉴权、路由、限流、熔断", "#E2F0D9")
-    arch_box((1130, 105, 1450, 190), "Eureka 注册中心", "服务注册与发现", "#FFF2CC")
-    arch_box((1130, 220, 1450, 305), "Redis", "验证码、Token 黑名单、限流计数", "#FCE4D6")
+    layer_label("访问层", 120, "#EAF4FF")
+    arch_box((280, 105, 610, 220), "前端页面", "教师端 / 学生端 / 登录页 / 静态资源", "#EAF4FF")
 
-    arrow(d, (520, 185), (670, 185), fill=(50, 80, 130), width=5)
-    arrow(d, (1000, 160), (1130, 148), fill=(50, 80, 130), width=4)
-    arrow(d, (1000, 225), (1130, 260), fill=(50, 80, 130), width=4)
+    layer_label("治理层", 285, "#E2F0D9")
+    arch_box((230, 265, 520, 380), "Gateway", "统一入口、JWT 鉴权、路由、限流、熔断", "#E2F0D9")
+    arch_box((610, 265, 900, 380), "Eureka", "服务注册与发现", "#FFF2CC")
+    arch_box((990, 265, 1280, 380), "Config Server", "集中配置、环境参数、服务启动配置", "#DDEBF7")
 
-    d.line((120, 350, 1500, 350), fill=(220, 226, 236), width=4)
-    layer_label("服务层", 430, "#F8FBFF")
+    arrow(d, (445, 220), (375, 265), fill=(50, 80, 130), width=5)
+    arrow(d, (520, 320), (610, 320), fill=(50, 80, 130), width=4)
+    arrow(d, (520, 350), (990, 350), fill=(50, 80, 130), width=4)
+
+    d.line((120, 440, 1500, 440), fill=(220, 226, 236), width=4)
+    layer_label("服务层", 520, "#F8FBFF")
 
     services = [
-        ("认证服务", "登录 / Token", 250, 390),
-        ("用户服务", "用户 / 角色", 560, 390),
-        ("课程服务", "课程 / 班级", 870, 390),
-        ("作业服务", "作业 / 批改", 1180, 390),
-        ("考试服务", "考试 / 成绩", 250, 560),
-        ("分析服务", "趋势 / 预警", 560, 560),
-        ("通知服务", "通知 / 已读", 870, 560),
-        ("AI服务", "题目 / 建议", 1180, 560),
+        ("auth-service", "认证 / Token", 220, 490),
+        ("user-service", "用户 / 角色", 470, 490),
+        ("course-service", "课程 / 班级 / 知识点", 720, 490),
+        ("assignment-service", "作业 / 提交 / 批改", 970, 490),
+        ("exam-service", "考试 / 成绩", 1220, 490),
+        ("analysis-service", "趋势 / 掌握度 / 预警", 345, 640),
+        ("notification-service", "通知 / 已读状态", 720, 640),
+        ("ai-service", "题目 / 试卷 / 学习建议", 1095, 640),
     ]
     for name, sub, x, y in services:
-        arch_box((x, y, x + 240, y + 120), name, sub, "#F8FBFF")
+        arch_box((x, y, x + 210, y + 110), name, sub, "#F8FBFF")
 
-    arrow(d, (835, 265), (835, 360), fill=(50, 80, 130), width=5)
-    d.rounded_rectangle((720, 345, 950, 382), radius=14, fill="#FFFFFF", outline="#9EADCC", width=2)
-    draw_centered(d, (720, 345, 950, 382), ["按路由转发到业务服务"], note_font, fill=(40, 50, 80))
-    for x in (370, 680, 990, 1300):
-        arrow(d, (835, 382), (x, 390), fill=(50, 80, 130), width=3)
+    d.rounded_rectangle((640, 455, 860, 485), radius=12, fill="#FFFFFF", outline="#9EADCC", width=2)
+    draw_centered(d, (640, 455, 860, 485), ["Gateway 按路由转发到业务服务"], note_font, fill=(40, 50, 80))
+    arrow(d, (375, 380), (375, 450), fill=(50, 80, 130), width=5)
+    d.line((375, 450, 1325, 450), fill=(50, 80, 130), width=4)
+    for x in (325, 575, 825, 1075, 1325):
+        arrow(d, (x, 450), (x, 490), fill=(50, 80, 130), width=3)
 
-    d.line((120, 745, 1500, 745), fill=(220, 226, 236), width=4)
-    layer_label("基础层", 855, "#EFEFEF")
-    arch_box((250, 815, 540, 940), "MySQL", "各服务独立 schema\n本地事务保存业务事实", "#EFEFEF")
-    arch_box((660, 815, 950, 940), "RabbitMQ", "Outbox 事件投递\n异步分析与通知", "#FDE9D9")
-    arch_box((1070, 815, 1450, 940), "监控组件", "指标采集、健康检查、运行仪表盘", "#E4DFEC")
+    arrow(d, (755, 380), (755, 470), fill=(90, 120, 70), width=3)
+    d.line((755, 470, 1200, 470), fill=(90, 120, 70), width=3)
+    arrow(d, (1200, 470), (1200, 490), fill=(90, 120, 70), width=3)
+    arrow(d, (1145, 380), (1145, 470), fill=(90, 120, 70), width=3)
+    d.line((1145, 470, 450, 470), fill=(90, 120, 70), width=3)
+    arrow(d, (450, 470), (450, 490), fill=(90, 120, 70), width=3)
 
-    arrow(d, (835, 680), (395, 815), fill=(105, 105, 105), width=4)
-    arrow(d, (1300, 680), (805, 815), fill=(50, 80, 130), width=4)
-    arrow(d, (680, 680), (805, 815), fill=(50, 80, 130), width=4)
-    arrow(d, (835, 680), (1260, 815), fill=(90, 70, 130), width=4)
+    d.line((120, 790, 1500, 790), fill=(220, 226, 236), width=4)
+    layer_label("基础层", 870, "#EFEFEF")
+    arch_box((210, 840, 520, 965), "MySQL", "sc_auth / sc_user / sc_course / sc_assignment /\nsc_exam / sc_analysis / sc_notification / sc_ai", "#EFEFEF")
+    arch_box((645, 840, 910, 965), "Redis", "验证码、Token 黑名单、限流计数", "#FCE4D6")
+    arch_box((1015, 840, 1275, 965), "RabbitMQ", "Outbox 事件投递、异步分析与通知", "#FDE9D9")
+    arch_box((1325, 840, 1510, 965), "监控", "Actuator /\nPrometheus /\nGrafana", "#E4DFEC")
 
-    d.text((250, 990), "说明：实线表示同步 API/网关调用，蓝色箭头表示领域事件流，灰色箭头表示数据库持久化。", font=note_font, fill=(70, 70, 70))
+    for x in (325, 575, 825, 1075, 1325):
+        d.line((x, 600, x, 760), fill=(105, 105, 105), width=3)
+    d.line((325, 760, 825, 760), fill=(105, 105, 105), width=3)
+    d.line((825, 760, 1145, 760), fill=(60, 100, 160), width=3)
+    d.line((575, 760, 1415, 760), fill=(120, 90, 150), width=3)
+    arrow(d, (430, 760), (430, 840), fill=(105, 105, 105), width=4)
+    arrow(d, (775, 760), (775, 840), fill=(105, 105, 105), width=4)
+    arrow(d, (1145, 760), (1145, 840), fill=(60, 100, 160), width=4)
+    arrow(d, (1415, 760), (1415, 840), fill=(120, 90, 150), width=4)
+
+    d.text((170, 1000), "说明：深蓝箭头表示前端经 Gateway 发起的同步访问；绿色箭头表示注册与配置关系；灰色箭头表示业务数据持久化；紫色箭头表示监控采集。", font=note_font, fill=(70, 70, 70))
 
     im.save(path)
 
@@ -562,15 +632,27 @@ def make_uml_diagram(path: Path):
     im.save(path)
 
 
-def add_figure(doc: Document, path: Path, caption: str):
+def scaled_width_cm(path: Path, max_width_cm=14.2, max_height_cm=17.2) -> float:
+    with Image.open(path) as image:
+        width_px, height_px = image.size
+    aspect = width_px / height_px
+    return min(max_width_cm, max_height_cm * aspect)
+
+
+def add_figure(doc: Document, path: Path, caption: str, max_height_cm=17.2):
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.first_line_indent = Pt(0)
-    p.add_run().add_picture(str(path), width=Cm(14.6))
+    p.paragraph_format.keep_with_next = True
+    p.add_run().add_picture(str(path), width=Cm(scaled_width_cm(path, 14.2, max_height_cm)))
     add_caption(doc, caption)
 
 
 def add_screenshot_figure(doc: Document, path: Path, caption: str):
+    if not path.exists():
+        add_body(doc, f"{caption}：当前仓库未附带对应运行截图，本版报告保留截图位说明，建议答辩前按教师端仪表盘、学生端作业页、AI 题目生成页重新补抓。", indent=False)
+        add_caption(doc, caption)
+        return
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.first_line_indent = Pt(0)
@@ -584,6 +666,69 @@ def chapter(doc: Document, title: str, first=False):
     heading = add_heading(doc, title, 1)
     if not first:
         heading.paragraph_format.page_break_before = True
+
+
+UML_TYPE_CN = {
+    "Use Case Diagram": "用例图",
+    "Class Diagram": "类图",
+    "Object Diagram": "对象图",
+    "Sequence Diagram": "顺序图",
+    "Communication Diagram": "协作图",
+    "Statechart Diagram": "状态图",
+    "Activity Diagram": "活动图",
+    "Component Diagram": "组件图",
+    "Deployment Diagram": "部署图",
+}
+
+
+def load_uml_diagrams() -> list[dict]:
+    if not UML_SPEC.exists():
+        return []
+    data = json.loads(UML_SPEC.read_text(encoding="utf-8"))
+    return data.get("diagrams", [])
+
+
+def clean_uml_title(title: str) -> str:
+    return re.sub(r"^图\d+\s*", "", title).strip()
+
+
+def short_focus(diagram: dict) -> str:
+    focus = diagram.get("metadata", {}).get("focus")
+    if focus:
+        return focus
+    description = diagram.get("description", "")
+    return re.split(r"[。；;]", description)[0][:38]
+
+
+def add_uml_overview_table(doc: Document, diagrams: list[dict]):
+    rows = []
+    for idx, diagram in enumerate(diagrams, start=1):
+        rows.append([
+            str(idx),
+            clean_uml_title(diagram["title"]),
+            UML_TYPE_CN.get(diagram["umlType"], diagram["umlType"]),
+            short_focus(diagram),
+        ])
+    add_table_caption(doc, "表5-1 UML 图清单与建模重点")
+    add_matrix_table(doc, ["序号", "图名", "图类型", "建模重点"], rows, [1.0, 4.9, 2.5, 6.0])
+
+
+def add_uml_diagram_pages(doc: Document, diagrams: list[dict], figure_start: int) -> int:
+    figure_no = figure_start
+    for idx, diagram in enumerate(diagrams):
+        if idx > 0:
+            doc.add_page_break()
+        image_path = UML_DELIVERY_DIR / diagram["image"]
+        caption_title = clean_uml_title(diagram["title"])
+        caption = f"图5-{figure_no} {caption_title}"
+        add_figure(doc, image_path, caption, max_height_cm=15.6)
+        add_body(doc, diagram.get("description", ""), indent=True)
+        evidence = diagram.get("evidence") or []
+        if evidence:
+            evidence_text = "；".join(evidence[:2])
+            add_body(doc, f"该图的建模依据主要包括：{evidence_text}。", indent=True)
+        figure_no += 1
+    return figure_no
 
 
 def build_report():
@@ -624,9 +769,9 @@ def build_report():
         ],
         [2.6, 4.8, 4.0, 3.6],
     )
-    add_heading(doc, "1.4. 选用的讯飞开放平台能力", 2)
-    add_body(doc, "模板要求说明可选的开放平台能力。本项目在 AI 服务中设计了统一的 AiModelClient 接口，当前为了保证本地课堂演示稳定，采用 LocalMockAiModelClient 作为无外网、无密钥环境下的本地模型适配实现，能够返回题目、试卷和学习建议的结构化结果。")
-    add_body(doc, "若接入讯飞开放平台，可将 AiModelClient 的实现替换为讯飞星火大模型接口，用于“按课程与知识点生成题目”“生成模拟试卷”“根据学情数据生成学习建议”。该设计使业务层只依赖抽象接口，不直接绑定第三方 SDK，符合面向接口编程与低耦合原则。")
+    add_heading(doc, "1.4. AI 服务在本项目中的定位", 2)
+    add_body(doc, "本项目中的 AI 能力完全围绕“智能学习辅助系统”的教师教学辅助与学生学习支持场景展开。`ai-service` 提供题目生成、模拟试卷生成和学习建议生成能力，用于配合课程、作业、考试和学情分析这些核心教学流程，而不是独立构建一个通用大模型平台。")
+    add_body(doc, "为了保证本地联调和课堂演示稳定，AI 服务当前通过 `AiModelClient` 抽象接口接入本地模拟实现 `LocalMockAiModelClient`。这种设计的重点不在第三方平台接入，而在于保持业务服务对模型实现的低耦合，使 AI 能力能够作为 Spring Cloud 微服务体系中的一个独立服务模块稳定运行。")
 
     chapter(doc, "2. 需求分析")
     add_heading(doc, "2.1. 功能需求", 2)
@@ -672,7 +817,7 @@ def build_report():
             ["2", "服务注册发现", "registry-server 提供 Eureka Server，各业务服务通过 lb://service-name 调用。", "服务地址解耦，便于扩缩容。"],
             ["3", "限流与熔断", "Gateway 路由配置 CircuitBreaker，考试提交和 AI 接口设置差异化限流。", "提升高并发和下游异常时的稳定性。"],
             ["4", "事件驱动分析", "作业和考试事件通过 outbox、RabbitMQ、幂等消费驱动 Analysis 服务更新 read model。", "保证业务写入与分析计算低耦合。"],
-            ["5", "AI 教学辅助", "AiModelClient 抽象模型调用，当前本地模拟，后续可替换讯飞星火。", "便于扩展智能题库和学习建议。"],
+            ["5", "AI 教学辅助", "AiModelClient 抽象模型调用，当前使用本地模拟实现。", "便于在现有教学流程中提供题目、试卷和学习建议能力。"],
             ["6", "可观测性", "接入 Actuator、Prometheus、Grafana、TraceId/MDC。", "便于演示、排障和运维。"],
         ],
         [1.1, 3.4, 6.0, 3.2],
@@ -698,7 +843,7 @@ def build_report():
     chapter(doc, "3. 系统总体设计")
     add_heading(doc, "3.1. 设计目标与原则", 2)
     add_body(doc, "总体设计遵循“服务自治、数据归属清晰、接口契约稳定、故障可降级、演示可验证”的原则。服务边界以业务领域划分，避免一个服务直接读写另一个服务的数据库；跨服务读操作通过 API 或 Feign 完成，跨服务写协作优先通过领域事件完成。")
-    add_body(doc, "在面向对象设计上，系统将 Controller、Application Service、Repository、DTO、Event Handler 分层，体现封装、接口抽象和职责单一原则。例如 AI 服务通过 AiModelClient 抽象第三方模型能力，分析服务通过 AssignmentSubmittedAnalysisHandler 消费事件并更新 read model，网关通过 JwtAuthenticationFilter 与 HeaderEnrichFilter 分别负责认证和身份头透传。")
+    add_body(doc, "在面向对象设计上，系统将 Controller、Application Service、Repository、DTO、Event Handler 分层，体现封装、接口抽象和职责单一原则。例如 AI 服务通过 AiModelClient 抽象题目和学习建议生成能力，分析服务通过 AssignmentSubmittedAnalysisHandler 消费事件并更新 read model，网关通过 JwtAuthenticationFilter 与 HeaderEnrichFilter 分别负责认证和身份头透传。")
     add_heading(doc, "3.2. 系统架构设计", 2)
     add_body(doc, "系统采用“前端页面 + API Gateway + 微服务集合 + 独立数据库 schema + 消息中间件 + 可观测性组件”的架构。所有外部请求先进入 Gateway，Gateway 根据路径和方法转发到对应服务，同时完成 JWT 验证、CORS、限流、熔断和 TraceId 透传。业务服务启动后注册到 Eureka，Gateway 通过 lb://service-name 完成负载均衡调用。")
     add_figure(doc, arch, "图3-1 智能学习辅助系统 Spring Cloud 总体架构")
@@ -747,7 +892,7 @@ def build_report():
             ["TeacherAssignmentController", "assignment-service", "教师作业发布、编辑、删除和查询。", "教师入口与学生入口分离。"],
             ["AssignmentSubmittedAnalysisHandler", "analysis-service", "消费作业提交事件并更新掌握度。", "结合 IdempotentEventHandler 防重复消费。"],
             ["OutboxRelayJob", "common", "定时发布待投递 outbox 事件。", "失败时记录重试次数和下次重试时间。"],
-            ["AiModelClient", "ai-service", "AI 模型调用抽象接口。", "本地实现可替换为讯飞星火等模型实现。"],
+            ["AiModelClient", "ai-service", "AI 生成能力抽象接口。", "当前由本地模拟实现支撑课堂演示与联调。"],
         ],
         [4.0, 3.0, 5.0, 3.2],
     )
@@ -824,12 +969,18 @@ spring:
     )
 
     chapter(doc, "5. UML 模型图")
-    add_heading(doc, "5.1. UML 类图", 2)
-    add_body(doc, "图5-1 以核心类关系展示系统中网关安全链、认证域、作业域、分析域、事件基础设施和 AI 能力域的协作关系。图中每个方框代表一个类或接口，箭头表示调用、依赖或事件流转关系。")
-    add_figure(doc, uml, "图5-1 核心类与模块关系 UML 简图")
-    add_heading(doc, "5.2. 关键业务时序图", 2)
-    add_body(doc, "作业提交后的学情分析流程是本项目最能体现分布式框架技术的链路之一。学生提交作业时，assignment-service 在同一个本地事务中写入提交记录和 outbox_event；OutboxRelayJob 定时发布事件到 RabbitMQ；analysis-service 消费事件后通过幂等处理器更新知识点掌握度，并可继续触发预警和通知。")
-    add_figure(doc, seq, "图5-2 作业提交后异步学情分析时序图")
+    uml_diagrams = load_uml_diagrams()
+    core_uml = [diagram for diagram in uml_diagrams if diagram.get("metadata", {}).get("group") == "core"]
+    extension_uml = [diagram for diagram in uml_diagrams if diagram.get("metadata", {}).get("group") == "extension"]
+    add_body(doc, "本章在课程要求的九类核心 UML 图基础上，结合项目真实业务模块补充智能学习业务扩展 UML 图。核心图覆盖用例图、类图、对象图、顺序图、协作图、状态图、活动图、组件图和部署图；扩展图进一步展开登录认证、作业批改、AI 组卷、学情分析、通知生命周期和微服务组件依赖，保证系统建模既完整又贴合项目实现。")
+    add_uml_overview_table(doc, uml_diagrams)
+    add_heading(doc, "5.1. 课程核心 UML 图", 2)
+    add_body(doc, "课程核心 UML 图用于证明系统已覆盖建模课程要求的九种基本图形。九张图分别从用户目标、静态结构、运行时对象、消息顺序、对象协作、对象状态、业务活动、软件组件和部署拓扑九个角度描述同一套智能学习辅助系统。")
+    figure_no = add_uml_diagram_pages(doc, core_uml, 1)
+    doc.add_page_break()
+    add_heading(doc, "5.2. 智能学习业务扩展 UML 图", 2)
+    add_body(doc, "业务扩展 UML 图不是简单重复核心图，而是面向项目的高频业务和得分点进一步细化。该组图重点支撑教师端、学生端、认证网关、AI 辅助、异步分析和通知反馈等功能说明，使报告能够对应页面设计、系统功能实现和课堂演示三类评分项。")
+    add_uml_diagram_pages(doc, extension_uml, figure_no)
 
     chapter(doc, "6. 关键技术与实现说明")
     add_body(doc, "本项目使用的关键技术覆盖课程中的分布式框架核心知识点。Spring Boot 用于构建每个独立服务；Spring Cloud Gateway 用于统一入口和路由；Eureka 用于服务注册发现；OpenFeign 用于声明式服务间调用；Resilience4j 用于熔断；Redis 用于验证码、黑名单和限流计数；RabbitMQ 用于异步事件；Flyway 用于数据库迁移；Docker Compose 用于本地多服务编排；Actuator、Prometheus 和 Grafana 用于可观测性。")
@@ -885,20 +1036,20 @@ public void run() {
 
     chapter(doc, "7. 运行说明")
     add_heading(doc, "7.1. 运行步骤", 2)
-    add_body(doc, "本地运行建议先启动基础设施，再构建后端服务，最后启动前端预览和烟测脚本。以下步骤适合 Windows PowerShell 环境，端口保持项目默认配置。")
+    add_body(doc, "本地运行建议先启动基础设施和前端预览，再通过 IDEA 启动 Java 服务，最后执行烟测脚本。以下步骤适合 Windows PowerShell 环境，端口保持项目默认配置。")
     add_table_caption(doc, "表7-1 系统运行步骤")
     add_matrix_table(
         doc,
         ["步骤", "命令/操作", "说明"],
         [
-            ["1", "docker compose -f docker-compose.dev.yml up -d", "启动 MySQL、Redis、RabbitMQ 等基础设施。"],
-            ["2", "mvn -T 1 -DskipTests package", "构建根聚合工程和各业务服务。"],
-            ["3", "powershell -ExecutionPolicy Bypass -File scripts/start-runtime-smoke-stack.ps1", "启动 registry、gateway 和业务服务运行时烟测栈。"],
-            ["4", "powershell -ExecutionPolicy Bypass -File scripts/get-dev-auth-session.ps1 -Role teacher", "获取教师端 JWT 会话。"],
-            ["5", "powershell -ExecutionPolicy Bypass -File scripts/get-dev-auth-session.ps1 -Role student", "获取学生端 JWT 会话。"],
-            ["6", "python scripts/frontend_dev_server.py", "启动前端 5500 预览服务，页面请求转发到 Gateway。"],
-            ["7", "node scripts/verify-gateway-api-smoke.js", "运行统一网关 API 烟测。"],
-            ["8", "node scripts/verify-teacher-jwt-pages.js / node scripts/verify-student-jwt-pages.js", "运行教师端和学生端页面烟测。"],
+            ["1", "powershell -ExecutionPolicy Bypass -File scripts/start-dev-local-stack.ps1", "启动 MySQL、Redis、RabbitMQ、前端 5500 和本地 JVM 微服务联调栈。"],
+            ["2", "或在 IDEA 中以 SPRING_PROFILES_ACTIVE=dev、CONFIG_SERVER_URL=http://localhost:8888 启动指定 Java 服务", "用于单独调试 gateway、auth-service、course-service 等模块。"],
+            ["3", "powershell -ExecutionPolicy Bypass -File scripts/get-dev-auth-session.ps1 -Role teacher", "获取教师端 JWT 会话。"],
+            ["4", "powershell -ExecutionPolicy Bypass -File scripts/get-dev-auth-session.ps1 -Role student", "获取学生端 JWT 会话。"],
+            ["5", "node scripts/verify-idea-dev-runtime-smoke.js", "验证 5500 -> gateway -> auth-service/agent-service 开发链路。"],
+            ["6", "node scripts/verify-gateway-api-smoke.js", "运行统一网关 API 烟测。"],
+            ["7", "node scripts/verify-teacher-jwt-pages.js / node scripts/verify-student-jwt-pages.js", "运行教师端和学生端页面烟测。"],
+            ["8", "node scripts/verify-teacher-browser-crud.js / node scripts/verify-student-browser-crud.js", "运行教师端和学生端浏览器 CRUD 烟测。"],
         ],
         [1.2, 8.8, 4.2],
     )
@@ -933,10 +1084,10 @@ public void run() {
     )
     add_heading(doc, "7.3. 系统运行界面截图", 2)
     add_body(doc, "为增强课堂演示和报告说服力，报告补充三张运行界面截图。截图覆盖教师端仪表盘、学生端作业提交入口和 AI 题目生成结果，分别对应页面设计、基础功能和扩展功能三个评分维度。")
+    add_body(doc, "演示时建议按“教师发布课程与作业、学生提交作业、教师查看学情分析、系统生成通知或学习建议”的路线进行。该路线覆盖页面设计、功能实现、接口调用、数据库写入、事件驱动和分析读模型，能够充分展示项目工作量和课程知识点。")
     add_screenshot_figure(doc, screen_teacher, "图7-1 教师端仪表盘运行界面")
     add_screenshot_figure(doc, screen_student, "图7-2 学生端作业列表与提交入口")
     add_screenshot_figure(doc, screen_ai, "图7-3 教师端 AI 题目生成结果")
-    add_body(doc, "演示时建议按“教师发布课程与作业、学生提交作业、教师查看学情分析、系统生成通知或学习建议”的路线进行。该路线覆盖页面设计、功能实现、接口调用、数据库写入、事件驱动和分析读模型，能够充分展示项目工作量和课程知识点。")
 
     chapter(doc, "8. 项目总结与展望")
     add_heading(doc, "8.1. 项目完成情况", 2)
@@ -951,12 +1102,12 @@ public void run() {
             ["跨服务数据边界不清", "课程、作业、考试、分析之间存在共享数据。", "制定数据所有权矩阵，只保存外部 ID，通过 API 或事件共享。", "避免跨库直接读写。"],
             ["事件可能重复消费", "消息系统天然至少一次投递。", "消费者先写 processed_event 做幂等判断。", "避免分析结果重复累计。"],
             ["前端与后端能力不同步", "页面早期存在模拟数据和旧提示。", "增加 capability 接口、契约脚本和运行时烟测。", "页面语义与真实接口对齐。"],
-            ["本地多服务启动复杂", "服务数量多、端口和依赖多。", "使用 Docker Compose 和 start-runtime-smoke-stack.ps1 编排。", "提升演示可重复性。"],
+            ["本地多服务启动复杂", "服务数量多、端口和依赖多。", "保留 start-idea-dev-frontend.ps1 负责基础设施和前端，并通过 IDEA 运行 Java 服务。", "降低日常开发和调试成本。"],
         ],
         [3.4, 4.0, 5.0, 2.0],
     )
     add_heading(doc, "8.3. 可优化与扩展方向", 2)
-    add_body(doc, "后续可继续从四个方向优化。第一，接入真实讯飞星火大模型，将本地 LocalMockAiModelClient 替换为正式模型适配实现，并增加提示词版本管理。第二，补全 Helm chart 的 Deployment、Service、ConfigMap 和 Secret 模板，使系统可以部署到 Kubernetes。第三，继续收敛旧单体 legacy-route，在所有页面与接口稳定后下线过渡服务。第四，增加更细粒度的权限模型和审计日志，例如教师只能访问自己授课班级、学生只能访问自己的提交与成绩。")
+    add_body(doc, "后续可继续从四个方向优化。第一，继续增强现有 ai-service 的生成质量、提示词治理和结果审校机制，使 AI 辅助能力更贴合课程、作业和考试场景。第二，补全 Helm chart 的 Deployment、Service、ConfigMap 和 Secret 模板，使系统可以部署到 Kubernetes。第三，继续收敛旧单体 legacy-route，在所有页面与接口稳定后下线过渡服务。第四，增加更细粒度的权限模型和审计日志，例如教师只能访问自己授课班级、学生只能访问自己的提交与成绩。")
     add_body(doc, "整体来看，项目已经覆盖课程考核的主要观测点：页面布局完整且具有实际业务主题；系统功能覆盖教师、学生和平台治理；分布式框架知识点在网关、注册发现、Feign、消息、熔断限流、数据拆分和可观测性中得到综合运用；报告结构完整，配有表格、架构图、UML 图和时序图，适合课程期末大作业提交和现场演示。")
 
     chapter(doc, "附 录")
@@ -982,7 +1133,7 @@ public void run() {
             ["course-service", "业务服务", "课程、班级、知识点、学生加入班级。", "教学资源数据所有者。"],
             ["assignment-service / exam-service", "业务服务", "作业、提交、批改、考试和成绩。", "教学任务与评价主流程。"],
             ["analysis-service / notification-service", "业务服务", "学情分析、预警、通知和已读状态。", "通过事件和 read model 支撑页面查询。"],
-            ["ai-service", "业务服务", "题目、试卷和学习建议生成。", "当前本地模型适配，可替换讯飞星火。"],
+            ["ai-service", "业务服务", "题目、试卷和学习建议生成。", "当前使用本地模拟生成能力支撑联调与演示。"],
             ["common / common-events", "公共模块", "统一响应、异常、Feign、outbox、事件定义。", "减少跨服务重复代码。"],
             ["frontend/dist", "前端页面", "教师端、学生端、登录页和静态资源。", "报告截图来自该目录页面。"],
             ["docs / scripts", "文档与脚本", "架构说明、部署说明、烟测和辅助脚本。", "支撑提交、运行和验收。"],

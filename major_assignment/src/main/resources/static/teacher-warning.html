@@ -11,6 +11,7 @@
     <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Chart.js -->
     <script src="lib/chart.umd.min.js"></script>
+    <script src="common-ui.js?v=20260629-feedback-layer-2"></script>
     <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
     <style>
         /* 全局样式 */
@@ -33,7 +34,7 @@
             z-index: 1000;
         }
         
-        .sidebar.collapsed {
+        .sidebar.desktop-collapsed {
             width: 80px;
         }
         
@@ -58,7 +59,7 @@
             font-weight: 700;
         }
         
-        .sidebar.collapsed .sidebar-logo span {
+        .sidebar.desktop-collapsed .sidebar-logo span {
             display: none;
         }
         
@@ -97,7 +98,7 @@
             font-size: 1.2rem;
         }
         
-        .sidebar.collapsed .menu-item span {
+        .sidebar.desktop-collapsed .menu-item span {
             display: none;
         }
         
@@ -409,7 +410,7 @@
                 transform: translateX(-250px);
             }
             
-            #sidebar.collapsed {
+            #sidebar.mobile-open {
                 transform: translateX(0);
                 width: 100%;
             }
@@ -544,19 +545,11 @@
     <!-- 侧边栏导航组件 -->
     <div id="sidebar-container"></div>
     <script>
-        // 加载侧边栏组件
-        fetch('components/teacher-sidebar-nav.html?v=20260608-theme-4')
-            .then(response => response.text())
-            .then(data => {
-                document.getElementById('sidebar-container').innerHTML = data;
-                // 确保侧边栏组件完全加载后初始化
-                setTimeout(() => {
-                    if (window.initSidebar) {
-                        window.initSidebar();
-                    }
-                }, 100);
-            })
-            .catch(error => console.error('加载侧边栏组件失败:', error));
+        if (window.CommonUI) {
+            window.CommonUI.loadTeacherSidebar('sidebar-container');
+        } else {
+            console.error('CommonUI 未加载，无法初始化教师端侧边栏');
+        }
     </script>
     
     <!-- 主内容区 -->
@@ -933,11 +926,25 @@
         
         // 显示加载状态
         function showLoading(element) {
+            if (window.CommonUI) {
+                window.CommonUI.setElementLoadingState(element, {
+                    title: '正在加载预警数据',
+                    description: '正在获取最新预警列表，请稍候...'
+                });
+                return;
+            }
             element.innerHTML = '<div class="text-center py-4"><i class="fa fa-spinner fa-spin fa-2x"></i></div>';
         }
         
         // 显示错误信息
         function showError(element, message) {
+            if (window.CommonUI) {
+                window.CommonUI.renderErrorState(element, {
+                    title: '预警数据加载失败',
+                    description: message || '请求失败，请稍后重试。'
+                });
+                return;
+            }
             element.innerHTML = `<div class="alert alert-danger" role="alert">${message}</div>`;
         }
 
@@ -1346,7 +1353,14 @@
                 console.log('最终预警列表数据:', warnings);
                 
                 if (warnings.length === 0) {
-                    warningList.innerHTML = '<div class="text-center py-4">暂无预警信息</div>';
+                    if (window.CommonUI) {
+                        window.CommonUI.renderEmptyState(warningList, {
+                            title: '暂无预警信息',
+                            description: '当前筛选条件下没有可处理的预警记录。'
+                        });
+                    } else {
+                        warningList.innerHTML = '<div class="text-center py-4">暂无预警信息</div>';
+                    }
                     // 渲染空数据时的分页
                     renderPagination();
                     return;
@@ -1357,6 +1371,8 @@
                     const warningStatus = normalizeWarningStatus(warning.status, warning.isResolved);
                     const statusText = getStatusText(warningStatus);
                     const statusColor = getStatusColor(warningStatus);
+                    const warningTypeLabel = getWarningTypeLabel(warning.warningType);
+                    const warningLevelLabel = getWarningLevelLabel(warning.warningLevel);
                     
                     // 获取预警类型颜色
                     const typeColor = getWarningTypeColor(warning.warningType);
@@ -1364,7 +1380,7 @@
                     return `
                         <div class="warning-card">
                             <div class="warning-card-header">
-                                <h5 class="warning-card-title">${warning.warningType} - ${warning.studentName}</h5>
+                                <h5 class="warning-card-title">${warningTypeLabel} - ${warning.studentName}</h5>
                                 <span class="warning-card-time">${new Date(warning.triggerDate).toLocaleString()}</span>
                             </div>
                             <div class="warning-card-body">
@@ -1372,13 +1388,13 @@
                                     ${warning.warningMessage}
                                 </p>
                                 <div class="warning-card-meta">
-                                    <span class="meta-item"><i class="fa fa-exclamation-triangle"></i> ${warning.warningLevel}</span>
+                                    <span class="meta-item"><i class="fa fa-exclamation-triangle"></i> 预警级别：${warningLevelLabel}</span>
                                 </div>
                             </div>
                             <div class="warning-card-footer">
                                 <div>
                                     <span class="badge badge-${statusColor}">${statusText}</span>
-                                    <span class="badge badge-${typeColor}">${warning.warningType}</span>
+                                    <span class="badge badge-${typeColor}">${warningTypeLabel}</span>
                                 </div>
                                 <div class="warning-card-actions">
                                     <button onclick="viewWarningDetail('${warning.id}', '${warning.studentId}', '${warning.studentName}', '${warning.warningType}', '${warning.status || ''}', '${warning.isResolved ? 'true' : 'false'}')">查看详情</button>
@@ -1396,7 +1412,7 @@
             } catch (error) {
                 console.error('加载预警列表失败:', error);
                 const warningList = document.querySelector('.warning-list');
-                warningList.innerHTML = '<div class="text-center py-4">暂无预警信息</div>';
+                showError(warningList, '加载预警列表失败，请稍后重试');
                 // 渲染错误时的分页
                 renderPagination();
                 if (!isPermissionOrServerError(error)) {
@@ -1505,16 +1521,63 @@
             };
             return textMap[status] || '未知状态';
         }
+
+        function getWarningTypeLabel(type) {
+            const normalized = String(type || '').trim().toLowerCase();
+            const typeMap = {
+                low_score: '成绩预警',
+                score: '成绩预警',
+                '成绩预警': '成绩预警',
+                low_attendance: '考勤预警',
+                attendance: '考勤预警',
+                '考勤预警': '考勤预警',
+                late_submission: '作业预警',
+                homework: '作业预警',
+                '作业预警': '作业预警',
+                progress: '进度预警',
+                '进度预警': '进度预警'
+            };
+            return typeMap[normalized] || type || '未知类型';
+        }
+
+        function getWarningLevelLabel(level) {
+            const normalized = String(level || '').trim().toLowerCase();
+            const levelMap = {
+                low: '低',
+                medium: '中',
+                high: '高',
+                critical: '紧急',
+                '低': '低',
+                '中': '中',
+                '高': '高',
+                '紧急': '紧急'
+            };
+            return levelMap[normalized] || level || '未设置';
+        }
+
+        function getAssessmentTypeLabel(type) {
+            const normalized = String(type || '').trim().toLowerCase();
+            const typeMap = {
+                assignment: '作业',
+                exam: '考试',
+                quiz: '测验',
+                practice: '练习'
+            };
+            return typeMap[normalized] || type || '未关联测评';
+        }
         
         // 获取预警类型颜色
         function getWarningTypeColor(type) {
             const colorMap = {
+                'low_score': 'danger',
                 '成绩预警': 'danger',
+                'low_attendance': 'primary',
                 '考勤预警': 'primary',
+                'late_submission': 'warning',
                 '作业预警': 'warning',
                 '进度预警': 'warning'
             };
-            return colorMap[type] || 'secondary';
+            return colorMap[type] || colorMap[getWarningTypeLabel(type)] || 'secondary';
         }
 
         function normalizeWarningStatus(status, isResolved = false) {
@@ -1745,7 +1808,7 @@
             const typeCounts = {};
             
             warningList.forEach(warning => {
-                const type = warning.warningType;
+                const type = getWarningTypeLabel(warning.warningType);
                 if (typeCounts[type]) {
                     typeCounts[type]++;
                 } else {
@@ -2078,7 +2141,7 @@
             } catch (error) {
                 console.error('筛选预警数据失败:', error);
                 const warningList = document.querySelector('.warning-list');
-                warningList.innerHTML = `<div class="alert alert-danger text-center py-4">筛选预警数据失败: ${error.message}</div>`;
+                showError(warningList, `筛选预警数据失败: ${error.message}`);
             }
         }
         
@@ -2213,11 +2276,14 @@
                 }
 
                 const warningStatus = normalizeWarningStatus(initialStatus, initialResolved);
+                const warningTypeLabel = getWarningTypeLabel(warningType);
                 const warningStudentName = warningDetail.studentName || studentName;
                 const warningCourseName = warningDetail.courseName || '未关联课程';
-                const warningLevel = warningDetail.warningLevel || '未设置';
+                const warningLevelRaw = warningDetail.warningLevel || '未设置';
+                const warningLevel = getWarningLevelLabel(warningLevelRaw);
                 const warningReason = warningDetail.reason || warningDetail.warningMessage || '暂无预警原因说明';
-                const warningSuggestion = warningDetail.suggestion || getSuggestionByWarningType(warningType);
+                const warningSuggestionBase = warningDetail.suggestion || getSuggestionByWarningType(warningType);
+                const warningSuggestion = warningSuggestionBase || getSuggestionByWarningType(warningTypeLabel);
                 
                 // 渲染预警详情内容
                 const warningDetailContent = document.getElementById('warningDetailContent');
@@ -2230,13 +2296,13 @@
                                     <div class="row">
                                         <div class="col-md-6">
                                             <p><strong>预警ID：</strong>${warningId}</p>
-                                            <p><strong>预警类型：</strong><span class="badge badge-${getWarningTypeColor(warningType)}">${warningType}</span></p>
+                                            <p><strong>预警类型：</strong><span class="badge badge-${getWarningTypeColor(warningType)}">${warningTypeLabel}</span></p>
                                             <p><strong>预警时间：</strong>${warningDetail.triggerDate ? new Date(warningDetail.triggerDate).toLocaleString() : '暂无触发时间'}</p>
                                         </div>
                                         <div class="col-md-6">
                                             <p><strong>处理状态：</strong><span class="badge badge-${getStatusColor(warningStatus)}" id="warningDetailStatusBadge">${getStatusText(warningStatus)}</span></p>
                                             <p><strong>预警级别：</strong>${warningLevel}</p>
-                                            <p><strong>关联类型：</strong>${warningDetail.assessmentType || '未关联测评'}</p>
+                                            <p><strong>关联类型：</strong>${getAssessmentTypeLabel(warningDetail.assessmentType)}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -2708,6 +2774,9 @@
 
         // 页面加载完成后初始化数据
         document.addEventListener('DOMContentLoaded', async function() {
+            if (window.CommonUI) {
+                window.CommonUI.bindSidebarToggle('toggleBtn');
+            }
             // 检查用户是否已登录
             const isLoggedIn = await checkLogin();
             if (!isLoggedIn) {

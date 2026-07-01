@@ -50,6 +50,7 @@ public class AgentRagConfiguration {
                     indexedChunks.add(new InMemoryRagIndex.IndexedChunk(chunk, embeddingClient.embed(chunk.content())));
                 } catch (RuntimeException ex) {
                     log.info("failed to embed rag chunk: chunkId={}, reason={}", chunk.chunkId(), ex.getClass().getSimpleName());
+                    indexedChunks.add(new InMemoryRagIndex.IndexedChunk(chunk, List.of()));
                 }
             }
         }

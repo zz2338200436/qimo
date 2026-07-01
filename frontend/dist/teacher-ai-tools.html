@@ -10,7 +10,7 @@
     <!-- Font Awesome CSS -->
     <link href="lib/font-awesome.min.css" rel="stylesheet">
     <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
-    <link href="agent-chat-panel.css?v=20260620-agent-stream-1" rel="stylesheet">
+    <link href="agent-chat-panel.css?v=20260630-teacher-history-runtime-1" rel="stylesheet">
     <style>
         /* 全局样式 */
         body {
@@ -34,7 +34,7 @@
             z-index: 1000;
         }
         
-        .sidebar.collapsed {
+        .sidebar.desktop-collapsed {
             width: 80px;
         }
         
@@ -97,7 +97,7 @@
             transition: opacity 0.3s ease;
         }
         
-        .sidebar.collapsed .menu-item span {
+        .sidebar.desktop-collapsed .menu-item span {
             opacity: 0;
         }
         
@@ -365,111 +365,600 @@
         }
 
         .teacher-ai-chat-shell {
+            --teacher-ai-chat-column-width: 920px;
+            align-items: start;
             display: grid;
             gap: 16px;
-            min-height: calc(100vh - 104px);
-            padding: 20px 30px 28px;
+            justify-items: center;
+            min-height: calc(100vh - 84px);
+            position: relative;
+            padding: clamp(24px, 4vh, 44px) 30px 28px 104px;
+            transition: padding 0.26s ease;
         }
 
-        .agent-panel.chatgpt-like .agent-panel-header {
+        .teacher-ai-chat-shell .agent-panel.chatgpt-like {
+            background: transparent;
+            border: 0;
+            box-shadow: none;
+            max-width: var(--teacher-ai-chat-column-width);
+            min-height: calc(100vh - 132px);
+            overflow: visible;
+            grid-template-rows: auto minmax(0, 1fr);
+            transition: max-width 0.26s ease, min-height 0.26s ease;
+        }
+
+        .teacher-ai-chat-shell .agent-panel.chatgpt-like .agent-panel-header {
+            display: none;
+        }
+
+        .teacher-ai-history-rail {
             align-items: center;
-            gap: 16px 24px;
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid rgba(226, 232, 240, 0.96);
+            border-radius: 999px;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+            display: inline-flex;
+            gap: 6px;
+            padding: 8px;
+            position: fixed;
+            right: 22px;
+            top: 104px;
+            z-index: 1081;
         }
 
-        .teacher-ai-panel-actions {
+        .teacher-ai-chat-shell.agent-history-open .teacher-ai-history-rail {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.96);
+        }
+
+        .teacher-ai-history-rail-button {
+            align-items: center;
+            background: transparent;
+            border: 0;
+            border-radius: 999px;
+            color: #111827;
+            display: inline-flex;
+            font-size: 14px;
+            font-weight: 700;
+            gap: 0;
+            height: 46px;
+            justify-content: center;
+            padding: 0;
+            position: relative;
+            transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+            white-space: nowrap;
+            width: 46px;
+        }
+
+        .teacher-ai-history-rail-button:hover,
+        .teacher-ai-history-rail-button:focus-visible {
+            background: #f3f4f6;
+            color: #2563eb;
+            outline: none;
+            transform: translateY(-1px);
+        }
+
+        .teacher-ai-history-rail-button i {
+            font-size: 18px;
+        }
+
+        .teacher-ai-history-rail-label {
+            border: 0;
+            clip: rect(0, 0, 0, 0);
+            clip-path: inset(50%);
+            height: 1px;
+            line-height: 1;
+            overflow: hidden;
+            position: absolute;
+            white-space: nowrap;
+            width: 1px;
+        }
+
+        .teacher-ai-history-rail-button::after {
+            background: rgba(15, 23, 42, 0.92);
+            border-radius: 10px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+            color: #ffffff;
+            content: attr(data-tooltip);
+            font-size: 12px;
+            font-weight: 700;
+            left: 50%;
+            opacity: 0;
+            padding: 8px 10px;
+            pointer-events: none;
+            position: absolute;
+            top: calc(100% + 10px);
+            transform: translateX(-50%) translateY(-4px);
+            transition: opacity 0.18s ease, transform 0.18s ease;
+            white-space: nowrap;
+            z-index: 2;
+        }
+
+        .teacher-ai-history-rail-button:hover::after,
+        .teacher-ai-history-rail-button:focus-visible::after {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .teacher-ai-chat-shell .agent-panel.chatgpt-like .agent-panel-body {
+            background: transparent;
+            gap: 0;
+            grid-template-rows: minmax(0, 1fr) auto auto;
+        }
+
+        html.agent-restoring-session .teacher-ai-chat-shell[data-agent-restore-session="true"] .agent-panel.chatgpt-like .agent-panel-body,
+        .teacher-ai-chat-shell.agent-shell-restoring-session .agent-panel.chatgpt-like .agent-panel-body {
+            align-items: stretch;
+            display: grid;
+            justify-content: normal;
+        }
+
+        .teacher-ai-chat-shell:not(.agent-shell-has-conversation) .agent-panel.chatgpt-like .agent-panel-body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            min-height: calc(100vh - 132px);
+            padding: 0 16px 24px;
+        }
+
+        .teacher-ai-chat-shell .agent-panel.chatgpt-like .agent-messages {
+            align-items: center;
+            background: transparent;
+            display: flex;
+            justify-content: center;
+            min-height: clamp(560px, 70vh, 760px);
+            padding: 18px 0 18px;
+            transition: min-height 0.28s ease, padding 0.28s ease, align-items 0.28s ease, justify-content 0.28s ease;
+        }
+
+        .teacher-ai-chat-shell:not(.agent-shell-has-conversation) .agent-panel.chatgpt-like .agent-messages {
             align-items: center;
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px 12px;
-            justify-content: flex-end;
+            flex: 0 0 auto;
+            justify-content: center;
+            min-height: 0;
+            padding: 0;
+            width: 100%;
         }
 
-        .teacher-ai-history-trigger-zone {
-            align-items: center;
-            display: inline-flex;
+        .teacher-ai-chat-shell .agent-panel.chatgpt-like .agent-messages:has(.agent-message) {
+            align-items: stretch;
+            justify-content: flex-start;
         }
 
-        .teacher-ai-history-trigger-zone [data-agent-history-toggle] {
-            align-items: center;
-            border-radius: 999px;
-            cursor: pointer;
-            display: inline-flex;
-            font-weight: 700;
-            gap: 6px;
-            min-height: 38px;
-            padding: 7px 14px;
-            transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
-            white-space: nowrap;
+        .teacher-ai-empty-state {
+            align-self: center;
+            margin: 0 auto;
+            max-width: 720px;
+            text-align: center;
+            transform: translateY(0);
+            transform-origin: top center;
+            transition: opacity 0.22s ease, transform 0.28s ease, max-height 0.28s ease, margin 0.28s ease;
+            width: 100%;
         }
 
-        .teacher-ai-history-trigger-zone [data-agent-history-toggle] i {
-            margin-right: 0;
+        html.agent-restoring-session .teacher-ai-chat-shell[data-agent-restore-session="true"] .teacher-ai-empty-state,
+        .teacher-ai-chat-shell.agent-shell-restoring-session .teacher-ai-empty-state {
+            display: none;
         }
 
         .teacher-ai-empty-hint {
-            background: #fbfdff;
-            border: 1px solid #d8e4f6;
-            border-radius: 8px;
             color: #475569;
-            margin: 6px auto 0;
-            max-width: 620px;
-            padding: 14px 16px;
-            width: 100%;
+            margin: 0 auto;
+            max-width: 540px;
         }
 
         .teacher-ai-empty-hint strong {
             color: #0f172a;
             display: block;
-            font-size: 15px;
-            margin-bottom: 6px;
+            font-size: 34px;
+            font-weight: 800;
+            line-height: 1.14;
+            margin: 0;
         }
 
         .teacher-ai-empty-hint p {
-            font-size: 13px;
+            color: #526277;
+            font-size: 15px;
             line-height: 1.6;
-            margin: 0;
+            margin: 12px auto 0;
+            max-width: 500px;
         }
 
         .teacher-ai-example-prompts {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
-            margin: 14px auto 0;
-            max-width: 620px;
-            width: 100%;
+            gap: 12px;
+            justify-content: center;
+            margin: 22px auto 0;
+            max-width: 720px;
         }
 
         .teacher-ai-example-prompt {
-            background: #ffffff;
-            border: 1px solid #d8e4f6;
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(216, 228, 246, 0.92);
             border-radius: 999px;
             color: #334155;
             cursor: pointer;
-            font-size: 13px;
-            font-weight: 650;
-            min-height: 34px;
-            padding: 6px 13px;
-            transition: border-color 0.18s ease, color 0.18s ease, background-color 0.18s ease;
+            box-shadow: 0 14px 30px rgba(37, 99, 235, 0.06);
+            font-size: 14px;
+            font-weight: 700;
+            min-height: 44px;
+            padding: 0 18px;
+            transition: border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
         }
 
         .teacher-ai-example-prompt:hover,
         .teacher-ai-example-prompt:focus {
-            background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
             border-color: #93c5fd;
+            box-shadow: 0 16px 34px rgba(37, 99, 235, 0.12);
             color: #1d4ed8;
             outline: none;
         }
 
+        .teacher-ai-chat-shell .agent-panel.chatgpt-like .agent-form {
+            gap: 16px;
+        }
+
+        .teacher-ai-input-web-search {
+            align-items: center;
+            align-self: center;
+            background: #eff6ff;
+            border: 1px solid rgba(147, 197, 253, 0.86);
+            border-radius: 999px;
+            color: #1d4ed8;
+            cursor: pointer;
+            display: inline-flex;
+            height: 42px;
+            justify-content: center;
+            min-width: 42px;
+            padding: 0;
+            position: relative;
+            transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
+            width: 42px;
+        }
+
+        .teacher-ai-input-web-search:hover,
+        .teacher-ai-input-web-search:focus-visible {
+            background: #dbeafe;
+            border-color: #60a5fa;
+            color: #1e40af;
+            outline: none;
+        }
+
+        .teacher-ai-input-web-search.teacher-ai-input-web-search-active {
+            background: #2563eb;
+            border-color: #2563eb;
+            box-shadow: 0 12px 28px rgba(37, 99, 235, 0.28);
+            color: #ffffff;
+        }
+
+        .teacher-ai-input-web-search.teacher-ai-input-web-search-active:hover,
+        .teacher-ai-input-web-search.teacher-ai-input-web-search-active:focus-visible {
+            background: #1d4ed8;
+            border-color: #1d4ed8;
+            color: #ffffff;
+        }
+
+        .teacher-ai-input-web-search i {
+            font-size: 15px;
+        }
+
+        .teacher-ai-chat-shell .agent-input-shell {
+            background: linear-gradient(180deg, rgba(248, 251, 255, 0), #f8fbff 24%);
+            padding: 8px clamp(16px, 4vw, 48px) 8px;
+            position: sticky;
+            bottom: 0;
+            z-index: 5;
+            transition: padding 0.28s ease, transform 0.28s ease;
+        }
+
+        .teacher-ai-chat-shell:not(.agent-shell-has-conversation) .agent-input-shell {
+            align-self: center;
+            max-width: var(--teacher-ai-chat-column-width);
+            position: static;
+            padding-left: 0;
+            padding-right: 0;
+            padding-top: 0;
+            transform: translateY(0);
+            width: min(100%, var(--teacher-ai-chat-column-width));
+        }
+
+        .teacher-ai-chat-shell:not(.agent-shell-has-conversation) .teacher-ai-bottom-note {
+            margin-top: 12px;
+        }
+
+        .teacher-ai-chat-shell:not(.agent-shell-has-conversation) .teacher-ai-followup-prompts {
+            display: none;
+        }
+
+        .teacher-ai-chat-shell .agent-panel.chatgpt-like .agent-form {
+            align-items: stretch;
+            border-color: rgba(191, 219, 254, 0.84);
+            border-radius: 38px;
+            box-shadow: 0 24px 56px rgba(37, 99, 235, 0.12);
+            max-width: 100%;
+            min-height: 60px;
+            padding: 8px 10px 8px 14px;
+            transition: max-width 0.28s ease, box-shadow 0.28s ease, border-radius 0.28s ease, transform 0.28s ease;
+        }
+
+        .teacher-ai-chat-shell .agent-panel.chatgpt-like .agent-form textarea {
+            font-size: 15px;
+            line-height: 1.45;
+            max-height: 96px;
+            min-height: 32px;
+            padding: 4px 4px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .teacher-ai-chat-shell .agent-form-actions {
+            padding-top: 2px;
+        }
+
+        .teacher-ai-chat-shell .agent-form-actions-secondary {
+            padding: 0;
+        }
+
+        .teacher-ai-chat-shell .teacher-ai-input-web-search {
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid rgba(203, 213, 225, 0.95);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+            color: #2563eb;
+            height: 40px;
+            min-width: 40px;
+            width: 40px;
+        }
+
+        .teacher-ai-chat-shell .agent-panel.chatgpt-like .agent-form .btn[data-agent-submit] {
+            box-shadow: 0 16px 36px rgba(37, 99, 235, 0.28);
+            height: 46px;
+            min-width: 46px;
+            width: 46px;
+        }
+
+        .teacher-ai-chat-shell .teacher-ai-input-web-search:hover,
+        .teacher-ai-chat-shell .teacher-ai-input-web-search:focus-visible {
+            background: #ffffff;
+            border-color: rgba(96, 165, 250, 0.78);
+            box-shadow: 0 14px 28px rgba(37, 99, 235, 0.14);
+            color: #1d4ed8;
+        }
+
+        .teacher-ai-chat-shell .teacher-ai-input-web-search.teacher-ai-input-web-search-active {
+            background: #2563eb;
+            border-color: #2563eb;
+            box-shadow: 0 14px 32px rgba(37, 99, 235, 0.26);
+            color: #ffffff;
+        }
+
+        .teacher-ai-bottom-note {
+            color: #718198;
+            font-size: 13px;
+            margin: 12px auto 0;
+            max-width: 100%;
+            padding: 0 8px;
+            text-align: center;
+            transition: opacity 0.22s ease, transform 0.28s ease;
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation {
+            height: calc(100vh - 84px);
+            overflow: hidden;
+            padding-top: 24px;
+            padding-bottom: 0;
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like {
+            max-width: var(--teacher-ai-chat-column-width);
+            height: calc(100vh - 120px);
+            min-height: calc(100vh - 120px);
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-panel-body {
+            height: 100%;
+            min-height: calc(100vh - 120px);
+            overflow: hidden;
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-messages-wrap {
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation .teacher-ai-history-trigger-zone [data-agent-history-toggle] {
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.06);
+            font-size: 13px;
+            min-height: 34px;
+            padding: 6px 12px;
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-messages {
+            align-items: flex-start;
+            flex: 1 1 auto;
+            height: 100%;
+            justify-content: flex-start;
+            max-height: 100%;
+            min-height: 0;
+            padding: 10px 0 2px;
+        }
+
+        .teacher-ai-chat-shell .agent-attachment-list {
+            max-width: 100%;
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation .agent-messages {
+            align-items: flex-start;
+            justify-content: flex-start;
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-message {
+            margin-left: 0;
+            margin-right: 0;
+            max-width: 100%;
+            width: 100%;
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-message-agent .agent-message-content {
+            justify-items: start;
+            max-width: min(760px, calc(100% - 54px));
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-message-user .agent-message-content {
+            max-width: min(520px, calc(100% - 54px));
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation .teacher-ai-empty-state {
+            margin-top: -10px;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            pointer-events: none;
+            transform: translateY(-30px) scale(0.98);
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation .agent-input-shell {
+            background: linear-gradient(180deg, rgba(248, 251, 255, 0), #f8fbff 24%);
+            box-sizing: border-box;
+            margin-top: auto;
+            padding: 8px 0;
+            transform: translateY(0);
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-form {
+            align-items: stretch;
+            border-color: rgba(191, 219, 254, 0.84);
+            border-radius: 38px;
+            box-shadow: 0 24px 56px rgba(37, 99, 235, 0.12);
+            max-width: 100%;
+            min-height: 60px;
+            padding: 8px 10px 8px 14px;
+            transform: translateY(0);
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-form textarea {
+            line-height: 1.45;
+            max-height: 96px;
+            min-height: 32px;
+            padding: 4px 4px;
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation .teacher-ai-input-web-search,
+        .teacher-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-form .btn {
+            align-self: center;
+            width: 40px;
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-form .btn[data-agent-submit] {
+            height: 46px;
+            min-width: 46px;
+            width: 46px;
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation .teacher-ai-input-web-search i,
+        .teacher-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-form .btn i {
+            font-size: 14px;
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation .teacher-ai-bottom-note {
+            opacity: 1;
+            transform: translateY(0);
+            margin-top: 12px;
+            margin-bottom: 0;
+        }
+
+        .teacher-ai-chat-shell .agent-panel.chatgpt-like .agent-messages,
+        .teacher-ai-chat-shell .agent-input-shell,
+        .teacher-ai-chat-shell .teacher-ai-bottom-note,
+        .teacher-ai-chat-shell .agent-attachment-list {
+            width: min(100%, var(--teacher-ai-chat-column-width));
+        }
+
+        .teacher-ai-followup-prompts {
+            display: none;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin: 0 auto 12px;
+            max-width: 900px;
+            padding: 0 8px;
+        }
+
+        .teacher-ai-chat-shell.agent-shell-has-conversation .teacher-ai-followup-prompts {
+            display: flex;
+        }
+
+        .teacher-ai-followup-prompts .teacher-ai-example-prompt {
+            min-height: 36px;
+            padding: 0 14px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .teacher-ai-chat-shell,
+            .teacher-ai-chat-shell .agent-panel.chatgpt-like,
+            .teacher-ai-chat-shell .agent-panel.chatgpt-like .agent-panel-header,
+            .teacher-ai-chat-shell .agent-panel.chatgpt-like .agent-messages,
+            .teacher-ai-empty-state,
+            .teacher-ai-chat-shell .agent-input-shell,
+            .teacher-ai-chat-shell .agent-panel.chatgpt-like .agent-form,
+            .teacher-ai-bottom-note {
+                transition-duration: 0.01ms !important;
+                transition-delay: 0ms !important;
+            }
+        }
+
         .agent-panel.chatgpt-like .agent-form .btn-primary {
+            align-self: center;
             background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
             border-color: #2563eb;
-            box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+            box-shadow: 0 14px 34px rgba(37, 99, 235, 0.30);
+            height: 52px;
+            min-width: 52px;
+            width: 52px;
         }
 
         .agent-panel.chatgpt-like .agent-form .btn-primary:hover,
         .agent-panel.chatgpt-like .agent-form .btn-primary:focus {
             background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
             border-color: #1d4ed8;
+        }
+
+        @media (max-width: 575.98px) {
+            .teacher-ai-chat-shell .agent-panel.chatgpt-like .agent-form {
+                padding: 12px 12px 12px 16px;
+            }
+
+            .teacher-ai-input-web-search {
+                height: 42px;
+                min-width: 42px;
+                padding: 0;
+                width: 42px;
+            }
+
+            .teacher-ai-chat-shell .agent-form-actions {
+                gap: 10px;
+            }
+
+            .teacher-ai-chat-shell .agent-form-actions-secondary {
+                gap: 8px;
+            }
+
+            .teacher-ai-input-web-search-label {
+                border: 0;
+                clip: rect(0, 0, 0, 0);
+                clip-path: inset(50%);
+                height: 1px;
+                line-height: 1;
+                overflow: hidden;
+                position: absolute;
+                white-space: nowrap;
+                width: 1px;
+            }
         }
 
         .agent-history-hover-corner {
@@ -495,7 +984,354 @@
             opacity: 1;
             pointer-events: auto;
         }
-        
+
+        .teacher-ai-chat-shell > .agent-history-panel.agent-history-drawer {
+            background: rgba(255, 255, 255, 0.985);
+            border: 1px solid rgba(203, 213, 225, 0.72);
+            border-radius: 18px;
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+            margin: 0;
+            max-width: min(432px, calc(100vw - 20px));
+            overflow: hidden;
+            transform: translateX(110%);
+            width: 432px;
+            position: fixed;
+            z-index: 1082;
+            visibility: hidden;
+        }
+
+        .teacher-ai-chat-shell > .agent-history-panel.agent-history-drawer.agent-history-open {
+            transform: translateX(0);
+            visibility: visible;
+        }
+
+        .teacher-ai-history-shell {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            height: min(calc(100vh - 28px), 920px);
+            min-height: 0;
+            overflow: hidden;
+            padding: 12px 9px 10px;
+            position: relative;
+        }
+
+        .teacher-ai-history-top {
+            align-items: center;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            min-height: 0;
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            z-index: 2;
+        }
+
+        .teacher-ai-history-top-actions {
+            align-items: center;
+            display: inline-flex;
+            gap: 6px;
+        }
+
+        .teacher-ai-history-icon-button {
+            align-items: center;
+            background: #f8fafc;
+            border: 1px solid rgba(226, 232, 240, 0.88);
+            border-radius: 12px;
+            box-shadow: none;
+            color: #64748b;
+            display: inline-flex;
+            font-size: 15px;
+            height: 36px;
+            justify-content: center;
+            transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+            width: 36px;
+        }
+
+        .teacher-ai-history-icon-button:hover,
+        .teacher-ai-history-icon-button:focus-visible {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            color: #0f172a;
+            outline: none;
+            transform: none;
+        }
+
+        .teacher-ai-chat-shell.agent-history-search-active [data-agent-history-search-toggle] {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #1d4ed8;
+        }
+
+        .teacher-ai-history-search {
+            display: none;
+            margin-top: -2px;
+        }
+
+        .teacher-ai-chat-shell.agent-history-search-active .teacher-ai-history-search {
+            display: block;
+        }
+
+        .teacher-ai-history-search-input {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            box-shadow: none;
+            color: #111827;
+            font-size: 13px;
+            min-height: 40px;
+            padding: 0 14px;
+            width: 100%;
+        }
+
+        .teacher-ai-history-search-input:focus {
+            background: #ffffff;
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 4px rgba(147, 197, 253, 0.16);
+            outline: none;
+        }
+
+        .teacher-ai-history-intro {
+            display: grid;
+            gap: 2px;
+            margin-top: 0;
+            padding: 2px 82px 0 4px;
+        }
+
+        .teacher-ai-history-kicker {
+            color: #315efb;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        .teacher-ai-history-heading {
+            color: #0f172a;
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            line-height: 1.12;
+            margin: 0;
+        }
+
+        .teacher-ai-history-group-copy {
+            color: #64748b;
+            font-size: 11px;
+            line-height: 1.3;
+            margin: 0;
+            max-width: 244px;
+        }
+
+        .teacher-ai-history-new-chat {
+            align-items: center;
+            background: #f8fafc;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            border-radius: 16px;
+            box-shadow: none;
+            color: #111827;
+            display: inline-flex;
+            font-size: 13px;
+            font-weight: 600;
+            gap: 9px;
+            justify-content: flex-start;
+            min-height: 50px;
+            padding: 0 14px;
+            text-align: left;
+            width: 100%;
+        }
+
+        .teacher-ai-history-new-chat:hover,
+        .teacher-ai-history-new-chat:focus-visible {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            box-shadow: inset 0 0 0 1px rgba(203, 213, 225, 0.78);
+            outline: none;
+        }
+
+        .teacher-ai-history-new-chat i {
+            align-items: center;
+            background: #eff6ff;
+            border-radius: 999px;
+            color: #1d4ed8;
+            display: inline-flex;
+            font-size: 10px;
+            height: 22px;
+            justify-content: center;
+            width: 22px;
+        }
+
+        .teacher-ai-chat-shell .agent-history-body {
+            border-top: 0;
+            display: block;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+            margin-top: 0;
+        }
+
+        .teacher-ai-chat-shell .agent-history-list {
+            background: transparent;
+            border-right: 0;
+            height: 100%;
+            max-height: none;
+            overflow-x: hidden;
+            overflow-y: auto;
+            padding: 0 2px 10px 0;
+            scrollbar-gutter: stable;
+        }
+
+        .teacher-ai-chat-shell .agent-history-detail {
+            display: none;
+        }
+
+        .teacher-ai-chat-shell .agent-history-group + .agent-history-group {
+            margin-top: 10px;
+        }
+
+        .teacher-ai-chat-shell .agent-history-group-label {
+            color: #94a3b8;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            margin: 0 0 8px;
+            padding: 0 12px;
+            text-transform: uppercase;
+        }
+
+        .teacher-ai-chat-shell .agent-history-item {
+            align-items: start;
+            background: transparent;
+            border: 0;
+            border-radius: 16px;
+            box-shadow: none;
+            color: #111827;
+            gap: 10px;
+            grid-template-columns: minmax(0, 1fr) auto;
+            margin-bottom: 4px;
+            min-height: 0;
+            padding: 13px 12px 12px 16px;
+            position: relative;
+            text-align: left;
+            transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+        }
+
+        .teacher-ai-chat-shell .agent-history-item:hover,
+        .teacher-ai-chat-shell .agent-history-item.active {
+            background: rgba(248, 250, 252, 0.88);
+            box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.9);
+            transform: none;
+        }
+
+        .teacher-ai-chat-shell .agent-history-item.agent-history-item-current {
+            background: rgba(248, 250, 252, 0.92);
+            box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.95);
+        }
+
+        .teacher-ai-chat-shell .agent-history-item.agent-history-item-current::before {
+            background: #2563eb;
+            border-radius: 999px;
+            content: "";
+            inset: 14px auto 14px 0;
+            position: absolute;
+            width: 2px;
+        }
+
+        .teacher-ai-chat-shell .agent-history-item-main {
+            display: grid;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .teacher-ai-chat-shell .agent-history-item-eyebrow {
+            color: #2563eb;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+        }
+
+        .teacher-ai-chat-shell .agent-history-item-title {
+            color: #111827;
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.25;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .teacher-ai-chat-shell .agent-history-item-summary {
+            color: #64748b;
+            display: -webkit-box;
+            font-size: 11px;
+            line-height: 1.45;
+            overflow: hidden;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+        }
+
+        .teacher-ai-chat-shell .agent-history-item-footer {
+            align-items: center;
+            display: flex;
+            gap: 6px;
+            justify-content: space-between;
+        }
+
+        .teacher-ai-chat-shell .agent-history-item-meta {
+            color: #94a3b8;
+            font-size: 10px;
+        }
+
+        .teacher-ai-chat-shell .agent-history-item-status {
+            background: transparent;
+            color: #94a3b8;
+            flex: 0 0 auto;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 0;
+        }
+
+        .teacher-ai-chat-shell .agent-history-item.agent-history-item-current .agent-history-item-status {
+            background: transparent;
+            color: #1d4ed8;
+        }
+
+        .teacher-ai-chat-shell .agent-history-item-more {
+            color: #cbd5e1;
+            font-size: 13px;
+            line-height: 1;
+            padding-top: 24px;
+            transition: color 0.2s ease;
+        }
+
+        .teacher-ai-chat-shell .agent-history-item:hover .agent-history-item-more,
+        .teacher-ai-chat-shell .agent-history-item.active .agent-history-item-more {
+            color: #94a3b8;
+        }
+
+        .teacher-ai-chat-shell .agent-history-list::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .teacher-ai-chat-shell .agent-history-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .teacher-ai-chat-shell .agent-history-list::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            background-clip: padding-box;
+            border: 2px solid transparent;
+            border-radius: 999px;
+        }
+
+        .teacher-ai-chat-shell .agent-history-list::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+            background-clip: padding-box;
+        }
+
         /* 加载状态 */
         .loading-container {
             display: flex;
@@ -511,7 +1347,7 @@
                 transform: translateX(-250px);
             }
             
-            #sidebar.collapsed {
+            #sidebar.mobile-open {
                 transform: translateX(0);
                 width: 100%;
             }
@@ -526,48 +1362,79 @@
 
             .teacher-ai-chat-shell {
                 min-height: calc(100vh - 84px);
-                padding: 14px;
+                padding: 16px 14px 24px;
+            }
+
+            .teacher-ai-chat-shell .agent-panel.chatgpt-like {
+                min-height: calc(100vh - 124px);
+            }
+
+            .teacher-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like {
+                height: calc(100vh - 124px);
+            }
+
+            .teacher-ai-chat-shell .agent-panel.chatgpt-like .agent-panel-header {
+                gap: 12px;
+                grid-template-columns: 1fr;
+            }
+
+            .teacher-ai-chat-shell:not(.agent-shell-has-conversation) .agent-panel.chatgpt-like .agent-panel-body {
+                min-height: auto;
+                padding-left: 0;
+                padding-right: 0;
+            }
+
+            .teacher-ai-empty-state {
+                align-self: center;
             }
 
             .teacher-ai-panel-actions {
                 justify-content: flex-start;
                 width: 100%;
             }
+
+            .teacher-ai-history-rail {
+                right: 14px;
+                top: 88px;
+                width: max-content;
+            }
+
+            .teacher-ai-history-rail-button {
+                height: 44px;
+                width: 44px;
+            }
+
+            .teacher-ai-chat-shell > .agent-history-panel.agent-history-drawer {
+                border-radius: 20px;
+                max-width: calc(100vw - 16px);
+                top: 8px;
+                width: calc(100vw - 16px);
+                right: 8px;
+            }
         }
     </style>
+    <script>
+        try {
+            if (sessionStorage.getItem('agent.currentSessionId')) {
+                document.documentElement.classList.add('agent-restoring-session');
+            }
+        } catch (error) {
+            document.documentElement.classList.remove('agent-restoring-session');
+        }
+    </script>
 </head>
 <body class="teacher-shell-body">
     <!-- 侧边栏导航组件 -->
     <div id="sidebar-container"></div>
+    <script src="common-ui.js?v=20260628-sidebar-shell-1"></script>
     <script>
         function initializeTeacherAiSidebar() {
-            const toggleBtn = document.querySelector('.toggle-btn');
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('mainContent');
-
-            if (!toggleBtn || !sidebar || !mainContent) {
-                return;
-            }
-
-            toggleBtn.onclick = function() {
-                sidebar.classList.toggle('collapsed');
-                mainContent.classList.toggle('collapsed');
-            };
-
-            const currentPage = window.location.pathname.split('/').pop();
-            document.querySelectorAll('.menu-item').forEach(item => {
-                item.classList.toggle('active', item.getAttribute('href') === currentPage);
-            });
+            CommonUI.loadTeacherSidebar('sidebar-container')
+                .then(() => CommonUI.bindSidebarToggle('toggleSidebar'))
+                .catch(error => console.error('加载侧边栏组件失败:', error));
         }
 
-        // 加载侧边栏组件
-        fetch('components/teacher-sidebar-nav.html?v=20260608-theme-4')
-            .then(response => response.text())
-            .then(data => {
-                document.getElementById('sidebar-container').innerHTML = data;
-                initializeTeacherAiSidebar();
-            })
-            .catch(error => console.error('加载侧边栏组件失败:', error));
+        initializeTeacherAiSidebar();
     </script>
     
     <!-- 主内容区 -->
@@ -575,7 +1442,7 @@
         <!-- 顶部导航栏 -->
         <nav class="top-navbar teacher-topbar">
             <div style="display: flex; align-items: center;">
-                <button class="toggle-btn"><i class="fa fa-bars"></i></button>
+                <button class="toggle-btn" id="toggleSidebar" type="button" aria-label="切换侧边栏"><i class="fa fa-bars"></i></button>
                 <h2 class="page-title">辅助工具</h2>
             </div>
             <!-- 用户下拉菜单组件（教师端蓝色主题） -->
@@ -583,66 +1450,89 @@
         </nav>
         
         <!-- 内容区域 -->
-        <div class="content-container teacher-content teacher-ai-chat-shell">
+        <div class="content-container teacher-content teacher-ai-chat-shell" data-agent-shell data-agent-restore-session="true">
             <div class="agent-history-hover-corner" data-agent-history-hover-zone aria-hidden="true"></div>
+            <div class="teacher-ai-history-rail" aria-label="历史记录快捷入口">
+                <button type="button" class="teacher-ai-history-rail-button" data-tooltip="历史会话" data-agent-history-toggle aria-controls="agentHistoryDrawer" aria-expanded="false" aria-label="打开历史会话">
+                    <i class="fa fa-columns" aria-hidden="true"></i>
+                    <span class="teacher-ai-history-rail-label">历史会话</span>
+                </button>
+                <button type="button" class="teacher-ai-history-rail-button" data-tooltip="搜索会话" data-agent-history-search-toggle aria-label="搜索历史会话">
+                    <i class="fa fa-search" aria-hidden="true"></i>
+                    <span class="teacher-ai-history-rail-label">搜索会话</span>
+                </button>
+                <button type="button" class="teacher-ai-history-rail-button" data-tooltip="新建对话" data-agent-history-new-session aria-label="创建新对话">
+                    <i class="fa fa-plus-circle" aria-hidden="true"></i>
+                    <span class="teacher-ai-history-rail-label">新建对话</span>
+                </button>
+            </div>
             <section class="agent-panel chatgpt-like" data-agent-panel data-agent-role="TEACHER">
-                <div class="agent-panel-header">
-                    <div>
-                        <h3 class="agent-panel-title">学习助手</h3>
-                        <p class="agent-panel-subtitle">输入课程、作业、题目或试卷相关需求；涉及变更的操作会先确认。</p>
-                    </div>
-                    <div class="teacher-ai-panel-actions">
-                        <span class="agent-panel-status"><i class="fa fa-circle"></i> 服务已开通</span>
-                        <div class="teacher-ai-history-trigger-zone">
-                            <button type="button" class="btn btn-outline-primary teacher-ai-history-button" data-agent-history-toggle aria-controls="agentHistoryDrawer" aria-expanded="false">
-                                <i class="fa fa-clock-o"></i> 历史记录
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <div class="agent-panel-header"></div>
                 <div class="agent-panel-body">
                     <div class="agent-messages" data-agent-messages>
                         <div class="teacher-ai-empty-state" data-teacher-ai-empty-state>
                             <div class="teacher-ai-empty-hint">
-                                <strong>可以这样开始</strong>
-                                <p>选择一个示例快速填入输入框，也可以直接输入具体要求。</p>
+                                <strong>今天要处理什么？</strong>
+                                <p>可以直接查询课程、考试、题库信息，或继续输入题目与试卷需求。</p>
                             </div>
                             <div class="teacher-ai-example-prompts" aria-label="示例需求">
-                                <button type="button" class="teacher-ai-example-prompt" data-teacher-ai-example="生成课堂练习题">生成课堂练习题</button>
-                                <button type="button" class="teacher-ai-example-prompt" data-teacher-ai-example="生成一份试卷">生成一份试卷</button>
-                                <button type="button" class="teacher-ai-example-prompt" data-teacher-ai-example="生成学习建议">生成学习建议</button>
+                                <button type="button" class="teacher-ai-example-prompt" data-teacher-ai-example="查看课程列表">查看课程列表</button>
+                                <button type="button" class="teacher-ai-example-prompt" data-teacher-ai-example="查看考试列表">查看考试列表</button>
+                                <button type="button" class="teacher-ai-example-prompt" data-teacher-ai-example="查询题库概览">查询题库概览</button>
                             </div>
                         </div>
                     </div>
                     <div class="agent-input-shell">
                         <form class="agent-form" data-agent-form>
-                            <textarea class="form-control agent-command-input" data-agent-input placeholder="输入你的需求"></textarea>
-                            <button type="submit" class="btn btn-primary" data-agent-submit aria-label="发送">
-                                <i class="fa fa-paper-plane" aria-hidden="true"></i><span class="visually-hidden">发送</span>
-                            </button>
+                            <input type="file" class="agent-attachment-input" data-agent-attachment-input multiple hidden>
+                            <textarea class="form-control agent-command-input" data-agent-input placeholder="输入课程、作业、题目、试卷或教学目标..."></textarea>
+                            <div class="agent-form-actions" aria-label="输入辅助操作">
+                                <div class="agent-form-actions-secondary">
+                                    <button type="button" class="teacher-ai-input-attach" data-agent-attach-trigger aria-label="添加附件">
+                                        <i class="fa fa-plus" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="button" class="teacher-ai-input-web-search" data-teacher-ai-web-search data-tooltip="联网搜索" aria-label="联网搜索" aria-pressed="false">
+                                        <i class="fa fa-globe" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <button type="submit" class="btn btn-primary" data-agent-submit aria-label="发送">
+                                    <i class="fa fa-arrow-up" aria-hidden="true"></i><span class="visually-hidden">发送</span>
+                                </button>
+                            </div>
                         </form>
+                        <div class="agent-attachment-list" data-agent-attachment-list></div>
+                        <p class="teacher-ai-bottom-note">回答会结合课程、作业与历史会话 · 涉及变更的操作仍会先确认</p>
                     </div>
                 </div>
             </section>
             <div class="agent-history-backdrop" data-agent-history-backdrop></div>
-            <section id="agentHistoryDrawer" class="agent-history-panel agent-history-drawer" data-agent-history-panel aria-label="历史记录">
-                <div class="agent-history-header">
-                    <div>
-                        <h3>历史记录</h3>
-                        <p>查看最近对话、消息记录和已确认的操作。</p>
+            <section id="agentHistoryDrawer" class="agent-history-panel agent-history-drawer" data-agent-history-panel role="dialog" aria-modal="true" aria-labelledby="agentHistoryTitle" tabindex="-1">
+                <div class="teacher-ai-history-shell">
+                    <div class="teacher-ai-history-top">
+                        <div class="teacher-ai-history-top-actions">
+                            <button type="button" class="teacher-ai-history-icon-button" data-agent-history-search-toggle aria-label="搜索历史会话">
+                                <i class="fa fa-search" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="teacher-ai-history-icon-button" data-agent-history-close aria-label="关闭历史会话">
+                                <i class="fa fa-times" aria-hidden="true"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div class="agent-history-header-actions">
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-agent-history-refresh>
-                            <i class="fa fa-refresh"></i> 刷新
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" data-agent-history-close aria-label="关闭历史记录">
-                            <i class="fa fa-times"></i>
-                        </button>
+                    <div class="teacher-ai-history-intro">
+                        <h3 id="agentHistoryTitle" class="teacher-ai-history-heading" data-agent-history-title>选择要继续的对话</h3>
+                        <p class="teacher-ai-history-group-copy" data-agent-history-copy>按时间浏览最近的生成与追问记录</p>
                     </div>
-                </div>
-                <div class="agent-history-body">
-                    <div class="agent-history-list" data-agent-history-list></div>
-                    <div class="agent-history-detail" data-agent-history-detail></div>
+                    <div class="teacher-ai-history-search">
+                        <input type="search" class="teacher-ai-history-search-input" data-agent-history-search-input placeholder="搜索会话标题、状态或时间">
+                    </div>
+                    <button type="button" class="teacher-ai-history-new-chat" data-agent-history-new-session>
+                        <i class="fa fa-plus-circle" aria-hidden="true"></i>
+                        <span>开启新对话</span>
+                    </button>
+                    <div class="agent-history-body">
+                        <div class="agent-history-list" data-agent-history-list></div>
+                        <div class="agent-history-detail" data-agent-history-detail></div>
+                    </div>
                 </div>
             </section>
         </div>
@@ -675,15 +1565,6 @@
                 <span class="visually-hidden">加载中...</span>
             </div>
             <p class="mt-3">正在处理，请稍候...</p>
-        </div>
-    </div>
-    
-    <!-- 消息提示 -->
-    <div id="message-container" class="position-fixed bottom-0 end-0 p-3 z-50" style="display: none;">
-        <div id="message-alert" class="alert alert-success alert-dismissible fade show" role="alert">
-            <strong id="message-title">成功！</strong>
-            <span id="message-text">操作已完成</span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     </div>
     
@@ -856,12 +1737,36 @@
         function showLoading() {
             document.querySelector('.content-container').style.display = 'none';
             document.getElementById('result-container').style.display = 'none';
+            const resultContent = document.getElementById('result-content');
+            if (resultContent && window.CommonUI) {
+                window.CommonUI.setElementLoadingState(resultContent, {
+                    title: '正在生成结果',
+                    description: '正在处理当前请求，请稍候...'
+                });
+            }
             document.getElementById('loading-container').style.display = 'flex';
         }
         
         // 隐藏加载状态
         function hideLoading() {
             document.getElementById('loading-container').style.display = 'none';
+        }
+
+        function renderTeacherAiResultEmptyState(message = '当前没有可展示的结果。') {
+            const resultContent = document.getElementById('result-content');
+            if (!resultContent) {
+                return;
+            }
+
+            if (window.CommonUI) {
+                window.CommonUI.renderEmptyState(resultContent, {
+                    title: '暂无生成结果',
+                    description: message
+                });
+                return;
+            }
+
+            resultContent.innerHTML = '<p class="text-center text-muted">没有生成任何结果。</p>';
         }
         
         // 显示结果
@@ -876,7 +1781,7 @@
             resultContent.innerHTML = '';
             
             if (results.length === 0) {
-                resultContent.innerHTML = '<p class="text-center text-muted">没有生成任何结果。</p>';
+                renderTeacherAiResultEmptyState('当前操作没有返回可展示内容。');
             } else {
                 results.forEach((result, index) => {
                     const resultElement = createResultElement(result, index + 1);
@@ -1098,21 +2003,12 @@
         
         // 显示消息提示
         function showMessage(message, type = 'success') {
-            const messageContainer = document.getElementById('message-container');
-            const messageAlert = document.getElementById('message-alert');
-            const messageText = document.getElementById('message-text');
-            
-            // 设置消息类型
-            messageAlert.className = `alert alert-${type} alert-dismissible fade show`;
-            messageText.textContent = message;
-            
-            // 显示消息
-            messageContainer.style.display = 'block';
-            
-            // 3秒后自动隐藏
-            setTimeout(() => {
-                messageContainer.style.display = 'none';
-            }, 3000);
+            if (window.CommonUI) {
+                const toastType = type === 'info' ? 'info' : type === 'success' ? 'success' : 'danger';
+                window.CommonUI.showToast(message, toastType);
+                return;
+            }
+            console.log(`[${type}] ${message}`);
         }
         
         // 生成知识点讲解
@@ -1165,7 +2061,7 @@
         
         // 清空结果
         function clearResults() {
-            document.getElementById('result-content').innerHTML = '<p class="text-center text-muted">没有生成任何结果。</p>';
+            renderTeacherAiResultEmptyState('结果已清空，可以继续生成新的内容。');
             document.getElementById('result-count').textContent = '0';
             showMessage('结果已清空！', 'success');
         }
@@ -1180,9 +2076,20 @@
 
         function initializeTeacherAiEmptyState() {
             const input = document.querySelector('[data-agent-input]');
-            const emptyState = document.querySelector('[data-teacher-ai-empty-state]');
-            if (!input || !emptyState) {
+            const form = document.querySelector('[data-agent-form]');
+            const webSearchButton = document.querySelector('[data-teacher-ai-web-search]');
+            let webSearchActive = false;
+            if (!input || !form) {
                 return;
+            }
+
+            function setWebSearchActive(isActive) {
+                webSearchActive = Boolean(isActive);
+                if (!webSearchButton) {
+                    return;
+                }
+                webSearchButton.classList.toggle('teacher-ai-input-web-search-active', webSearchActive);
+                webSearchButton.setAttribute('aria-pressed', String(isActive));
             }
 
             document.querySelectorAll('[data-teacher-ai-example]').forEach(button => {
@@ -1193,18 +2100,32 @@
                 });
             });
 
-            const form = document.querySelector('[data-agent-form]');
-            if (form) {
-                form.addEventListener('submit', () => {
-                    emptyState.style.display = 'none';
-                });
-            }
+            webSearchButton?.addEventListener('click', () => {
+                setWebSearchActive(!webSearchActive);
+                input.focus();
+            });
+
+            form.addEventListener('agent-before-send', (event) => {
+                if (!webSearchActive) {
+                    return;
+                }
+                const rawMessage = String(event.detail.message || '').trim();
+                if (!rawMessage) {
+                    event.preventDefault();
+                    return;
+                }
+                const webSearchMessage = `联网搜索 ${rawMessage}`;
+                event.detail.message = webSearchMessage;
+                event.detail.displayMessage = rawMessage;
+            });
+
+            setWebSearchActive(false);
         }
 
         initializeTeacherAiEmptyState();
     </script>
     <script src="api.js?v=20260608-theme-4"></script>
-    <script src="agent-chat-panel.js?v=20260620-agent-stream-1"></script>
-    <script src="agent-history-panel.js?v=20260617-agent-history-2"></script>
+    <script src="agent-chat-panel.js?v=20260701-agent-attachments-1"></script>
+    <script src="agent-history-panel.js?v=20260630-agent-history-runtime-1"></script>
 </body>
 </html>

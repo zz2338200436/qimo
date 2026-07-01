@@ -47,6 +47,27 @@ class AgentRagConfigurationTest {
     }
 
     @Test
+    void keepsRagKnowledgeSearchableWhenDocumentEmbeddingsFailToBuild() {
+        contextRunner
+                .withUserConfiguration(ThrowingRagEmbeddingConfiguration.class)
+                .withPropertyValues(
+                        "agent.rag.enabled=true",
+                        "agent.rag.document-paths[0]=docs/rag/system-platform-knowledge.md",
+                        "agent.rag.min-score=0.0")
+                .run(context -> {
+                    assertThat(context).hasSingleBean(RagKnowledgeService.class);
+                    assertThat(context).hasSingleBean(InMemoryRagIndex.class);
+                    InMemoryRagIndex index = context.getBean(InMemoryRagIndex.class);
+
+                    var results = index.search(List.of(1.0, 0.0), "TEACHER", 10, 0.0);
+
+                    assertThat(results).isNotEmpty();
+                    assertThat(results)
+                            .anySatisfy(result -> assertThat(result.chunk().content()).contains("注册中心"));
+                });
+    }
+
+    @Test
     void createsQuestionBankServicesWhenEnabled() {
         contextRunner
                 .withUserConfiguration(FakeEmbeddingConfiguration.class, FakeQuestionBankEmbeddingConfiguration.class)
@@ -59,6 +80,24 @@ class AgentRagConfigurationTest {
                 });
     }
 
+    @Test
+    void keepsQuestionBankUsableWhenQuestionEmbeddingsFailToBuild() {
+        contextRunner
+                .withUserConfiguration(ThrowingQuestionBankEmbeddingConfiguration.class)
+                .withPropertyValues(
+                        "agent.question-bank.enabled=true",
+                        "agent.question-bank.document-paths[0]=../docs/question-bank/java/java-basic-sample.md")
+                .run(context -> {
+                    assertThat(context).hasSingleBean(QuestionRagService.class);
+                    QuestionRagService service = context.getBean(QuestionRagService.class);
+
+                    var result = service.generateQuestions("TEACHER", null, "中等", 2);
+
+                    assertThat(result).containsEntry("actualCount", 2);
+                    assertThat(result).containsEntry("partial", false);
+                });
+    }
+
     @Configuration
     static class FakeEmbeddingConfiguration {
         @Bean
@@ -68,10 +107,30 @@ class AgentRagConfigurationTest {
     }
 
     @Configuration
+    static class ThrowingRagEmbeddingConfiguration {
+        @Bean
+        RagEmbeddingClient ragEmbeddingClient() {
+            return text -> {
+                throw new IllegalStateException("embedding unavailable");
+            };
+        }
+    }
+
+    @Configuration
     static class FakeQuestionBankEmbeddingConfiguration {
         @Bean(name = "questionBankEmbeddingClient")
         QuestionRagService.EmbeddingClient questionBankEmbeddingClient() {
             return text -> List.of(1.0, 0.0);
+        }
+    }
+
+    @Configuration
+    static class ThrowingQuestionBankEmbeddingConfiguration {
+        @Bean(name = "questionBankEmbeddingClient")
+        QuestionRagService.EmbeddingClient questionBankEmbeddingClient() {
+            return text -> {
+                throw new IllegalStateException("embedding unavailable");
+            };
         }
     }
 }

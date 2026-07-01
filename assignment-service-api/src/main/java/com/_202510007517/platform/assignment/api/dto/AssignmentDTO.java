@@ -1,6 +1,7 @@
 package com._202510007517.platform.assignment.api.dto;
 
 import java.util.List;
+import java.util.Map;
 
 public class AssignmentDTO {
     private Long id;
@@ -20,6 +21,7 @@ public class AssignmentDTO {
     private String courseName;
     private String teacherName;
     private List<AssignmentSubmissionDTO> submissions;
+    private List<Map<String, Object>> attachments;
 
     public Long getId() {
         return id;
@@ -155,5 +157,13 @@ public class AssignmentDTO {
 
     public void setSubmissions(List<AssignmentSubmissionDTO> submissions) {
         this.submissions = submissions;
+    }
+
+    public List<Map<String, Object>> getAttachments() {
+        return attachments;
+    }
+
+    public void setAttachments(List<Map<String, Object>> attachments) {
+        this.attachments = attachments;
     }
 }

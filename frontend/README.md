@@ -22,6 +22,28 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-idea-dev-frontend.ps1
 
 This is the only retained local startup script. Start Java services from IDEA rather than jar launchers.
 
+If you want one command for the full local microservice development chain, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-dev-local-stack.ps1
+```
+
+This keeps Docker limited to `mysql`, `redis`, and `rabbitmq`, then runs the frontend preview and microservices locally from source. Use `-Exclude` to leave selected services under direct IDEA control.
+Before starting `agent-service`, the script reads `config-server/src/main/resources/config-repo/agent-service.yml`,
+extracts the environment variable names referenced by `agent.llm.api-key`, and enables Agent LLM only when one of
+those variables is actually set. If you switch model providers locally, update that YAML placeholder and export the
+matching API key variable before running the script.
+The same local stack now enables knowledge-base RAG by default for `agent-service` and injects `AGENT_RAG_ENABLED=true`
+unless you explicitly set `AGENT_RAG_ENABLED=false` in the current shell.
+It also enables the document-based question bank by default and injects `AGENT_QUESTION_BANK_ENABLED=true`
+unless you explicitly set `AGENT_QUESTION_BANK_ENABLED=false`.
+
+Important runtime fact:
+
+- In `scripts/start-dev-local-stack.ps1` mode, Docker does not run `registry-server`, `config-server`, `gateway`, `agent-service`, or the other Java business services.
+- Those application services are started locally with `mvn spring-boot:run`.
+- Only `mysql`, `redis`, and `rabbitmq` are expected to be Docker containers in this mode.
+
 The script starts `mysql`, `redis`, `rabbitmq`, `registry-server`, and `config-server`, then starts the
 Python frontend server on `http://localhost:5500`. Start Java business services from IDEA with
 `SPRING_PROFILES_ACTIVE=dev` and `CONFIG_SERVER_URL=http://localhost:8888`.
@@ -36,12 +58,14 @@ This checks `5500 -> gateway -> auth-service` captcha loading, `X-Captcha-Key` e
 frontend routing, and Agent panel assets.
 
 To verify the Agent panel against IDEA-started services, run the Java services with the same dev profile and
-disable external LLM calls for deterministic local checks:
+disable external LLM calls manually for deterministic local checks:
 
 ```text
 SPRING_PROFILES_ACTIVE=dev
 CONFIG_SERVER_URL=http://localhost:8888
 AGENT_LLM_ENABLED=false
+AGENT_RAG_ENABLED=true
+AGENT_QUESTION_BANK_ENABLED=true
 ```
 
 Generate fresh browser sessions before each Agent smoke run. The helper requests a new captcha for every

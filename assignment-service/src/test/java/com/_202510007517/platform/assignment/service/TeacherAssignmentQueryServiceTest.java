@@ -18,6 +18,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class TeacherAssignmentQueryServiceTest {
@@ -48,14 +49,21 @@ class TeacherAssignmentQueryServiceTest {
     void getAssignmentDetailIncludesSubmissionsAndStudentNames() {
         CourseFeignClient courseFeignClient = mock(CourseFeignClient.class);
         UserFeignClient userFeignClient = mock(UserFeignClient.class);
+        AssessmentAttachmentService attachmentService = mock(AssessmentAttachmentService.class);
+        List<Map<String, Object>> submissionAttachments = List.of(Map.of(
+                "id", 7001L,
+                "name", "学生作业附件.pdf",
+                "downloadUrl", "/api/attachments/assignment/7001/download"
+        ));
         when(courseFeignClient.getCourse(101L)).thenReturn(course(101L, "分布式框架技术"));
         when(userFeignClient.listByIds(anyList())).thenReturn(List.of(
                 user(7L, "张老师"),
                 user(42L, "李同学")
         ));
+        when(attachmentService.getSubmissionAttachmentDtos(3001L)).thenReturn(submissionAttachments);
 
         TeacherAssignmentQueryService service = new TeacherAssignmentQueryService(
-                new FakeAssignmentRepository(), courseFeignClient, userFeignClient);
+                new FakeAssignmentRepository(), courseFeignClient, userFeignClient, attachmentService);
 
         AssignmentDTO detail = service.getAssignmentDetail(7L, 2001L);
 
@@ -64,16 +72,24 @@ class TeacherAssignmentQueryServiceTest {
         AssignmentSubmissionDTO submission = detail.getSubmissions().get(0);
         assertThat(submission.getStudentName()).isEqualTo("李同学");
         assertThat(submission.getStatus()).isEqualTo("submitted");
+        assertThat(submission.getAttachments()).isEqualTo(submissionAttachments);
     }
 
     @Test
     void listSubmissionsBuildsTeacherFacingPage() {
         CourseFeignClient courseFeignClient = mock(CourseFeignClient.class);
         UserFeignClient userFeignClient = mock(UserFeignClient.class);
+        AssessmentAttachmentService attachmentService = mock(AssessmentAttachmentService.class);
+        List<Map<String, Object>> submissionAttachments = List.of(Map.of(
+                "id", 7001L,
+                "name", "学生作业附件.pdf",
+                "downloadUrl", "/api/attachments/assignment/7001/download"
+        ));
         when(userFeignClient.listByIds(anyList())).thenReturn(List.of(user(42L, "李同学")));
+        when(attachmentService.getSubmissionAttachmentDtos(3001L)).thenReturn(submissionAttachments);
 
         TeacherAssignmentQueryService service = new TeacherAssignmentQueryService(
-                new FakeAssignmentRepository(), courseFeignClient, userFeignClient);
+                new FakeAssignmentRepository(), courseFeignClient, userFeignClient, attachmentService);
 
         Map<String, Object> page = service.listSubmissions(7L, 1, 10, "id", "DESC", null, 42L, false);
 
@@ -84,7 +100,30 @@ class TeacherAssignmentQueryServiceTest {
         assertThat(content.get(0).getTitle()).isEqualTo("Homework 1");
         assertThat(content.get(0).getStudentName()).isEqualTo("李同学");
         assertThat(content.get(0).getStatus()).isEqualTo("submitted");
+        assertThat(content.get(0).getAttachments()).isEqualTo(submissionAttachments);
         assertThat(page.get("totalElements")).isEqualTo(1);
+    }
+
+    @Test
+    void getAssignmentSubmissionIncludesSubmissionAttachments() {
+        CourseFeignClient courseFeignClient = mock(CourseFeignClient.class);
+        UserFeignClient userFeignClient = mock(UserFeignClient.class);
+        AssessmentAttachmentService attachmentService = mock(AssessmentAttachmentService.class);
+        List<Map<String, Object>> submissionAttachments = List.of(Map.of(
+                "id", 7001L,
+                "name", "学生作业附件.pdf",
+                "downloadUrl", "/api/attachments/assignment/7001/download"
+        ));
+        when(userFeignClient.listByIds(anyList())).thenReturn(List.of(user(42L, "李同学")));
+        when(attachmentService.getSubmissionAttachmentDtos(3001L)).thenReturn(submissionAttachments);
+
+        TeacherAssignmentQueryService service = new TeacherAssignmentQueryService(
+                new FakeAssignmentRepository(), courseFeignClient, userFeignClient, attachmentService);
+
+        AssignmentSubmissionDTO submission = service.getAssignmentSubmission(7L, 3001L);
+
+        assertThat(submission.getAttachments()).isEqualTo(submissionAttachments);
+        verify(attachmentService).getSubmissionAttachmentDtos(3001L);
     }
 
     @Test

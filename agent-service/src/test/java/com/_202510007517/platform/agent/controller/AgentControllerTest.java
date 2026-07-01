@@ -27,7 +27,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -107,6 +109,48 @@ class AgentControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.message").value("已为你准备发布操作。"));
+    }
+
+    @Test
+    void chatForwardsAttachmentContextToOrchestrator() throws Exception {
+        AgentChatResponseDTO response = new AgentChatResponseDTO();
+        response.setSessionId("session-2");
+        response.setResponseType("TEXT");
+        response.setMessage("已收到附件。");
+
+        when(orchestrator.chat(
+                eq(7L),
+                eq("TEACHER"),
+                eq("session-2"),
+                eq("帮我发布作业"),
+                argThat(context -> context.get("attachments") instanceof List<?> attachments
+                        && attachments.size() == 1
+                        && attachments.get(0) instanceof Map<?, ?> first
+                        && "实验说明.pdf".equals(first.get("name")))))
+                .thenReturn(response);
+
+        mockMvc.perform(post("/api/agent/chat")
+                        .header(CommonTraceConstants.USER_ID_HEADER, "7")
+                        .header(CommonTraceConstants.ACTIVE_ROLE_HEADER, "TEACHER")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "sessionId": "session-2",
+                                  "message": "帮我发布作业",
+                                  "context": {
+                                    "attachments": [
+                                      {
+                                        "name": "实验说明.pdf",
+                                        "contentType": "application/pdf",
+                                        "base64": "aGVsbG8="
+                                      }
+                                    ]
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.message").value("已收到附件。"));
     }
 
     @Test
@@ -274,6 +318,64 @@ class AgentControllerTest {
                 .andExpect(jsonPath("$.data.messages[1].content").value("请确认是否执行该操作。"))
                 .andExpect(jsonPath("$.data.actions[0].actionId").value(11))
                 .andExpect(jsonPath("$.data.actions[0].intent").value("PUBLISH_ASSIGNMENT"));
+    }
+
+    @Test
+    void patchSessionTitleReturnsUpdatedOwnedSessionEnvelope() throws Exception {
+        AgentSessionDTO session = new AgentSessionDTO();
+        session.setSessionId("3");
+        session.setUserRole("TEACHER");
+        session.setStatus("ACTIVE");
+        session.setTitle("分布式复习计划");
+        session.setArtifacts(Map.of("customTitle", "分布式复习计划"));
+        when(orchestrator.updateSessionTitle(eq(7L), eq("TEACHER"), eq(3L), eq("分布式复习计划")))
+                .thenReturn(session);
+
+        mockMvc.perform(patch("/api/agent/sessions/3")
+                        .header(CommonTraceConstants.USER_ID_HEADER, "7")
+                        .header(CommonTraceConstants.ACTIVE_ROLE_HEADER, "TEACHER")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"分布式复习计划\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.sessionId").value("3"))
+                .andExpect(jsonPath("$.data.title").value("分布式复习计划"))
+                .andExpect(jsonPath("$.data.artifacts.customTitle").value("分布式复习计划"));
+    }
+
+    @Test
+    void patchSessionTitleRejectsMissingIdentityEnvelope() throws Exception {
+        mockMvc.perform(patch("/api/agent/sessions/3")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"分布式复习计划\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    void deleteSessionReturnsSuccessEnvelope() throws Exception {
+        mockMvc.perform(delete("/api/agent/sessions/3")
+                        .header(CommonTraceConstants.USER_ID_HEADER, "7")
+                        .header(CommonTraceConstants.ACTIVE_ROLE_HEADER, "TEACHER"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(orchestrator).deleteSession(7L, "TEACHER", 3L);
+    }
+
+    @Test
+    void deleteSessionRejectsUnauthorizedOwnerEnvelope() throws Exception {
+        doThrow(new SecurityException("无权删除该 Agent 会话。"))
+                .when(orchestrator).deleteSession(eq(8L), eq("TEACHER"), eq(3L));
+
+        mockMvc.perform(delete("/api/agent/sessions/3")
+                        .header(CommonTraceConstants.USER_ID_HEADER, "8")
+                        .header(CommonTraceConstants.ACTIVE_ROLE_HEADER, "TEACHER"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value(403))
+                .andExpect(jsonPath("$.message").value("无权删除该 Agent 会话。"));
     }
 
     @Test

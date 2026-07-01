@@ -38,7 +38,7 @@
             transition: width 0.3s ease;
         }
         
-        .sidebar.collapsed {
+        .sidebar.desktop-collapsed {
             width: 80px;
         }
         
@@ -1541,6 +1541,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             // 初始化页面内容容器
             contentContainer = document.querySelector('.content-container');
+            CommonUI.bindSidebarToggle('toggleBtn');
         });
 
         const teacherPageLoaders = {

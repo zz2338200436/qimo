@@ -9,8 +9,11 @@ public class AgentSessionDTO {
     private String sessionId;
     private String userRole;
     private String status;
+    private String title;
+    private String summary;
     private String pendingIntent;
     private Map<String, Object> pendingSlots;
+    private Map<String, Object> artifacts;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<AgentMessageDTO> messages = new ArrayList<>();
@@ -40,6 +43,22 @@ public class AgentSessionDTO {
         this.status = status;
     }
 
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getSummary() {
+        return summary;
+    }
+
+    public void setSummary(String summary) {
+        this.summary = summary;
+    }
+
     public String getPendingIntent() {
         return pendingIntent;
     }
@@ -54,6 +73,14 @@ public class AgentSessionDTO {
 
     public void setPendingSlots(Map<String, Object> pendingSlots) {
         this.pendingSlots = pendingSlots;
+    }
+
+    public Map<String, Object> getArtifacts() {
+        return artifacts;
+    }
+
+    public void setArtifacts(Map<String, Object> artifacts) {
+        this.artifacts = artifacts;
     }
 
     public LocalDateTime getCreatedAt() {

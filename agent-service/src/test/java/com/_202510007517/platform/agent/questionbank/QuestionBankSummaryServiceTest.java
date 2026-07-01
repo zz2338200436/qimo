@@ -25,6 +25,17 @@ class QuestionBankSummaryServiceTest {
         assertThat(summary).containsKey("topics");
         assertThat(summary).containsKey("difficultyBreakdown");
         assertThat(summary).containsKey("topicDifficultyBreakdown");
+        assertThat(summary).containsKey("questions");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> questions = (List<Map<String, Object>>) summary.get("questions");
+        assertThat(questions).hasSize(3);
+        assertThat(questions.get(0))
+                .containsEntry("id", "q1")
+                .containsEntry("content", "c1")
+                .containsEntry("difficulty", "中等")
+                .containsEntry("type", "选择题")
+                .containsEntry("knowledgePoints", List.of("Java基础"))
+                .containsEntry("sourcePath", "a.md");
     }
 
     @Test

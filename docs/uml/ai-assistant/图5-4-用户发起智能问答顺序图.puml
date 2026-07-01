@@ -1,0 +1,49 @@
+@startuml
+!include 00-style.puml
+
+actor 用户
+participant "前端助手页面" as FE
+participant Gateway
+participant AgentController as AC
+participant AgentOrchestrator as AO
+participant RagKnowledgeService as RAG
+participant AiEdgeClient as AEC
+participant "AI 生成服务" as AIS
+database "Agent DB" as ADB
+
+用户 -> FE : 输入问题并发送
+FE -> Gateway : POST /api/agent/chat/stream
+Gateway -> Gateway : JWT 校验/限流
+
+alt 认证失败
+  Gateway --> FE : 401 身份无效
+else 认证成功
+  Gateway -> AC : 转发请求
+  AC -> AO : streamChat(userId, role, request)
+  AO -> ADB : resolveSession/save user message
+  AO -> RAG : retrieve(userId, role, message)
+  alt 知识库命中
+    RAG --> AO : 检索片段集合
+    AO -> AEC : 请求模型生成
+    AEC -> AIS : POST /api/ai/*
+    alt 模型超时
+      AIS --> AEC : timeout/fallback
+      AEC --> AO : 生成失败
+      AO --> AC : 降级回答
+    else 模型生成成功
+      AIS --> AEC : 流式内容
+      AEC --> AO : token stream
+      AO --> AC : SSE 事件流
+      AC --> Gateway : SSE
+      Gateway --> FE : SSE
+      FE --> 用户 : 持续显示回答
+    end
+  else 知识库未命中
+    RAG --> AO : 空结果
+    AO --> AC : 无足够依据提示
+    AC --> Gateway : 普通文本响应
+    Gateway --> FE : 未命中说明
+  end
+end
+
+@enduml

@@ -1,6 +1,7 @@
 package com._202510007517.platform.agent.service;
 
 import com._202510007517.platform.agent.api.dto.AgentChatResponseDTO;
+import com._202510007517.platform.agent.api.dto.AgentActionPreviewDTO;
 import com._202510007517.platform.agent.domain.AgentActionEntity;
 import com._202510007517.platform.agent.domain.AgentMessageEntity;
 import com._202510007517.platform.agent.domain.AgentSessionEntity;
@@ -12,6 +13,8 @@ import com._202510007517.platform.agent.repository.AgentSessionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -21,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -29,12 +33,15 @@ class AgentSessionServiceTest {
     private final AgentSessionRepository sessionRepository = mock(AgentSessionRepository.class);
     private final AgentActionRepository actionRepository = mock(AgentActionRepository.class);
     private final AgentMessageRepository messageRepository = mock(AgentMessageRepository.class);
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final AgentArtifactService artifactService = new AgentArtifactService(objectMapper);
     private final AgentSessionService service = new AgentSessionService(
             sessionRepository,
             actionRepository,
             messageRepository,
             new AgentDataMaskingPolicy(),
-            new ObjectMapper()
+            artifactService,
+            objectMapper
     );
 
     @Test
@@ -128,21 +135,113 @@ class AgentSessionServiceTest {
     }
 
     @Test
+    void savesReplayableAssistantDataResponseInMessageMetadata() {
+        AgentChatResponseDTO response = new AgentChatResponseDTO();
+        response.setResponseType("DATA");
+        response.setMessage("已生成 2 道Java基础题");
+        response.setData(Map.of(
+                "topic", "Java基础",
+                "totalQuestions", 2,
+                "questions", List.of(
+                        Map.of(
+                                "type", "选择题",
+                                "content", "下列说法正确的是？",
+                                "options", List.of("A", "B"),
+                                "answer", "A"
+                        )
+                )
+        ));
+        RecognizedIntent recognizedIntent = new RecognizedIntent(AgentIntent.GENERATE_QUESTIONS, 0.9, Map.of());
+
+        service.saveAssistantMessage(3L, response, recognizedIntent);
+
+        var messageCaptor = forClass(AgentMessageEntity.class);
+        verify(messageRepository).save(messageCaptor.capture());
+        AgentMessageEntity message = messageCaptor.getValue();
+        assertThat(message.getMetadataJson()).contains("\"responseType\":\"DATA\"");
+        assertThat(message.getMetadataJson()).contains("\"data\"");
+        assertThat(message.getMetadataJson()).contains("\"questions\"");
+        assertThat(message.getMetadataJson()).contains("Java基础");
+    }
+
+    @Test
+    void savesReplayableAssistantActionPreviewInMessageMetadata() {
+        AgentActionPreviewDTO preview = new AgentActionPreviewDTO();
+        preview.setActionId(501L);
+        preview.setIntent("PUBLISH_ASSIGNMENT");
+        preview.setRiskLevel("MEDIUM");
+        preview.setTitle("发布作业");
+        preview.setSummary("发布作业: Java基础课堂练习");
+        preview.setPreview(Map.of("title", "Java基础课堂练习", "questionCount", 2));
+        preview.setIdempotencyKey("idem-501");
+        AgentChatResponseDTO response = new AgentChatResponseDTO();
+        response.setResponseType("ACTION_PREVIEW");
+        response.setMessage("请确认是否执行该操作。");
+        response.setActionPreview(preview);
+        RecognizedIntent recognizedIntent = new RecognizedIntent(AgentIntent.PUBLISH_ASSIGNMENT, 0.9, Map.of());
+
+        service.saveAssistantMessage(3L, response, recognizedIntent);
+
+        var messageCaptor = forClass(AgentMessageEntity.class);
+        verify(messageRepository).save(messageCaptor.capture());
+        AgentMessageEntity message = messageCaptor.getValue();
+        assertThat(message.getMetadataJson()).contains("\"responseType\":\"ACTION_PREVIEW\"");
+        assertThat(message.getMetadataJson()).contains("\"actionPreview\"");
+        assertThat(message.getMetadataJson()).contains("\"actionId\":501");
+        assertThat(message.getMetadataJson()).contains("\"PUBLISH_ASSIGNMENT\"");
+    }
+
+    @Test
+    void loadRecentMessagesReturnsLatestMessagesInChronologicalOrder() {
+        AgentMessageEntity oldest = message(21L, 3L, "USER", "第一条消息");
+        oldest.setCreatedAt(LocalDateTime.of(2026, 6, 23, 10, 0, 0));
+        AgentMessageEntity newest = message(23L, 3L, "ASSISTANT", "第三条消息");
+        newest.setCreatedAt(LocalDateTime.of(2026, 6, 23, 10, 2, 0));
+        newest.setMetadataJson("{\"intent\":\"QUERY_COURSES\"}");
+        AgentMessageEntity middle = message(22L, 3L, "USER", "第二条消息");
+        middle.setCreatedAt(LocalDateTime.of(2026, 6, 23, 10, 1, 0));
+        middle.setMetadataJson("{\"responseType\":\"TEXT\"}");
+        when(messageRepository.findRecentBySessionId(3L, 2))
+                .thenReturn(new ArrayList<>(List.of(newest, middle)));
+
+        List<com._202510007517.platform.agent.api.dto.AgentMessageDTO> messages =
+                service.loadRecentMessages(3L, 2);
+
+        assertThat(messages).hasSize(2);
+        assertThat(messages).extracting(
+                com._202510007517.platform.agent.api.dto.AgentMessageDTO::getMessageId)
+                .containsExactly(22L, 23L);
+        assertThat(messages).extracting(
+                com._202510007517.platform.agent.api.dto.AgentMessageDTO::getContent)
+                .containsExactly("第二条消息", "第三条消息");
+        assertThat(messages.get(0).getMetadata()).containsEntry("responseType", "TEXT");
+        assertThat(messages.get(1).getMetadata()).containsEntry("intent", "QUERY_COURSES");
+    }
+
+    @Test
     void listSessionsReturnsOwnedRoleSessionsWithoutMessagesOrActions() {
         AgentSessionEntity session = session(3L, 7L, "TEACHER");
         session.setPendingIntent("PUBLISH_ASSIGNMENT");
         session.setPendingSlotsJson("{\"title\":\"Spring Cloud实验\"}");
+        AgentMessageEntity userMessage = message(21L, 3L, "USER", "帮我生成分布式框架随堂练习");
+        userMessage.setCreatedAt(LocalDateTime.of(2026, 6, 30, 9, 0, 0));
+        AgentMessageEntity assistantMessage = message(22L, 3L, "ASSISTANT", "最近内容：分布式框架课堂练习");
+        assistantMessage.setCreatedAt(LocalDateTime.of(2026, 6, 30, 9, 1, 0));
         when(sessionRepository.findByUserIdAndUserRoleIgnoreCaseOrderByUpdatedAtDesc(7L, "TEACHER"))
                 .thenReturn(List.of(session));
+        when(messageRepository.findRecentBySessionId(3L, 3))
+                .thenReturn(new ArrayList<>(List.of(assistantMessage, userMessage)));
 
         var sessions = service.listSessions(7L, "TEACHER");
 
         assertThat(sessions).hasSize(1);
         assertThat(sessions.get(0).getSessionId()).isEqualTo("3");
         assertThat(sessions.get(0).getUserRole()).isEqualTo("TEACHER");
+        assertThat(sessions.get(0).getTitle()).contains("分布式框架随堂练习");
+        assertThat(sessions.get(0).getSummary()).contains("最近内容");
         assertThat(sessions.get(0).getPendingIntent()).isEqualTo("PUBLISH_ASSIGNMENT");
         assertThat(sessions.get(0).getPendingSlots()).containsEntry("title", "Spring Cloud实验");
-        assertThat(sessions.get(0).getMessages()).isEmpty();
+        assertThat(sessions.get(0).getMessages()).hasSize(2);
         assertThat(sessions.get(0).getActions()).isEmpty();
     }
 
@@ -167,6 +266,68 @@ class AgentSessionServiceTest {
         assertThat(dto.getActions().get(0).getPreview()).containsEntry("title", "Spring Cloud实验");
         assertThat(dto.getActions().get(0).getRequest()).containsEntry("intent", "PUBLISH_ASSIGNMENT");
         assertThat(dto.getActions().get(0).getResult()).containsEntry("status", "EXECUTED");
+    }
+
+    @Test
+    void updateSessionTitleStoresCustomTitleForOwnedRoleSession() {
+        AgentSessionEntity session = session(3L, 7L, "TEACHER");
+        when(sessionRepository.findByIdAndUserIdAndUserRoleIgnoreCase(3L, 7L, "TEACHER"))
+                .thenReturn(Optional.of(session));
+        when(sessionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var dto = service.updateSessionTitle(7L, "TEACHER", 3L, "  分布式复习计划  ");
+
+        assertThat(dto.getSessionId()).isEqualTo("3");
+        assertThat(dto.getTitle()).isEqualTo("分布式复习计划");
+        assertThat(dto.getArtifacts()).containsEntry("customTitle", "分布式复习计划");
+        assertThat(session.getArtifactsJson()).contains("custom_session_title", "分布式复习计划");
+        verify(sessionRepository).save(session);
+    }
+
+    @Test
+    void updateSessionTitleRejectsBlankTitle() {
+        assertThatThrownBy(() -> service.updateSessionTitle(7L, "TEACHER", 3L, "   "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("会话标题不能为空");
+
+        verify(sessionRepository, never()).save(any());
+    }
+
+    @Test
+    void updateSessionTitleRejectsSessionOwnedByAnotherRole() {
+        when(sessionRepository.findByIdAndUserIdAndUserRoleIgnoreCase(3L, 7L, "STUDENT"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.updateSessionTitle(7L, "STUDENT", 3L, "学生端标题"))
+                .isInstanceOf(SecurityException.class)
+                .hasMessageContaining("无权修改该 Agent 会话");
+    }
+
+    @Test
+    void deleteSessionRemovesOwnedRoleSessionAndChildren() {
+        AgentSessionEntity session = session(3L, 7L, "TEACHER");
+        when(sessionRepository.findByIdAndUserIdAndUserRoleIgnoreCase(3L, 7L, "TEACHER"))
+                .thenReturn(Optional.of(session));
+
+        service.deleteSession(7L, "TEACHER", 3L);
+
+        verify(messageRepository).deleteBySessionId(3L);
+        verify(actionRepository).deleteBySessionId(3L);
+        verify(sessionRepository).delete(session);
+    }
+
+    @Test
+    void deleteSessionRejectsSessionOwnedByAnotherUser() {
+        when(sessionRepository.findByIdAndUserIdAndUserRoleIgnoreCase(3L, 8L, "TEACHER"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.deleteSession(8L, "TEACHER", 3L))
+                .isInstanceOf(SecurityException.class)
+                .hasMessageContaining("无权删除该 Agent 会话");
+
+        verify(messageRepository, never()).deleteBySessionId(any());
+        verify(actionRepository, never()).deleteBySessionId(any());
+        verify(sessionRepository, never()).delete(any());
     }
 
     @Test

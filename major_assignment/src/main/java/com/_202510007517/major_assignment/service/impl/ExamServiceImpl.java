@@ -5,6 +5,7 @@ import com._202510007517.major_assignment.entity.Course;
 import com._202510007517.major_assignment.entity.Exam;
 import com._202510007517.major_assignment.entity.User;
 import com._202510007517.major_assignment.mapper.ExamMapper;
+import com._202510007517.major_assignment.service.AssessmentAttachmentService;
 import com._202510007517.major_assignment.service.ExamService;
 import com._202510007517.major_assignment.service.ExamSubmissionService;
 import com._202510007517.major_assignment.service.CourseService;
@@ -36,6 +37,9 @@ public class ExamServiceImpl implements ExamService {
     
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private AssessmentAttachmentService assessmentAttachmentService;
 
     @Override
     @Transactional(readOnly = true)
@@ -91,6 +95,7 @@ public class ExamServiceImpl implements ExamService {
         examMapper.deleteExamSubmissionsByExamId(id);
         // 再删除相关的班级关联记录
         examMapper.deleteExamClassesByExamId(id);
+        assessmentAttachmentService.deleteAttachments(AssessmentAttachmentService.EXAM_TYPE, id);
         // 最后删除考试本身
         examMapper.delete(id);
     }
@@ -155,6 +160,8 @@ public class ExamServiceImpl implements ExamService {
             examMap.put("publishDate", exam.getPublishDate());
             examMap.put("courseId", exam.getCourseId());
             examMap.put("teacherId", exam.getTeacherId());
+            examMap.put("attachments", assessmentAttachmentService.getAttachmentDtos(
+                    AssessmentAttachmentService.EXAM_TYPE, exam.getId()));
             
             // 课程、教师名称
             Course course = null;
@@ -204,6 +211,8 @@ public class ExamServiceImpl implements ExamService {
         examDetails.put("publishDate", exam.getPublishDate());
         examDetails.put("courseId", exam.getCourseId());
         examDetails.put("teacherId", exam.getTeacherId());
+        examDetails.put("attachments", assessmentAttachmentService.getAttachmentDtos(
+                AssessmentAttachmentService.EXAM_TYPE, examId));
         
         // 由于缺少getCourseName和getTeacherName方法，暂时不获取这些信息
         // 可以后续通过其他服务或直接从数据库获取

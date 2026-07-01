@@ -31,6 +31,9 @@ public class AgentSessionEntity {
     @Column(name = "pending_slots_json")
     private String pendingSlotsJson;
 
+    @Column(name = "artifacts_json")
+    private String artifactsJson;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -83,6 +86,14 @@ public class AgentSessionEntity {
 
     public void setPendingSlotsJson(String pendingSlotsJson) {
         this.pendingSlotsJson = pendingSlotsJson;
+    }
+
+    public String getArtifactsJson() {
+        return artifactsJson;
+    }
+
+    public void setArtifactsJson(String artifactsJson) {
+        this.artifactsJson = artifactsJson;
     }
 
     public LocalDateTime getCreatedAt() {

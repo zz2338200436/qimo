@@ -60,6 +60,9 @@ public class StudentController extends BaseController {
     @Autowired
     private ExamSubmissionService examSubmissionService;
 
+    @Autowired
+    private AssessmentAttachmentService assessmentAttachmentService;
+
     @GetMapping("/student/courses")
     @RequireLogin
     public ResponseResult<Map<String, Object>> getStudentCourses(HttpServletRequest requestContext,
@@ -124,6 +127,8 @@ public class StudentController extends BaseController {
         result.put("publishDate", assignment.getPublishDate());
         result.put("isActive", assignment.getIsActive());
         result.put("courseId", assignment.getCourseId());
+        result.put("attachments", assessmentAttachmentService.getAttachmentDtos(
+                AssessmentAttachmentService.ASSIGNMENT_TYPE, assignmentId));
         
         // 获取课程名称
         Course course = courseService.findById(assignment.getCourseId());
@@ -191,6 +196,8 @@ public class StudentController extends BaseController {
         result.put("location", exam.getLocation());
         result.put("publishDate", exam.getPublishDate());
         result.put("courseId", exam.getCourseId());
+        result.put("attachments", assessmentAttachmentService.getAttachmentDtos(
+                AssessmentAttachmentService.EXAM_TYPE, examId));
         
         // 获取课程名称
         Course course = courseService.findById(exam.getCourseId());

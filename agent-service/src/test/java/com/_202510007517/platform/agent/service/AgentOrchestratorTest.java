@@ -1,11 +1,15 @@
 package com._202510007517.platform.agent.service;
 
 import com._202510007517.platform.agent.AgentServiceApplication;
+import com._202510007517.platform.agent.assistant.AgentAssistantRequest;
+import com._202510007517.platform.agent.assistant.AgentAssistantType;
+import com._202510007517.platform.agent.assistant.AssistantConversationService;
 import com._202510007517.platform.agent.api.dto.AgentExecutionResultDTO;
 import com._202510007517.platform.agent.api.dto.AgentChatResponseDTO;
 import com._202510007517.platform.agent.api.dto.AgentSessionDTO;
 import com._202510007517.platform.agent.domain.AgentActionEntity;
 import com._202510007517.platform.agent.client.AiEdgeClient;
+import com._202510007517.platform.agent.client.StudentCourseEdgeClient;
 import com._202510007517.platform.agent.questionbank.QuestionRagService;
 import com._202510007517.platform.agent.rag.RagKnowledgeService;
 import com._202510007517.platform.agent.repository.AgentActionRepository;
@@ -20,8 +24,12 @@ import com._202510007517.platform.assignment.api.dto.TeacherAssignmentUpsertRequ
 import com._202510007517.platform.assignment.api.feign.AssignmentFeignClient;
 import com._202510007517.platform.course.api.dto.CourseAssignmentDTO;
 import com._202510007517.platform.course.api.dto.CourseDTO;
+import com._202510007517.platform.course.api.dto.ClassUpsertRequestDTO;
+import com._202510007517.platform.course.api.dto.CourseUpsertRequestDTO;
 import com._202510007517.platform.course.api.feign.CourseFeignClient;
 import com._202510007517.platform.common.web.ResponseResult;
+import com._202510007517.platform.exam.api.dto.ExamDTO;
+import com._202510007517.platform.exam.api.feign.ExamFeignClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +43,8 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.Mockito.verify;
@@ -54,7 +64,7 @@ import static org.mockito.Mockito.when;
                 "spring.datasource.password=",
                 "spring.datasource.driver-class-name=org.h2.Driver",
                 "agent.question-bank.enabled=true",
-                "agent.question-bank.document-paths[0]=docs/question-bank/java/java-basic-sample.md",
+                "agent.question-bank.document-paths[0]=../docs/question-bank/java/java-basic-sample.md",
                 "agent.question-bank.min-score=0.0"
         })
 class AgentOrchestratorTest {
@@ -81,10 +91,19 @@ class AgentOrchestratorTest {
     private AssignmentFeignClient assignmentFeignClient;
 
     @MockitoBean
+    private ExamFeignClient examFeignClient;
+
+    @MockitoBean
+    private StudentCourseEdgeClient studentCourseEdgeClient;
+
+    @MockitoBean
     private GeneralChatService generalChatService;
 
     @MockitoBean
     private RagKnowledgeService ragKnowledgeService;
+
+    @MockitoBean
+    private AssistantConversationService assistantConversationService;
 
     @MockitoBean(name = "questionBankEmbeddingClient")
     private QuestionRagService.EmbeddingClient questionBankEmbeddingClient;
@@ -94,8 +113,10 @@ class AgentOrchestratorTest {
         auditLogRepository.deleteAll();
         actionRepository.deleteAll();
         when(questionBankEmbeddingClient.embed(any())).thenReturn(List.of(1.0, 0.0));
-        when(generalChatService.reply(any(), any(), any()))
+        when(generalChatService.reply(any(), any(), any(), any()))
                 .thenReturn("我是课程平台里的 AI 助手，可以聊天，也可以帮你处理课程、班级、作业和通知。");
+        when(assistantConversationService.reply(any(), any()))
+                .thenReturn("暂时还不能处理这个请求。");
     }
 
     @Test
@@ -232,12 +253,36 @@ class AgentOrchestratorTest {
         assertThat(response.getActionPreview()).isNull();
         assertThat(response.getMessage()).contains("AI 助手");
         assertThat(actionRepository.findAll()).isEmpty();
-        verify(generalChatService).reply(7L, "TEACHER", "你是什么模型");
+        verify(generalChatService).reply(7L, "TEACHER", response.getSessionId(), "你是什么模型");
+    }
+
+    @Test
+    void unknownIntentUsesGeneralAssistantBoundary() {
+        when(generalChatService.reply(eq(7L), eq("TEACHER"), anyString(), eq("你是谁")))
+                .thenReturn("我是教学管理平台内置的 AI 助手。");
+
+        AgentChatResponseDTO response = orchestrator.chat(7L, "TEACHER", null, "你是谁");
+
+        assertThat(response.getResponseType()).isEqualTo("TEXT");
+        assertThat(response.getMessage()).isEqualTo("我是教学管理平台内置的 AI 助手。");
+        assertThat(response.getSessionId()).isNotBlank();
+        verify(generalChatService).reply(7L, "TEACHER", response.getSessionId(), "你是谁");
+    }
+
+    @Test
+    void unknownIntentStillReturnsFallbackWhenAssistantCannotAnswer() {
+        when(generalChatService.reply(eq(7L), eq("TEACHER"), anyString(), eq("你好")))
+                .thenReturn("暂时还不能处理这个请求。");
+
+        AgentChatResponseDTO response = orchestrator.chat(7L, "TEACHER", null, "你好");
+
+        assertThat(response.getMessage()).isEqualTo("暂时还不能处理这个请求。");
+        assertThat(response.getResponseType()).isEqualTo("TEXT");
     }
 
     @Test
     void routesRagKnowledgeIntentToRagServiceWithoutCreatingAction() {
-        when(ragKnowledgeService.answer(7L, "STUDENT", "什么是服务注册与发现？"))
+        when(assistantConversationService.reply(eq(AgentAssistantType.KNOWLEDGE), any(AgentAssistantRequest.class)))
                 .thenReturn("服务注册与发现用于让服务实例动态登记并被调用方发现。");
 
         AgentChatResponseDTO response = orchestrator.chat(7L, "STUDENT", null, "什么是服务注册与发现？");
@@ -246,8 +291,29 @@ class AgentOrchestratorTest {
         assertThat(response.getActionPreview()).isNull();
         assertThat(response.getMessage()).contains("服务注册与发现");
         assertThat(actionRepository.findAll()).isEmpty();
-        verify(ragKnowledgeService).answer(7L, "STUDENT", "什么是服务注册与发现？");
-        verify(generalChatService, never()).reply(any(), any(), any());
+        verify(assistantConversationService).reply(eq(AgentAssistantType.KNOWLEDGE), argThat(request ->
+                request.userId().equals(7L)
+                        && "STUDENT".equals(request.userRole())
+                        && response.getSessionId().equals(request.sessionId())
+                        && "什么是服务注册与发现？".equals(request.message())));
+        verify(generalChatService, never()).reply(any(), any(), any(), any());
+    }
+
+    @Test
+    void ragPathKeepsSessionScopedResponseShape() {
+        when(assistantConversationService.reply(eq(AgentAssistantType.KNOWLEDGE), any(AgentAssistantRequest.class)))
+                .thenReturn("服务注册与发现用于让微服务实例彼此定位。");
+
+        AgentChatResponseDTO response = orchestrator.chat(7L, "TEACHER", null, "什么是服务注册与发现");
+
+        assertThat(response.getResponseType()).isEqualTo("TEXT");
+        assertThat(response.getMessage()).contains("服务注册与发现");
+        assertThat(response.getSessionId()).isNotBlank();
+        verify(assistantConversationService).reply(eq(AgentAssistantType.KNOWLEDGE), argThat(request ->
+                request.userId().equals(7L)
+                        && "TEACHER".equals(request.userRole())
+                        && response.getSessionId().equals(request.sessionId())
+                        && "什么是服务注册与发现".equals(request.message())));
     }
 
     @Test
@@ -265,13 +331,17 @@ class AgentOrchestratorTest {
         AgentChatResponseDTO response = orchestrator.chat(7L, "TEACHER", null, "随机生成五道课堂练习题");
 
         assertThat(response.getResponseType()).isEqualTo("DATA");
+        assertThat(response.getMessage()).isNotEqualTo("null");
         @SuppressWarnings("unchecked")
         Map<String, Object> data = (Map<String, Object>) response.getData();
         assertThat(data)
                 .containsEntry("status", "EXECUTED")
                 .containsEntry("count", 5)
-                .containsEntry("topic", "随机题目")
+                .containsEntry("topic", null)
                 .containsKey("questions");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> questions = (List<Map<String, Object>>) data.get("questions");
+        assertThat(questions).isNotEmpty();
         verify(aiEdgeClient, never()).generateQuestions(any(), any(), any(), any(GenerateQuestionsRequestDTO.class));
         assertThat(actionRepository.findAll()).isEmpty();
     }
@@ -335,6 +405,116 @@ class AgentOrchestratorTest {
         assertThat(requestCaptor.getValue().getDescription())
                 .contains("Java中用于表示一个类继承另一个类的关键字是哪个？")
                 .contains("char类型在Java中可以直接表示Unicode字符。");
+    }
+
+    @Test
+    void generatedQuestionsCanBePublishedToResolvedClassWithDefaultScoreAndDueDate() {
+        stubCloudClassAssignment();
+
+        AgentChatResponseDTO generated = orchestrator.chat(7L, "TEACHER", null,
+                "生成2道Java基础中等难度题");
+        AgentChatResponseDTO preview = orchestrator.chat(7L, "TEACHER", generated.getSessionId(),
+                "发布到云计算技术1班");
+
+        assertThat(preview.getResponseType()).isEqualTo("ACTION_PREVIEW");
+        assertThat(preview.getActionPreview().getPreview())
+                .containsEntry("courseId", 91005L)
+                .containsEntry("className", "云计算技术1班")
+                .containsEntry("maxScore", 100);
+        assertThat(String.valueOf(preview.getActionPreview().getPreview().get("dueDate")))
+                .matches("\\d{4}-\\d{2}-\\d{2} 23:59:59");
+        assertThat(String.valueOf(preview.getActionPreview().getPreview().get("content")))
+                .contains("Java中用于表示一个类继承另一个类的关键字是哪个？");
+    }
+
+    @Test
+    void generatedQuestionsCanUseFirstAvailableClassForTestRandomPublishTarget() {
+        stubCloudClassAssignment();
+
+        AgentChatResponseDTO generated = orchestrator.chat(7L, "TEACHER", null,
+                "生成2道Java基础中等难度题");
+        AgentChatResponseDTO preview = orchestrator.chat(7L, "TEACHER", generated.getSessionId(),
+                "帮我随机找个班级发布，我测试一下能否正确发布");
+
+        assertThat(preview.getResponseType()).isEqualTo("ACTION_PREVIEW");
+        assertThat(preview.getActionPreview().getPreview())
+                .containsEntry("targetSelectionMode", "FIRST_AVAILABLE_CLASS_FOR_TEST")
+                .containsEntry("courseId", 91005L)
+                .containsEntry("className", "云计算技术1班")
+                .containsEntry("maxScore", 100);
+        assertThat(String.valueOf(preview.getActionPreview().getPreview().get("dueDate")))
+                .matches("\\d{4}-\\d{2}-\\d{2} 23:59:59");
+    }
+
+    @Test
+    void greetingDoesNotReusePendingQuestionGenerationIntent() {
+        AgentChatResponseDTO first = orchestrator.chat(7L, "TEACHER", null, "生成题目");
+
+        assertThat(first.getResponseType()).isEqualTo("TEXT");
+
+        AgentChatResponseDTO second = orchestrator.chat(7L, "TEACHER", first.getSessionId(), "HI");
+
+        assertThat(second.getResponseType()).isEqualTo("TEXT");
+        assertThat(second.getMessage()).contains("AI 助手");
+        verify(generalChatService).reply(7L, "TEACHER", second.getSessionId(), "HI");
+
+        AgentSessionDTO session = orchestrator.getSession(7L, "TEACHER", Long.valueOf(second.getSessionId()));
+        assertThat(session.getPendingIntent()).isNull();
+        assertThat(session.getPendingSlots()).isEmpty();
+    }
+
+    @Test
+    void topicFollowUpStillContinuesPendingQuestionGenerationIntent() {
+        AgentChatResponseDTO first = orchestrator.chat(7L, "TEACHER", null, "生成题目");
+
+        AgentChatResponseDTO second = orchestrator.chat(7L, "TEACHER", first.getSessionId(), "Java基础");
+
+        assertThat(second.getResponseType()).isEqualTo("DATA");
+        assertThat(second.getData()).isInstanceOf(Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) second.getData();
+        assertThat(data)
+                .containsEntry("status", "EXECUTED")
+                .containsKey("questions");
+    }
+
+    @Test
+    void greetingDoesNotReusePendingAssignmentPublishIntentAfterQuestionGeneration() {
+        AgentChatResponseDTO generated = orchestrator.chat(7L, "TEACHER", null,
+                "生成2道Java基础中等难度题");
+
+        AgentSessionDTO generatedSession = orchestrator.getSession(7L, "TEACHER", Long.valueOf(generated.getSessionId()));
+        assertThat(generatedSession.getPendingIntent()).isEqualTo("PUBLISH_ASSIGNMENT");
+
+        AgentChatResponseDTO followUp = orchestrator.chat(7L, "TEACHER", generated.getSessionId(), "你好");
+
+        assertThat(followUp.getResponseType()).isEqualTo("TEXT");
+        assertThat(followUp.getMessage()).contains("AI 助手");
+        verify(generalChatService).reply(7L, "TEACHER", followUp.getSessionId(), "你好");
+
+        AgentSessionDTO clearedSession = orchestrator.getSession(7L, "TEACHER", Long.valueOf(followUp.getSessionId()));
+        assertThat(clearedSession.getPendingIntent()).isNull();
+        assertThat(clearedSession.getPendingSlots()).isEmpty();
+    }
+
+    @Test
+    void knowledgeQuestionDoesNotReusePendingAssignmentPublishIntentAfterQuestionGeneration() {
+        AgentChatResponseDTO generated = orchestrator.chat(7L, "TEACHER", null,
+                "生成2道Java基础中等难度题");
+
+        AgentChatResponseDTO followUp = orchestrator.chat(
+                7L,
+                "TEACHER",
+                generated.getSessionId(),
+                "什么是服务注册与发现");
+
+        assertThat(followUp.getResponseType()).isEqualTo("TEXT");
+        assertThat(followUp.getMessage()).doesNotContain("发布课程或班级");
+        verify(assistantConversationService).reply(eq(AgentAssistantType.KNOWLEDGE), any(AgentAssistantRequest.class));
+
+        AgentSessionDTO clearedSession = orchestrator.getSession(7L, "TEACHER", Long.valueOf(followUp.getSessionId()));
+        assertThat(clearedSession.getPendingIntent()).isNull();
+        assertThat(clearedSession.getPendingSlots()).isEmpty();
     }
 
     @Test
@@ -461,6 +641,142 @@ class AgentOrchestratorTest {
         assertThat(auditLogRepository.findAll()).hasSize(1);
         assertThat(auditLogRepository.findAll().get(0).getOperation()).isEqualTo("PUBLISH_ASSIGNMENT");
         assertThat(auditLogRepository.findAll().get(0).getSuccess()).isTrue();
+    }
+
+    @Test
+    void reusesRecentlyPublishedAssignmentForFollowUpDetailQuery() {
+        stubJavaCourse();
+        AssignmentDTO publishedAssignment = new AssignmentDTO();
+        publishedAssignment.setId(99L);
+        publishedAssignment.setTitle("Spring Cloud实验");
+        when(teacherAssignmentEdgeClient.createAssignment(eq("7"), any()))
+                .thenReturn(ResponseResult.created(publishedAssignment));
+        when(teacherAssignmentEdgeClient.getAssignment("7", 99L))
+                .thenReturn(ResponseResult.success(publishedAssignment));
+
+        AgentChatResponseDTO preview = orchestrator.chat(7L, "TEACHER", null,
+                "给Java课程发布作业，标题是Spring Cloud实验，截止明晚十点，满分100");
+
+        AgentExecutionResultDTO publishResult = orchestrator.confirm(
+                7L,
+                "TEACHER",
+                preview.getActionPreview().getActionId(),
+                preview.getActionPreview().getIdempotencyKey());
+
+        AgentChatResponseDTO detailResponse = orchestrator.chat(
+                7L,
+                "TEACHER",
+                preview.getSessionId(),
+                "查看我刚才发布的作业详情");
+
+        assertThat(publishResult.getStatus()).isEqualTo("EXECUTED");
+        assertThat(detailResponse.getResponseType()).isEqualTo("DATA");
+        assertThat(detailResponse.getData()).isInstanceOf(Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) detailResponse.getData();
+        assertThat(data).containsEntry("status", "EXECUTED");
+        assertThat(data).containsKey("assignment");
+        verify(teacherAssignmentEdgeClient).getAssignment("7", 99L);
+    }
+
+    @Test
+    void reusesRecentlyPublishedExamForFollowUpDetailQuery() {
+        stubJavaCourse();
+        ExamDTO publishedExam = new ExamDTO();
+        publishedExam.setId(88L);
+        publishedExam.setTitle("期末考试");
+        when(examFeignClient.createTeacherExam(eq(7L), any()))
+                .thenReturn(publishedExam);
+        when(examFeignClient.getTeacherExam(88L, 7L))
+                .thenReturn(publishedExam);
+
+        AgentChatResponseDTO preview = orchestrator.chat(7L, "TEACHER", null,
+                "给Java课程发布考试，标题是期末考试，开始时间2026-12-30 09:00:00，结束时间2026-12-30 10:30:00，时长90分钟");
+
+        AgentExecutionResultDTO publishResult = orchestrator.confirm(
+                7L,
+                "TEACHER",
+                preview.getActionPreview().getActionId(),
+                preview.getActionPreview().getIdempotencyKey());
+
+        AgentChatResponseDTO detailResponse = orchestrator.chat(
+                7L,
+                "TEACHER",
+                preview.getSessionId(),
+                "查看我刚才发布的考试");
+
+        assertThat(publishResult.getStatus()).isEqualTo("EXECUTED");
+        assertThat(detailResponse.getResponseType()).isEqualTo("DATA");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) detailResponse.getData();
+        assertThat(data).containsEntry("status", "EXECUTED");
+        assertThat(data).containsKey("exam");
+        verify(examFeignClient).getTeacherExam(88L, 7L);
+    }
+
+    @Test
+    void reusesRecentlyCreatedCourseForFollowUpDetailQuery() {
+        CourseDTO createdCourse = new CourseDTO();
+        createdCourse.setId(66L);
+        createdCourse.setCourseName("分布式框架技术");
+        createdCourse.setCourseCode("DFT101");
+        when(courseFeignClient.createCourse(eq(7L), any(CourseUpsertRequestDTO.class)))
+                .thenReturn(createdCourse);
+        when(courseFeignClient.getCourse(66L)).thenReturn(createdCourse);
+
+        AgentChatResponseDTO preview = orchestrator.chat(7L, "TEACHER", null,
+                "创建课程，课程名称是分布式框架技术，课程代码是DFT101，学分3，总学时48");
+
+        AgentExecutionResultDTO createResult = orchestrator.confirm(
+                7L,
+                "TEACHER",
+                preview.getActionPreview().getActionId(),
+                preview.getActionPreview().getIdempotencyKey());
+
+        AgentChatResponseDTO detailResponse = orchestrator.chat(
+                7L,
+                "TEACHER",
+                preview.getSessionId(),
+                "查看我刚创建的课程");
+
+        assertThat(createResult.getStatus()).isEqualTo("EXECUTED");
+        assertThat(detailResponse.getResponseType()).isEqualTo("DATA");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) detailResponse.getData();
+        assertThat(data).containsEntry("status", "EXECUTED");
+        assertThat(data).containsKey("course");
+        verify(courseFeignClient).getCourse(66L);
+    }
+
+    @Test
+    void reusesRecentlyCreatedClassForFollowUpDetailQuery() {
+        when(courseFeignClient.createClass(eq(7L), any(ClassUpsertRequestDTO.class)))
+                .thenReturn(2301L);
+        when(courseFeignClient.getClass(7L, 2301L))
+                .thenReturn(Map.of("id", 2301L, "className", "软件2301"));
+
+        AgentChatResponseDTO preview = orchestrator.chat(7L, "TEACHER", null,
+                "创建班级，班级名称是软件2301，年级2023，容量40，课程ID 12，专业ID 2");
+
+        AgentExecutionResultDTO createResult = orchestrator.confirm(
+                7L,
+                "TEACHER",
+                preview.getActionPreview().getActionId(),
+                preview.getActionPreview().getIdempotencyKey());
+
+        AgentChatResponseDTO detailResponse = orchestrator.chat(
+                7L,
+                "TEACHER",
+                preview.getSessionId(),
+                "查看我刚创建的班级");
+
+        assertThat(createResult.getStatus()).isEqualTo("EXECUTED");
+        assertThat(detailResponse.getResponseType()).isEqualTo("DATA");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) detailResponse.getData();
+        assertThat(data).containsEntry("status", "EXECUTED");
+        assertThat(data).containsKey("class");
+        verify(courseFeignClient).getClass(7L, 2301L);
     }
 
     @Test
@@ -660,5 +976,16 @@ class AgentOrchestratorTest {
         secondaryAssignment.setSemester("2024-2025-2");
         when(courseFeignClient.listCourseAssignments(7L, null, null))
                 .thenReturn(List.of(primaryAssignment, secondaryAssignment));
+    }
+
+    private void stubCloudClassAssignment() {
+        CourseAssignmentDTO assignment = new CourseAssignmentDTO();
+        assignment.setAssignmentId(501L);
+        assignment.setCourseId(91005L);
+        assignment.setCourseName("云计算技术");
+        assignment.setClassName("云计算技术1班");
+        assignment.setSemester("2025-2026-2");
+        when(courseFeignClient.listCourseAssignments(7L, null, null))
+                .thenReturn(List.of(assignment));
     }
 }

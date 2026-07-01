@@ -52,6 +52,22 @@ public class QuestionBankIndex {
                 .toList();
     }
 
+    public List<QuestionChunk> filter(String userRole,
+                                      String topic,
+                                      String difficulty,
+                                      String type,
+                                      int maxCandidates) {
+        String normalizedDifficulty = normalizeDifficulty(difficulty);
+        return indexedQuestions.get().stream()
+                .map(IndexedQuestion::question)
+                .filter(question -> isVisible(question.roleScope(), userRole))
+                .filter(question -> matchesDifficulty(question.difficulty(), normalizedDifficulty))
+                .filter(question -> matchesTopic(question.topic(), topic))
+                .filter(question -> matchesType(question.type(), type))
+                .limit(Math.max(1, maxCandidates))
+                .toList();
+    }
+
     private boolean isVisible(String roleScope, String userRole) {
         String scope = normalizeRole(roleScope);
         String role = normalizeRole(userRole);
@@ -118,7 +134,7 @@ public class QuestionBankIndex {
 
     private double cosine(List<Double> left, List<Double> right) {
         if (left == null || right == null || left.isEmpty() || right.isEmpty()) {
-            return 0.0;
+            return 1.0;
         }
         int size = Math.min(left.size(), right.size());
         double dot = 0.0;

@@ -139,6 +139,47 @@ class AiServiceIntegrationTest {
     }
 
     @Test
+    void generateQuestionsDoesNotFallbackToBuiltInQuestionSetForGenericTopic() throws Exception {
+        mockMvc.perform(post("/api/ai/generate-questions")
+                        .header(CommonTraceConstants.USER_ID_HEADER, "7")
+                        .header(CommonTraceConstants.ACTIVE_ROLE_HEADER, "TEACHER")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "topic": "综合练习",
+                                  "count": 2,
+                                  "difficulty": "中等"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.questions").isArray())
+                .andExpect(jsonPath("$.data.questions").isEmpty())
+                .andExpect(jsonPath("$.data.message").value("题库暂无匹配题目，请先维护题库或调整主题/难度"));
+    }
+
+    @Test
+    void generateExamDoesNotFallbackToBuiltInQuestionSetForGenericCourse() throws Exception {
+        mockMvc.perform(post("/api/ai/generate-exam")
+                        .header(CommonTraceConstants.USER_ID_HEADER, "7")
+                        .header(CommonTraceConstants.ACTIVE_ROLE_HEADER, "TEACHER")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "courseName": "综合课程",
+                                  "totalScore": 100,
+                                  "duration": 90,
+                                  "difficulty": "中等"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.questions").isArray())
+                .andExpect(jsonPath("$.data.questions").isEmpty())
+                .andExpect(jsonPath("$.data.message").value("题库暂无「综合课程」相关题目，请先维护题库或联系管理员。"));
+    }
+
+    @Test
     void generateQuestionsNormalizesDifficultyAndDoesNotMixQuestionDifficulties() throws Exception {
         jdbcTemplate.update("""
                 INSERT INTO knowledge_points (id, point_name, description, difficulty, order_index, course_id)
@@ -178,6 +219,104 @@ class AiServiceIntegrationTest {
     }
 
     @Test
+    void generateQuestionsHonorsRequestedCountWhenQuestionBankHasMoreMatches() throws Exception {
+        jdbcTemplate.update("""
+                INSERT INTO knowledge_points (id, point_name, description, difficulty, order_index, course_id)
+                VALUES (101, 'Java基础', 'Java 语言基础语法', '中等', 1, 10)
+                """);
+        for (int id = 201; id <= 204; id++) {
+            jdbcTemplate.update("""
+                    INSERT INTO questions (id, content, correct_answer, difficulty, options, score, type, knowledge_point_id,
+                                           created_at, updated_at, creator_id)
+                    VALUES (?, ?, 'A', '中等', '["A","B"]', 5, 'SINGLE_CHOICE', 101,
+                            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 7)
+                    """, id, "Java随机题" + id);
+        }
+
+        mockMvc.perform(post("/api/ai/generate-questions")
+                        .header(CommonTraceConstants.USER_ID_HEADER, "7")
+                        .header(CommonTraceConstants.ACTIVE_ROLE_HEADER, "TEACHER")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "topic": "Java基础",
+                                  "count": 2,
+                                  "difficulty": "中等"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.questions.length()").value(2));
+    }
+
+    @Test
+    void generateQuestionsCanRandomlyDrawWithoutTopic() throws Exception {
+        jdbcTemplate.update("""
+                INSERT INTO knowledge_points (id, point_name, description, difficulty, order_index, course_id)
+                VALUES (101, 'Java基础', 'Java 语言基础语法', '中等', 1, 10)
+                """);
+        for (int id = 201; id <= 204; id++) {
+            jdbcTemplate.update("""
+                    INSERT INTO questions (id, content, correct_answer, difficulty, options, score, type, knowledge_point_id,
+                                           created_at, updated_at, creator_id)
+                    VALUES (?, ?, 'A', '中等', '["A","B"]', 5, 'SINGLE_CHOICE', 101,
+                            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 7)
+                    """, id, "随机抽题" + id);
+        }
+
+        mockMvc.perform(post("/api/ai/generate-questions")
+                        .header(CommonTraceConstants.USER_ID_HEADER, "7")
+                        .header(CommonTraceConstants.ACTIVE_ROLE_HEADER, "TEACHER")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "topic": "",
+                                  "count": 3,
+                                  "difficulty": "中等"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.count").value(3))
+                .andExpect(jsonPath("$.data.actualCount").value(3))
+                .andExpect(jsonPath("$.data.partial").value(false))
+                .andExpect(jsonPath("$.data.questions.length()").value(3));
+    }
+
+    @Test
+    void generateQuestionsMarksPartialResultWhenQuestionBankCannotSatisfyRequestedCount() throws Exception {
+        jdbcTemplate.update("""
+                INSERT INTO knowledge_points (id, point_name, description, difficulty, order_index, course_id)
+                VALUES (101, 'Java基础', 'Java 语言基础语法', '中等', 1, 10)
+                """);
+        for (int id = 201; id <= 203; id++) {
+            jdbcTemplate.update("""
+                    INSERT INTO questions (id, content, correct_answer, difficulty, options, score, type, knowledge_point_id,
+                                           created_at, updated_at, creator_id)
+                    VALUES (?, ?, 'A', '中等', '["A","B"]', 5, 'SINGLE_CHOICE', 101,
+                            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 7)
+                    """, id, "Java部分命中题" + id);
+        }
+
+        mockMvc.perform(post("/api/ai/generate-questions")
+                        .header(CommonTraceConstants.USER_ID_HEADER, "7")
+                        .header(CommonTraceConstants.ACTIVE_ROLE_HEADER, "TEACHER")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "topic": "Java基础",
+                                  "count": 5,
+                                  "difficulty": "中等"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.count").value(5))
+                .andExpect(jsonPath("$.data.actualCount").value(3))
+                .andExpect(jsonPath("$.data.partial").value(true))
+                .andExpect(jsonPath("$.data.questions.length()").value(3))
+                .andExpect(jsonPath("$.data.message").value("题库仅匹配到 3/5 道题，请补充题库或放宽主题/难度条件"));
+    }
+
+    @Test
     void questionBankSummaryReturnsAvailableKnowledgePointsAndQuestionCounts() throws Exception {
         jdbcTemplate.update("""
                 INSERT INTO knowledge_points (id, point_name, description, difficulty, order_index, course_id)
@@ -211,7 +350,13 @@ class AiServiceIntegrationTest {
                 .andExpect(jsonPath("$.data.topics[0].knowledgePoint").value("Java基础"))
                 .andExpect(jsonPath("$.data.topics[0].difficulty").value("中等"))
                 .andExpect(jsonPath("$.data.topics[0].questionCount").value(2))
-                .andExpect(jsonPath("$.data.topics.length()").value(1));
+                .andExpect(jsonPath("$.data.topics.length()").value(1))
+                .andExpect(jsonPath("$.data.questions.length()").value(2))
+                .andExpect(jsonPath("$.data.questions[0].id").value(201))
+                .andExpect(jsonPath("$.data.questions[0].content").value("Java中等题应该返回"))
+                .andExpect(jsonPath("$.data.questions[0].type").value("选择题"))
+                .andExpect(jsonPath("$.data.questions[0].options[0]").value("String是基本数据类型"))
+                .andExpect(jsonPath("$.data.questions[0].knowledgePoints[0]").value("Java基础"));
     }
 
     private static String asString(Object value) {

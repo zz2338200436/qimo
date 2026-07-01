@@ -79,6 +79,32 @@ class NotificationControllerTest {
     }
 
     @Test
+    void listTeacherSentNotificationsReturnsPagedEnvelope() throws Exception {
+        NotificationQueryService queryService = mock(NotificationQueryService.class);
+        NotificationCommandService commandService = mock(NotificationCommandService.class);
+        NotificationEntity sent = notification(12L, 42L, "course", "开课通知");
+        sent.setTeacherId(7L);
+        when(queryService.getTeacherSentNotifications(7L, 1, 10, "all")).thenReturn(Map.of(
+                "notifications", List.of(sent),
+                "total", 1L,
+                "page", 1,
+                "size", 10,
+                "totalPages", 1
+        ));
+
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new NotificationController(queryService, commandService)).build();
+
+        mockMvc.perform(get("/api/notifications/teacher/sent")
+                        .header("X-User-Id", "7"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.notifications[0].id").value(12))
+                .andExpect(jsonPath("$.data.notifications[0].teacherId").value(7))
+                .andExpect(jsonPath("$.data.notifications[0].studentId").value(42))
+                .andExpect(jsonPath("$.data.total").value(1));
+    }
+
+    @Test
     void markNotificationAsReadReturnsSuccessEnvelope() throws Exception {
         NotificationQueryService queryService = mock(NotificationQueryService.class);
         NotificationCommandService commandService = mock(NotificationCommandService.class);

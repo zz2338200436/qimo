@@ -18,7 +18,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @EnabledIfSystemProperty(named = "agent.llm.accuracy.enabled", matches = "true")
-@EnabledIfEnvironmentVariable(named = "XIAOMI_API_KEY", matches = ".+")
+@EnabledIfEnvironmentVariable(named = "API-KEY", matches = ".+")
 class LlmIntentRecognitionAccuracyTest {
 
     private static final double MINIMUM_INTENT_ACCURACY = 0.90;
@@ -152,7 +152,7 @@ class LlmIntentRecognitionAccuracyTest {
     private LlmIntentRecognitionService buildService() {
         AgentLlmProperties properties = new AgentLlmProperties();
         properties.setEnabled(true);
-        properties.setApiKey(System.getenv("XIAOMI_API_KEY"));
+        properties.setApiKey(System.getenv("API-KEY"));
         ChatModel chatModel = OpenAiChatModel.builder()
                 .baseUrl(properties.getBaseUrl())
                 .apiKey(properties.getApiKey())

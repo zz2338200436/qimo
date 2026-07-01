@@ -8,7 +8,7 @@ import java.util.Objects;
 
 @ConfigurationProperties(prefix = "agent.question-bank")
 public class QuestionBankProperties {
-    public static final String DEFAULT_DOCUMENT_PATH = "docs/question-bank";
+    public static final String DEFAULT_DOCUMENT_PATH = "docs/question-bank/seeded";
 
     private boolean enabled = false;
     private List<String> documentPaths = new ArrayList<>(List.of(DEFAULT_DOCUMENT_PATH));

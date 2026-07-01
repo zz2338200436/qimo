@@ -793,6 +793,29 @@ INSERT INTO `assignment_submissions` VALUES (849, b'1', b'1', 10, 30, '2026-01-0
 INSERT INTO `assignment_submissions` VALUES (850, b'1', b'0', 0, 20, '2026-01-04 00:44:55.739000', '差', 119, 6, NULL);
 
 -- ----------------------------
+-- Table structure for assessment_attachments
+-- ----------------------------
+DROP TABLE IF EXISTS `assessment_attachments`;
+CREATE TABLE `assessment_attachments`  (
+  `id` bigint(0) NOT NULL AUTO_INCREMENT,
+  `assessment_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `assessment_id` bigint(0) NOT NULL,
+  `original_filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `stored_filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `relative_path` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `content_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `file_size` bigint(0) NULL DEFAULT NULL,
+  `uploaded_by` bigint(0) NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_assessment_attachments_owner`(`assessment_type`, `assessment_id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of assessment_attachments
+-- ----------------------------
+
+-- ----------------------------
 -- Table structure for assignments
 -- ----------------------------
 DROP TABLE IF EXISTS `assignments`;
@@ -6324,5 +6347,370 @@ BEGIN
 END
 ;;
 delimiter ;
+
+-- seed-more-chinese-data:start
+SET @demo_teacher_id := 9201;
+SET @demo_student_1 := 9211;
+SET @demo_student_2 := 9212;
+SET @demo_student_3 := 9213;
+SET @demo_student_4 := 9214;
+SET @demo_course_id := 9301;
+SET @demo_class_id := 9401;
+SET @demo_assignment_1 := 9501;
+SET @demo_assignment_2 := 9502;
+SET @demo_exam_id := 9601;
+SET @demo_kp_1 := 9701;
+SET @demo_kp_2 := 9702;
+SET @demo_kp_3 := 9703;
+
+INSERT INTO users (id, avatar, created_at, email, enabled, name, password, phone, updated_at, username)
+VALUES
+  (@demo_teacher_id, 'teacher-avatar-demo-9201.png', '2026-01-10 08:00:00.000000', 'wangmingyuan@example.com', b'1', '王明远', '$2a$10$pmRCf38Yzlcu.kNEgaH1TOzmoIhuatiG7uyI3/7D3IWUTZR3HLsbe', '13892010001', '2026-01-10 08:00:00.000000', 'teacher_demo_cn'),
+  (@demo_student_1, 'student-avatar-demo-9211.png', '2026-01-10 08:05:00.000000', 'liyutong@example.com', b'1', '李雨桐', '$2a$10$pmRCf38Yzlcu.kNEgaH1TOzmoIhuatiG7uyI3/7D3IWUTZR3HLsbe', '13992110001', '2026-01-10 08:05:00.000000', 'student_demo_01'),
+  (@demo_student_2, 'student-avatar-demo-9212.png', '2026-01-10 08:06:00.000000', 'zhaosihan@example.com', b'1', '赵思涵', '$2a$10$pmRCf38Yzlcu.kNEgaH1TOzmoIhuatiG7uyI3/7D3IWUTZR3HLsbe', '13992110002', '2026-01-10 08:06:00.000000', 'student_demo_02'),
+  (@demo_student_3, 'student-avatar-demo-9213.png', '2026-01-10 08:07:00.000000', 'chenjianing@example.com', b'1', '陈嘉宁', '$2a$10$pmRCf38Yzlcu.kNEgaH1TOzmoIhuatiG7uyI3/7D3IWUTZR3HLsbe', '13992110003', '2026-01-10 08:07:00.000000', 'student_demo_03'),
+  (@demo_student_4, 'student-avatar-demo-9214.png', '2026-01-10 08:08:00.000000', 'liangxiaoman@example.com', b'1', '梁晓曼', '$2a$10$pmRCf38Yzlcu.kNEgaH1TOzmoIhuatiG7uyI3/7D3IWUTZR3HLsbe', '13992110004', '2026-01-10 08:08:00.000000', 'student_demo_04')
+ON DUPLICATE KEY UPDATE
+  avatar = VALUES(avatar),
+  email = VALUES(email),
+  enabled = VALUES(enabled),
+  name = VALUES(name),
+  password = VALUES(password),
+  phone = VALUES(phone),
+  updated_at = VALUES(updated_at),
+  username = VALUES(username);
+
+INSERT INTO user_roles (user_id, role_id)
+VALUES
+  (@demo_teacher_id, 2),
+  (@demo_student_1, 3),
+  (@demo_student_2, 3),
+  (@demo_student_3, 3),
+  (@demo_student_4, 3)
+ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);
+
+INSERT INTO courses (
+  id, course_code, course_name, credit, description, total_hours, teacher_id,
+  assessment_method, create_time, update_time, course_director, course_category,
+  course_status, semester, start_date, end_date, max_students
+)
+VALUES (
+  @demo_course_id,
+  'DFT2026',
+  '分布式框架技术',
+  4,
+  '围绕 Spring Boot、服务注册、网关路由、配置中心、消息通知与学习分析构建中文演示课程数据。',
+  64,
+  @demo_teacher_id,
+  '项目实践+阶段测验+课堂表现',
+  '2026-01-10 08:20:00.000000',
+  '2026-01-10 08:20:00.000000',
+  @demo_teacher_id,
+  '专业课',
+  '进行中',
+  '第二学期',
+  '2026-03-01',
+  '2026-06-30',
+  80
+)
+ON DUPLICATE KEY UPDATE
+  course_code = VALUES(course_code),
+  course_name = VALUES(course_name),
+  credit = VALUES(credit),
+  description = VALUES(description),
+  total_hours = VALUES(total_hours),
+  teacher_id = VALUES(teacher_id),
+  assessment_method = VALUES(assessment_method),
+  update_time = VALUES(update_time),
+  course_director = VALUES(course_director),
+  course_category = VALUES(course_category),
+  course_status = VALUES(course_status),
+  semester = VALUES(semester),
+  start_date = VALUES(start_date),
+  end_date = VALUES(end_date),
+  max_students = VALUES(max_students);
+
+INSERT INTO course_classes (
+  id, capacity, class_name, year, course_id, teacher_id, major_id,
+  class_time, class_location, create_time, update_time
+)
+VALUES (
+  @demo_class_id,
+  48,
+  '智慧课堂演示班',
+  2026,
+  @demo_course_id,
+  @demo_teacher_id,
+  1,
+  '周二 3-4节，周四 5-6节',
+  '教学楼B305 / 云实验平台',
+  '2026-01-10 08:30:00.000000',
+  '2026-01-10 08:30:00.000000'
+)
+ON DUPLICATE KEY UPDATE
+  capacity = VALUES(capacity),
+  class_name = VALUES(class_name),
+  year = VALUES(year),
+  course_id = VALUES(course_id),
+  teacher_id = VALUES(teacher_id),
+  major_id = VALUES(major_id),
+  class_time = VALUES(class_time),
+  class_location = VALUES(class_location),
+  update_time = VALUES(update_time);
+
+INSERT INTO class_courses (id, class_id, course_id, teacher_id, class_time, class_location, create_time, update_time)
+VALUES (
+  9402,
+  @demo_class_id,
+  @demo_course_id,
+  @demo_teacher_id,
+  '周二 3-4节，周四 5-6节',
+  '教学楼B305 / 云实验平台',
+  '2026-01-10 08:35:00.000000',
+  '2026-01-10 08:35:00.000000'
+)
+ON DUPLICATE KEY UPDATE
+  class_id = VALUES(class_id),
+  course_id = VALUES(course_id),
+  teacher_id = VALUES(teacher_id),
+  class_time = VALUES(class_time),
+  class_location = VALUES(class_location),
+  update_time = VALUES(update_time);
+
+INSERT INTO class_students (class_id, student_id)
+VALUES
+  (@demo_class_id, @demo_student_1),
+  (@demo_class_id, @demo_student_2),
+  (@demo_class_id, @demo_student_3),
+  (@demo_class_id, @demo_student_4)
+ON DUPLICATE KEY UPDATE student_id = VALUES(student_id);
+
+INSERT INTO knowledge_points (id, description, difficulty, order_index, point_name, course_id)
+VALUES
+  (@demo_kp_1, '理解服务注册中心、服务发现流程以及健康检查在分布式系统中的作用。', '中等', 1, '服务注册与发现', @demo_course_id),
+  (@demo_kp_2, '掌握网关统一入口、路径转发、鉴权过滤和跨服务调用链路。', '困难', 2, 'API网关与路由', @demo_course_id),
+  (@demo_kp_3, '理解配置集中管理、灰度发布和配置刷新对运维效率的提升。', '中等', 3, '配置中心与动态刷新', @demo_course_id)
+ON DUPLICATE KEY UPDATE
+  description = VALUES(description),
+  difficulty = VALUES(difficulty),
+  order_index = VALUES(order_index),
+  point_name = VALUES(point_name),
+  course_id = VALUES(course_id);
+
+INSERT INTO assignments (
+  id, description, due_date, is_active, publish_date, title, course_id,
+  teacher_id, max_score, submission_count, graded_count, status
+)
+VALUES
+  (@demo_assignment_1, '完成服务注册中心搭建，提交注册截图、接口调用截图和一页问题复盘。', '2026-04-18 23:59:00.000000', b'1', '2026-04-10 09:00:00.000000', '分布式框架技术作业：服务注册与发现', @demo_course_id, @demo_teacher_id, 100, 4, 3, 'pending'),
+  (@demo_assignment_2, '设计课程学习系统的网关路由表，说明鉴权、限流和降级处理策略。', '2026-04-25 23:59:00.000000', b'1', '2026-04-15 09:00:00.000000', '分布式框架技术作业：网关路由设计', @demo_course_id, @demo_teacher_id, 100, 2, 2, 'pending')
+ON DUPLICATE KEY UPDATE
+  description = VALUES(description),
+  due_date = VALUES(due_date),
+  is_active = VALUES(is_active),
+  publish_date = VALUES(publish_date),
+  title = VALUES(title),
+  course_id = VALUES(course_id),
+  teacher_id = VALUES(teacher_id),
+  max_score = VALUES(max_score),
+  submission_count = VALUES(submission_count),
+  graded_count = VALUES(graded_count),
+  status = VALUES(status);
+
+INSERT INTO assignment_classes (assignment_id, class_id)
+VALUES
+  (@demo_assignment_1, @demo_class_id),
+  (@demo_assignment_2, @demo_class_id)
+ON DUPLICATE KEY UPDATE class_id = VALUES(class_id);
+
+INSERT INTO assignment_knowledge_points (id, assignment_id, knowledge_point_id, created_at)
+VALUES
+  (97001, @demo_assignment_1, @demo_kp_1, '2026-04-10 09:05:00.000000'),
+  (97002, @demo_assignment_2, @demo_kp_2, '2026-04-15 09:05:00.000000'),
+  (97003, @demo_assignment_2, @demo_kp_3, '2026-04-15 09:05:00.000000')
+ON DUPLICATE KEY UPDATE
+  assignment_id = VALUES(assignment_id),
+  knowledge_point_id = VALUES(knowledge_point_id),
+  created_at = VALUES(created_at);
+
+INSERT INTO assignment_submissions (
+  id, graded, is_late, late_penalty, score, submission_date,
+  teacher_comment, assignment_id, student_id, content
+)
+VALUES
+  (98001, b'1', b'0', 0, 92, '2026-04-16 20:30:00.000000', '注册流程截图完整，服务健康检查说明清楚。', @demo_assignment_1, @demo_student_1, '已完成 Eureka 注册中心、课程服务注册和接口调用验证。'),
+  (98002, b'1', b'0', 0, 78, '2026-04-17 21:10:00.000000', '主流程正确，配置说明还可以更细。', @demo_assignment_1, @demo_student_2, '提交服务注册实验报告，包含启动日志和接口测试截图。'),
+  (98003, b'1', b'1', 5, 58, '2026-04-19 09:20:00.000000', '迟交且注册中心异常处理分析不足，需要补充复盘。', @demo_assignment_1, @demo_student_3, '完成基础注册，但服务发现异常排查不完整。'),
+  (98004, b'0', b'0', 0, NULL, '2026-04-17 18:40:00.000000', NULL, @demo_assignment_1, @demo_student_4, '已提交初稿，等待教师批改。'),
+  (98005, b'1', b'0', 0, 86, '2026-04-23 19:30:00.000000', '网关路由表设计合理，限流策略描述清晰。', @demo_assignment_2, @demo_student_1, '完成网关路由、鉴权过滤器和降级策略设计。'),
+  (98006, b'1', b'0', 0, 81, '2026-04-24 20:05:00.000000', '接口分组清楚，建议补充链路追踪字段。', @demo_assignment_2, @demo_student_2, '提交网关设计文档和 Postman 验证截图。')
+ON DUPLICATE KEY UPDATE
+  graded = VALUES(graded),
+  is_late = VALUES(is_late),
+  late_penalty = VALUES(late_penalty),
+  score = VALUES(score),
+  submission_date = VALUES(submission_date),
+  teacher_comment = VALUES(teacher_comment),
+  assignment_id = VALUES(assignment_id),
+  student_id = VALUES(student_id),
+  content = VALUES(content);
+
+INSERT INTO exams (
+  id, description, duration, end_time, is_active, is_online, location,
+  publish_date, start_time, title, course_id, teacher_id
+)
+VALUES (
+  @demo_exam_id,
+  '围绕服务注册、网关路由、配置中心和消息通知的阶段测验。',
+  90,
+  '2026-04-28 10:30:00.000000',
+  b'1',
+  b'1',
+  '线上考试 / 云实验平台',
+  '2026-04-20 09:00:00.000000',
+  '2026-04-28 09:00:00.000000',
+  '分布式框架技术阶段测验',
+  @demo_course_id,
+  @demo_teacher_id
+)
+ON DUPLICATE KEY UPDATE
+  description = VALUES(description),
+  duration = VALUES(duration),
+  end_time = VALUES(end_time),
+  is_active = VALUES(is_active),
+  is_online = VALUES(is_online),
+  location = VALUES(location),
+  publish_date = VALUES(publish_date),
+  start_time = VALUES(start_time),
+  title = VALUES(title),
+  course_id = VALUES(course_id),
+  teacher_id = VALUES(teacher_id);
+
+INSERT INTO exam_classes (exam_id, class_id)
+VALUES (@demo_exam_id, @demo_class_id)
+ON DUPLICATE KEY UPDATE class_id = VALUES(class_id);
+
+INSERT INTO exam_knowledge_points (id, exam_id, knowledge_point_id, created_at)
+VALUES
+  (97011, @demo_exam_id, @demo_kp_1, '2026-04-20 09:05:00.000000'),
+  (97012, @demo_exam_id, @demo_kp_2, '2026-04-20 09:05:00.000000'),
+  (97013, @demo_exam_id, @demo_kp_3, '2026-04-20 09:05:00.000000')
+ON DUPLICATE KEY UPDATE
+  exam_id = VALUES(exam_id),
+  knowledge_point_id = VALUES(knowledge_point_id),
+  created_at = VALUES(created_at);
+
+INSERT INTO exam_submissions (
+  id, graded, score, submission_date, teacher_comment, content,
+  time_taken, exam_id, student_id
+)
+VALUES
+  (99001, b'1', 88, '2026-04-28 10:12:00.000000', '服务发现和网关题答得扎实。', '{"content":"完成阶段测验：服务注册、网关路由、配置刷新题目均已作答。"}', 72, @demo_exam_id, @demo_student_1),
+  (99002, b'1', 76, '2026-04-28 10:20:00.000000', '配置中心题目需要补充刷新机制。', '{"content":"完成阶段测验，配置刷新题略有遗漏。"}', 80, @demo_exam_id, @demo_student_2),
+  (99003, b'1', 52, '2026-04-28 10:26:00.000000', '基础概念薄弱，建议重看服务注册章节。', '{"content":"完成阶段测验，但服务发现流程描述不完整。"}', 86, @demo_exam_id, @demo_student_3)
+ON DUPLICATE KEY UPDATE
+  graded = VALUES(graded),
+  score = VALUES(score),
+  submission_date = VALUES(submission_date),
+  teacher_comment = VALUES(teacher_comment),
+  content = VALUES(content),
+  time_taken = VALUES(time_taken),
+  exam_id = VALUES(exam_id),
+  student_id = VALUES(student_id);
+
+INSERT INTO knowledge_mastery (
+  id, student_id, knowledge_point_id, mastery_level, last_assessed_date, update_time
+)
+VALUES
+  (99011, @demo_student_1, @demo_kp_1, '优秀', '2026-04-28 11:00:00.000000', '2026-04-28 11:00:00.000000'),
+  (99012, @demo_student_1, @demo_kp_2, '良好', '2026-04-28 11:00:00.000000', '2026-04-28 11:00:00.000000'),
+  (99013, @demo_student_1, @demo_kp_3, '良好', '2026-04-28 11:00:00.000000', '2026-04-28 11:00:00.000000'),
+  (99014, @demo_student_2, @demo_kp_1, '良好', '2026-04-28 11:00:00.000000', '2026-04-28 11:00:00.000000'),
+  (99015, @demo_student_2, @demo_kp_2, '一般', '2026-04-28 11:00:00.000000', '2026-04-28 11:00:00.000000'),
+  (99016, @demo_student_2, @demo_kp_3, '良好', '2026-04-28 11:00:00.000000', '2026-04-28 11:00:00.000000'),
+  (99017, @demo_student_3, @demo_kp_1, '较差', '2026-04-28 11:00:00.000000', '2026-04-28 11:00:00.000000'),
+  (99018, @demo_student_3, @demo_kp_2, '一般', '2026-04-28 11:00:00.000000', '2026-04-28 11:00:00.000000'),
+  (99019, @demo_student_4, @demo_kp_1, '一般', '2026-04-28 11:00:00.000000', '2026-04-28 11:00:00.000000')
+ON DUPLICATE KEY UPDATE
+  student_id = VALUES(student_id),
+  knowledge_point_id = VALUES(knowledge_point_id),
+  mastery_level = VALUES(mastery_level),
+  last_assessed_date = VALUES(last_assessed_date),
+  update_time = VALUES(update_time);
+
+INSERT INTO student_performance (
+  id, student_id, average_score, pending_assignments, overall_progress, created_at, updated_at
+)
+VALUES
+  (99101, @demo_student_1, 88.7, 0, 92, '2026-04-28 11:10:00', '2026-04-28 11:10:00'),
+  (99102, @demo_student_2, 78.3, 0, 81, '2026-04-28 11:10:00', '2026-04-28 11:10:00'),
+  (99103, @demo_student_3, 55.0, 1, 58, '2026-04-28 11:10:00', '2026-04-28 11:10:00'),
+  (99104, @demo_student_4, 0.0, 2, 35, '2026-04-28 11:10:00', '2026-04-28 11:10:00')
+ON DUPLICATE KEY UPDATE
+  student_id = VALUES(student_id),
+  average_score = VALUES(average_score),
+  pending_assignments = VALUES(pending_assignments),
+  overall_progress = VALUES(overall_progress),
+  updated_at = VALUES(updated_at);
+
+INSERT INTO notifications (
+  id, student_id, teacher_id, type, title, content, related_id, is_read, created_at
+)
+VALUES
+  (99201, @demo_student_1, @demo_teacher_id, 'system', '系统通知：学习数据已更新', '分布式框架技术课程的作业、考试和知识点掌握数据已经更新，请查看学习统计。', @demo_course_id, 0, '2026-04-28 11:20:00'),
+  (99202, @demo_student_2, @demo_teacher_id, 'assignment', '作业提醒：网关路由设计', '请在截止前检查网关路由表、鉴权过滤器和降级策略说明。', @demo_assignment_2, 0, '2026-04-23 09:00:00'),
+  (99203, @demo_student_3, @demo_teacher_id, 'course', '学习建议：复习服务注册与发现', '你在服务注册与发现知识点上掌握偏弱，建议先完成课堂回放和实验复盘。', @demo_kp_1, 0, '2026-04-28 11:25:00'),
+  (99204, @demo_student_4, @demo_teacher_id, 'exam', '阶段测验提醒', '分布式框架技术阶段测验即将开始，请提前进入云实验平台。', @demo_exam_id, 1, '2026-04-27 18:00:00')
+ON DUPLICATE KEY UPDATE
+  student_id = VALUES(student_id),
+  teacher_id = VALUES(teacher_id),
+  type = VALUES(type),
+  title = VALUES(title),
+  content = VALUES(content),
+  related_id = VALUES(related_id),
+  is_read = VALUES(is_read),
+  created_at = VALUES(created_at);
+
+INSERT INTO early_warnings (
+  id, assessment_type, related_assessment_id, is_resolved, resolved_by,
+  resolved_date, resolved_note, trigger_date, warning_level, warning_message,
+  warning_type, course_id, student_id, teacher_id
+)
+VALUES
+  (99301, 'assignment', @demo_assignment_1, b'0', NULL, NULL, NULL, '2026-04-19 10:00:00.000000', '严重', '连续两次作业低于及格线，请安排一对一辅导。', 'low_score', @demo_course_id, @demo_student_3, @demo_teacher_id),
+  (99302, 'exam', @demo_exam_id, b'1', @demo_teacher_id, '2026-04-29 09:30:00.000000', '已约谈学生并安排服务注册章节补练。', '2026-04-28 11:30:00.000000', '中等', '阶段测验配置中心题目失分较多。', 'knowledge_weakness', @demo_course_id, @demo_student_2, @demo_teacher_id)
+ON DUPLICATE KEY UPDATE
+  assessment_type = VALUES(assessment_type),
+  related_assessment_id = VALUES(related_assessment_id),
+  is_resolved = VALUES(is_resolved),
+  resolved_by = VALUES(resolved_by),
+  resolved_date = VALUES(resolved_date),
+  resolved_note = VALUES(resolved_note),
+  trigger_date = VALUES(trigger_date),
+  warning_level = VALUES(warning_level),
+  warning_message = VALUES(warning_message),
+  warning_type = VALUES(warning_type),
+  course_id = VALUES(course_id),
+  student_id = VALUES(student_id),
+  teacher_id = VALUES(teacher_id);
+
+INSERT INTO audit_logs (
+  id, operator_id, operation_type, table_name, record_id, old_data,
+  new_data, ip_address, operation_time
+)
+VALUES
+  (99401, @demo_teacher_id, '发布作业', 'assignments', @demo_assignment_1, NULL, '{"title":"王明远发布《分布式框架技术作业：服务注册与发现》","details":"智慧课堂演示班收到新的中文演示作业数据"}', '127.0.0.1', '2026-04-10 09:01:00.000000'),
+  (99402, @demo_student_1, '作业提交', 'assignment_submissions', 98001, NULL, '{"title":"李雨桐提交服务注册与发现作业","details":"提交内容包含注册截图、调用日志和复盘说明"}', '127.0.0.1', '2026-04-16 20:31:00.000000'),
+  (99403, @demo_teacher_id, '学情预警', 'early_warnings', 99301, NULL, '{"title":"赵思涵触发低分预警","details":"连续两次作业低于及格线，系统生成预警"}', '127.0.0.1', '2026-04-19 10:01:00.000000')
+ON DUPLICATE KEY UPDATE
+  operator_id = VALUES(operator_id),
+  operation_type = VALUES(operation_type),
+  table_name = VALUES(table_name),
+  record_id = VALUES(record_id),
+  old_data = VALUES(old_data),
+  new_data = VALUES(new_data),
+  ip_address = VALUES(ip_address),
+  operation_time = VALUES(operation_time);
+-- seed-more-chinese-data:end
 
 SET FOREIGN_KEY_CHECKS = 1;

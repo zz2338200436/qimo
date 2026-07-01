@@ -17,6 +17,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -114,5 +115,49 @@ class StudentAssignmentControllerTest {
                 .andExpect(jsonPath("$.data.graded").value(false));
 
         verify(service).submit(eq(2001L), any());
+    }
+
+    @Test
+    void submitAssignmentAcceptsMultipartAttachments() throws Exception {
+        AssignmentApplicationService service = mock(AssignmentApplicationService.class);
+        AssignmentSubmissionDTO dto = new AssignmentSubmissionDTO();
+        dto.setId(3001L);
+        dto.setAssignmentId(2001L);
+        dto.setStudentId(42L);
+        dto.setSubmissionDate("2026-09-01 10:00:00");
+        dto.setIsLate(false);
+        dto.setGraded(false);
+        dto.setAttachments(List.of(Map.of(
+                "id", 7001L,
+                "name", "作业附件.pdf",
+                "downloadUrl", "/api/attachments/assignment/7001/download"
+        )));
+        when(service.submit(eq(2001L), any(), any())).thenReturn(dto);
+
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new StudentAssignmentController(service, validator)).build();
+
+        mockMvc.perform(multipart("/api/student/assignments/2001/submit")
+                        .file(new org.springframework.mock.web.MockMultipartFile(
+                                "payload",
+                                "",
+                                "application/json",
+                                """
+                                        {
+                                          "content": "my answer"
+                                        }
+                                        """.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                        .file(new org.springframework.mock.web.MockMultipartFile(
+                                "files",
+                                "作业附件.pdf",
+                                "application/pdf",
+                                "file content".getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                        .header("X-User-Id", "42"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value(3001))
+                .andExpect(jsonPath("$.data.attachments[0].name").value("作业附件.pdf"))
+                .andExpect(jsonPath("$.data.attachments[0].downloadUrl").value("/api/attachments/assignment/7001/download"));
+
+        verify(service).submit(eq(2001L), any(), any());
     }
 }

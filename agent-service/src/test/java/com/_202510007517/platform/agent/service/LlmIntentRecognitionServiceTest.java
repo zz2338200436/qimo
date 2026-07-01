@@ -1,5 +1,6 @@
 package com._202510007517.platform.agent.service;
 
+import com._202510007517.platform.agent.api.dto.AgentMessageDTO;
 import com._202510007517.platform.agent.config.AgentLlmProperties;
 import com._202510007517.platform.agent.model.AgentIntent;
 import com._202510007517.platform.agent.model.RecognizedIntent;
@@ -59,6 +60,27 @@ class LlmIntentRecognitionServiceTest {
     }
 
     @Test
+    void buildPromptIncludesRecentConversationWhenProvided() {
+        RecordingChatModel chatModel = new RecordingChatModel("""
+                {"intent":"UNKNOWN","confidence":0.0,"slots":{},"missingSlots":[]}
+                """);
+        LlmIntentRecognitionService service = serviceWithChatModel(chatModel);
+        List<AgentMessageDTO> recentMessages = List.of(
+                messageDto(1L, "USER", "先帮我生成五道 Java 基础题"),
+                messageDto(2L, "ASSISTANT", "已经生成了五道题"),
+                messageDto(3L, "USER", "前面那五道题再发我一下")
+        );
+
+        service.recognize("前面那五道题再发我一下", recentMessages);
+
+        assertThat(chatModel.lastPrompt)
+                .contains("Recent conversation:")
+                .contains("USER: 先帮我生成五道 Java 基础题")
+                .contains("ASSISTANT: 已经生成了五道题")
+                .contains("USER: 前面那五道题再发我一下");
+    }
+
+    @Test
     void fallsBackWhenLlmConfidenceIsTooLow() {
         LlmIntentRecognitionService service = serviceWithResponse("""
                 {"intent":"DELETE_ASSIGNMENT","confidence":0.2,"slots":{},"missingSlots":[]}
@@ -67,6 +89,17 @@ class LlmIntentRecognitionServiceTest {
         RecognizedIntent result = service.recognize("查看我的课程");
 
         assertThat(result.intent()).isEqualTo(AgentIntent.QUERY_COURSES);
+    }
+
+    @Test
+    void fallsBackToRuleBasedRagIntentWhenLlmReturnsUnknownForKnowledgeQuestion() {
+        LlmIntentRecognitionService service = serviceWithResponse("""
+                {"intent":"UNKNOWN","confidence":0.0,"slots":{},"missingSlots":[]}
+                """);
+
+        RecognizedIntent result = service.recognize("配置中心在这个系统里做什么？");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.QUERY_RAG_KNOWLEDGE);
     }
 
     @Test
@@ -424,12 +457,37 @@ class LlmIntentRecognitionServiceTest {
     private LlmIntentRecognitionService serviceWithResponse(String response) {
         AgentLlmProperties properties = new AgentLlmProperties();
         properties.setMinimumConfidence(0.7);
-        ChatModel chatModel = new ChatModel() {
-            @Override
-            public String chat(String userMessage) {
-                return response;
-            }
-        };
+        ChatModel chatModel = new RecordingChatModel(response);
         return new LlmIntentRecognitionService(chatModel, fallback, objectMapper, properties);
+    }
+
+    private LlmIntentRecognitionService serviceWithChatModel(ChatModel chatModel) {
+        AgentLlmProperties properties = new AgentLlmProperties();
+        properties.setMinimumConfidence(0.7);
+        return new LlmIntentRecognitionService(chatModel, fallback, objectMapper, properties);
+    }
+
+    private AgentMessageDTO messageDto(Long id, String role, String content) {
+        AgentMessageDTO dto = new AgentMessageDTO();
+        dto.setMessageId(id);
+        dto.setSessionId("3");
+        dto.setRole(role);
+        dto.setContent(content);
+        return dto;
+    }
+
+    private static final class RecordingChatModel implements ChatModel {
+        private final String response;
+        private String lastPrompt;
+
+        private RecordingChatModel(String response) {
+            this.response = response;
+        }
+
+        @Override
+        public String chat(String userMessage) {
+            this.lastPrompt = userMessage;
+            return response;
+        }
     }
 }

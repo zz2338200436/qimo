@@ -20,9 +20,19 @@ agent:
   llm:
     enabled: ${AGENT_LLM_ENABLED:true}
     provider: ${AGENT_LLM_PROVIDER:openai}
-    base-url: ${AGENT_LLM_BASE_URL:https://token-plan-cn.xiaomimimo.com/v1}
-    api-key: ${AGENT_LLM_API_KEY:${XIAOMI_API_KEY:}}
-    model-name: ${AGENT_LLM_MODEL_NAME:mimo-v2.5}
+    base-url: ${AGENT_LLM_BASE_URL:https://llm-w58gc8w0czrbs1oa.cn-beijing.maas.aliyuncs.com/compatible-mode/v1}
+    api-key: ${AGENT_LLM_API_KEY:${API-KEY:}}
+    model-name: ${AGENT_LLM_MODEL_NAME:glm-5.1}
     minimum-confidence: ${AGENT_LLM_MINIMUM_CONFIDENCE:0.7}
     temperature: ${AGENT_LLM_TEMPERATURE:0.0}
     timeout-seconds: ${AGENT_LLM_TIMEOUT_SECONDS:60}
+  internet:
+    enabled: ${AGENT_INTERNET_ENABLED:true}
+    search-base-url: ${AGENT_INTERNET_SEARCH_BASE_URL:https://cn.bing.com/search}
+    timeout-seconds: ${AGENT_INTERNET_TIMEOUT_SECONDS:5}
+    max-results: ${AGENT_INTERNET_MAX_RESULTS:5}
+    max-page-bytes: ${AGENT_INTERNET_MAX_PAGE_BYTES:200000}
+    max-content-chars: ${AGENT_INTERNET_MAX_CONTENT_CHARS:4000}
+    block-private-network: ${AGENT_INTERNET_BLOCK_PRIVATE_NETWORK:true}
+    user-agent: ${AGENT_INTERNET_USER_AGENT:majorassignment-agent/1.0}
+    allowed-domains: ${AGENT_INTERNET_ALLOWED_DOMAINS:}

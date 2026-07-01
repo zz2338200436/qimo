@@ -50,6 +50,7 @@ public class QuestionBankSummaryService {
         result.put("topics", topics);
         result.put("difficultyBreakdown", difficultyBreakdown);
         result.put("topicDifficultyBreakdown", topicDifficultyBreakdown);
+        result.put("questions", questions.stream().map(this::toPayload).toList());
         if (questions.isEmpty()) {
             result.put("message", "题库暂无可查询数据");
         }
@@ -68,6 +69,36 @@ public class QuestionBankSummaryService {
     private String difficultyLabel(String difficulty) {
         String normalized = textOrDefault(difficulty, "未标注");
         return normalized;
+    }
+
+    private Map<String, Object> toPayload(QuestionChunk question) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("id", question.questionId());
+        payload.put("content", question.content());
+        payload.put("difficulty", question.difficulty());
+        payload.put("type", displayType(question.type()));
+        payload.put("score", null);
+        payload.put("options", question.options());
+        payload.put("answer", question.answer());
+        payload.put("analysis", question.analysis());
+        payload.put("knowledgePoints", List.of(textOrDefault(question.topic(), "未标注")));
+        payload.put("sourcePath", question.sourcePath());
+        return payload;
+    }
+
+    private String displayType(String type) {
+        if (type == null) {
+            return "题目";
+        }
+        return switch (type) {
+            case "SINGLE_CHOICE" -> "选择题";
+            case "MULTIPLE_CHOICE" -> "多选题";
+            case "TRUE_FALSE" -> "判断题";
+            case "FILL_BLANK" -> "填空题";
+            case "SHORT_ANSWER" -> "简答题";
+            case "ESSAY" -> "论述题";
+            default -> type;
+        };
     }
 
     private String textOrDefault(String value, String fallback) {

@@ -1,11 +1,13 @@
 package com._202510007517.platform.agent.tool;
 
 import com._202510007517.platform.agent.model.AgentIntent;
+import com._202510007517.platform.agent.client.TeacherExamEdgeClient;
 import com._202510007517.platform.course.api.feign.CourseFeignClient;
 import com._202510007517.platform.exam.api.dto.ExamDTO;
 import com._202510007517.platform.exam.api.dto.TeacherExamUpsertRequestDTO;
 import com._202510007517.platform.exam.api.feign.ExamFeignClient;
 import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -14,10 +16,14 @@ import java.util.Map;
 public class ExamPublishTool implements AgentTool {
 
     private final ExamFeignClient examClient;
+    private final TeacherExamEdgeClient teacherExamEdgeClient;
     private final CourseFeignClient courseClient;
 
-    public ExamPublishTool(ExamFeignClient examClient, CourseFeignClient courseClient) {
+    public ExamPublishTool(ExamFeignClient examClient,
+                           TeacherExamEdgeClient teacherExamEdgeClient,
+                           CourseFeignClient courseClient) {
         this.examClient = examClient;
+        this.teacherExamEdgeClient = teacherExamEdgeClient;
         this.courseClient = courseClient;
     }
 
@@ -49,7 +55,10 @@ public class ExamPublishTool implements AgentTool {
         dto.setLocation(asString(request.get("location")));
         dto.setDuration(asLong(request.get("duration")));
 
-        ExamDTO exam = examClient.createTeacherExam(userId, dto);
+        MultipartFile[] files = AgentAttachmentMultipartSupport.toMultipartFiles(request.get("attachments"));
+        ExamDTO exam = files.length == 0
+                ? examClient.createTeacherExam(userId, dto)
+                : teacherExamEdgeClient.createExamWithFiles(String.valueOf(userId), dto, files).getData();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("status", "EXECUTED");
         result.put("exam", exam);

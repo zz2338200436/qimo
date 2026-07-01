@@ -12,7 +12,7 @@ const publishModuleContent = fs.readFileSync('frontend/dist/teacher-assignments-
 
 assertIncludes(
   pageContent,
-  'teacher-assignments-assignment-publish.js?v=20260602-2',
+  'teacher-assignments-assignment-publish.js?v=20260630-attachments-2',
   'teacher-assignments page should load the extracted assignment publish module.'
 );
 
@@ -26,7 +26,10 @@ assertIncludes(
   "showClassDropdownPlaceholder(classSelect, '请先选择课程');",
   "function populateSingleClassDropdown(select, classes, emptyText = '该课程暂无可发布班级') {",
   'function bindAssignmentClassDropdownRefresh() {',
-  'const result = await teacherAPI.createAssignment(assignmentData);',
+  "const fileInput = document.getElementById('assignment-files');",
+  "formData.append('payload', new Blob([JSON.stringify(assignmentData)], { type: 'application/json' }));",
+  "Array.from(fileInput.files).forEach(file => formData.append('files', file));",
+  'const result = await teacherAPI.createAssignment(requestBody);',
   "showMessage('作业发布成功！', 'success');",
   'await loadAssignments();',
   'await refreshTeacherAssignmentsSummary();',
@@ -40,6 +43,18 @@ assertIncludes(
     publishModuleContent,
     snippet,
     'teacher assignments assignment publish module contract mismatch.'
+  );
+});
+
+[
+  'createAssignment(data) {',
+  'if (data instanceof FormData) {',
+  "return this.apiService.request('/api/teacher/assignments', {"
+].forEach(snippet => {
+  assertIncludes(
+    apiContent,
+    snippet,
+    'teacher API should send assignment attachments with multipart FormData.'
   );
 });
 

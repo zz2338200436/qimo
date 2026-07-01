@@ -68,6 +68,7 @@ frontend
 
 - [x] `AgentController`
 - [x] `POST /api/agent/chat`
+- [x] `POST /api/agent/chat/stream`
 - [x] `POST /api/agent/actions/{actionId}/confirm`
 - [x] `POST /api/agent/actions/{actionId}/cancel`
 - [x] `GET /api/agent/sessions`
@@ -262,6 +263,13 @@ frontend
 - [ ] `GENERATE_LEARNING_SUGGESTIONS`
 - [ ] `EXPLAIN_KNOWLEDGE_POINT`
 - [ ] `GENERATE_TEACHING_PLAN`
+
+### 5.11 Question Bank Routing Rule
+
+- [x] `QUERY_QUESTION_BANK` must use local question-bank retrieval
+- [x] `GENERATE_QUESTIONS` must use local question-bank retrieval by default
+- [x] Question-related requests must not fall back to `ai-service` generation when the question bank is enabled
+- [x] General chat and question-bank Q&A are decoupled
 
 ## 6. Assignment Publishing Flow
 
@@ -544,13 +552,22 @@ Existing target contract:
 ### 13.1 Chat API
 
 - [x] `POST /api/agent/chat`
+- [x] `POST /api/agent/chat/stream`
 - [ ] Accepts natural-language input.
 - [ ] Accepts optional `sessionId`.
 - [ ] Returns a normal text response for read-only or incomplete actions.
 - [x] Returns an action preview for executable write actions.
 - [x] Returns missing slot prompts when required data is absent.
 
-### 13.2 Confirm API
+### 13.2 Streaming Chat API
+
+- [x] `POST /api/agent/chat/stream` returns `text/event-stream`.
+- [x] Stream emits `session`, `delta`, `result`, `error`, and `done` events.
+- [x] `result` carries the same structured Agent response shape used by `/api/agent/chat`.
+- [x] Frontend falls back to `/api/agent/chat` when the stream endpoint is unavailable before useful data arrives.
+- [x] Current implementation streams the completed Agent answer as a pragmatic `delta`; token-by-token model streaming remains a future internal enhancement.
+
+### 13.3 Confirm API
 
 - [x] `POST /api/agent/actions/{actionId}/confirm`
 - [x] Validates action ownership.
@@ -561,7 +578,7 @@ Existing target contract:
 - [x] Calls target service only after validation passes.
 - [x] Stores execution result.
 
-### 13.3 History API
+### 13.4 History API
 
 - [x] `GET /api/agent/sessions`
 - [x] `GET /api/agent/sessions/{sessionId}`
@@ -623,6 +640,8 @@ Example:
 - [x] Render staged second-confirmation status for critical operations.
 - [x] Render action history.
 - [x] Disable confirm button after first click.
+- [x] Prefer `/api/agent/chat/stream` from the shared chat panel and consume SSE incrementally.
+- [x] Fall back to `/api/agent/chat` without breaking existing teacher/student Agent pages.
 
 ## 16. Observability Checklist
 
@@ -708,6 +727,7 @@ Suggested metrics:
 
 - [x] `POST /api/agent/chat` returns missing slot prompt.
 - [x] `POST /api/agent/chat` returns action preview.
+- [x] `POST /api/agent/chat/stream` returns SSE result events.
 - [x] `POST /api/agent/actions/{actionId}/confirm` executes valid action.
 - [x] Confirm rejects actions owned by another user.
 - [x] Confirm rejects expired actions.
@@ -756,6 +776,7 @@ Suggested metrics:
 - [x] Browser smoke verifies teacher and student Agent history panels render with authenticated sessions.
 - [x] Browser smoke verifies teacher read-only Agent command returns data.
 - [x] Browser smoke verifies student pending assignment Agent command returns data.
+- [x] Browser smoke parses Agent SSE responses from `/api/agent/chat/stream`.
 
 ## 19. Rollout Plan
 
@@ -795,6 +816,7 @@ Suggested metrics:
 - [x] Add multi-turn context so the Agent can complete commands across several user messages.
 - [x] Add course fuzzy matching.
 - [x] Add pending assignment matching.
+- [x] Add frontend streaming output through SSE with JSON fallback.
 - [ ] Add LangChain4j RAG retrieval for platform help, course material, rules, and learning guidance without bypassing business tools.
 - [ ] Add action history page.
 - [ ] Add failure retry where safe.
@@ -843,3 +865,4 @@ Suggested metrics:
 - [x] LangChain4j understanding-layer skeleton for enterprise-grade natural-language interaction.
 - [x] Real-model smoke test for LangChain4j understanding layer.
 - [x] End-to-end smoke test from frontend Agent chat to target business services.
+- [x] Frontend streaming output for teacher/student Agent chat with safe fallback to synchronous chat.

@@ -1,5 +1,8 @@
 package com._202510007517.platform.exam.api.dto;
 
+import java.util.List;
+import java.util.Map;
+
 public class ExamSubmissionDTO {
     private Long id;
     private Long examId;
@@ -11,6 +14,7 @@ public class ExamSubmissionDTO {
     private Boolean graded;
     private Integer score;
     private String teacherComment;
+    private List<Map<String, Object>> attachments;
 
     public Long getId() {
         return id;
@@ -90,5 +94,13 @@ public class ExamSubmissionDTO {
 
     public void setTeacherComment(String teacherComment) {
         this.teacherComment = teacherComment;
+    }
+
+    public List<Map<String, Object>> getAttachments() {
+        return attachments;
+    }
+
+    public void setAttachments(List<Map<String, Object>> attachments) {
+        this.attachments = attachments;
     }
 }

@@ -1,14 +1,17 @@
 package com._202510007517.platform.agent.tool;
 
 import com._202510007517.platform.agent.AgentServiceApplication;
+import com._202510007517.platform.agent.client.TeacherExamEdgeClient;
 import com._202510007517.platform.agent.api.dto.AgentChatResponseDTO;
 import com._202510007517.platform.agent.repository.AgentActionRepository;
 import com._202510007517.platform.agent.repository.AgentAuditLogRepository;
 import com._202510007517.platform.agent.repository.AgentSessionRepository;
 import com._202510007517.platform.agent.service.AgentOrchestrator;
+import com._202510007517.platform.common.web.ResponseResult;
 import com._202510007517.platform.assignment.api.dto.AssignmentStudentScoreDTO;
 import com._202510007517.platform.assignment.api.feign.AssignmentFeignClient;
 import com._202510007517.platform.course.api.dto.CourseDTO;
+import com._202510007517.platform.course.api.dto.TeacherClassDTO;
 import com._202510007517.platform.course.api.feign.CourseFeignClient;
 import com._202510007517.platform.exam.api.dto.ExamDTO;
 import com._202510007517.platform.exam.api.feign.ExamFeignClient;
@@ -60,6 +63,9 @@ class ReadOnlyToolTest {
     @MockitoBean
     private ExamFeignClient examFeignClient;
 
+    @MockitoBean
+    private TeacherExamEdgeClient teacherExamEdgeClient;
+
     @BeforeEach
     void clearData() {
         auditLogRepository.deleteAll();
@@ -80,6 +86,33 @@ class ReadOnlyToolTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> data = (Map<String, Object>) response.getData();
         assertThat(data).containsKey("courses");
+        assertThat(actionRepository.findAll()).isEmpty();
+        assertThat(auditLogRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    void readOnlyClassQueryRendersReadableClassSummary() {
+        TeacherClassDTO classOne = new TeacherClassDTO();
+        classOne.setId(101L);
+        classOne.setClassName("软件 2301");
+        classOne.setStudentCount(32);
+        TeacherClassDTO classTwo = new TeacherClassDTO();
+        classTwo.setId(102L);
+        classTwo.setClassName("软件 2302");
+        classTwo.setStudentCount(30);
+        when(courseFeignClient.listTeacherClasses(7L, null, null, null, null, null))
+                .thenReturn(List.of(classOne, classTwo));
+
+        AgentChatResponseDTO response = orchestrator.chat(7L, "TEACHER", null, "查看一下我的班级有哪些");
+
+        assertThat(response.getResponseType()).isEqualTo("DATA");
+        assertThat(response.getMessage())
+                .contains("软件 2301")
+                .contains("软件 2302")
+                .doesNotContain("操作已处理");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) response.getData();
+        assertThat(data).containsKey("classes");
         assertThat(actionRepository.findAll()).isEmpty();
         assertThat(auditLogRepository.findAll()).isEmpty();
     }
@@ -121,14 +154,41 @@ class ReadOnlyToolTest {
     void readOnlyExamQueryExecutesToolWithoutCreatingPendingAction() {
         ExamDTO exam = new ExamDTO();
         exam.setTitle("期末考试");
+        exam.setCourseName("Java 程序设计");
+        exam.setStartTime("2026-07-05 09:00");
+        exam.setEndTime("2026-07-05 11:00");
+        exam.setStatus("待参加");
         when(examFeignClient.listByStudent(7L)).thenReturn(List.of(exam));
 
         AgentChatResponseDTO response = orchestrator.chat(7L, "STUDENT", null, "查看考试列表");
 
         assertThat(response.getResponseType()).isEqualTo("DATA");
+        assertThat(response.getMessage())
+                .contains("查到以下考试安排信息，共 **1 条记录**。")
+                .contains("1. **期末考试**")
+                .contains("- 所属课程：Java 程序设计")
+                .doesNotContain("ExamDTO@");
         @SuppressWarnings("unchecked")
         Map<String, Object> data = (Map<String, Object>) response.getData();
         assertThat(data).containsKey("exams");
         assertThat(actionRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    void teacherReadOnlyExamQueryExecutesToolWithoutCreatingPendingAction() {
+        ExamDTO exam = new ExamDTO();
+        exam.setTitle("Java 阶段测验");
+        Map<String, Object> page = Map.of("content", List.of(exam));
+        when(teacherExamEdgeClient.listExams("7", 1, 10, "id", "DESC", null, null, null))
+                .thenReturn(ResponseResult.success(page));
+
+        AgentChatResponseDTO response = orchestrator.chat(7L, "TEACHER", null, "查看考试列表");
+
+        assertThat(response.getResponseType()).isEqualTo("DATA");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) response.getData();
+        assertThat(data).containsEntry("exams", List.of(exam));
+        assertThat(actionRepository.findAll()).isEmpty();
+        assertThat(auditLogRepository.findAll()).isEmpty();
     }
 }

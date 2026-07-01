@@ -11,6 +11,7 @@ import com._202510007517.major_assignment.entity.dto.PageResult;
 import com._202510007517.major_assignment.entity.dto.ResponseResult;
 import com._202510007517.major_assignment.mapper.AssignmentMapper;
 import com._202510007517.major_assignment.service.AssignmentService;
+import com._202510007517.major_assignment.service.AssessmentAttachmentService;
 import com._202510007517.major_assignment.service.AssignmentSubmissionService;
 import com._202510007517.major_assignment.service.CourseService;
 import com._202510007517.major_assignment.service.NotificationService;
@@ -33,6 +34,8 @@ import java.util.Map;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/teacher/assignments")
@@ -61,6 +64,9 @@ public class AssignmentController extends BaseController {
     
     @Autowired
     private KnowledgePointService knowledgePointService;
+
+    @Autowired
+    private AssessmentAttachmentService assessmentAttachmentService;
     
     @GetMapping
     // 暂时移除缓存，确保作业列表实时更新
@@ -243,10 +249,26 @@ public class AssignmentController extends BaseController {
         return ResponseResult.success(result, "获取作业列表成功", 200);
     }
     
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @CacheEvict(value = CacheConstants.ASSIGNMENTS, allEntries = true)
     @Transactional
     public ResponseResult<Assignment> createAssignment(@RequestBody Map<String, Object> requestBody, HttpServletRequest requestContext) {
+        return createAssignmentInternal(requestBody, null, requestContext);
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @CacheEvict(value = CacheConstants.ASSIGNMENTS, allEntries = true)
+    @Transactional
+    public ResponseResult<Assignment> createAssignmentWithFiles(
+            @RequestPart("payload") Map<String, Object> requestBody,
+            @RequestPart(value = "files", required = false) MultipartFile[] files,
+            HttpServletRequest requestContext) {
+        return createAssignmentInternal(requestBody, files, requestContext);
+    }
+
+    private ResponseResult<Assignment> createAssignmentInternal(Map<String, Object> requestBody,
+                                                               MultipartFile[] files,
+                                                               HttpServletRequest requestContext) {
         LogUtil.logRequest(logger, "POST", "/api/teacher/assignments", requestBody, getCurrentUserId(requestContext));
         
         try {
@@ -321,6 +343,12 @@ public class AssignmentController extends BaseController {
             
             // 保存作业
             assignmentService.create(assignment);
+
+            assessmentAttachmentService.saveAttachments(
+                    AssessmentAttachmentService.ASSIGNMENT_TYPE,
+                    assignment.getId(),
+                    teacherId,
+                    files);
             
             // 保存后打印作业ID
             logger.info("作业保存成功，生成的作业ID: {}", assignment.getId());

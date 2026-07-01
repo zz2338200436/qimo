@@ -26,4 +26,19 @@ class NotificationQueryServiceTest {
         assertThat(result).containsEntry("size", 10);
         assertThat(result).containsEntry("totalPages", 3);
     }
+
+    @Test
+    void getTeacherSentNotificationsIncludesTotalPagesForTeacherNotificationPage() {
+        NotificationRepository repository = mock(NotificationRepository.class);
+        NotificationQueryService service = new NotificationQueryService(repository);
+        when(repository.findTeacherSentNotifications(7L, 10, 5, "course")).thenReturn(List.of());
+        when(repository.countTeacherSentNotifications(7L, "course")).thenReturn(14L);
+
+        Map<String, Object> result = service.getTeacherSentNotifications(7L, 3, 5, "course");
+
+        assertThat(result).containsEntry("total", 14L);
+        assertThat(result).containsEntry("page", 3);
+        assertThat(result).containsEntry("size", 5);
+        assertThat(result).containsEntry("totalPages", 3);
+    }
 }

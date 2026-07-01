@@ -369,9 +369,9 @@ services:
       AGENT_DB_URL: jdbc:mysql://mysql:3306/sc_agent?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
       AGENT_DB_USERNAME: dev_user
       AGENT_DB_PASSWORD: dev_only_pwd
-      AGENT_LLM_ENABLED: "false"
+      AGENT_LLM_ENABLED: "true"
       AGENT_LLM_API_KEY: ${AGENT_LLM_API_KEY:-}
-      XIAOMI_API_KEY: ${XIAOMI_API_KEY:-}
+      API-KEY: ${API-KEY:-}
     depends_on:
       mysql:
         condition: service_healthy

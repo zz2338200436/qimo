@@ -99,6 +99,13 @@ class RuleBasedIntentRecognitionServiceTest {
     }
 
     @Test
+    void recognizesRecentlyCreatedCourseAsDetailLookup() {
+        RecognizedIntent result = service.recognize("查看我刚创建的课程");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.QUERY_COURSE_DETAIL);
+    }
+
+    @Test
     void recognizesClassCreation() {
         RecognizedIntent result = service.recognize("创建班级，班级名称是软件2301，年级2023，容量40，课程ID 101，专业ID 2");
 
@@ -122,6 +129,13 @@ class RuleBasedIntentRecognitionServiceTest {
                 .containsEntry("capacity", 45)
                 .containsEntry("courseId", 101L)
                 .containsEntry("majorId", 2L);
+    }
+
+    @Test
+    void recognizesRecentlyCreatedClassAsDetailLookup() {
+        RecognizedIntent result = service.recognize("查看我刚创建的班级");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.QUERY_CLASS_DETAIL);
     }
 
     @Test
@@ -152,6 +166,13 @@ class RuleBasedIntentRecognitionServiceTest {
     @Test
     void recognizesExamDetailLookup() {
         RecognizedIntent result = service.recognize("查看考试详情");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.QUERY_EXAM_DETAIL);
+    }
+
+    @Test
+    void recognizesRecentlyPublishedExamAsDetailLookup() {
+        RecognizedIntent result = service.recognize("查看我刚才发布的考试");
 
         assertThat(result.intent()).isEqualTo(AgentIntent.QUERY_EXAM_DETAIL);
     }
@@ -206,6 +227,13 @@ class RuleBasedIntentRecognitionServiceTest {
     @Test
     void recognizesAssignmentDetailLookup() {
         RecognizedIntent result = service.recognize("查看作业详情");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.QUERY_ASSIGNMENT_DETAIL);
+    }
+
+    @Test
+    void recognizesRecentlyPublishedAssignmentAsDetailLookup() {
+        RecognizedIntent result = service.recognize("查看我刚才发布的作业");
 
         assertThat(result.intent()).isEqualTo(AgentIntent.QUERY_ASSIGNMENT_DETAIL);
     }
@@ -277,6 +305,28 @@ class RuleBasedIntentRecognitionServiceTest {
         assertThat(mastery.slots()).containsEntry("studentId", 21L).containsEntry("courseId", 3L);
         assertThat(service.recognize("查看学习统计").intent()).isEqualTo(AgentIntent.QUERY_STUDENT_STATS);
         assertThat(service.recognize("查看学习时间分布").intent()).isEqualTo(AgentIntent.QUERY_STUDY_TIME_DISTRIBUTION);
+    }
+
+    @Test
+    void recognizesTeacherKnowledgeMasteryAnalysisWithoutStudentOrCourseIds() {
+        RecognizedIntent result = service.recognize("分析全部学生的知识点掌握情况");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.QUERY_KNOWLEDGE_MASTERY);
+    }
+
+    @Test
+    void recognizesEarlyWarningsAsDedicatedTeacherQuery() {
+        RecognizedIntent result = service.recognize("学情预警");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.QUERY_EARLY_WARNINGS);
+    }
+
+    @Test
+    void doesNotTreatGenericClassQuerySuffixAsClassNameFilter() {
+        RecognizedIntent result = service.recognize("查看一下我的班级有哪些");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.QUERY_CLASSES);
+        assertThat(result.slots()).doesNotContainKey("className");
     }
 
     @Test
@@ -404,9 +454,43 @@ class RuleBasedIntentRecognitionServiceTest {
     }
 
     @Test
+    void contextOnlyQuestionGenerationFollowUpDoesNotInventTopic() {
+        RecognizedIntent result = service.recognize("基于刚才内容生成课堂练习题");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.GENERATE_QUESTIONS);
+        assertThat(result.slots()).doesNotContainKey("topic");
+    }
+
+    @Test
     void recognizesQuestionBankQueries() {
         assertThat(service.recognize("现在题库有什么题目").intent()).isEqualTo(AgentIntent.QUERY_QUESTION_BANK);
         assertThat(service.recognize("查询题库有哪些知识点").intent()).isEqualTo(AgentIntent.QUERY_QUESTION_BANK);
+    }
+
+    @Test
+    void doesNotExtractGenericTopicForQuestionBankContentQuery() {
+        RecognizedIntent result = service.recognize("查看题库内容");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.QUERY_QUESTION_BANK);
+        assertThat(result.slots()).doesNotContainKey("topic");
+    }
+
+    @Test
+    void doesNotExtractGenericTopicForQuestionBankOverviewQuery() {
+        RecognizedIntent result = service.recognize("查询题库概览");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.QUERY_QUESTION_BANK);
+        assertThat(result.slots()).doesNotContainKey("topic");
+    }
+
+    @Test
+    void recognizesQuestionBankQueriesWithoutExplicitQuestionBankKeyword() {
+        RecognizedIntent result = service.recognize("Java基础有哪些选择题");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.QUERY_QUESTION_BANK);
+        assertThat(result.slots())
+                .containsEntry("topic", "Java基础")
+                .containsEntry("type", "SINGLE_CHOICE");
     }
 
     @Test
@@ -415,6 +499,36 @@ class RuleBasedIntentRecognitionServiceTest {
 
         assertThat(result.intent()).isEqualTo(AgentIntent.QUERY_RAG_KNOWLEDGE);
         assertThat(result.confidence()).isEqualTo(0.9);
+    }
+
+    @Test
+    void recognizesExplicitInternetSearchRequest() {
+        RecognizedIntent result = service.recognize("帮我联网搜索 Spring Cloud Gateway 官方资料");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.INTERNET_SEARCH);
+        assertThat(result.slots()).containsEntry("query", "Spring Cloud Gateway 官方资料");
+    }
+
+    @Test
+    void recognizesWebPageReadRequest() {
+        RecognizedIntent result = service.recognize("总结这个网页 https://spring.io/projects/spring-cloud-gateway");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.READ_WEB_PAGE);
+        assertThat(result.slots()).containsEntry("url", "https://spring.io/projects/spring-cloud-gateway");
+    }
+
+    @Test
+    void recognizesRegistryCenterAsRagKnowledgeQuestion() {
+        RecognizedIntent result = service.recognize("什么是注册中心");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.QUERY_RAG_KNOWLEDGE);
+    }
+
+    @Test
+    void keepsRegistryCenterQuestionOutOfInternetSearchEvenWithWebPrefix() {
+        RecognizedIntent result = service.recognize("帮我联网搜索 注册中心是什么");
+
+        assertThat(result.intent()).isEqualTo(AgentIntent.QUERY_RAG_KNOWLEDGE);
     }
 
     @Test

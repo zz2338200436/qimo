@@ -50,6 +50,7 @@ public class RuleBasedIntentRecognitionService implements IntentRecognitionServi
     private static final Pattern NOTIFICATION_ID_PATTERN = Pattern.compile("通知(?:ID)?\\s*(\\d+)");
     private static final Pattern NOTIFICATION_TYPE_PATTERN = Pattern.compile("类型是([^，,。；;]+)");
     private static final Pattern QUESTION_COUNT_PATTERN = Pattern.compile("(\\d+)\\s*道|([一二三四五六七八九十两])\\s*道");
+    private static final Pattern URL_PATTERN = Pattern.compile("(https?://[^\\s，,。；;]+)");
 
     @Override
     public RecognizedIntent recognize(String message) {
@@ -57,13 +58,19 @@ public class RuleBasedIntentRecognitionService implements IntentRecognitionServi
         if (text.isBlank()) {
             return unknown();
         }
-        Map<String, Object> slots = extractCommonSlots(text);
         AgentIntent intent = detectIntent(text);
+        Map<String, Object> slots = extractCommonSlots(text, intent);
         double confidence = intent == AgentIntent.UNKNOWN ? 0.2 : 0.9;
         return new RecognizedIntent(intent, confidence, slots);
     }
 
     private AgentIntent detectIntent(String text) {
+        if (URL_PATTERN.matcher(text).find() && containsAny(text, "读取", "总结", "分析", "打开", "网页", "链接", "页面")) {
+            return AgentIntent.READ_WEB_PAGE;
+        }
+        if (isInternetSearchRequest(text)) {
+            return AgentIntent.INTERNET_SEARCH;
+        }
         if (containsAny(text, "发布作业", "布置作业", "创建作业")) {
             return AgentIntent.PUBLISH_ASSIGNMENT;
         }
@@ -96,12 +103,21 @@ public class RuleBasedIntentRecognitionService implements IntentRecognitionServi
         if (containsAny(text, "考试详情", "试卷详情", "考试明细", "试卷明细")) {
             return AgentIntent.QUERY_EXAM_DETAIL;
         }
+        if (containsAny(text, "刚才发布的考试", "刚刚发布的考试", "刚发布的考试", "我刚才发布的考试",
+                "刚才发布的试卷", "刚刚发布的试卷", "刚发布的试卷", "我刚才发布的试卷")
+                && containsAny(text, "查看", "查询")) {
+            return AgentIntent.QUERY_EXAM_DETAIL;
+        }
         if (containsAny(text, "考试提交记录", "考试提交列表", "考试提交情况", "试卷提交记录", "试卷提交列表")
                 || (containsAny(text, "考试", "试卷") && containsAny(text, "提交记录", "提交列表", "提交情况"))) {
             return AgentIntent.QUERY_EXAM_SUBMISSIONS;
         }
         if (containsAny(text, "待提交作业", "没交的作业", "未提交作业")) {
             return AgentIntent.QUERY_PENDING_ASSIGNMENTS;
+        }
+        if (containsAny(text, "刚才发布的作业", "刚刚发布的作业", "刚发布的作业", "我刚才发布的作业")
+                && containsAny(text, "查看", "查询")) {
+            return AgentIntent.QUERY_ASSIGNMENT_DETAIL;
         }
         if (containsAny(text, "作业提交记录", "作业提交列表", "作业提交情况", "作业提交")
                 || (text.contains("作业") && containsAny(text, "提交记录", "提交列表", "提交情况"))) {
@@ -120,6 +136,10 @@ public class RuleBasedIntentRecognitionService implements IntentRecognitionServi
         if (containsAny(text, "课程详情", "课程明细")) {
             return AgentIntent.QUERY_COURSE_DETAIL;
         }
+        if (containsAny(text, "刚创建的课程", "刚刚创建的课程", "我刚创建的课程", "我刚刚创建的课程")
+                && containsAny(text, "查看", "查询")) {
+            return AgentIntent.QUERY_COURSE_DETAIL;
+        }
         if (containsAny(text, "创建课程", "新增课程", "添加课程", "开设课程")) {
             return AgentIntent.CREATE_COURSE;
         }
@@ -136,16 +156,20 @@ public class RuleBasedIntentRecognitionService implements IntentRecognitionServi
         if (containsAny(text, "教师仪表盘", "班级学情概览", "教师看板", "教学仪表盘")) {
             return AgentIntent.QUERY_TEACHER_DASHBOARD;
         }
+        if (containsAny(text, "学情预警", "预警列表", "预警统计", "风险学生")) {
+            return AgentIntent.QUERY_EARLY_WARNINGS;
+        }
         if (containsAny(text, "学生学习汇总", "班级学习汇总", "学习汇总", "学情汇总")) {
             return AgentIntent.QUERY_LEARNING_SUMMARY;
         }
         if (containsAny(text, "成绩趋势", "分数趋势", "得分趋势")) {
             return AgentIntent.QUERY_SCORE_TREND;
         }
-        if (containsAny(text, "知识点掌握", "掌握情况", "掌握度") && containsAny(text, "学生", "课程")) {
+        if (containsAny(text, "知识点掌握", "掌握情况", "掌握度")
+                && (text.contains("知识点") || containsAny(text, "学生", "课程", "分析"))) {
             return AgentIntent.QUERY_KNOWLEDGE_MASTERY;
         }
-        if (containsAny(text, "题库") && containsAny(text, "有什么", "有哪些", "查询", "查看", "题目", "知识点", "数量")) {
+        if (isQuestionBankQuery(text)) {
             return AgentIntent.QUERY_QUESTION_BANK;
         }
         if (text.contains("知识点")
@@ -162,6 +186,10 @@ public class RuleBasedIntentRecognitionService implements IntentRecognitionServi
             return AgentIntent.SEND_NOTIFICATION;
         }
         if (containsAny(text, "班级详情", "班级明细")) {
+            return AgentIntent.QUERY_CLASS_DETAIL;
+        }
+        if (containsAny(text, "刚创建的班级", "刚刚创建的班级", "我刚创建的班级", "我刚刚创建的班级")
+                && containsAny(text, "查看", "查询")) {
             return AgentIntent.QUERY_CLASS_DETAIL;
         }
         if (containsAny(text, "班级") && containsAny(text, "查看", "查询", "有哪些", "列表")) {
@@ -225,7 +253,7 @@ public class RuleBasedIntentRecognitionService implements IntentRecognitionServi
         return AgentIntent.UNKNOWN;
     }
 
-    private Map<String, Object> extractCommonSlots(String text) {
+    private Map<String, Object> extractCommonSlots(String text, AgentIntent intent) {
         Map<String, Object> slots = new LinkedHashMap<>();
         putIfFound(slots, "title", TITLE_PATTERN, text);
         putIfFound(slots, "content", CONTENT_PATTERN, text);
@@ -286,12 +314,67 @@ public class RuleBasedIntentRecognitionService implements IntentRecognitionServi
                 slots.put("answers", parsedAnswers);
             }
         }
-        extractQuestionGenerationSlots(slots, text);
+        if (intent == AgentIntent.GENERATE_QUESTIONS || intent == AgentIntent.QUERY_QUESTION_BANK) {
+            extractQuestionBankSlots(slots, text);
+        }
+        if (intent == AgentIntent.INTERNET_SEARCH) {
+            slots.put("query", extractInternetQuery(text));
+        }
+        if (intent == AgentIntent.READ_WEB_PAGE) {
+            Matcher urlMatcher = URL_PATTERN.matcher(text);
+            if (urlMatcher.find()) {
+                slots.put("url", trimTrailingUrlPunctuation(urlMatcher.group(1)));
+            }
+        }
         return slots;
     }
 
-    private static void extractQuestionGenerationSlots(Map<String, Object> slots, String text) {
-        if (!(containsAny(text, "生成", "出") && containsAny(text, "题", "题目", "选择题"))) {
+    private static boolean isInternetSearchRequest(String text) {
+        if (containsBusinessActionOrLiveData(text)) {
+            return false;
+        }
+        if (containsAny(text, "注册中心", "配置中心", "服务注册与发现", "服务发现", "网关", "RAG", "微服务")) {
+            return false;
+        }
+        return containsAny(text, "联网搜索", "联网查", "上网搜索", "网上搜索", "网上查", "搜索一下",
+                "查一下最新", "查最新", "最新资料", "官方资料", "外部资料", "资料来源");
+    }
+
+    private static String extractInternetQuery(String text) {
+        String normalized = text
+                .replace("帮我", "")
+                .replace("请", "")
+                .replace("帮我联网查一下", "")
+                .replace("帮我联网查", "")
+                .replace("帮我联网搜索一下", "")
+                .replace("联网搜索", "")
+                .replace("联网查", "")
+                .replace("上网搜索", "")
+                .replace("网上搜索", "")
+                .replace("网上查", "")
+                .replace("搜索一下", "")
+                .replace("搜索", "")
+                .replace("查一下", "")
+                .replace("查一下最新", "")
+                .replace("查最新", "")
+                .replace("最新资料", "")
+                .replace("外部资料", "")
+                .replace("资料来源", "")
+                .replace("关于", "")
+                .replace("是什么", "")
+                .replace("是啥", "")
+                .replace("什么是", "")
+                .replaceAll("\\s+", " ")
+                .trim();
+        return normalized.isBlank() ? text.trim() : normalized;
+    }
+
+    private static String trimTrailingUrlPunctuation(String url) {
+        return url.replaceAll("[，,。；;！!？?）)）】\\]]+$", "");
+    }
+
+    private static void extractQuestionBankSlots(Map<String, Object> slots, String text) {
+        if (!containsAny(text, "生成", "出", "题库", "题目", "题型", "试题", "习题", "选择题", "判断题", "填空题", "简答题")) {
             return;
         }
 
@@ -334,6 +417,38 @@ public class RuleBasedIntentRecognitionService implements IntentRecognitionServi
                 .replace("请", "")
                 .replace("生成", "")
                 .replace("出", "")
+                .replace("有什么", "")
+                .replace("有哪些", "")
+                .replace("查看", "")
+                .replace("查询", "")
+                .replace("列出", "")
+                .replace("给我", "")
+                .replace("来点", "")
+                .replace("看看", "")
+                .replace("基于刚才内容", "")
+                .replace("基于当前内容", "")
+                .replace("基于上述内容", "")
+                .replace("基于前面内容", "")
+                .replace("基于刚才", "")
+                .replace("基于当前", "")
+                .replace("基于上述", "")
+                .replace("基于前面", "")
+                .replace("刚才内容", "")
+                .replace("当前内容", "")
+                .replace("上述内容", "")
+                .replace("前面内容", "")
+                .replace("刚才", "")
+                .replace("当前", "")
+                .replace("上述", "")
+                .replace("前面", "")
+                .replace("基于", "")
+                .replace("内容", "")
+                .replace("概览", "")
+                .replace("总览", "")
+                .replace("概况", "")
+                .replace("概述", "")
+                .replace("详情", "")
+                .replace("情况", "")
                 .replace("中等难度", "")
                 .replace("简单难度", "")
                 .replace("困难难度", "")
@@ -348,6 +463,7 @@ public class RuleBasedIntentRecognitionService implements IntentRecognitionServi
                 .replace("课堂练习题", "")
                 .replace("课堂练习", "")
                 .replace("练习题", "")
+                .replace("题库", "")
                 .replace("题目", "")
                 .replace("题", "")
                 .replaceAll("\\s+", "")
@@ -357,17 +473,63 @@ public class RuleBasedIntentRecognitionService implements IntentRecognitionServi
         }
     }
 
+    private static boolean isQuestionBankQuery(String text) {
+        if (containsAny(text, "生成", "出") && containsAny(text, "题", "题目", "选择题")) {
+            return false;
+        }
+        boolean questionWords = containsAny(text, "题库", "题目", "试题", "习题", "选择题", "判断题", "填空题", "简答题");
+        boolean queryWords = containsAny(text, "有什么", "有哪些", "查看", "查询", "列出", "给我", "来点", "推荐", "多少", "几道");
+        return questionWords && queryWords;
+    }
+
     private static boolean isMeaningfulQuestionTopic(String topic) {
         if (topic == null || topic.isBlank()) {
             return false;
         }
         String normalized = topic.trim()
+                .replace("现在", "")
+                .replace("目前", "")
+                .replace("这", "")
+                .replace("那", "")
+                .replace("这些", "")
+                .replace("那些", "")
+                .replace("什么", "")
+                .replace("哪些", "")
+                .replace("有什么", "")
+                .replace("有哪些", "")
+                .replace("多少", "")
+                .replace("几道", "")
+                .replace("几题", "")
                 .replace("课程", "")
                 .replace("练习", "")
                 .replace("课堂", "")
                 .replace("题库", "")
                 .replace("随机", "")
                 .replace("综合", "")
+                .replace("基于刚才内容", "")
+                .replace("基于当前内容", "")
+                .replace("基于上述内容", "")
+                .replace("基于前面内容", "")
+                .replace("基于刚才", "")
+                .replace("基于当前", "")
+                .replace("基于上述", "")
+                .replace("基于前面", "")
+                .replace("刚才内容", "")
+                .replace("当前内容", "")
+                .replace("上述内容", "")
+                .replace("前面内容", "")
+                .replace("刚才", "")
+                .replace("当前", "")
+                .replace("上述", "")
+                .replace("前面", "")
+                .replace("基于", "")
+                .replace("内容", "")
+                .replace("概览", "")
+                .replace("总览", "")
+                .replace("概况", "")
+                .replace("概述", "")
+                .replace("详情", "")
+                .replace("情况", "")
                 .replaceAll("\\s+", "");
         return !normalized.isBlank();
     }
@@ -376,10 +538,17 @@ public class RuleBasedIntentRecognitionService implements IntentRecognitionServi
         Matcher matcher = pattern.matcher(text);
         if (matcher.find()) {
             String value = matcher.group(1).trim();
-            if (!value.isBlank()) {
+            if (!value.isBlank() && isUsableSlotValue(key, value)) {
                 slots.put(key, value);
             }
         }
+    }
+
+    private static boolean isUsableSlotValue(String key, String value) {
+        if (!"className".equals(key)) {
+            return true;
+        }
+        return !containsAny(value, "有哪些", "列表", "详情", "明细");
     }
 
     private static void putIfAbsentFound(Map<String, Object> slots, String key, Pattern pattern, String text) {
@@ -471,7 +640,7 @@ public class RuleBasedIntentRecognitionService implements IntentRecognitionServi
         }
         return containsAny(text,
                 "什么是", "解释", "说明", "如何理解", "平台怎么", "学生如何", "教师如何",
-                "怎么使用AI助手", "怎么使用 AI 助手", "服务注册", "配置中心", "网关", "RAG");
+                "怎么使用AI助手", "怎么使用 AI 助手", "服务注册", "注册中心", "配置中心", "网关", "RAG");
     }
 
     private static boolean containsBusinessActionOrLiveData(String text) {

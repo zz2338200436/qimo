@@ -81,7 +81,16 @@
                 }
             }
 
-            const result = await teacherAPI.createExam(examData);
+            const fileInput = document.getElementById('exam-papers');
+            let requestBody = examData;
+            if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                const formData = new FormData();
+                formData.append('payload', new Blob([JSON.stringify(examData)], { type: 'application/json' }));
+                Array.from(fileInput.files).forEach(file => formData.append('files', file));
+                requestBody = formData;
+            }
+
+            const result = await teacherAPI.createExam(requestBody);
 
             if (!result || result.success === false) {
                 hideLoading();

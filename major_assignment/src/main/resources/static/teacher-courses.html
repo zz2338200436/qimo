@@ -35,7 +35,7 @@
             transition: width 0.3s ease;
         }
         
-        .sidebar.collapsed {
+        .sidebar.desktop-collapsed {
             width: 80px;
         }
         
@@ -661,6 +661,38 @@
             gap: 12px;
         }
 
+        .teacher-workspace-guide {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            display: grid;
+            gap: 8px;
+            margin-bottom: 18px;
+            padding: 16px 18px;
+        }
+
+        .teacher-workspace-guide strong,
+        .teacher-section-label {
+            color: #0f172a;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .teacher-workspace-guide p,
+        .teacher-section-label span {
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        .teacher-section-label {
+            align-items: center;
+            display: flex;
+            justify-content: space-between;
+            margin: 0 0 10px;
+        }
+
         .tabs.teacher-tab-panel,
         .search-filter.teacher-filter-panel,
         .data-table.teacher-table-panel {
@@ -737,6 +769,11 @@
                     </button>
                 </div>
             </div>
+
+            <section class="teacher-workspace-guide" aria-label="课程页操作顺序">
+                <strong>先维护课程与班级，再处理分配关系。</strong>
+                <p>筛选区用于缩小范围，数据区用于确认状态和执行编辑，新增入口保留在页面右上角。</p>
+            </section>
             
             <!-- 标签页 -->
             <div class="tabs teacher-tab-panel">
@@ -748,6 +785,10 @@
                 
                 <!-- 课程管理内容 -->
                 <div class="tab-content" id="courses-content">
+                    <div class="teacher-section-label">
+                        <strong>筛选条件</strong>
+                        <span>先按名称、代码、类别和状态定位课程。</span>
+                    </div>
                     <!-- 搜索和筛选 -->
                     <div class="search-filter teacher-filter-panel">
                         <div class="search-group">
@@ -784,6 +825,10 @@
                         </div>
                     </div>
                     
+                    <div class="teacher-section-label">
+                        <strong>课程数据区</strong>
+                        <span>查看当前筛选结果并进入课程操作。</span>
+                    </div>
                     <!-- 课程列表 -->
                     <div class="data-table teacher-table-panel">
                         <table class="table">

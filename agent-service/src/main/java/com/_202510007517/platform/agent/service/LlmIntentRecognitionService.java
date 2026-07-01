@@ -1,5 +1,6 @@
 package com._202510007517.platform.agent.service;
 
+import com._202510007517.platform.agent.api.dto.AgentMessageDTO;
 import com._202510007517.platform.agent.config.AgentLlmProperties;
 import com._202510007517.platform.agent.model.AgentIntent;
 import com._202510007517.platform.agent.model.RecognizedIntent;
@@ -67,6 +68,8 @@ public class LlmIntentRecognitionService implements IntentRecognitionService {
             "majorId",
             "timeRange",
             "topic",
+            "query",
+            "url",
             "count",
             "difficulty",
             "totalScore"
@@ -99,7 +102,12 @@ public class LlmIntentRecognitionService implements IntentRecognitionService {
 
     @Override
     public RecognizedIntent recognize(String message) {
-        String prompt = buildPrompt(message);
+        return recognize(message, List.of());
+    }
+
+    @Override
+    public RecognizedIntent recognize(String message, List<AgentMessageDTO> recentMessages) {
+        String prompt = buildPrompt(message, recentMessages);
         log.info("agent llm intent prompt: {}", dataMaskingPolicy.maskText(prompt));
         try {
             String output = chatModel.chat(prompt);
@@ -163,7 +171,8 @@ public class LlmIntentRecognitionService implements IntentRecognitionService {
                     QUERY_SCORES, QUERY_NOTIFICATIONS, QUERY_UNREAD_NOTIFICATION_COUNT,
                     QUERY_STUDENT_STATS, QUERY_STUDY_TIME_DISTRIBUTION,
                     QUERY_TEACHER_DASHBOARD, QUERY_LEARNING_SUMMARY,
-                    QUERY_SCORE_TREND, QUERY_KNOWLEDGE_POINTS, QUERY_KNOWLEDGE_MASTERY, QUERY_QUESTION_BANK -> true;
+                    QUERY_SCORE_TREND, QUERY_EARLY_WARNINGS, QUERY_KNOWLEDGE_POINTS, QUERY_KNOWLEDGE_MASTERY, QUERY_QUESTION_BANK,
+                    QUERY_RAG_KNOWLEDGE, INTERNET_SEARCH, READ_WEB_PAGE -> true;
             default -> false;
         };
     }
@@ -215,7 +224,7 @@ public class LlmIntentRecognitionService implements IntentRecognitionService {
                 .toList();
     }
 
-    private String buildPrompt(String message) {
+    private String buildPrompt(String message, List<AgentMessageDTO> recentMessages) {
         return """
                 You are the intent recognition layer for an education platform Agent.
                 Return strict JSON only, without markdown.
@@ -277,6 +286,8 @@ public class LlmIntentRecognitionService implements IntentRecognitionService {
                 - majorId: numeric major id.
                 - timeRange: analysis time range text such as 本周, 本月, or 最近30天.
                 - topic: generated question topic text.
+                - query: internet search keyword when the user explicitly asks to search online, browse the web, check latest information, or find official online sources.
+                - url: full http or https URL when the user asks to read or summarize a web page.
                 - count: generated question count.
                 - difficulty: generated question or exam difficulty text.
                 - totalScore: generated exam total score.
@@ -305,6 +316,10 @@ public class LlmIntentRecognitionService implements IntentRecognitionService {
                 JSON: {"intent":"SUBMIT_EXAM","confidence":0.95,"slots":{"examTitle":"Java期末考试","timeTaken":45,"answers":{"1":"A","2":"B"}},"missingSlots":[]}
                 User: 查询学生ID 12 在课程ID 3 的知识点掌握情况
                 JSON: {"intent":"QUERY_KNOWLEDGE_MASTERY","confidence":0.95,"slots":{"studentId":12,"courseId":3},"missingSlots":[]}
+                User: 学情预警
+                JSON: {"intent":"QUERY_EARLY_WARNINGS","confidence":0.95,"slots":{},"missingSlots":[]}
+                User: 分析全部学生的知识点掌握情况
+                JSON: {"intent":"QUERY_KNOWLEDGE_MASTERY","confidence":0.95,"slots":{},"missingSlots":[]}
                 User: 查看课程ID 3 的知识点
                 JSON: {"intent":"QUERY_KNOWLEDGE_POINTS","confidence":0.95,"slots":{"courseId":3},"missingSlots":[]}
                 User: 把通知ID 9标为已读
@@ -318,9 +333,31 @@ public class LlmIntentRecognitionService implements IntentRecognitionService {
                 User: 给学生ID 42,43批量发送通知，标题是开课通知，内容是请按时上课，类型是course
                 JSON: {"intent":"SEND_BATCH_NOTIFICATION","confidence":0.95,"slots":{"studentIds":[42,43],"title":"开课通知","content":"请按时上课","type":"course"},"missingSlots":[]}
 
+                Recent conversation:
+                %s
+
                 User message:
                 %s
-                """.formatted(availableIntentNames(), message == null ? "" : message);
+                """.formatted(
+                availableIntentNames(),
+                formatRecentConversation(recentMessages),
+                message == null ? "" : message
+        );
+    }
+
+    private String formatRecentConversation(List<AgentMessageDTO> recentMessages) {
+        if (recentMessages == null || recentMessages.isEmpty()) {
+            return "(none)";
+        }
+        return recentMessages.stream()
+                .map(message -> {
+                    String role = message.getRole() == null || message.getRole().isBlank()
+                            ? "UNKNOWN"
+                            : message.getRole();
+                    String content = message.getContent() == null ? "" : message.getContent();
+                    return role + ": " + content;
+                })
+                .collect(Collectors.joining(System.lineSeparator()));
     }
 
     private String availableIntentNames() {

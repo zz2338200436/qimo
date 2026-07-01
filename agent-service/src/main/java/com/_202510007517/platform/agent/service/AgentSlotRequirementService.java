@@ -125,8 +125,9 @@ public class AgentSlotRequirementService {
                 requireNumberIfPresent(missing, slots, "班级ID", "classId");
             }
             case QUERY_KNOWLEDGE_MASTERY -> {
-                require(missing, slots, "学生ID", "studentId");
-                require(missing, slots, "课程ID", "courseId");
+                if (hasAny(slots, "studentId")) {
+                    require(missing, slots, "课程ID", "courseId");
+                }
                 requireNumberIfPresent(missing, slots, "学生ID", "studentId");
                 requireNumberIfPresent(missing, slots, "课程ID", "courseId");
             }
@@ -134,6 +135,8 @@ public class AgentSlotRequirementService {
                 requireAny(missing, slots, "课程", "courseId", "courseName");
                 requireNumberIfPresent(missing, slots, "课程ID", "courseId");
             }
+            case INTERNET_SEARCH -> require(missing, slots, "搜索关键词", "query");
+            case READ_WEB_PAGE -> require(missing, slots, "网页地址", "url");
             case MARK_NOTIFICATION_READ, DELETE_NOTIFICATION -> {
                 require(missing, slots, "notificationId", "notificationId");
                 requireNumberIfPresent(missing, slots, "notificationId", "notificationId");
@@ -391,6 +394,7 @@ public class AgentSlotRequirementService {
             case SUBMIT_EXAM -> "提交考试";
             case QUERY_COURSE_DETAIL -> "查询课程详情";
             case QUERY_CLASS_DETAIL -> "查询班级详情";
+            case QUERY_EARLY_WARNINGS -> "查询学情预警";
             case QUERY_KNOWLEDGE_POINTS -> "查询课程知识点";
             case QUERY_KNOWLEDGE_MASTERY -> "查询知识点掌握情况";
             case QUERY_ASSIGNMENT_DETAIL -> "查询作业详情";
@@ -402,6 +406,8 @@ public class AgentSlotRequirementService {
             case SEND_NOTIFICATION -> "发送通知";
             case SEND_BATCH_NOTIFICATION -> "批量发送通知";
             case GENERATE_QUESTIONS -> "生成题目";
+            case INTERNET_SEARCH -> "联网搜索";
+            case READ_WEB_PAGE -> "读取网页";
             default -> "这个请求";
         };
     }

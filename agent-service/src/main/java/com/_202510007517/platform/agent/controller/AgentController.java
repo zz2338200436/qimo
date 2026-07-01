@@ -6,13 +6,16 @@ import com._202510007517.platform.agent.api.dto.AgentChatRequestDTO;
 import com._202510007517.platform.agent.api.dto.AgentChatResponseDTO;
 import com._202510007517.platform.agent.api.dto.AgentExecutionResultDTO;
 import com._202510007517.platform.agent.api.dto.AgentSessionDTO;
+import com._202510007517.platform.agent.api.dto.AgentSessionUpdateDTO;
 import com._202510007517.platform.agent.service.AgentChatStreamingService;
 import com._202510007517.platform.agent.service.AgentOrchestrator;
 import com._202510007517.platform.common.web.CommonTraceConstants;
 import com._202510007517.platform.common.web.ResponseResult;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -141,6 +144,36 @@ public class AgentController {
         }
         String role = resolveRole(activeRoleHeader, rolesHeader);
         return ResponseResult.success(orchestrator.getSession(userId, role, sessionId));
+    }
+
+    @PatchMapping("/sessions/{sessionId}")
+    public ResponseResult<AgentSessionDTO> updateSessionTitle(
+            @PathVariable("sessionId") Long sessionId,
+            @RequestHeader(value = CommonTraceConstants.USER_ID_HEADER, required = false) String userIdHeader,
+            @RequestHeader(value = CommonTraceConstants.ACTIVE_ROLE_HEADER, required = false) String activeRoleHeader,
+            @RequestHeader(value = CommonTraceConstants.ROLES_HEADER, required = false) String rolesHeader,
+            @RequestBody @Valid AgentSessionUpdateDTO request) {
+        Long userId = resolveUserId(userIdHeader);
+        if (userId == null) {
+            return ResponseResult.failure("缺少用户身份", 400);
+        }
+        String role = resolveRole(activeRoleHeader, rolesHeader);
+        return ResponseResult.success(orchestrator.updateSessionTitle(userId, role, sessionId, request.getTitle()));
+    }
+
+    @DeleteMapping("/sessions/{sessionId}")
+    public ResponseResult<Void> deleteSession(
+            @PathVariable("sessionId") Long sessionId,
+            @RequestHeader(value = CommonTraceConstants.USER_ID_HEADER, required = false) String userIdHeader,
+            @RequestHeader(value = CommonTraceConstants.ACTIVE_ROLE_HEADER, required = false) String activeRoleHeader,
+            @RequestHeader(value = CommonTraceConstants.ROLES_HEADER, required = false) String rolesHeader) {
+        Long userId = resolveUserId(userIdHeader);
+        if (userId == null) {
+            return ResponseResult.failure("缺少用户身份", 400);
+        }
+        String role = resolveRole(activeRoleHeader, rolesHeader);
+        orchestrator.deleteSession(userId, role, sessionId);
+        return ResponseResult.success();
     }
 
     private Long resolveUserId(String userIdHeader) {

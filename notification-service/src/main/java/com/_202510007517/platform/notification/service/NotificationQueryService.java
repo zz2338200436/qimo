@@ -38,4 +38,18 @@ public class NotificationQueryService {
     public int getUnreadCount(Long studentId) {
         return notificationRepository.countUnreadByStudentId(studentId);
     }
+
+    public Map<String, Object> getTeacherSentNotifications(Long teacherId, int page, int size, String filter) {
+        int safePage = Math.max(page, 1);
+        int safeSize = Math.max(size, 1);
+        int offset = (safePage - 1) * safeSize;
+        Map<String, Object> result = new LinkedHashMap<>();
+        long total = notificationRepository.countTeacherSentNotifications(teacherId, filter);
+        result.put("notifications", notificationRepository.findTeacherSentNotifications(teacherId, offset, safeSize, filter));
+        result.put("total", total);
+        result.put("page", safePage);
+        result.put("size", safeSize);
+        result.put("totalPages", (int) Math.ceil((double) total / safeSize));
+        return result;
+    }
 }

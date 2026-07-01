@@ -59,6 +59,35 @@ class AgentActionMapperTest {
     }
 
     @Test
+    void summarizesGeneratedQuestionAssignmentPreviewWithoutAnswerDetails() {
+        var preview = mapper.toPreview(new RecognizedIntent(
+                AgentIntent.PUBLISH_ASSIGNMENT,
+                0.9,
+                Map.of(
+                        "selectionMode", "GENERATED_QUESTIONS",
+                        "title", "Java基础课堂练习",
+                        "content", "题目如下：\n1. Java中用于表示继承的关键字是哪个？\nA. extends\n答案：A\n解析：extends 表示继承。",
+                        "questions", List.of(Map.of(
+                                "content", "Java中用于表示继承的关键字是哪个？",
+                                "options", List.of("extends", "implements"),
+                                "answer", "A",
+                                "explanation", "extends 表示继承。"
+                        ))
+                )
+        ));
+
+        assertThat(preview.getSummary()).isEqualTo("发布作业: Java基础课堂练习");
+        assertThat(preview.getPreview())
+                .containsEntry("questionCount", 1)
+                .containsEntry("contentPreview", "题目如下：\n1. Java中用于表示继承的关键字是哪个？\nA. extends");
+        assertThat(preview.getPreview()).doesNotContainKeys("questions", "content");
+        assertThat(String.valueOf(preview.getPreview()))
+                .doesNotContain("答案")
+                .doesNotContain("解析")
+                .doesNotContain("explanation");
+    }
+
+    @Test
     void buildsMediumRiskPreviewForCreateCourse() {
         var preview = mapper.toPreview(new RecognizedIntent(
                 AgentIntent.CREATE_COURSE,

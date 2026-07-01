@@ -18,9 +18,12 @@ import com._202510007517.platform.events.assignment.AssignmentGradedEvent;
 import com._202510007517.platform.events.assignment.AssignmentGradedPayload;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -49,21 +52,45 @@ public class TeacherAssignmentCommandService {
     private final OutboxEventRepository outboxEventRepository;
     private final AssignmentKnowledgeMasterySynchronizer knowledgeMasterySynchronizer;
     private final ObjectMapper objectMapper;
+    private final AssessmentAttachmentService attachmentService;
 
     public TeacherAssignmentCommandService(AssignmentRepository assignmentRepository,
                                            CourseFeignClient courseFeignClient,
                                            OutboxEventRepository outboxEventRepository,
                                            AssignmentKnowledgeMasterySynchronizer knowledgeMasterySynchronizer,
                                            ObjectMapper objectMapper) {
+        this(assignmentRepository,
+                courseFeignClient,
+                outboxEventRepository,
+                knowledgeMasterySynchronizer,
+                objectMapper,
+                AssessmentAttachmentService.none());
+    }
+
+    @Autowired
+    public TeacherAssignmentCommandService(AssignmentRepository assignmentRepository,
+                                           CourseFeignClient courseFeignClient,
+                                           OutboxEventRepository outboxEventRepository,
+                                           AssignmentKnowledgeMasterySynchronizer knowledgeMasterySynchronizer,
+                                           ObjectMapper objectMapper,
+                                           AssessmentAttachmentService attachmentService) {
         this.assignmentRepository = assignmentRepository;
         this.courseFeignClient = courseFeignClient;
         this.outboxEventRepository = outboxEventRepository;
         this.knowledgeMasterySynchronizer = knowledgeMasterySynchronizer;
         this.objectMapper = objectMapper;
+        this.attachmentService = attachmentService;
     }
 
     @Transactional(rollbackFor = Exception.class)
     public AssignmentDTO createAssignment(Long teacherId, TeacherAssignmentUpsertRequestDTO request) {
+        return createAssignment(teacherId, request, null);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public AssignmentDTO createAssignment(Long teacherId,
+                                          TeacherAssignmentUpsertRequestDTO request,
+                                          MultipartFile[] files) {
         CourseDTO course = requireOwnedCourse(teacherId, request.getCourseId());
 
         AssignmentRecord assignment = new AssignmentRecord();
@@ -82,11 +109,26 @@ public class TeacherAssignmentCommandService {
 
         AssignmentRecord saved = assignmentRepository.insertAssignment(assignment);
         assignmentRepository.replaceAssignmentClasses(saved.getId(), resolveCourseClassIds(teacherId, request.getCourseId()));
-        return toDto(saved, course);
+        try {
+            attachmentService.saveAttachments(saved.getId(), teacherId, files);
+        } catch (IOException ex) {
+            throw new IllegalStateException("保存作业附件失败", ex);
+        }
+        AssignmentDTO dto = toDto(saved, course);
+        dto.setAttachments(attachmentService.getAttachmentDtos(saved.getId()));
+        return dto;
     }
 
     @Transactional(rollbackFor = Exception.class)
     public AssignmentDTO updateAssignment(Long teacherId, Long assignmentId, TeacherAssignmentUpsertRequestDTO request) {
+        return updateAssignment(teacherId, assignmentId, request, null);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public AssignmentDTO updateAssignment(Long teacherId,
+                                          Long assignmentId,
+                                          TeacherAssignmentUpsertRequestDTO request,
+                                          MultipartFile[] files) {
         AssignmentRecord existing = requireTeacherAssignment(teacherId, assignmentId);
         CourseDTO course = requireOwnedCourse(teacherId, request.getCourseId());
 
@@ -104,12 +146,20 @@ public class TeacherAssignmentCommandService {
 
         assignmentRepository.updateAssignmentDetails(existing);
         assignmentRepository.replaceAssignmentClasses(existing.getId(), resolveCourseClassIds(teacherId, request.getCourseId()));
-        return toDto(existing, course);
+        try {
+            attachmentService.saveAttachments(existing.getId(), teacherId, files);
+        } catch (IOException ex) {
+            throw new IllegalStateException("保存作业附件失败", ex);
+        }
+        AssignmentDTO dto = toDto(existing, course);
+        dto.setAttachments(attachmentService.getAttachmentDtos(existing.getId()));
+        return dto;
     }
 
     @Transactional(rollbackFor = Exception.class)
     public void deleteAssignment(Long teacherId, Long assignmentId) {
         requireTeacherAssignment(teacherId, assignmentId);
+        attachmentService.deleteAttachments(assignmentId);
         assignmentRepository.deleteAssignmentCascade(assignmentId);
     }
 

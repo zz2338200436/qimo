@@ -23,9 +23,12 @@ import com._202510007517.platform.course.api.feign.CourseFeignClient;
 import com._202510007517.platform.events.EventAggregate;
 import com._202510007517.platform.events.exam.ExamFinishedEvent;
 import com._202510007517.platform.events.exam.ExamFinishedPayload;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -51,17 +54,34 @@ public class ExamApplicationService {
     private final AssignmentFeignClient assignmentFeignClient;
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
+    private final AssessmentAttachmentService attachmentService;
 
     public ExamApplicationService(ExamRepository examRepository,
                                   CourseFeignClient courseFeignClient,
                                   AssignmentFeignClient assignmentFeignClient,
                                   OutboxEventRepository outboxEventRepository,
                                   ObjectMapper objectMapper) {
+        this(examRepository,
+                courseFeignClient,
+                assignmentFeignClient,
+                outboxEventRepository,
+                objectMapper,
+                AssessmentAttachmentService.none());
+    }
+
+    @Autowired
+    public ExamApplicationService(ExamRepository examRepository,
+                                  CourseFeignClient courseFeignClient,
+                                  AssignmentFeignClient assignmentFeignClient,
+                                  OutboxEventRepository outboxEventRepository,
+                                  ObjectMapper objectMapper,
+                                  AssessmentAttachmentService attachmentService) {
         this.examRepository = examRepository;
         this.courseFeignClient = courseFeignClient;
         this.assignmentFeignClient = assignmentFeignClient;
         this.outboxEventRepository = outboxEventRepository;
         this.objectMapper = objectMapper;
+        this.attachmentService = attachmentService;
     }
 
     public Map<String, Object> listStudentExams(Long studentId,
@@ -116,6 +136,7 @@ public class ExamApplicationService {
         detail.put("location", exam.getLocation());
         detail.put("publishDate", exam.getPublishDate());
         detail.put("courseId", exam.getCourseId());
+        detail.put("attachments", attachmentService.getAttachmentDtos(examId));
         String courseName = loadCourseNames(Set.of(exam.getCourseId())).get(exam.getCourseId());
         if (courseName != null) {
             detail.put("courseName", courseName);
@@ -126,12 +147,27 @@ public class ExamApplicationService {
 
     @Transactional(rollbackFor = Exception.class)
     public ExamSubmissionDTO submit(Long examId, ExamSubmitRequestDTO request) {
+        return submit(examId, request, null);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ExamSubmissionDTO submit(Long examId,
+                                    ExamSubmitRequestDTO request,
+                                    MultipartFile[] files) {
         assertStudentCanAccessExam(request.getStudentId(), examId);
         ExamRecord exam = examRepository.findExam(examId)
                 .orElseThrow(() -> new IllegalArgumentException("考试不存在"));
         String contentJson = serializeAnswers(request.getAnswers());
         ExamSubmissionRecord saved = examRepository.upsertSubmission(examId, request.getStudentId(), request.getTimeTaken(), contentJson);
-        return toSubmissionDto(autoGradeIfPossible(exam, saved, request.getAnswers()));
+        try {
+            attachmentService.saveSubmissionAttachments(saved.getId(), request.getStudentId(), files);
+        } catch (IOException ex) {
+            throw new IllegalStateException("保存考试提交附件失败", ex);
+        }
+        ExamSubmissionRecord finalSubmission = autoGradeIfPossible(exam, saved, request.getAnswers());
+        ExamSubmissionDTO dto = toSubmissionDto(finalSubmission);
+        dto.setAttachments(attachmentService.getSubmissionAttachmentDtos(finalSubmission.getId()));
+        return dto;
     }
 
     public List<StudentScoreListItemDTO> listStudentScores(Long studentId) {
@@ -197,7 +233,9 @@ public class ExamApplicationService {
         if (teacherId != null && exam.getTeacherId() != null && !teacherId.equals(exam.getTeacherId())) {
             throw new IllegalArgumentException("考试不存在");
         }
-        return toTeacherExamDetail(exam, loadCourseNames(Set.of(exam.getCourseId())).get(exam.getCourseId()));
+        Map<String, Object> detail = toTeacherExamDetail(exam, loadCourseNames(Set.of(exam.getCourseId())).get(exam.getCourseId()));
+        detail.put("attachments", attachmentService.getAttachmentDtos(examId));
+        return detail;
     }
 
     public ExamDTO getTeacherExam(Long teacherId, Long examId) {
@@ -207,7 +245,9 @@ public class ExamApplicationService {
             throw new IllegalArgumentException("考试不存在");
         }
         String courseName = loadCourseNames(Set.of(exam.getCourseId())).get(exam.getCourseId());
-        return toExamDto(exam, courseName);
+        ExamDTO dto = toExamDto(exam, courseName);
+        dto.setAttachments(attachmentService.getAttachmentDtos(examId));
+        return dto;
     }
 
     public List<Long> listKnowledgePointIds(Long examId) {
@@ -228,16 +268,36 @@ public class ExamApplicationService {
 
     @Transactional(rollbackFor = Exception.class)
     public ExamRecord createTeacherExam(Long teacherId, TeacherExamUpsertRequestDTO request) {
+        return createTeacherExam(teacherId, request, null);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ExamRecord createTeacherExam(Long teacherId,
+                                        TeacherExamUpsertRequestDTO request,
+                                        MultipartFile[] files) {
         validateTeacherCourseOwnership(teacherId, request.getCourseId());
         ExamRecord draft = toExamRecord(teacherId, request);
         ExamRecord created = examRepository.insert(draft);
         examRepository.replaceExamClasses(created.getId(), collectTeacherCourseClassIds(teacherId, request.getCourseId()));
         examRepository.replaceExamQuestions(created.getId(), toQuestionRecords(created.getId(), request));
+        try {
+            attachmentService.saveAttachments(created.getId(), teacherId, files);
+        } catch (IOException ex) {
+            throw new IllegalStateException("保存考试附件失败", ex);
+        }
         return created;
     }
 
     @Transactional(rollbackFor = Exception.class)
     public ExamRecord updateTeacherExam(Long teacherId, Long examId, TeacherExamUpsertRequestDTO request) {
+        return updateTeacherExam(teacherId, examId, request, null);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ExamRecord updateTeacherExam(Long teacherId,
+                                        Long examId,
+                                        TeacherExamUpsertRequestDTO request,
+                                        MultipartFile[] files) {
         ExamRecord existing = examRepository.findExam(examId)
                 .orElseThrow(() -> new IllegalArgumentException("考试不存在"));
         if (existing.getTeacherId() != null && !teacherId.equals(existing.getTeacherId())) {
@@ -249,6 +309,11 @@ public class ExamApplicationService {
         examRepository.update(updated);
         examRepository.replaceExamClasses(examId, collectTeacherCourseClassIds(teacherId, request.getCourseId()));
         examRepository.replaceExamQuestions(examId, toQuestionRecords(examId, request));
+        try {
+            attachmentService.saveAttachments(examId, teacherId, files);
+        } catch (IOException ex) {
+            throw new IllegalStateException("保存考试附件失败", ex);
+        }
         return examRepository.findExam(examId).orElseThrow();
     }
 
@@ -259,6 +324,7 @@ public class ExamApplicationService {
         if (existing.getTeacherId() != null && !teacherId.equals(existing.getTeacherId())) {
             throw new IllegalArgumentException("考试不存在");
         }
+        attachmentService.deleteAttachments(examId);
         examRepository.delete(examId);
     }
 
@@ -268,7 +334,7 @@ public class ExamApplicationService {
         if (exam.getTeacherId() != null && !teacherId.equals(exam.getTeacherId())) {
             throw new IllegalArgumentException("考试不存在");
         }
-        return examRepository.findSubmissionsByExamId(examId);
+        return withSubmissionAttachments(examRepository.findSubmissionsByExamId(examId));
     }
 
     public Map<String, Object> listTeacherExamSubmissions(Long teacherId,
@@ -282,7 +348,7 @@ public class ExamApplicationService {
         int safePage = safePage(page);
         int safeSize = safeSize(size);
         int offset = (safePage - 1) * safeSize;
-        List<ExamSubmissionRecord> submissions = examRepository.findSubmissionsByTeacherId(
+        List<ExamSubmissionRecord> submissions = withSubmissionAttachments(examRepository.findSubmissionsByTeacherId(
                 teacherId,
                 examId,
                 studentId,
@@ -290,7 +356,7 @@ public class ExamApplicationService {
                 sortBy,
                 order,
                 offset,
-                safeSize);
+                safeSize));
         int total = examRepository.countSubmissionsByTeacherId(teacherId, examId, studentId, graded);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("submissions", submissions);
@@ -309,7 +375,7 @@ public class ExamApplicationService {
         if (exam.getTeacherId() != null && !teacherId.equals(exam.getTeacherId())) {
             throw new IllegalArgumentException("考试提交记录不存在");
         }
-        return submission;
+        return withSubmissionAttachments(submission);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -338,7 +404,7 @@ public class ExamApplicationService {
         update.setScore(request.getScore());
         update.setTeacherComment(request.getTeacherComment());
         examRepository.updateSubmission(submissionId, update);
-        return examRepository.findSubmissionById(submissionId).orElseThrow();
+        return withSubmissionAttachments(examRepository.findSubmissionById(submissionId).orElseThrow());
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -367,7 +433,21 @@ public class ExamApplicationService {
         examRepository.updateSubmissionGrade(submissionId, request.getScore(), request.getTeacherComment());
         ExamSubmissionRecord gradedSubmission = examRepository.findSubmissionById(submissionId).orElseThrow();
         persistExamFinishedEvent(exam, submission, gradedSubmission, previousScore, previousTeacherComment);
-        return gradedSubmission;
+        return withSubmissionAttachments(gradedSubmission);
+    }
+
+    private List<ExamSubmissionRecord> withSubmissionAttachments(List<ExamSubmissionRecord> submissions) {
+        for (ExamSubmissionRecord submission : submissions) {
+            withSubmissionAttachments(submission);
+        }
+        return submissions;
+    }
+
+    private ExamSubmissionRecord withSubmissionAttachments(ExamSubmissionRecord submission) {
+        if (submission != null && submission.getId() != null) {
+            submission.setAttachments(attachmentService.getSubmissionAttachmentDtos(submission.getId()));
+        }
+        return submission;
     }
 
     private List<Long> loadStudentClassIds(Long studentId) {
@@ -697,9 +777,9 @@ public class ExamApplicationService {
         return courseIds;
     }
 
-    private static Map<String, Object> toStudentExamListItem(ExamRecord exam,
-                                                              ExamSubmissionRecord submission,
-                                                              String courseName) {
+    private Map<String, Object> toStudentExamListItem(ExamRecord exam,
+                                                      ExamSubmissionRecord submission,
+                                                      String courseName) {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("id", exam.getId());
         item.put("title", exam.getTitle());
@@ -716,11 +796,12 @@ public class ExamApplicationService {
         item.put("teacherId", exam.getTeacherId());
         item.put("totalScore", exam.getTotalScore());
         item.put("maxScore", exam.getTotalScore());
+        item.put("attachments", attachmentService.getAttachmentDtos(exam.getId()));
         item.put("submission", submission == null ? null : toSubmissionMap(submission));
         return item;
     }
 
-    private static Map<String, Object> toSubmissionMap(ExamSubmissionRecord submission) {
+    private Map<String, Object> toSubmissionMap(ExamSubmissionRecord submission) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", submission.getId());
         map.put("submissionDate", submission.getSubmissionDate());
@@ -729,6 +810,7 @@ public class ExamApplicationService {
         map.put("teacherComment", submission.getTeacherComment());
         map.put("graded", submission.getGraded());
         map.put("content", submission.getContent());
+        map.put("attachments", attachmentService.getSubmissionAttachmentDtos(submission.getId()));
         return map;
     }
 

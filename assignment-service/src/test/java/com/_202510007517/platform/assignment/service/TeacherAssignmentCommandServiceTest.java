@@ -64,6 +64,42 @@ class TeacherAssignmentCommandServiceTest {
     }
 
     @Test
+    void createAssignmentPersistsUploadedAttachments() throws Exception {
+        FakeAssignmentRepository repository = new FakeAssignmentRepository();
+        CourseFeignClient courseFeignClient = mock(CourseFeignClient.class);
+        AssessmentAttachmentService attachmentService = mock(AssessmentAttachmentService.class);
+        when(courseFeignClient.getCourse(101L)).thenReturn(course(101L, 7L, "分布式框架技术", 36));
+        when(courseFeignClient.listCourseAssignments(7L, 101L, null)).thenReturn(List.of(classAssignment(11L, 101L)));
+        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile(
+                "files",
+                "实验说明.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        TeacherAssignmentCommandService service = new TeacherAssignmentCommandService(
+                repository,
+                courseFeignClient,
+                new InMemoryOutboxEventRepository(),
+                mock(AssignmentKnowledgeMasterySynchronizer.class),
+                new ObjectMapper().findAndRegisterModules(),
+                attachmentService);
+
+        service.createAssignment(7L, request(
+                "Homework 2",
+                101L,
+                "chapter 2",
+                "2026-09-01 08:00:00",
+                "2026-09-15 23:59:59",
+                100
+        ), new org.springframework.web.multipart.MultipartFile[]{file});
+
+        verify(attachmentService).saveAttachments(
+                org.mockito.ArgumentMatchers.eq(4001L),
+                org.mockito.ArgumentMatchers.eq(7L),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void updateAssignmentRefreshesCourseDetailsAndClassLinks() {
         FakeAssignmentRepository repository = new FakeAssignmentRepository();
         CourseFeignClient courseFeignClient = mock(CourseFeignClient.class);
@@ -93,6 +129,41 @@ class TeacherAssignmentCommandServiceTest {
         assertThat(updated.getTotalStudents()).isEqualTo(24);
         assertThat(repository.assignment.getDueDate()).isEqualTo("2026-09-20 23:59:59");
         assertThat(repository.assignmentClasses.get(2001L)).containsExactly(21L);
+    }
+
+    @Test
+    void updateAssignmentPersistsNewUploadedAttachments() throws Exception {
+        FakeAssignmentRepository repository = new FakeAssignmentRepository();
+        CourseFeignClient courseFeignClient = mock(CourseFeignClient.class);
+        AssessmentAttachmentService attachmentService = mock(AssessmentAttachmentService.class);
+        when(courseFeignClient.getCourse(101L)).thenReturn(course(101L, 7L, "分布式框架技术", 36));
+        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile(
+                "files",
+                "实验补充说明.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        TeacherAssignmentCommandService service = new TeacherAssignmentCommandService(
+                repository,
+                courseFeignClient,
+                new InMemoryOutboxEventRepository(),
+                mock(AssignmentKnowledgeMasterySynchronizer.class),
+                new ObjectMapper().findAndRegisterModules(),
+                attachmentService);
+
+        service.updateAssignment(7L, 2001L, request(
+                "Homework 1 revised",
+                101L,
+                "chapter 3",
+                "2026-09-01 08:00:00",
+                "2026-09-20 23:59:59",
+                120
+        ), new org.springframework.web.multipart.MultipartFile[]{file});
+
+        verify(attachmentService).saveAttachments(
+                org.mockito.ArgumentMatchers.eq(2001L),
+                org.mockito.ArgumentMatchers.eq(7L),
+                org.mockito.ArgumentMatchers.any());
     }
 
     @Test

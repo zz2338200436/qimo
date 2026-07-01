@@ -13,31 +13,14 @@
     <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
     <!-- API服务文件 -->
     <script src="api.js?v=20260608-theme-4"></script>
+    <script src="common-ui.js?v=20260628-sidebar-shell-1"></script>
 </head>
 <body class="teacher-shell-body">
 <!-- 侧边栏导航组件 -->
 <div id="sidebar-container"></div>
 <script>
-    // 加载侧边栏组件
-    fetch('components/teacher-sidebar-nav.html?v=20260608-theme-4')
-        .then(response => response.text())
-        .then(data => {
-            document.getElementById('sidebar-container').innerHTML = data;
-            // 确保侧边栏组件完全加载后初始化
-            setTimeout(() => {
-                // 初始化侧边栏切换功能
-                const sidebar = document.getElementById('sidebar');
-                const mainContent = document.getElementById('mainContent');
-                const toggleBtn = document.getElementById('toggleBtn');
-                
-                if (sidebar && mainContent && toggleBtn) {
-                    toggleBtn.addEventListener('click', () => {
-                        sidebar.classList.toggle('collapsed');
-                        mainContent.classList.toggle('collapsed');
-                    });
-                }
-            }, 100);
-        })
+    CommonUI.loadTeacherSidebar('sidebar-container')
+        .then(() => CommonUI.bindSidebarToggle('toggleBtn'))
         .catch(error => console.error('加载侧边栏组件失败:', error));
 </script>
 
@@ -201,7 +184,7 @@
 
         // 初始化通知表单
         initNotificationForm();
-        renderNotificationHistory();
+        await loadNotificationHistory();
     });
 
     function getLocalNotificationHistory() {
@@ -229,6 +212,58 @@
         saveLocalNotificationHistory(history);
     }
 
+    function extractNotificationHistoryList(response) {
+        const data = response && response.data ? response.data : response;
+        if (Array.isArray(data)) {
+            return data;
+        }
+        if (Array.isArray(data?.notifications)) {
+            return data.notifications;
+        }
+        if (Array.isArray(data?.content)) {
+            return data.content;
+        }
+        if (Array.isArray(data?.items)) {
+            return data.items;
+        }
+        return [];
+    }
+
+    function formatNotificationHistoryRecord(record) {
+        return {
+            id: record.id || `local-${Date.now()}`,
+            typeLabel: record.typeLabel || getNotificationTypeLabel(record.type),
+            title: record.title || '未命名通知',
+            studentId: record.studentId || record.student_id || '-',
+            sentAt: new Date(
+                record.sentAt ||
+                record.createTime ||
+                record.createdAt ||
+                record.created_at ||
+                Date.now()
+            ).toLocaleString()
+        };
+    }
+
+    async function loadNotificationHistory() {
+        try {
+            const apiService = new APIService();
+            const teacherAPI = new TeacherAPI(apiService);
+            const response = await teacherAPI.getSentNotifications(1, 20, 'all');
+            if (response && response.success) {
+                const remoteHistory = extractNotificationHistoryList(response)
+                    .map(formatNotificationHistoryRecord);
+                if (remoteHistory.length > 0) {
+                    saveLocalNotificationHistory(remoteHistory);
+                }
+            }
+        } catch (error) {
+            console.warn('加载教师已发送通知失败，使用本地历史:', error);
+        }
+
+        renderNotificationHistory();
+    }
+
     function renderNotificationHistory() {
         const historyBody = document.getElementById('notificationHistory');
         if (!historyBody) {
@@ -239,7 +274,7 @@
         if (!history.length) {
             historyBody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="text-center text-muted">通知历史接口暂未接入，当前仅展示本地发送成功记录。</td>
+                    <td colspan="6" class="text-center text-muted">暂无已发送通知记录。发送成功后的通知会显示在这里，便于您回看最近操作。</td>
                 </tr>
             `;
             return;
@@ -325,7 +360,7 @@
                     // 重置表单
                     form.reset();
                     form.classList.remove('was-validated');
-                    renderNotificationHistory();
+                    await loadNotificationHistory();
                 } else {
                     throw new Error(response?.message || '发送通知失败');
                 }

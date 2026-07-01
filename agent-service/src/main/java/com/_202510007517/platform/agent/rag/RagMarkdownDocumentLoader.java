@@ -1,11 +1,11 @@
 package com._202510007517.platform.agent.rag;
 
+import com._202510007517.platform.agent.support.ConfigDocumentPathResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -26,13 +26,12 @@ public class RagMarkdownDocumentLoader {
             if (configuredPath == null || configuredPath.isBlank()) {
                 continue;
             }
-            Path path;
-            try {
-                path = Path.of(configuredPath).toAbsolutePath().normalize();
-            } catch (InvalidPathException ex) {
+            java.util.Optional<Path> resolvedPath = ConfigDocumentPathResolver.resolve(configuredPath);
+            if (resolvedPath.isEmpty()) {
                 log.info("rag document path is invalid: {}", configuredPath);
                 continue;
             }
+            Path path = resolvedPath.get();
             if (!Files.exists(path)) {
                 log.info("rag document path does not exist: {}", path);
                 continue;

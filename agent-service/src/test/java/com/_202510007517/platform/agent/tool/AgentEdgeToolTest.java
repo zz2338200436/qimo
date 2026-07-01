@@ -7,6 +7,8 @@ import com._202510007517.platform.agent.client.AiEdgeClient;
 import com._202510007517.platform.agent.client.AnalysisEdgeClient;
 import com._202510007517.platform.agent.client.NotificationEdgeClient;
 import com._202510007517.platform.agent.client.TeacherAnalysisEdgeClient;
+import com._202510007517.platform.agent.client.TeacherKnowledgeAnalysisEdgeClient;
+import com._202510007517.platform.agent.client.TeacherWarningEdgeClient;
 import com._202510007517.platform.agent.domain.AgentAuditLogEntity;
 import com._202510007517.platform.agent.questionbank.QuestionRagService;
 import com._202510007517.platform.agent.repository.AgentActionRepository;
@@ -80,6 +82,12 @@ class AgentEdgeToolTest {
 
     @MockitoBean
     private TeacherAnalysisEdgeClient teacherAnalysisEdgeClient;
+
+    @MockitoBean
+    private TeacherKnowledgeAnalysisEdgeClient teacherKnowledgeAnalysisEdgeClient;
+
+    @MockitoBean
+    private TeacherWarningEdgeClient teacherWarningEdgeClient;
 
     @MockitoBean
     private AiEdgeClient aiEdgeClient;
@@ -548,6 +556,63 @@ class AgentEdgeToolTest {
     }
 
     @Test
+    void knowledgeMasteryAnalysisForAllStudentsUsesTeacherAggregateEndpoint() {
+        when(teacherKnowledgeAnalysisEdgeClient.getKnowledgePointAnalysis("7", null, null, null, null))
+                .thenReturn(ResponseResult.success(Map.of(
+                        "courseName", "所有课程",
+                        "knowledgePointDistribution", List.of(Map.of(
+                                "knowledgePointId", 99L,
+                                "knowledgePointName", "函数",
+                                "masteryRate", 82.5)),
+                        "atRiskStudents", List.of(),
+                        "weakTopics", List.of(),
+                        "excellentStudentAverage", List.of())));
+
+        AgentChatResponseDTO response = orchestrator.chat(7L, "TEACHER", null, "分析全部学生的知识点掌握情况");
+
+        assertThat(response.getResponseType()).isEqualTo("DATA");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) response.getData();
+        assertThat(data)
+                .containsEntry("status", "EXECUTED")
+                .containsKey("knowledgeAnalysis")
+                .containsEntry("message", "操作成功");
+        verify(teacherKnowledgeAnalysisEdgeClient).getKnowledgePointAnalysis("7", null, null, null, null);
+        assertThat(actionRepository.findAll()).isEmpty();
+        assertThat(auditLogRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    void earlyWarningsQueryExecutesThroughTeacherWarningService() {
+        when(teacherWarningEdgeClient.getWarningStats("7", null, null))
+                .thenReturn(ResponseResult.success(Map.of(
+                        "totalWarnings", 8,
+                        "pendingWarnings", 3,
+                        "resolvedWarnings", 5)));
+        when(teacherWarningEdgeClient.listWarnings("7", null, null, null, null, 1, 10))
+                .thenReturn(ResponseResult.success(Map.of(
+                        "content", List.of(sampleWarning()),
+                        "pageNumber", 1,
+                        "pageSize", 10,
+                        "totalElements", 1)));
+
+        AgentChatResponseDTO response = orchestrator.chat(7L, "TEACHER", null, "学情预警");
+
+        assertThat(response.getResponseType()).isEqualTo("DATA");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) response.getData();
+        assertThat(data)
+                .containsEntry("status", "EXECUTED")
+                .containsKey("warningStats")
+                .containsKey("earlyWarnings")
+                .containsEntry("message", "操作成功");
+        verify(teacherWarningEdgeClient).getWarningStats("7", null, null);
+        verify(teacherWarningEdgeClient).listWarnings("7", null, null, null, null, 1, 10);
+        assertThat(actionRepository.findAll()).isEmpty();
+        assertThat(auditLogRepository.findAll()).isEmpty();
+    }
+
+    @Test
     void generateQuestionsExecutesThroughLocalQuestionBankWithoutConfirmation() {
         AgentChatResponseDTO response = orchestrator.chat(7L, "TEACHER", null, "生成五道Java基础中等题");
 
@@ -558,8 +623,7 @@ class AgentEdgeToolTest {
                 .containsEntry("status", "EXECUTED")
                 .containsEntry("topic", "Java基础")
                 .containsEntry("difficulty", "中等")
-                .containsKey("questions")
-                .containsKey("aiResult");
+                .containsKey("questions");
         verify(aiEdgeClient, never()).generateQuestions(any(), any(), any(), any());
     }
 
@@ -571,7 +635,107 @@ class AgentEdgeToolTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> data = (Map<String, Object>) response.getData();
         assertThat(data).containsEntry("status", "EXECUTED").containsKey("questionBank");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> questionBank = (Map<String, Object>) data.get("questionBank");
+        assertThat(questionBank).containsKey("questions");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> questions = (List<Map<String, Object>>) questionBank.get("questions");
+        assertThat(questions).isNotEmpty();
+        assertThat(questions.get(0)).containsKeys("id", "content", "difficulty", "type", "answer", "analysis");
         verify(aiEdgeClient, never()).questionBankSummary(any(), any(), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void questionBankOverviewQueryUsesLocalSummaryInsteadOfTopicSearch() {
+        AgentChatResponseDTO response = orchestrator.chat(7L, "TEACHER", null, "查询题库概览");
+
+        assertThat(response.getResponseType()).isEqualTo("DATA");
+        Map<String, Object> data = (Map<String, Object>) response.getData();
+        assertThat(data)
+                .containsEntry("status", "EXECUTED")
+                .containsEntry("message", "题库查询完成。")
+                .containsKey("questionBank");
+        Map<String, Object> questionBank = (Map<String, Object>) data.get("questionBank");
+        assertThat(questionBank).containsKey("questions");
+        assertThat(questionBank).doesNotContainKeys("count", "actualCount", "partial");
+        verify(aiEdgeClient, never()).questionBankSummary(any(), any(), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void questionBankQueryWithoutExplicitQuestionBankKeywordUsesLocalRetrieval() {
+        AgentChatResponseDTO response = orchestrator.chat(7L, "TEACHER", null, "Java基础有哪些选择题");
+
+        assertThat(response.getResponseType()).isEqualTo("DATA");
+        Map<String, Object> data = (Map<String, Object>) response.getData();
+        assertThat(data).containsEntry("status", "EXECUTED").containsKey("questionBank");
+        Map<String, Object> questionBank = (Map<String, Object>) data.get("questionBank");
+        List<Map<String, Object>> questions = (List<Map<String, Object>>) questionBank.get("questions");
+        assertThat(questions).isNotEmpty();
+        assertThat(questions)
+                .extracting(question -> question.get("type"))
+                .containsOnly("选择题");
+        verify(aiEdgeClient, never()).questionBankSummary(any(), any(), any());
+    }
+
+    @Test
+    void questionBankSummaryReturnsLocalEmptySummaryWhenLocalQuestionBankIsEmpty() {
+        QuestionBankSummaryTool tool = new QuestionBankSummaryTool(
+                new com._202510007517.platform.agent.questionbank.QuestionBankSummaryService(List.of()),
+                disabledQuestionRagService());
+
+        Map<String, Object> result = tool.execute(7L, "TEACHER", Map.of());
+
+        assertThat(result)
+                .containsEntry("status", "EXECUTED")
+                .containsEntry("message", "题库暂无可查询数据")
+                .containsKey("questionBank");
+        verify(aiEdgeClient, never()).questionBankSummary(any(), any(), any());
+    }
+
+    @Test
+    void generateRandomQuestionsWithoutTopicExecutesThroughLocalQuestionBank() {
+        AgentChatResponseDTO response = orchestrator.chat(7L, "TEACHER", null, "生成随机题目十道");
+
+        assertThat(response.getResponseType()).isEqualTo("DATA");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) response.getData();
+        assertThat(data)
+                .containsEntry("status", "EXECUTED")
+                .containsEntry("topic", null)
+                .containsEntry("count", 10)
+                .containsKey("questions");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> questions = (List<Map<String, Object>>) data.get("questions");
+        assertThat(questions).hasSize(2);
+        verify(aiEdgeClient, never()).generateQuestions(any(), any(), any(), any());
+    }
+
+    @Test
+    void generateQuestionsReturnsLocalDisabledMessageWhenQuestionBankDisabled() {
+        GenerateQuestionsTool tool = new GenerateQuestionsTool(aiEdgeClient, disabledQuestionRagService());
+
+        Map<String, Object> result = tool.execute(7L, "TEACHER", Map.of(
+                "count", 10,
+                "difficulty", "中等"
+        ));
+
+        assertThat(result)
+                .containsEntry("status", "EXECUTED")
+                .containsEntry("topic", null)
+                .containsEntry("count", 10)
+                .containsEntry("actualCount", 0)
+                .containsEntry("partial", false)
+                .containsEntry("message", "题库题目生成功能未启用。")
+                .containsKey("questions");
+        verify(aiEdgeClient, never()).generateQuestions(eq("7"), eq("TEACHER"), eq("TEACHER"), any(GenerateQuestionsRequestDTO.class));
+    }
+
+    private QuestionRagService disabledQuestionRagService() {
+        var properties = new com._202510007517.platform.agent.config.QuestionBankProperties();
+        properties.setEnabled(false);
+        return new QuestionRagService(properties, text -> List.of(), new com._202510007517.platform.agent.questionbank.QuestionBankIndex());
     }
 
     @Test
@@ -613,5 +777,22 @@ class AgentEdgeToolTest {
                 .containsEntry("source", "question-bank")
                 .containsKey("questions")
                 .containsKey("aiResult");
+    }
+
+    private static Map<String, Object> sampleWarning() {
+        return Map.ofEntries(
+                Map.entry("id", 11L),
+                Map.entry("studentId", 42L),
+                Map.entry("courseId", 2L),
+                Map.entry("teacherId", 7L),
+                Map.entry("warningType", "LOW_SCORE"),
+                Map.entry("warningLevel", "HIGH"),
+                Map.entry("warningMessage", "阶段测验低于及格线"),
+                Map.entry("triggerDate", Instant.parse("2026-05-19T12:00:00Z").toString()),
+                Map.entry("studentName", "学生 42"),
+                Map.entry("courseName", "课程 2"),
+                Map.entry("status", "pending"),
+                Map.entry("reason", "阶段测验低于及格线"),
+                Map.entry("suggestion", "建议安排课后辅导，重点讲解薄弱知识点"));
     }
 }

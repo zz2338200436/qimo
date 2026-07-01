@@ -149,7 +149,8 @@ class AiControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value(400))
-                .andExpect(jsonPath("$.message").value("参数校验失败"));
+                .andExpect(jsonPath("$.message").value("参数校验失败"))
+                .andExpect(jsonPath("$.data.fields.difficulty").value("must not be blank"));
     }
 
     private static AiController controller(AiGenerationService service) {

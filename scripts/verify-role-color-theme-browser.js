@@ -1,6 +1,29 @@
+const fs = require('fs');
+const path = require('path');
 const { chromium } = require('../major_assignment/node_modules/playwright');
 
 const baseUrl = process.env.FRONTEND_BASE_URL || 'http://127.0.0.1:5501';
+
+function resolveBundledChromium() {
+  const playwrightHome = path.join(process.env.LOCALAPPDATA || '', 'ms-playwright');
+  if (!playwrightHome || !fs.existsSync(playwrightHome)) {
+    return null;
+  }
+
+  const revisions = fs.readdirSync(playwrightHome)
+    .filter((entry) => entry.startsWith('chromium_headless_shell-'))
+    .sort()
+    .reverse();
+
+  for (const revision of revisions) {
+    const candidate = path.join(playwrightHome, revision, 'chrome-headless-shell-win64', 'chrome-headless-shell.exe');
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
 
 function normalizeColor(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
@@ -44,7 +67,8 @@ function expectNoHorizontalOverflow(label, result) {
 }
 
 (async () => {
-  const browser = await chromium.launch({ headless: true });
+  const executablePath = resolveBundledChromium();
+  const browser = await chromium.launch(executablePath ? { headless: true, executablePath } : { headless: true });
   const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
   const mobilePage = await browser.newPage({ viewport: { width: 390, height: 844 } });
 

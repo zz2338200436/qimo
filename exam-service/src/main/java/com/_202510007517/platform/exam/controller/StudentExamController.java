@@ -10,6 +10,7 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,7 +19,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -66,7 +69,7 @@ public class StudentExamController {
                 200);
     }
 
-    @PostMapping("/exams/{examId}/submit")
+    @PostMapping(value = "/exams/{examId}/submit", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseResult<Map<String, Object>> submitExam(
             @PathVariable Long examId,
             @RequestHeader(value = CommonTraceConstants.USER_ID_HEADER, required = false) String userIdHeader,
@@ -75,6 +78,19 @@ public class StudentExamController {
         request.setStudentId(resolveStudentId(userIdHeader, studentId));
         validate(request);
         ExamSubmissionDTO submission = examApplicationService.submit(examId, request);
+        return ResponseResult.success(toSubmissionResponse(submission), "考试提交成功", 200);
+    }
+
+    @PostMapping(value = "/exams/{examId}/submit", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseResult<Map<String, Object>> submitExamWithFiles(
+            @PathVariable Long examId,
+            @RequestHeader(value = CommonTraceConstants.USER_ID_HEADER, required = false) String userIdHeader,
+            @RequestParam(value = "studentId", required = false) Long studentId,
+            @RequestPart("payload") ExamSubmitRequestDTO request,
+            @RequestPart(value = "files", required = false) MultipartFile[] files) {
+        request.setStudentId(resolveStudentId(userIdHeader, studentId));
+        validate(request);
+        ExamSubmissionDTO submission = examApplicationService.submit(examId, request, files);
         return ResponseResult.success(toSubmissionResponse(submission), "考试提交成功", 200);
     }
 
@@ -104,6 +120,7 @@ public class StudentExamController {
         result.put("submissionDate", submission.getSubmissionDate());
         result.put("timeTaken", submission.getTimeTaken());
         result.put("graded", Boolean.TRUE.equals(submission.getGraded()));
+        result.put("attachments", submission.getAttachments() == null ? List.of() : submission.getAttachments());
         return result;
     }
 

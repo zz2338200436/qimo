@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -53,14 +54,19 @@ public class DefaultAgentChatStreamingService implements AgentChatStreamingServi
             EXECUTOR.execute(() -> {
                 try {
                     sendEvent(emitter, "start", startPayload(request.getSessionId()));
-                    AgentChatResponseDTO response = orchestrator.chat(
+                    AtomicBoolean streamedDelta = new AtomicBoolean(false);
+                    AgentChatResponseDTO response = orchestrator.streamChat(
                             userId,
                             userRole,
-                            request.getSessionId(),
-                            request.getMessage(),
-                            request.getContext());
+                            request,
+                            partialResponse -> {
+                                if (partialResponse != null && !partialResponse.isBlank()) {
+                                    streamedDelta.set(true);
+                                    sendEvent(emitter, "delta", Map.of("text", partialResponse));
+                                }
+                            });
                     sendEvent(emitter, "session", Map.of("sessionId", response.getSessionId()));
-                    emitResponse(emitter, response);
+                    emitResponse(emitter, response, !streamedDelta.get());
                     sendEvent(emitter, "done", Map.of());
                     emitter.complete();
                 } catch (Exception ex) {
@@ -94,9 +100,9 @@ public class DefaultAgentChatStreamingService implements AgentChatStreamingServi
         return orchestrator.chat(userId, userRole, request.getSessionId(), request.getMessage(), request.getContext());
     }
 
-    private void emitResponse(SseEmitter emitter, AgentChatResponseDTO response) throws IOException {
+    private void emitResponse(SseEmitter emitter, AgentChatResponseDTO response, boolean includeMessageDelta) throws IOException {
         String message = response.getMessage();
-        if (message != null && !message.isBlank()) {
+        if (includeMessageDelta && message != null && !message.isBlank()) {
             sendEvent(emitter, "delta", Map.of("text", message));
         }
         sendEvent(emitter, "result", normalizeResponse(response));
@@ -109,6 +115,10 @@ public class DefaultAgentChatStreamingService implements AgentChatStreamingServi
         payload.put("message", response.getMessage());
         payload.put("actionPreview", response.getActionPreview());
         payload.put("data", response.getData());
+        payload.put("plannerDecision", response.getPlannerDecision());
+        payload.put("toolResult", response.getToolResult());
+        payload.put("artifactSummary", response.getArtifactSummary());
+        payload.put("retrievalStatus", response.getRetrievalStatus());
         return payload;
     }
 

@@ -77,6 +77,40 @@
         return fieldName ? course[fieldName] : '未知';
     }
 
+    function getCourseCategoryLabel(category) {
+        const normalized = String(category || '').trim().toLowerCase();
+        const labelMap = {
+            required: '必修课',
+            elective: '选修课',
+            public: '公共课',
+            major: '专业课',
+            practice: '实践课',
+            '必修': '必修课',
+            '选修': '选修课',
+            '公共课': '公共课',
+            '专业课': '专业课',
+            '实践课': '实践课'
+        };
+        return labelMap[normalized] || category || '未设置';
+    }
+
+    function getAssessmentMethodLabel(method) {
+        const normalized = String(method || '').trim().toLowerCase();
+        const labelMap = {
+            exam: '考试',
+            assignment: '作业',
+            report: '报告',
+            practice: '实践',
+            presentation: '展示',
+            '考试': '考试',
+            '作业': '作业',
+            '报告': '报告',
+            '实践': '实践',
+            '展示': '展示'
+        };
+        return labelMap[normalized] || method || '未设置';
+    }
+
     function renderCourseStatusBadge(course) {
         const courseStatus = resolveCourseStatus(course);
         const normalizedStatus = (courseStatus || '').toString().replace(/\s+/g, '').trim();
@@ -122,11 +156,16 @@
     }
 
     function renderCourseRow(course) {
+        const categoryLabel = getCourseCategoryLabel(resolveCourseCategory(course));
+        const assessmentMethodLabel = getAssessmentMethodLabel(course.assessmentMethod);
         return `
             <tr>
                 <td>${course.courseCode}</td>
                 <td>${course.courseName}</td>
-                <td>${course.courseCategory}</td>
+                <td>
+                    <div>${categoryLabel}</div>
+                    <small class="text-muted">考核方式：${assessmentMethodLabel}</small>
+                </td>
                 <td>${course.credit}</td>
                 <td>${course.studentCount || 0}</td>
                 <td>${renderCourseStatusBadge(course)}</td>

@@ -82,6 +82,21 @@ public class JpaNotificationRepository implements NotificationRepository {
         return jpaRepository.countByStudentIdAndReadFalse(studentId);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<NotificationEntity> findTeacherSentNotifications(Long teacherId, int offset, int limit, String filter) {
+        int safeOffset = Math.max(offset, 0);
+        int safeLimit = Math.max(limit, 1);
+        Pageable pageable = PageRequest.of(safeOffset / safeLimit, safeLimit);
+        return jpaRepository.findTeacherSentNotifications(teacherId, normalizeFilter(filter), pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countTeacherSentNotifications(Long teacherId, String filter) {
+        return jpaRepository.countTeacherSentNotifications(teacherId, normalizeFilter(filter));
+    }
+
     private String normalizeFilter(String filter) {
         return StringUtils.hasText(filter) ? filter.trim().toLowerCase(Locale.ROOT) : "all";
     }

@@ -1,0 +1,34 @@
+@startuml
+!include 00-style.puml
+
+actor 管理员
+actor 用户
+participant "管理端页面" as AdminUI
+participant "AgentController" as AC
+participant "AgentOrchestrator" as AO
+participant "RagMarkdownDocumentLoader" as Loader
+participant "RagMarkdownChunker" as Chunker
+participant "InMemoryRagIndex" as Index
+participant "RagKnowledgeService" as RAG
+participant "AiEdgeClient" as AEC
+participant "AI 生成服务" as AIS
+
+管理员 -> AdminUI : 上传课程资料/题库
+AdminUI -> Loader : 触发文档装载
+Loader -> Chunker : 切分 Markdown 文档
+Chunker -> Index : 建立片段与向量索引
+Index --> Loader : 索引完成
+
+用户 -> AC : 发起知识问答
+AC -> AO : chat/streamChat
+AO -> RAG : retrieve(question)
+RAG -> Index : search(queryVector, question)
+Index --> RAG : 候选知识片段
+RAG --> AO : Retrieval(results, READY)
+AO -> AEC : 携带上下文请求生成
+AEC -> AIS : 调用模型
+AIS --> AEC : 生成回答
+AEC --> AO : answer + citations
+AO --> AC : 返回可追溯答案
+
+@enduml

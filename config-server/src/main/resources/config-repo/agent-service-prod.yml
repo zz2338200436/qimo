@@ -7,4 +7,14 @@ spring:
 agent:
   llm:
     enabled: ${AGENT_LLM_ENABLED:true}
-    api-key: ${AGENT_LLM_API_KEY:${XIAOMI_API_KEY}}
+    api-key: ${AGENT_LLM_API_KEY:${API-KEY}}
+  internet:
+    enabled: ${AGENT_INTERNET_ENABLED:true}
+    search-base-url: ${AGENT_INTERNET_SEARCH_BASE_URL:https://cn.bing.com/search}
+    timeout-seconds: ${AGENT_INTERNET_TIMEOUT_SECONDS:5}
+    max-results: ${AGENT_INTERNET_MAX_RESULTS:5}
+    max-page-bytes: ${AGENT_INTERNET_MAX_PAGE_BYTES:200000}
+    max-content-chars: ${AGENT_INTERNET_MAX_CONTENT_CHARS:4000}
+    block-private-network: ${AGENT_INTERNET_BLOCK_PRIVATE_NETWORK:true}
+    user-agent: ${AGENT_INTERNET_USER_AGENT:majorassignment-agent/1.0}
+    allowed-domains: ${AGENT_INTERNET_ALLOWED_DOMAINS:}

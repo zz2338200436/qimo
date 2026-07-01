@@ -54,6 +54,58 @@ public class AgentActionMapper {
                 previewPayload.put("recipientCount", count);
             }
         }
+        if (intent == AgentIntent.PUBLISH_ASSIGNMENT
+                && "GENERATED_QUESTIONS".equals(String.valueOf(previewPayload.get("selectionMode")))) {
+            Object questions = previewPayload.get("questions");
+            int questionCount = countIterable(questions);
+            if (questionCount > 0) {
+                previewPayload.put("questionCount", questionCount);
+            }
+            Object content = previewPayload.get("content");
+            if (content != null) {
+                previewPayload.put("contentPreview", safeContentPreview(String.valueOf(content)));
+            }
+            previewPayload.remove("questions");
+        }
+        if ((intent == AgentIntent.PUBLISH_ASSIGNMENT || intent == AgentIntent.PUBLISH_EXAM)
+                && previewPayload.get("attachments") instanceof Iterable<?> iterable) {
+            int attachmentCount = countIterable(iterable);
+            if (attachmentCount > 0) {
+                previewPayload.put("attachmentCount", attachmentCount);
+            }
+            previewPayload.remove("attachments");
+        }
+    }
+
+    private int countIterable(Object value) {
+        if (!(value instanceof Iterable<?> iterable)) {
+            return 0;
+        }
+        int count = 0;
+        for (Object ignored : iterable) {
+            count++;
+        }
+        return count;
+    }
+
+    private String safeContentPreview(String content) {
+        StringBuilder preview = new StringBuilder();
+        String[] lines = content.split("\\R");
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("答案") || trimmed.startsWith("解析")
+                    || trimmed.toLowerCase().contains("explanation")) {
+                continue;
+            }
+            if (!preview.isEmpty()) {
+                preview.append('\n');
+            }
+            preview.append(line);
+            if (preview.length() >= 240) {
+                return preview.substring(0, 240);
+            }
+        }
+        return preview.toString();
     }
 
     private String title(AgentIntent intent) {
@@ -101,9 +153,12 @@ public class AgentActionMapper {
             case QUERY_TEACHER_DASHBOARD -> "查询教师仪表盘";
             case QUERY_LEARNING_SUMMARY -> "查询学习汇总";
             case QUERY_SCORE_TREND -> "查询成绩趋势";
+            case QUERY_EARLY_WARNINGS -> "查询学情预警";
             case QUERY_KNOWLEDGE_POINTS -> "查询课程知识点";
             case QUERY_KNOWLEDGE_MASTERY -> "查询知识点掌握情况";
             case QUERY_RAG_KNOWLEDGE -> "查询知识库";
+            case INTERNET_SEARCH -> "联网搜索";
+            case READ_WEB_PAGE -> "读取网页";
             case UNKNOWN -> "暂不支持的操作";
         };
     }

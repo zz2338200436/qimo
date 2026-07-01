@@ -1,0 +1,29 @@
+@startuml
+!include 00-style.puml
+skinparam linetype polyline
+
+object "用户端页面" as UI
+object "Gateway" as GW
+object "AgentController" as AC
+object "AgentOrchestrator" as AO
+object "RagKnowledgeService" as RAG
+object "ToolRegistry" as TR
+object "AiEdgeClient" as AEC
+object "数据库" as DB
+
+UI -> GW : 1: 发送问答请求
+GW -> AC : 2: 转发并附带身份
+AC -> AO : 3: chat/streamChat
+AO -> DB : 4: 读取/保存会话消息
+AO -> RAG : 5: 检索知识上下文
+RAG -> AO : 6: 返回证据片段
+AO -> TR : 7: 按意图定位工具
+TR -> AO : 8: 返回工具实例
+AO -> AEC : 9: 触发模型生成
+AEC -> AO : 10: 返回回答内容
+AO -> DB : 11: 保存回答与审计
+AO -> AC : 12: 返回结构化结果
+AC -> GW : 13: 输出响应
+GW -> UI : 14: 展示可追溯答案
+
+@enduml

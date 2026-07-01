@@ -638,6 +638,53 @@ class APIService {
     }
 }
 
+async function downloadAttachment(url, filename = '附件') {
+    try {
+        const targetUrl = url && url.startsWith('http') ? url : `${API_BASE_URL}${url || ''}`;
+        const response = await fetch(targetUrl, {
+            method: 'GET',
+            credentials: 'include'
+        });
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => '');
+            let message = `下载失败（${response.status}）`;
+            try {
+                const errorPayload = errorText ? JSON.parse(errorText) : null;
+                message = errorPayload?.message || errorPayload?.error || message;
+            } catch (ignored) {
+                if (errorText) {
+                    message = errorText;
+                }
+            }
+            throw new Error(message);
+        }
+
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = filename || '附件';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+        console.error('附件下载失败:', error);
+        if (typeof showMessage === 'function') {
+            showMessage('附件下载失败：' + (error.message || '请重新登录后重试'), 'error');
+        } else {
+            alert('附件下载失败：' + (error.message || '请重新登录后重试'));
+        }
+    }
+}
+
+function downloadAttachmentFromButton(button) {
+    if (!button || !button.dataset) {
+        return downloadAttachment('', '附件');
+    }
+    return downloadAttachment(button.dataset.downloadUrl, button.dataset.downloadName || '附件');
+}
+
 // 全局错误捕获
 window.addEventListener('error', function(errorEvent) {
     if (!window.__ENABLE_BROWSER_ERROR_REPORTING__) {
@@ -809,9 +856,16 @@ class StudentAPI {
         return this.apiService.get('/api/student/assignment-submissions');
     }
     
-    submitAssignment(assignmentId, content) {
+    submitAssignment(assignmentId, payload) {
+        if (payload instanceof FormData) {
+            return this.apiService.request(`/api/student/assignments/${assignmentId}/submit`, {
+                method: 'POST',
+                body: payload,
+                headers: {}
+            });
+        }
         return this.apiService.post(`/api/student/assignments/${assignmentId}/submit`, {
-            content
+            content: payload
         });
     }
     
@@ -1014,11 +1068,23 @@ class TeacherAPI {
     
     // 新增方法：创建作业
     createAssignment(data) {
+        if (data instanceof FormData) {
+            return this.apiService.request('/api/teacher/assignments', {
+                method: 'POST',
+                body: data
+            });
+        }
         return this.apiService.post('/api/teacher/assignments', data);
     }
     
     // 新增方法：更新作业
     updateAssignment(assignmentId, data) {
+        if (data instanceof FormData) {
+            return this.apiService.request(`/api/teacher/assignments/${assignmentId}`, {
+                method: 'PUT',
+                body: data
+            });
+        }
         // 构建与后端期望格式一致的请求数据（使用驼峰命名，与后端Controller一致）
         const requestData = {
             title: data.title,
@@ -1049,6 +1115,12 @@ class TeacherAPI {
     
     // 新增方法：创建考试
     createExam(data) {
+        if (data instanceof FormData) {
+            return this.apiService.request('/api/teacher/exams', {
+                method: 'POST',
+                body: data
+            });
+        }
         // 构建与后端期望格式一致的请求数据
         const requestData = {
             title: data.title,
@@ -1070,6 +1142,12 @@ class TeacherAPI {
     
     // 新增方法：更新考试
     updateExam(examId, data) {
+        if (data instanceof FormData) {
+            return this.apiService.request(`/api/teacher/exams/${examId}`, {
+                method: 'PUT',
+                body: data
+            });
+        }
         // Spring Cloud exam-service 的 TeacherExamUpsertRequestDTO 使用 camelCase 字段；
         // 单体 ExamController 同时兼容 camelCase，因此这里与创建考试保持一致，避免编辑保存时 courseId/startTime 等字段绑定失败。
         const requestData = {
@@ -1118,6 +1196,16 @@ class TeacherAPI {
     // 新增方法：批量发送通知
     sendBatchNotification(data) {
         return this.apiService.post('/api/notifications/teacher/send-batch', data);
+    }
+
+    getSentNotifications(page = 1, size = 20, filter = 'all') {
+        const teacherId = getCurrentUserId();
+        return this.apiService.get('/api/notifications/teacher/sent', {
+            teacherId,
+            page,
+            size,
+            filter
+        });
     }
     
     // 新增方法：获取学习汇总数据
@@ -1598,6 +1686,8 @@ window.getStudentSessionContext = getStudentSessionContext;
 window.clearAuthSession = clearAuthSession;
 window.persistAuthSession = persistAuthSession;
 window.loadFrontendCapabilities = loadFrontendCapabilities;
+window.downloadAttachment = downloadAttachment;
+window.downloadAttachmentFromButton = downloadAttachmentFromButton;
 
 // 提交发布考试功能已移至teacher-assignments.html文件中
 
@@ -2184,14 +2274,8 @@ document.addEventListener('DOMContentLoaded', init);
 // 侧边栏切换
 function initSidebar() {
     const toggleBtn = document.getElementById('toggleBtn');
-    const sidebar = document.getElementById('sidebar');
-    const mainContent = document.getElementById('mainContent');
-
-    if (toggleBtn && sidebar && mainContent) {
-        toggleBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-            mainContent.classList.toggle('collapsed');
-        });
+    if (toggleBtn && window.CommonUI) {
+        window.CommonUI.bindSidebarToggle('toggleBtn');
     }
 }
 

@@ -30,6 +30,9 @@ class FrontendProxyHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self) -> None:
         self._handle_request()
 
+    def do_HEAD(self) -> None:
+        self._handle_request()
+
     def do_POST(self) -> None:
         self._handle_request()
 
@@ -50,7 +53,13 @@ class FrontendProxyHandler(http.server.SimpleHTTPRequestHandler):
         if request_path.startswith("/api/"):
             self._proxy_to_gateway()
             return
-        super().do_GET()
+        if self.command == "GET":
+            super().do_GET()
+            return
+        if self.command == "HEAD":
+            super().do_HEAD()
+            return
+        self.send_error(405, "Method Not Allowed")
 
     def _proxy_to_gateway(self) -> None:
         body = None
@@ -64,18 +73,44 @@ class FrontendProxyHandler(http.server.SimpleHTTPRequestHandler):
             headers["Host"] = f"{GATEWAY_HOST}:{GATEWAY_PORT}"
             connection.request(self.command, self.path, body=body, headers=headers)
             response = connection.getresponse()
-            payload = response.read()
+            response_headers = response.getheaders()
+            content_type = (response.getheader("Content-Type") or "").lower()
+            is_sse = content_type.startswith("text/event-stream")
+            payload = b""
+            upstream_content_length = response.getheader("Content-Length")
+            if not is_sse and self.command != "HEAD":
+                payload = response.read()
 
             self.send_response(response.status, response.reason)
             excluded_headers = {"transfer-encoding", "connection", "keep-alive"}
-            for key, value in response.getheaders():
-                if key.lower() in excluded_headers:
+            for key, value in response_headers:
+                header_name = key.lower()
+                if header_name in excluded_headers:
+                    continue
+                if not is_sse and header_name == "content-length":
                     continue
                 self.send_header(key, value)
-            if not any(key.lower() == "content-length" for key, _ in response.getheaders()):
-                self.send_header("Content-Length", str(len(payload)))
+            if is_sse:
+                self.send_header("X-Accel-Buffering", "no")
+            else:
+                if self.command == "HEAD":
+                    content_length = upstream_content_length or "0"
+                else:
+                    content_length = str(len(payload))
+                self.send_header("Content-Length", content_length)
             self.end_headers()
-            self.wfile.write(payload)
+            if is_sse:
+                reader = getattr(response, "read1", None)
+                if reader is None and getattr(response, "fp", None) is not None:
+                    reader = getattr(response.fp, "read1", None)
+                while True:
+                    chunk = reader(4096) if reader else response.readline()
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    self.wfile.flush()
+            elif self.command != "HEAD":
+                self.wfile.write(payload)
         finally:
             connection.close()
 

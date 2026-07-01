@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface AgentActionRepository extends JpaRepository<AgentActionEntity, Long> {
     List<AgentActionEntity> findBySessionIdOrderByCreatedAtAsc(Long sessionId);
+
+    void deleteBySessionId(Long sessionId);
 }

@@ -7,9 +7,9 @@ public class AgentLlmProperties {
 
     private boolean enabled = true;
     private String provider = "openai";
-    private String baseUrl = "https://token-plan-cn.xiaomimimo.com/v1";
+    private String baseUrl = "https://llm-w58gc8w0czrbs1oa.cn-beijing.maas.aliyuncs.com/compatible-mode/v1";
     private String apiKey = "";
-    private String modelName = "mimo-v2.5";
+    private String modelName = "glm-5.1";
     private double minimumConfidence = 0.7;
     private double temperature = 0.0;
     private long timeoutSeconds = 60;

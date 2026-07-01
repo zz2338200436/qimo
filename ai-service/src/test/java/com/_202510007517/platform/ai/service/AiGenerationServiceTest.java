@@ -53,6 +53,21 @@ class AiGenerationServiceTest {
         assertThat(repository.saved.modelName()).isEqualTo("stub-local-model");
     }
 
+    @Test
+    void generateQuestionsStillReturnsModelResultWhenHistorySaveFails() {
+        GenerateQuestionsRequestDTO request = new GenerateQuestionsRequestDTO();
+        request.setTopic("Java基础");
+        request.setCount(2);
+        request.setDifficulty("中等");
+        AiGenerationService service = new AiGenerationService(new StubModelClient(), new FailingRepository());
+
+        Map<String, Object> result = service.generateQuestions(7L, "TEACHER", request);
+
+        assertThat(result).containsEntry("topic", "Java基础");
+        assertThat(result).containsEntry("count", 2);
+        assertThat((List<?>) result.get("questions")).hasSize(2);
+    }
+
     private static final class StubModelClient implements AiModelClient {
 
         @Override
@@ -93,6 +108,14 @@ class AiGenerationServiceTest {
         @Override
         public void save(AiGenerationRecord record) {
             this.saved = record;
+        }
+    }
+
+    private static final class FailingRepository implements AiGenerationRepository {
+
+        @Override
+        public void save(AiGenerationRecord record) {
+            throw new IllegalStateException("db down");
         }
     }
 }

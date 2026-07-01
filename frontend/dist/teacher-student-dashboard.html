@@ -13,6 +13,7 @@
     <script src="lib/chart.umd.min.js"></script>
     <!-- SheetJS for Excel export -->
     <script src="lib/xlsx.full.min.js"></script>
+    <script src="common-ui.js?v=20260629-feedback-layer-2"></script>
     <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
     <style>
         /* 全局样式 */
@@ -37,7 +38,7 @@
             transition: width 0.3s ease;
         }
         
-        .sidebar.collapsed {
+        .sidebar.desktop-collapsed {
             width: 80px;
         }
         
@@ -504,7 +505,7 @@
                 transform: translateX(-280px);
             }
             
-            .sidebar.collapsed {
+            .sidebar.mobile-open {
                 transform: translateX(0);
                 width: 100%;
             }
@@ -589,23 +590,11 @@
     <!-- 侧边栏导航组件 -->
     <div id="sidebar-container"></div>
     <script>
-        // 加载侧边栏组件
-        fetch('components/teacher-sidebar-nav.html?v=20260608-theme-4')
-            .then(response => response.text())
-            .then(data => {
-                document.getElementById('sidebar-container').innerHTML = data;
-                // 确保侧边栏组件完全加载后初始化
-                setTimeout(() => {
-                    if (window.initSidebar) {
-                        window.initSidebar();
-                    } else if (typeof initSidebar === 'function') {
-                        initSidebar();
-                    } else {
-                        console.warn('侧边栏初始化函数未定义，跳过初始化');
-                    }
-                }, 100);
-            })
-            .catch(error => console.error('加载侧边栏组件失败:', error));
+        if (window.CommonUI) {
+            window.CommonUI.loadTeacherSidebar('sidebar-container');
+        } else {
+            console.error('CommonUI 未加载，无法初始化教师端侧边栏');
+        }
     </script>
     
     <!-- 主内容区 -->
@@ -1050,6 +1039,29 @@ const TEACHER_DASHBOARD_API_BASE = '/api';
             tableTitle.innerHTML = buildStudentTableTitle(label, uniqueStudentCount, rowCount);
         }
 
+        function renderStudentTableFeedback(state, message) {
+            const tbody = document.getElementById('studentTableBody');
+            if (!tbody) {
+                return;
+            }
+
+            const normalizedState = state === 'loading' ? 'loading' : state === 'error' ? 'error' : 'empty';
+            const isError = normalizedState === 'error';
+            const fallbackMessage = normalizedState === 'loading'
+                ? '正在加载学生数据...'
+                : normalizedState === 'error'
+                    ? '加载失败，请稍后重试'
+                    : '暂无学生数据';
+
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" class="feedback-table-cell ${isError ? 'feedback-table-cell-error' : ''}" data-feedback-state="${normalizedState}">
+                        <span class="feedback-table-text">${message || fallbackMessage}</span>
+                    </td>
+                </tr>
+            `;
+        }
+
         function syncScoreTrendTimeRangeControls(timeRange = 'week') {
             const normalizedTimeRange = String(timeRange || 'week').trim() || 'week';
             const timeRangeSelect = document.getElementById('timeRangeSelect');
@@ -1084,6 +1096,27 @@ const TEACHER_DASHBOARD_API_BASE = '/api';
                     metaElement.textContent = text;
                 }
             });
+        }
+
+        function setDashboardStatFallbackValues(options = {}) {
+            const {
+                studentCount = '--',
+                averageScore = '--',
+                assignmentCompletionRate = '--',
+                learningProgress = '--',
+                learningProgressMeta = '当前筛选下暂无可计算的学习进度'
+            } = options;
+
+            document.getElementById('studentCount').textContent = studentCount;
+            document.getElementById('averageScore').textContent = averageScore;
+            document.getElementById('assignmentCompletionRate').textContent = assignmentCompletionRate;
+            document.getElementById('learningProgress').textContent = learningProgress;
+            applyDashboardStatMetaText();
+
+            const learningProgressMetaElement = document.getElementById('learningProgressMeta');
+            if (learningProgressMetaElement) {
+                learningProgressMetaElement.textContent = learningProgressMeta;
+            }
         }
 
         function findStudentRow(studentId, courseId = '', courseName = '', className = '') {
@@ -1715,7 +1748,7 @@ const TEACHER_DASHBOARD_API_BASE = '/api';
             
             // 无数据时显示占位并重置分页
             if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="text-center">暂无学生数据</td></tr>';
+                renderStudentTableFeedback('empty', '暂无学生数据');
                 totalStudentRows = 0;
                 totalUniqueStudents = 0;
                 totalPages = 1;
@@ -1963,7 +1996,7 @@ const TEACHER_DASHBOARD_API_BASE = '/api';
             const tbody = document.getElementById('studentTableBody');
             
             // 显示加载状态
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center"><i class="fa fa-spinner fa-spin mr-2"></i> 正在加载学生数据...</td></tr>';
+            renderStudentTableFeedback('loading', '正在加载学生数据...');
             
             try {
                 // 读取当前筛选条件
@@ -2031,7 +2064,7 @@ const TEACHER_DASHBOARD_API_BASE = '/api';
                 
                 // 处理无学生数据情况
                 if (!performances || performances.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="9" class="text-center">暂无符合筛选条件的学生</td></tr>';
+                    renderStudentTableFeedback('empty', '暂无符合筛选条件的学生');
                     // 清空当前数据
                     currentStudentData = [];
                     totalStudentRows = 0;
@@ -2066,7 +2099,7 @@ const TEACHER_DASHBOARD_API_BASE = '/api';
                 // 使用全局错误处理函数，添加重试功能
                 handleApiError(error, '加载学生数据', 'loadStudentData');
                 const fallbackMessage = getStudentTableFallbackMessage(error);
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center"><i class="fa fa-exclamation-circle mr-2 text-warning"></i> ${fallbackMessage}</td></tr>`;
+                renderStudentTableFeedback('error', fallbackMessage);
                 totalStudentRows = 0;
                 totalUniqueStudents = 0;
                 totalPages = 1;
@@ -2349,13 +2382,15 @@ const TEACHER_DASHBOARD_API_BASE = '/api';
                     console.log('完整的dashboardData:', dashboardData);
                     
                     // 学生总数
-                    const studentCount = dashboardData.totalStudents || 0;
+                    const studentCount = Number.isFinite(Number(dashboardData.totalStudents))
+                        ? Number(dashboardData.totalStudents)
+                        : null;
                     console.log('学生总数:', studentCount);
-                    document.getElementById('studentCount').textContent = studentCount;
+                    document.getElementById('studentCount').textContent = studentCount ?? '--';
                     applyDashboardStatMetaText();
                     
                     // 平均成绩 - 从averageScores数组计算平均值
-                    let averageScore = 0;
+                    let averageScore = null;
                     if (dashboardData.averageScores && Array.isArray(dashboardData.averageScores) && dashboardData.averageScores.length > 0) {
                         // 检查averageScores数组中的元素类型
                         const validScores = dashboardData.averageScores.filter(score => typeof score === 'number' && !isNaN(score));
@@ -2365,10 +2400,10 @@ const TEACHER_DASHBOARD_API_BASE = '/api';
                         }
                     }
                     console.log('平均成绩:', averageScore);
-                    document.getElementById('averageScore').textContent = averageScore;
+                    document.getElementById('averageScore').textContent = averageScore ?? '--';
                     
                     // 作业完成率 - 从submissionRates数组计算平均值
-                    let assignmentCompletionRate = 0;
+                    let assignmentCompletionRate = null;
                     if (dashboardData.submissionRates && Array.isArray(dashboardData.submissionRates) && dashboardData.submissionRates.length > 0) {
                         // 检查submissionRates数组中的元素类型
                         const validRates = dashboardData.submissionRates.filter(rate => typeof rate === 'number' && !isNaN(rate));
@@ -2379,37 +2414,40 @@ const TEACHER_DASHBOARD_API_BASE = '/api';
                         }
                     }
                     console.log('作业完成率:', assignmentCompletionRate);
-                    document.getElementById('assignmentCompletionRate').textContent = assignmentCompletionRate + '%';
+                    document.getElementById('assignmentCompletionRate').textContent = Number.isFinite(assignmentCompletionRate) ? assignmentCompletionRate + '%' : '--';
                     
                     // 学习进度 - 使用后端返回的真实 overallProgress
                     const overallProgress = Number.isFinite(Number(dashboardData.overallProgress))
                         ? Math.max(0, Math.min(100, Math.round(Number(dashboardData.overallProgress))))
-                        : 0;
+                        : null;
                     console.log('学习进度:', overallProgress);
-                    document.getElementById('learningProgress').textContent = overallProgress + '%';
+                    if (Number.isFinite(overallProgress)) {
+                        document.getElementById('learningProgress').textContent = overallProgress + '%';
+                    } else {
+                        document.getElementById('learningProgress').textContent = '--';
+                    }
+                    if (!Number.isFinite(overallProgress)) {
+                        const learningProgressMetaElement = document.getElementById('learningProgressMeta');
+                        if (learningProgressMetaElement) {
+                            learningProgressMetaElement.textContent = '当前筛选下暂无可计算的学习进度';
+                        }
+                    }
                     
                     // 输出课程名称列表，检查人工智能课程
                     console.log('课程名称列表:', dashboardData.courseNames);
                 } else {
                     console.warn('仪表盘数据为空');
-                    // 显示默认值
-                    document.getElementById('studentCount').textContent = 0;
-                    document.getElementById('averageScore').textContent = 0;
-                    document.getElementById('assignmentCompletionRate').textContent = '0%';
-                    document.getElementById('learningProgress').textContent = '0%';
-                    applyDashboardStatMetaText();
+                    setDashboardStatFallbackValues();
                 }
             } catch (error) {
                 // 使用全局错误处理函数，添加重试功能
                 handleApiError(error, '加载仪表盘数据', '() => initDashboard(\'' + classId + '\', \'' + courseId + '\', \'' + timeRange + '\')');
                 
-                // 确保统计卡片显示默认值
-                console.log('显示默认值');
-                document.getElementById('studentCount').textContent = 0;
-                document.getElementById('averageScore').textContent = 0;
-                document.getElementById('assignmentCompletionRate').textContent = '0%';
-                document.getElementById('learningProgress').textContent = '0%';
-                applyDashboardStatMetaText();
+                // 确保统计卡片显示诚实占位值
+                console.log('显示占位值');
+                setDashboardStatFallbackValues({
+                    learningProgressMeta: '数据暂不可用，请稍后重试'
+                });
             } finally {
                 // 清除加载状态
                 console.log('清除加载状态');
@@ -2484,17 +2522,7 @@ const TEACHER_DASHBOARD_API_BASE = '/api';
 
         // DOM加载完成后执行所有初始化操作
         document.addEventListener('DOMContentLoaded', async function() {
-            // 侧边栏切换功能
-            const toggleBtn = document.getElementById('toggleBtn');
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('mainContent');
-            
-            if (toggleBtn && sidebar && mainContent) {
-                toggleBtn.addEventListener('click', function() {
-                    sidebar.classList.toggle('collapsed');
-                    mainContent.classList.toggle('collapsed');
-                });
-            }
+            CommonUI.bindSidebarToggle('toggleBtn');
             
             // 检查登录状态
             const isLoggedIn = await checkLoginStatus();
@@ -2782,7 +2810,7 @@ const TEACHER_DASHBOARD_API_BASE = '/api';
             const tbody = document.getElementById('studentTableBody');
             
             // 显示加载状态
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center"><i class="fa fa-spinner fa-spin mr-2"></i> 正在加载学生数据...</td></tr>';
+            renderStudentTableFeedback('loading', '正在加载学生数据...');
             
             try {
                 // 读取当前筛选条件
@@ -2854,7 +2882,7 @@ const TEACHER_DASHBOARD_API_BASE = '/api';
                 
                 // 处理无学生数据情况
                 if (filteredStudents.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="9" class="text-center">该分数段（${scoreRange}）暂无学生数据</td></tr>`;
+                    renderStudentTableFeedback('empty', `该分数段（${scoreRange}）暂无学生数据`);
                     updatePaginationUI();
                 } else {
                     // 应用当前排序并渲染分页表格
@@ -2893,7 +2921,7 @@ const TEACHER_DASHBOARD_API_BASE = '/api';
                     tableMessage = '服务器内部错误，请稍后重试';
                 }
                 
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center"><i class="fa fa-exclamation-circle mr-2 text-danger"></i> ${tableMessage}</td></tr>`;
+                renderStudentTableFeedback('error', tableMessage);
                 showNotification(errorMessage, 'danger');
             }
         }

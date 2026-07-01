@@ -21,4 +21,8 @@ public interface NotificationRepository {
     List<NotificationEntity> findAllStudentNotifications(Long studentId, String filter);
 
     int countUnreadByStudentId(Long studentId);
+
+    List<NotificationEntity> findTeacherSentNotifications(Long teacherId, int offset, int limit, String filter);
+
+    long countTeacherSentNotifications(Long teacherId, String filter);
 }

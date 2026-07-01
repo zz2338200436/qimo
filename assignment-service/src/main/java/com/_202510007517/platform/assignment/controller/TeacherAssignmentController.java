@@ -20,7 +20,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -89,7 +92,7 @@ public class TeacherAssignmentController {
                 200);
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseResult<AssignmentDTO> createAssignment(
             @RequestHeader(value = CommonTraceConstants.USER_ID_HEADER, required = false) String userIdHeader,
             @RequestParam(value = "teacherId", required = false) Long teacherId,
@@ -98,7 +101,17 @@ public class TeacherAssignmentController {
                 teacherAssignmentCommandService.createAssignment(resolveTeacherId(userIdHeader, teacherId), request));
     }
 
-    @PutMapping("/{assignmentId}")
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseResult<AssignmentDTO> createAssignmentWithFiles(
+            @RequestHeader(value = CommonTraceConstants.USER_ID_HEADER, required = false) String userIdHeader,
+            @RequestParam(value = "teacherId", required = false) Long teacherId,
+            @RequestPart("payload") @Valid TeacherAssignmentUpsertRequestDTO request,
+            @RequestPart(value = "files", required = false) MultipartFile[] files) {
+        return ResponseResult.created(
+                teacherAssignmentCommandService.createAssignment(resolveTeacherId(userIdHeader, teacherId), request, files));
+    }
+
+    @PutMapping(value = "/{assignmentId}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseResult<AssignmentDTO> updateAssignment(
             @PathVariable Long assignmentId,
             @RequestHeader(value = CommonTraceConstants.USER_ID_HEADER, required = false) String userIdHeader,
@@ -106,6 +119,19 @@ public class TeacherAssignmentController {
             @RequestBody @Valid TeacherAssignmentUpsertRequestDTO request) {
         return ResponseResult.success(
                 teacherAssignmentCommandService.updateAssignment(resolveTeacherId(userIdHeader, teacherId), assignmentId, request),
+                "更新作业成功",
+                200);
+    }
+
+    @PutMapping(value = "/{assignmentId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseResult<AssignmentDTO> updateAssignmentWithFiles(
+            @PathVariable Long assignmentId,
+            @RequestHeader(value = CommonTraceConstants.USER_ID_HEADER, required = false) String userIdHeader,
+            @RequestParam(value = "teacherId", required = false) Long teacherId,
+            @RequestPart("payload") @Valid TeacherAssignmentUpsertRequestDTO request,
+            @RequestPart(value = "files", required = false) MultipartFile[] files) {
+        return ResponseResult.success(
+                teacherAssignmentCommandService.updateAssignment(resolveTeacherId(userIdHeader, teacherId), assignmentId, request, files),
                 "更新作业成功",
                 200);
     }

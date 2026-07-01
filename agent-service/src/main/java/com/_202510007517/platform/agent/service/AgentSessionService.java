@@ -17,26 +17,35 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Service
 public class AgentSessionService {
+    private static final int MAX_CUSTOM_TITLE_LENGTH = 80;
+
     private final AgentSessionRepository sessionRepository;
     private final AgentActionRepository actionRepository;
     private final AgentMessageRepository messageRepository;
     private final AgentDataMaskingPolicy dataMaskingPolicy;
+    private final AgentArtifactService artifactService;
     private final ObjectMapper objectMapper;
 
     public AgentSessionService(AgentSessionRepository sessionRepository,
                                AgentActionRepository actionRepository,
                                AgentMessageRepository messageRepository,
                                AgentDataMaskingPolicy dataMaskingPolicy,
+                               AgentArtifactService artifactService,
                                ObjectMapper objectMapper) {
         this.sessionRepository = sessionRepository;
         this.actionRepository = actionRepository;
         this.messageRepository = messageRepository;
         this.dataMaskingPolicy = dataMaskingPolicy;
+        this.artifactService = artifactService;
         this.objectMapper = objectMapper;
     }
 
@@ -58,12 +67,27 @@ public class AgentSessionService {
         return sessionRepository.save(session);
     }
 
+    @Transactional(readOnly = true)
+    public AgentSessionEntity resolveSessionOwner(Long sessionId) {
+        return sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new IllegalStateException("Agent session not found: " + sessionId));
+    }
+
     public void saveAssistantMessage(Long sessionId, AgentChatResponseDTO response,
                                      RecognizedIntent recognizedIntent) {
-        saveMessage(sessionId, "ASSISTANT", response.getMessage(), Map.of(
-                "responseType", response.getResponseType(),
-                "intent", recognizedIntent.intent().name()
-        ));
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("responseType", response.getResponseType());
+        metadata.put("intent", recognizedIntent.intent().name());
+        if (response.getData() != null) {
+            metadata.put("data", response.getData());
+        }
+        if (response.getActionPreview() != null) {
+            metadata.put("actionPreview", response.getActionPreview());
+        }
+        if (response.getArtifactSummary() != null) {
+            metadata.put("artifactSummary", response.getArtifactSummary());
+        }
+        saveMessage(sessionId, "ASSISTANT", response.getMessage(), metadata);
     }
 
     public void saveMessage(Long sessionId, String role, String content, Map<String, Object> metadata) {
@@ -74,6 +98,18 @@ public class AgentSessionService {
         Map<String, Object> maskedMetadata = dataMaskingPolicy.maskMetadata(metadata);
         message.setMetadataJson(maskedMetadata.isEmpty() ? null : writeJson(maskedMetadata));
         messageRepository.save(message);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AgentMessageDTO> loadRecentMessages(Long sessionId, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+        List<AgentMessageEntity> recentMessages = new ArrayList<>(messageRepository.findRecentBySessionId(sessionId, limit));
+        Collections.reverse(recentMessages);
+        return recentMessages.stream()
+                .map(this::toMessageDto)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -89,7 +125,10 @@ public class AgentSessionService {
     @Transactional(readOnly = true)
     public List<AgentSessionDTO> listSessions(Long userId, String userRole) {
         return sessionRepository.findByUserIdAndUserRoleIgnoreCaseOrderByUpdatedAtDesc(userId, userRole).stream()
-                .map(session -> toSessionDto(session, List.of()))
+                .map(session -> {
+                    List<AgentMessageDTO> recentMessages = loadRecentMessages(session.getId(), 3);
+                    return toSessionDto(session, recentMessages, List.of());
+                })
                 .toList();
     }
 
@@ -104,6 +143,34 @@ public class AgentSessionService {
                 .map(this::toMessageDto)
                 .toList();
         return toSessionDto(session, messages, actions);
+    }
+
+    @Transactional
+    public AgentSessionDTO updateSessionTitle(Long userId, String userRole, Long sessionId, String title) {
+        String normalizedTitle = normalizeCustomTitle(title);
+        AgentSessionEntity session = sessionRepository.findByIdAndUserIdAndUserRoleIgnoreCase(sessionId, userId, userRole)
+                .orElseThrow(() -> new SecurityException("无权修改该 Agent 会话。"));
+        Map<String, SessionArtifact> artifacts = new LinkedHashMap<>(artifactService.loadArtifacts(session));
+        String now = java.time.LocalDateTime.now().toString();
+        artifacts.put(AgentArtifactService.CUSTOM_SESSION_TITLE_KEY, new SessionArtifact(
+                "session_title",
+                AgentArtifactService.CUSTOM_SESSION_TITLE_KEY,
+                Map.of("title", normalizedTitle),
+                now,
+                now
+        ));
+        artifactService.saveArtifacts(session, artifacts);
+        AgentSessionEntity saved = sessionRepository.save(session);
+        return toSessionDto(saved, List.of(), List.of());
+    }
+
+    @Transactional
+    public void deleteSession(Long userId, String userRole, Long sessionId) {
+        AgentSessionEntity session = sessionRepository.findByIdAndUserIdAndUserRoleIgnoreCase(sessionId, userId, userRole)
+                .orElseThrow(() -> new SecurityException("无权删除该 Agent 会话。"));
+        messageRepository.deleteBySessionId(session.getId());
+        actionRepository.deleteBySessionId(session.getId());
+        sessionRepository.delete(session);
     }
 
     private AgentSessionEntity createSession(Long userId, String userRole) {
@@ -157,9 +224,13 @@ public class AgentSessionService {
     private AgentSessionDTO toSessionDto(AgentSessionEntity session, List<AgentMessageDTO> messages,
                                          List<AgentActionDTO> actions) {
         AgentSessionDTO dto = new AgentSessionDTO();
+        Map<String, Object> artifacts = new LinkedHashMap<>(artifactService.summarizeArtifacts(artifactService.loadArtifacts(session)));
         dto.setSessionId(String.valueOf(session.getId()));
         dto.setUserRole(session.getUserRole());
         dto.setStatus(session.getStatus());
+        dto.setArtifacts(artifacts);
+        dto.setTitle(resolveSessionTitle(session, messages, artifacts));
+        dto.setSummary(resolveSessionSummary(session, messages, artifacts));
         dto.setPendingIntent(session.getPendingIntent());
         dto.setPendingSlots(readJsonMap(session.getPendingSlotsJson()));
         dto.setCreatedAt(session.getCreatedAt());
@@ -167,6 +238,94 @@ public class AgentSessionService {
         dto.setMessages(messages);
         dto.setActions(actions);
         return dto;
+    }
+
+    private String resolveSessionTitle(AgentSessionEntity session,
+                                       List<AgentMessageDTO> messages,
+                                       Map<String, Object> artifacts) {
+        Object customTitle = artifacts.get("customTitle");
+        if (customTitle instanceof String custom && !custom.isBlank()) {
+            return custom.trim();
+        }
+        Object latestGeneratedTitle = artifacts.get("latestGeneratedTitle");
+        if (latestGeneratedTitle instanceof String latest && !latest.isBlank()) {
+            return latest;
+        }
+        return messages.stream()
+                .filter(message -> "USER".equalsIgnoreCase(message.getRole()))
+                .map(AgentMessageDTO::getContent)
+                .filter(content -> content != null && !content.isBlank())
+                .map(this::normalizeSnippet)
+                .filter(snippet -> !snippet.isBlank())
+                .max(Comparator.comparingInt(String::length))
+                .orElseGet(() -> fallbackTitle(session.getPendingIntent()));
+    }
+
+    private String resolveSessionSummary(AgentSessionEntity session,
+                                         List<AgentMessageDTO> messages,
+                                         Map<String, Object> artifacts) {
+        Object latestGeneratedTitle = artifacts.get("latestGeneratedTitle");
+        if (latestGeneratedTitle instanceof String latest && !latest.isBlank()) {
+            return "最近内容：" + latest.trim();
+        }
+        Object questionCount = artifacts.get("latestGeneratedQuestionCount");
+        if (questionCount != null) {
+            return "最近生成 " + questionCount + " 道题目，可继续调整难度、题型或解析。";
+        }
+        return messages.stream()
+                .filter(message -> "ASSISTANT".equalsIgnoreCase(message.getRole()))
+                .map(AgentMessageDTO::getContent)
+                .filter(content -> content != null && !content.isBlank())
+                .map(this::normalizeSnippet)
+                .filter(snippet -> !snippet.isBlank())
+                .findFirst()
+                .orElseGet(() -> messages.stream()
+                        .filter(message -> "USER".equalsIgnoreCase(message.getRole()))
+                        .map(AgentMessageDTO::getContent)
+                        .filter(content -> content != null && !content.isBlank())
+                        .map(this::normalizeSnippet)
+                        .filter(snippet -> !snippet.isBlank())
+                        .findFirst()
+                        .orElseGet(() -> fallbackSummary(session.getPendingIntent())));
+    }
+
+    private String normalizeSnippet(String value) {
+        String collapsed = value.replaceAll("\\s+", " ").trim();
+        if (collapsed.length() <= 38) {
+            return collapsed;
+        }
+        return collapsed.substring(0, 38) + "...";
+    }
+
+    private String normalizeCustomTitle(String title) {
+        if (title == null || title.isBlank()) {
+            throw new IllegalArgumentException("会话标题不能为空。");
+        }
+        String normalized = title.replaceAll("\\s+", " ").trim();
+        if (normalized.length() <= MAX_CUSTOM_TITLE_LENGTH) {
+            return normalized;
+        }
+        return normalized.substring(0, MAX_CUSTOM_TITLE_LENGTH);
+    }
+
+    private String fallbackTitle(String pendingIntent) {
+        return switch (pendingIntent == null ? "" : pendingIntent.trim().toUpperCase()) {
+            case "GENERATE_QUESTIONS" -> "课堂练习题会话";
+            case "GENERATE_EXAM" -> "试卷生成会话";
+            case "LEARNING_SUGGESTIONS" -> "学习建议会话";
+            case "QUERY_LEARNING_SUMMARY", "QUERY_EARLY_WARNINGS", "QUERY_KNOWLEDGE_MASTERY" -> "学情分析会话";
+            default -> "教学对话";
+        };
+    }
+
+    private String fallbackSummary(String pendingIntent) {
+        return switch (pendingIntent == null ? "" : pendingIntent.trim().toUpperCase()) {
+            case "GENERATE_QUESTIONS" -> "继续补充题型、难度或知识点要求。";
+            case "GENERATE_EXAM" -> "继续细化课程、分值、时长或题量结构。";
+            case "LEARNING_SUGGESTIONS" -> "继续追问个性化辅导建议与后续安排。";
+            case "QUERY_LEARNING_SUMMARY", "QUERY_EARLY_WARNINGS", "QUERY_KNOWLEDGE_MASTERY" -> "继续查看班级、课程或知识点的学习情况。";
+            default -> "继续追问、改写或整理刚才的教学材料。";
+        };
     }
 
     private String writeJson(Object value) {

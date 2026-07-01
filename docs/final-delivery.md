@@ -34,6 +34,7 @@
 | `analysis-service` | 8086 | 学情分析、趋势、预警、知识点掌握 | `sc_analysis` |
 | `notification-service` | 8087 | 通知、未读数、已读状态 | `sc_notification` |
 | `ai-service` | 8088 | AI 题目、试卷、学习建议生成 | `sc_ai` |
+| `agent-service` | 8092 | 自然语言 Agent 编排、动作预览、确认、审计、流式聊天 | `sc_agent` |
 | `frontend/dist` | 5500 | 前端本地预览（静态资源 + `/api/**` 代理到 Gateway） | 无 |
 
 本轮统一网关烟测使用默认 Gateway 地址 `http://localhost:8080`。`5500` 预览端口由本地轻量前端服务器承载，页面中的 `/api/**` 会转发到 Gateway，因此浏览器冒烟路径与生产部署保持一致。如果本地端口冲突，可通过 `SERVER_PORT=18080` 临时覆盖，并同步调整登录态脚本和烟测脚本的 BaseUrl。
@@ -86,6 +87,11 @@ mvn -T 1 "-DargLine=-Xms64m -Xmx384m -XX:MaxMetaspaceSize=256m -XX:ReservedCodeC
 | 2026-05-23 | `mvn --% -pl gateway -Dtest=FrontendCapabilityEdgeControllerTest test` | `BUILD SUCCESS`，验证 Gateway 侧 `/api/frontend/capabilities` 能力矩阵接口 |
 | 2026-05-23 | `node .\scripts\verify-teacher-jwt-pages.js .\.runtime-logs\teacher-session-polish-fresh.json` | 教师受保护页面 9/9 通过：`teacher-dashboard / courses / assignments / knowledge / warning / student-dashboard / notifications / settings / ai-tools` |
 | 2026-05-23 | `node .\scripts\verify-teacher-browser-crud.js .\.runtime-logs\teacher-session-polish-fresh.json .\.runtime-logs\student-session-polish-fresh.json` | 教师浏览器 CRUD smoke 5/5 通过 |
+| 2026-06-20 | `mvn --% -pl agent-service -am -Dtest=AgentControllerTest,AgentOrchestratorTest -Dsurefire.failIfNoSpecifiedTests=false test` | Agent 控制器与编排定向回归通过：`Tests run: 32, Failures: 0` |
+| 2026-06-20 | `node .\scripts\verify-agent-service-frontend-contract.js` | Agent 前后端契约通过，覆盖 `/api/agent/chat/stream`、前端 SSE 消费和静态资源版本 |
+| 2026-06-21 | `mvn --% -pl agent-service -am -Dtest=DefaultAgentChatStreamingServiceTest -Dsurefire.failIfNoSpecifiedTests=false test` | Agent SSE 首包回归通过，验证 `orchestrator.chat(...)` 完成前已先发出流式起始事件 |
+| 2026-06-21 | `node .\scripts\verify-agent-frontend-browser-smoke-contract.js` | Agent 浏览器 smoke 契约通过，验证脚本已按页面渲染结果取证，不再依赖 `response.text()` 读取 SSE 响应体 |
+| 2026-06-21 | `node .\scripts\verify-agent-frontend-browser-smoke.js` | Agent 浏览器烟测 15/15 通过，覆盖教师/学生流式聊天、动作预览、确认执行、考试提交流程、作业提交流程、通知发送与已读更新 |
 
 说明：当前分支的常规验证使用 `mvn test` 与网关运行时烟测；正式封版前可再跑一次全仓 `mvn clean verify` 作为发布级证明。
 
@@ -220,6 +226,52 @@ powershell -ExecutionPolicy Bypass -File scripts\get-dev-auth-session.ps1 -Role 
   对齐单体静态运行时的能力矩阵接口，避免页面在本地预览链路下因为 404 误判为功能回退。
 - 教师端 smoke 脚本已增加 JWT 临期检查，若登录态过期会优先报“会话过期”，不再混淆成页面故障。
 
+### 4.4 Agent 流式输出交付状态
+
+Agent 聊天链路已新增流式接口：
+
+| 接口 | 返回类型 | 说明 |
+| --- | --- | --- |
+| `POST /api/agent/chat` | `application/json` | 原同步聊天接口，继续作为兼容兜底 |
+| `POST /api/agent/chat/stream` | `text/event-stream` | 新增 SSE 流式聊天接口，经 Gateway 统一暴露 |
+
+SSE 事件约定：
+
+| 事件 | 用途 |
+| --- | --- |
+| `start` | 流式请求已建立并开始处理，用于尽早下发首包 |
+| `session` | 返回或刷新当前 Agent 会话 ID |
+| `delta` | 推送当前回答文本片段 |
+| `result` | 推送最终结构化 `AgentChatResponseDTO`，用于渲染 `TEXT`、`DATA` 或 `ACTION_PREVIEW` |
+| `error` | 推送流式处理失败信息 |
+| `done` | 标记本次流式响应结束 |
+
+前端共享组件 `agent-chat-panel.js` 会优先调用 `/api/agent/chat/stream`。如果流式接口在尚未收到有效数据前不可用，会自动回退到原 `/api/agent/chat`，因此旧环境不会直接阻断教师端 `teacher-ai-tools.html` 或学生端 `student-ai-assistant.html` 的 Agent 使用。`frontend/dist` 与 `major_assignment/src/main/resources/static` 两份静态资源已同步，页面引用版本为 `20260620-agent-stream-1`。
+
+2026-06-21 本轮流式链路最终闭环时，已完成两处关键修复：
+
+- 前端本地代理 [scripts/frontend_dev_server.py](D:/111/Distributed framework technology/JavaCode/majorassignment/scripts/frontend_dev_server.py:1) 不再先 `read()` 完整上游响应再返回浏览器，而是对 `text/event-stream` 逐块转发并显式关闭缓冲。
+- 后端 [DefaultAgentChatStreamingService.java](D:/111/Distributed framework technology/JavaCode/majorassignment/agent-service/src/main/java/com/_202510007517/platform/agent/service/DefaultAgentChatStreamingService.java:1) 在真正执行 `orchestrator.chat(...)` 前先发送 `start` 事件，避免长耗时 LLM 分类/编排阶段把浏览器首包拖到最终结果之后。
+
+本机运行时验证链路为：
+
+- `5500 frontend proxy -> 8080 gateway -> 8092 agent-service`
+- 重新生成 fresh `teacher7` / `student42` JWT 会话
+- 复跑 `node scripts/verify-agent-frontend-browser-smoke.js`
+
+结果：教师和学生 Agent 面板都已按真实流式链路通过浏览器烟测，包含读操作、写预览、确认执行、考试提交、作业提交、通知发送、通知已读更新等关键交付路径。
+
+当前流式实现是可交付的渐进式通道：后端先沿用现有 Agent 编排结果，再通过 SSE 发送 `delta` 与 `result`。这保证前端具备真实流式消费、取消、结果渲染和降级能力；后续如接入真正 token-by-token 模型流，只需要替换 `AgentChatStreamingService` 内部产生 `delta` 的方式，不需要重做前端协议。
+
+本机低内存演示建议：
+
+```powershell
+$env:AGENT_RAG_ENABLED='false'
+java -jar agent-service\target\agent-service-*.jar
+```
+
+原因：当前机器启用 Ollama/RAG 嵌入链路时曾出现 JVM native memory 分配失败。本交付保留 RAG 代码和开关，但低内存本地演示优先关闭 RAG，保证 Agent 工具编排、聊天、动作预览、确认和流式前端链路稳定展示。
+
 ## 5. 本地 Flyway 注意事项
 
 如果本地 MySQL 数据卷来自旧迁移过程，部分 `sc_*` schema 可能已应用过旧版本迁移，启动时会出现 Flyway 校验和不一致或版本顺序不一致。2026-05-21 烟测遇到过以下本地历史状态：
@@ -272,6 +324,7 @@ powershell -ExecutionPolicy Bypass -File scripts\sync-frontend-to-static.ps1 -Ch
 
 | 日期 | 变更人 | 变更内容 |
 | --- | --- | --- |
+| 2026-06-21 | Codex | 补充 Agent 流式输出交付说明，记录 `/api/agent/chat/stream`、`start/session/delta/result/error/done` 事件约定、前端 SSE 优先与同步接口兜底、SSE 代理与首包修复、低内存本机关闭 RAG 演示口径，以及 Agent 定向 Maven / 前端契约 / 浏览器 smoke 最终通过结果 |
 | 2026-05-21 | Codex | 新增最终交付说明，记录启动、账号、端口、烟测结果与 Flyway 本地注意事项 |
 | 2026-05-23 | Codex | 补充学生学习数据页 smoke 覆盖、学生端公共逻辑抽离进展与最新验证记录 |
 | 2026-05-23 | Codex | 补充 Gateway 前端能力矩阵接口、教师端公共逻辑接入与教师 smoke 最新验证记录 |

@@ -15,6 +15,8 @@ $requiredSnippets = @(
     'OLLAMA_LLM_LIBRARY',
     'cpu_avx2',
     'AGENT_RAG_ENABLED',
+    'AGENT_RAG_DOCUMENT_PATH',
+    'docs/rag/system-platform-knowledge.md',
     'OLLAMA_BASE_URL',
     'qwen3-embedding:0.6b',
     'ollamaLogRoot',

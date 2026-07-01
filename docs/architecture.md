@@ -9,7 +9,7 @@ author: 架构组
 
 ## 1. 总体架构概述
 
-目标平台采用“根聚合工程 + 共享 parent-pom + 独立业务服务”的多模块 Maven 结构。当前仓库保留 `major_assignment` 作为过渡期单体，同时新增 `gateway`、`auth-service`、`user-service`、`common`、`*-service-api`、`legacy-adapter` 骨架，为阶段 2 的双路由迁移做准备。
+目标平台采用“根聚合工程 + 共享 parent-pom + Spring Cloud 微服务”的多模块 Maven 结构。当前仓库保留 `major_assignment` 作为过渡期单体，同时新增 `registry-server`、`config-server`、`gateway`、`auth-service`、`user-service`、`course-service`、`assignment-service`、`exam-service`、`analysis-service`、`notification-service`、`ai-service`、`agent-service`、`common`、`*-service-api`、`legacy-adapter` 等模块，用于支撑从单体到 Spring Cloud 架构的渐进迁移。
 
 当前结构约束如下：
 
@@ -21,13 +21,63 @@ author: 架构组
 ## 2. 架构总览图
 
 ```mermaid
-flowchart LR
-    %% TODO: 在后续阶段补全目标架构总览图
-    Client[客户端] --> Gateway[API 网关]
-    Gateway --> Auth[Auth 服务]
-    Gateway --> Services[其他业务微服务]
-    Services --> Registry[注册/配置中心]
+flowchart TB
+    Browser["浏览器 / 前端页面<br/>教师端、学生端、登录页"] --> Gateway["Spring Cloud Gateway<br/>统一入口、JWT 鉴权、路由、限流、熔断"]
+
+    Gateway --> Registry["registry-server<br/>Eureka 服务注册中心"]
+    Gateway --> Config["config-server<br/>Spring Cloud Config 配置中心"]
+
+    Gateway --> Auth["auth-service<br/>认证、Token、登录上下文"]
+    Gateway --> User["user-service<br/>用户、角色、资料"]
+    Gateway --> Course["course-service<br/>课程、班级、知识点"]
+    Gateway --> Assignment["assignment-service<br/>作业、提交、批改"]
+    Gateway --> Exam["exam-service<br/>考试、成绩"]
+    Gateway --> Analysis["analysis-service<br/>趋势、掌握度、预警"]
+    Gateway --> Notification["notification-service<br/>通知、已读状态"]
+    Gateway --> AI["ai-service<br/>题目、试卷、学习建议"]
+    Gateway --> Agent["agent-service<br/>自然语言操作入口"]
+
+    Config --> Auth
+    Config --> User
+    Config --> Course
+    Config --> Assignment
+    Config --> Exam
+    Config --> Analysis
+    Config --> Notification
+    Config --> AI
+    Config --> Agent
+    Config --> Gateway
+
+    Registry --> Auth
+    Registry --> User
+    Registry --> Course
+    Registry --> Assignment
+    Registry --> Exam
+    Registry --> Analysis
+    Registry --> Notification
+    Registry --> AI
+    Registry --> Agent
+    Registry --> Gateway
+
+    Assignment --> MQ["RabbitMQ<br/>Outbox 事件投递"]
+    Exam --> MQ
+    MQ --> Analysis
+    MQ --> Notification
+
+    Auth --> Redis["Redis<br/>验证码、黑名单、限流计数"]
+    Gateway --> Redis
+
+    Auth --> MySQL["MySQL 多 schema<br/>sc_auth / sc_user / sc_course / sc_assignment / sc_exam / sc_analysis / sc_notification / sc_ai"]
+    User --> MySQL
+    Course --> MySQL
+    Assignment --> MySQL
+    Exam --> MySQL
+    Analysis --> MySQL
+    Notification --> MySQL
+    AI --> MySQL
 ```
+
+这张总览图强调的是本项目已经落地的 Spring Cloud 主链路：前端统一通过 `Gateway` 访问后端；`registry-server` 负责服务注册发现；`config-server` 负责集中配置；业务服务按领域拆分；`RabbitMQ` 支撑异步分析与通知；`Redis` 和 `MySQL` 负责缓存与数据持久化。报告、代码与本仓库文档都应围绕这条主线叙述，而不是引入与当前项目实现无关的第三方平台故事。
 
 ## 3. 组件选型
 
@@ -60,7 +110,7 @@ Gateway 统一按 `(clientIp, userId, routeId)` 分桶限流，默认单实例�
 | 核心 | 考试提交：`/api/exams/{id}/submit`；当前切流路径为 `/api/student/exams/{id}/submit` | `student-exam-submit-route` | `POST` | `exam-service` | `replenish-rate=40`, `burst-capacity=80`, `requested-tokens=1`, `Retry-After=1s` | `exam-service-student-submit` | `failure-rate-threshold=30`, `minimum-number-of-calls=20`, `slow-call-duration-threshold=2s` |
 | 常规 | 其他已切流业务接口 | 各业务 routeId | `GET/POST/PUT/DELETE` | 对应业务服务 | `replenish-rate=20`, `burst-capacity=40`, `requested-tokens=1`, `Retry-After=1s` | 默认与服务名或调用名一致 | `failure-rate-threshold=50`, `minimum-number-of-calls=10`, `slow-call-duration-threshold=2s` |
 | 专项 | AI 生成接口 `/api/ai/**` | `ai-route` | `POST` | `ai-service` | `replenish-rate=2`, `burst-capacity=4`, `requested-tokens=1`, `Retry-After=3s` | `ai-service` | 继承默认熔断阈值 |
-| 专项 | Agent 自然语言操作入口 `/api/agent/**` | `agent-route` | `GET/POST/PUT/DELETE` | `agent-service` | `replenish-rate=10`, `burst-capacity=20`, `requested-tokens=1`, `Retry-After=2s` | `agent-service` | 继承默认熔断阈值 |
+| 专项 | Agent 自然语言操作入口 `/api/agent/**` | `agent-route` | `GET/POST/PUT/DELETE/PATCH` | `agent-service` | `replenish-rate=10`, `burst-capacity=20`, `requested-tokens=1`, `Retry-After=2s` | `agent-service` | 继承默认熔断阈值 |
 
 配置来源：
 

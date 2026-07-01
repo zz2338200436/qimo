@@ -7,8 +7,10 @@ import com._202510007517.platform.assignment.api.dto.TeacherAssignmentUpsertRequ
 import com._202510007517.platform.common.web.ResponseResult;
 import com._202510007517.platform.course.api.feign.CourseFeignClient;
 import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -46,7 +48,10 @@ public class AssignmentPublishTool implements AgentTool {
         dto.setIsActive(true);
         dto.setMaxScore(asInteger(request.get("maxScore")));
 
-        ResponseResult<AssignmentDTO> response = assignmentClient.createAssignment(String.valueOf(userId), dto);
+        MultipartFile[] files = AgentAttachmentMultipartSupport.toMultipartFiles(request.get("attachments"));
+        ResponseResult<AssignmentDTO> response = files.length == 0
+                ? assignmentClient.createAssignment(String.valueOf(userId), dto)
+                : assignmentClient.createAssignmentWithFiles(String.valueOf(userId), dto, files);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("status", "EXECUTED");
         result.put("assignment", response.getData());

@@ -1,12 +1,18 @@
 package com._202510007517.platform.agent.service;
 
+import com._202510007517.platform.agent.assistant.AgentAssistantRequest;
+import com._202510007517.platform.agent.assistant.AgentAssistantType;
+import com._202510007517.platform.agent.assistant.AssistantConversationService;
 import com._202510007517.platform.agent.api.dto.AgentActionDTO;
 import com._202510007517.platform.agent.api.dto.AgentChatResponseDTO;
 import com._202510007517.platform.agent.api.dto.AgentExecutionResultDTO;
+import com._202510007517.platform.agent.api.dto.AgentMessageDTO;
 import com._202510007517.platform.agent.api.dto.AgentSessionDTO;
 import com._202510007517.platform.agent.domain.AgentActionEntity;
 import com._202510007517.platform.agent.domain.AgentSessionEntity;
 import com._202510007517.platform.agent.model.AgentIntent;
+import com._202510007517.platform.agent.model.PlannerDecision;
+import com._202510007517.platform.agent.model.PlannerMode;
 import com._202510007517.platform.agent.model.RecognizedIntent;
 import com._202510007517.platform.agent.rag.RagKnowledgeService;
 import com._202510007517.platform.agent.repository.AgentActionRepository;
@@ -18,8 +24,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -45,7 +51,12 @@ public class AgentOrchestrator {
     private final AgentContextEnrichmentService contextEnrichmentService;
     private final AgentSlotRequirementService slotRequirementService;
     private final GeneralChatService generalChatService;
+    private final AssistantConversationService assistantConversationService;
     private final RagKnowledgeService ragKnowledgeService;
+    private final PlannerService plannerService;
+    private final AgentArtifactService artifactService;
+    private final ResponseComposerService responseComposerService;
+    private final PlannerToolCatalog plannerToolCatalog;
     private final ObjectMapper objectMapper;
 
     public AgentOrchestrator(IntentRecognitionService intentRecognitionService,
@@ -62,7 +73,12 @@ public class AgentOrchestrator {
                              AgentContextEnrichmentService contextEnrichmentService,
                              AgentSlotRequirementService slotRequirementService,
                              GeneralChatService generalChatService,
+                             AssistantConversationService assistantConversationService,
                              RagKnowledgeService ragKnowledgeService,
+                             PlannerService plannerService,
+                             AgentArtifactService artifactService,
+                             ResponseComposerService responseComposerService,
+                             PlannerToolCatalog plannerToolCatalog,
                              ObjectMapper objectMapper) {
         this.intentRecognitionService = intentRecognitionService;
         this.actionMapper = actionMapper;
@@ -78,7 +94,12 @@ public class AgentOrchestrator {
         this.contextEnrichmentService = contextEnrichmentService;
         this.slotRequirementService = slotRequirementService;
         this.generalChatService = generalChatService;
+        this.assistantConversationService = assistantConversationService;
         this.ragKnowledgeService = ragKnowledgeService;
+        this.plannerService = plannerService;
+        this.artifactService = artifactService;
+        this.responseComposerService = responseComposerService;
+        this.plannerToolCatalog = plannerToolCatalog;
         this.objectMapper = objectMapper;
     }
 
@@ -92,39 +113,60 @@ public class AgentOrchestrator {
                                      Map<String, Object> pageContext) {
         AgentSessionEntity session = sessionService.resolveSession(userId, userRole, sessionId);
         sessionService.saveMessage(session.getId(), "USER", message, null);
-        RecognizedIntent recognizedIntent = mergePendingContext(session, intentRecognitionService.recognize(message));
-        AgentChatResponseDTO response;
-        if (recognizedIntent.intent() == AgentIntent.UNKNOWN) {
-            clearPendingContext(session);
-            response = textResponse(session, generalChatService.reply(userId, userRole, message));
-            sessionService.saveAssistantMessage(session.getId(), response, recognizedIntent);
-            return response;
-        }
-        permissionPolicy.assertAllowed(userId, userRole, recognizedIntent.intent());
-        if (recognizedIntent.intent() == AgentIntent.QUERY_RAG_KNOWLEDGE) {
-            clearPendingContext(session);
-            response = textResponse(session, ragKnowledgeService.answer(userId, userRole, message));
-            sessionService.saveAssistantMessage(session.getId(), response, recognizedIntent);
-            return response;
-        }
-        recognizedIntent = assignmentDraftService.enrich(recognizedIntent, message, pageContext);
-        recognizedIntent = contextEnrichmentService.enrich(userId, userRole, recognizedIntent);
-        var missingSlots = slotRequirementService.missingSlots(recognizedIntent, message);
-        if (!missingSlots.isEmpty()) {
-            savePendingContext(session, recognizedIntent);
-            response = textResponse(session, slotRequirementService.buildPrompt(recognizedIntent.intent(), missingSlots));
-            sessionService.saveAssistantMessage(session.getId(), response, recognizedIntent);
-            return response;
-        }
-        clearPendingContext(session);
-        if (!confirmationPolicy.requiresConfirmation(recognizedIntent.intent())) {
-            response = dataResponse(session, recognizedIntent.intent(), recognizedIntent.slots(), userId, userRole);
-            saveGeneratedQuestionsForAssignment(session, recognizedIntent.intent(), response.getData());
-            sessionService.saveAssistantMessage(session.getId(), response, recognizedIntent);
-            return response;
-        }
-        response = actionPlanningService.createPreviewResponse(session, recognizedIntent);
-        sessionService.saveAssistantMessage(session.getId(), response, recognizedIntent);
+        List<AgentMessageDTO> recentMessages = sessionService.loadRecentMessages(session.getId(), 10);
+        Map<String, SessionArtifact> artifacts = artifactService.loadArtifacts(session);
+        RagKnowledgeService.Retrieval retrieval = safeRetrieval(userId, userRole, message);
+
+        PlannerDecision decision = plannerService.plan(new PlannerContext(
+                userId,
+                userRole,
+                session,
+                message,
+                recentMessages,
+                artifacts,
+                pageContext == null ? Map.of() : pageContext,
+                retrieval
+        ));
+
+        AgentChatResponseDTO response = switch (decision.mode()) {
+            case ANSWER -> answerResponse(session, userId, userRole, message, decision, retrieval, artifacts);
+            case CLARIFY -> clarificationResponse(session, decision, artifacts, retrieval);
+            case TOOL_CALL -> routeToolDecision(session, userId, userRole, message, pageContext, decision, artifacts, retrieval);
+        };
+
+        sessionService.saveAssistantMessage(session.getId(), response, toRecognizedIntent(decision));
+        return response;
+    }
+
+    @Transactional
+    public AgentChatResponseDTO streamChat(Long userId,
+                                           String userRole,
+                                           com._202510007517.platform.agent.api.dto.AgentChatRequestDTO request,
+                                           AgentStreamingCallback callback) throws Exception {
+        AgentSessionEntity session = sessionService.resolveSession(userId, userRole, request.getSessionId());
+        sessionService.saveMessage(session.getId(), "USER", request.getMessage(), null);
+        List<AgentMessageDTO> recentMessages = sessionService.loadRecentMessages(session.getId(), 10);
+        Map<String, SessionArtifact> artifacts = artifactService.loadArtifacts(session);
+        RagKnowledgeService.Retrieval retrieval = safeRetrieval(userId, userRole, request.getMessage());
+
+        PlannerDecision decision = plannerService.plan(new PlannerContext(
+                userId,
+                userRole,
+                session,
+                request.getMessage(),
+                recentMessages,
+                artifacts,
+                request.getContext() == null ? Map.of() : request.getContext(),
+                retrieval
+        ));
+
+        AgentChatResponseDTO response = switch (decision.mode()) {
+            case ANSWER -> streamAnswerResponse(session, userId, userRole, request.getMessage(), decision, retrieval, artifacts, callback);
+            case CLARIFY -> clarificationResponse(session, decision, artifacts, retrieval);
+            case TOOL_CALL -> streamToolDecision(session, userId, userRole, request.getMessage(), request.getContext(), decision, artifacts, retrieval, callback);
+        };
+
+        sessionService.saveAssistantMessage(session.getId(), response, toRecognizedIntent(decision));
         return response;
     }
 
@@ -157,7 +199,328 @@ public class AgentOrchestrator {
         }
 
         Map<String, Object> request = readRequestSlots(action.getRequestJson());
-        return actionExecutionService.execute(userId, userRole, action, intent, request);
+        AgentExecutionResultDTO result = actionExecutionService.execute(userId, userRole, action, intent, request);
+        persistExecutionArtifacts(action, intent, result);
+        return result;
+    }
+
+    @Transactional
+    public AgentExecutionResultDTO cancel(Long userId, String userRole, Long actionId) {
+        AgentActionEntity action = actionConfirmationService.requireActionForCancellation(userId, userRole, actionId);
+
+        Map<String, Object> result = cancelledResult();
+        if (!STATUS_CANCELLED.equals(action.getStatus())) {
+            action.setStatus(STATUS_CANCELLED);
+            action.setResultJson(writeJson(result));
+            actionRepository.save(action);
+        }
+
+        AgentExecutionResultDTO dto = new AgentExecutionResultDTO();
+        dto.setActionId(action.getId());
+        dto.setIntent(action.getIntent());
+        dto.setStatus(action.getStatus());
+        dto.setMessage("操作已取消。");
+        dto.setResult(result);
+        return dto;
+    }
+
+    @Transactional(readOnly = true)
+    public AgentActionDTO getAction(Long userId, String userRole, Long actionId) {
+        return sessionService.getAction(userId, userRole, actionId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AgentSessionDTO> listSessions(Long userId, String userRole) {
+        return sessionService.listSessions(userId, userRole);
+    }
+
+    @Transactional(readOnly = true)
+    public AgentSessionDTO getSession(Long userId, String userRole, Long sessionId) {
+        return sessionService.getSession(userId, userRole, sessionId);
+    }
+
+    @Transactional
+    public AgentSessionDTO updateSessionTitle(Long userId, String userRole, Long sessionId, String title) {
+        return sessionService.updateSessionTitle(userId, userRole, sessionId, title);
+    }
+
+    @Transactional
+    public void deleteSession(Long userId, String userRole, Long sessionId) {
+        sessionService.deleteSession(userId, userRole, sessionId);
+    }
+
+    private AgentChatResponseDTO routeToolDecision(AgentSessionEntity session,
+                                                   Long userId,
+                                                   String userRole,
+                                                   String message,
+                                                   Map<String, Object> pageContext,
+                                                   PlannerDecision decision,
+                                                   Map<String, SessionArtifact> artifacts,
+                                                   RagKnowledgeService.Retrieval retrieval) {
+        AgentIntent intent;
+        try {
+            intent = plannerToolCatalog.resolve(decision.toolName());
+        } catch (IllegalArgumentException ex) {
+            return legacyFallbackResponse(session, userId, userRole, message, decision, artifacts, retrieval);
+        }
+        if (intent == AgentIntent.QUERY_RAG_KNOWLEDGE) {
+            return knowledgeAnswerResponse(session, userId, userRole, message, decision, artifacts, retrieval);
+        }
+
+        permissionPolicy.assertAllowed(userId, userRole, intent);
+        RecognizedIntent recognizedIntent = toRecognizedIntent(intent, decision, artifacts);
+        recognizedIntent = mergePendingContext(session, recognizedIntent, message);
+        recognizedIntent = assignmentDraftService.enrich(recognizedIntent, message, pageContext == null ? Map.of() : pageContext);
+        recognizedIntent = contextEnrichmentService.enrich(userId, userRole, recognizedIntent);
+        recognizedIntent = contextEnrichmentService.enrichFromSessionArtifacts(session, recognizedIntent);
+        recognizedIntent = mergeAttachmentsFromPageContext(recognizedIntent, pageContext);
+
+        List<String> missingSlots = slotRequirementService.missingSlots(recognizedIntent, message);
+        if (!missingSlots.isEmpty()) {
+            savePendingContext(session, recognizedIntent);
+            AgentChatResponseDTO response = baseResponse(session, "TEXT");
+            response.setMessage(slotRequirementService.buildPrompt(recognizedIntent.intent(), missingSlots));
+            response.setPlannerDecision(decision);
+            response.setArtifactSummary(artifactService.summarizeArtifacts(artifacts));
+            response.setRetrievalStatus(retrievalStatus(retrieval));
+            return response;
+        }
+        clearPendingContext(session);
+
+        if (confirmationPolicy.requiresConfirmation(intent)) {
+            AgentChatResponseDTO preview = actionPlanningService.createPreviewResponse(session, recognizedIntent);
+            preview.setPlannerDecision(decision);
+            preview.setArtifactSummary(artifactService.summarizeArtifacts(artifacts));
+            preview.setRetrievalStatus(retrievalStatus(retrieval));
+            return preview;
+        }
+
+        Map<String, Object> toolResult = toolRegistry.resolve(intent).execute(userId, userRole, recognizedIntent.slots());
+        artifactService.saveToolArtifacts(session, decision.toolName(), toolResult);
+        saveGeneratedQuestionsForAssignment(session, intent, toolResult);
+        sessionService.save(session);
+
+        AgentChatResponseDTO response = baseResponse(session, "DATA");
+        response.setData(toolResult);
+        response.setToolResult(toolResult);
+        response.setPlannerDecision(decision);
+        response.setArtifactSummary(artifactService.summarizeArtifacts(artifactService.loadArtifacts(session)));
+        response.setRetrievalStatus(retrievalStatus(retrieval));
+        response.setMessage(responseComposerService.composeToolReply(decision, toolResult, retrievalResults(retrieval)));
+        return response;
+    }
+
+    private AgentChatResponseDTO streamToolDecision(AgentSessionEntity session,
+                                                    Long userId,
+                                                    String userRole,
+                                                    String message,
+                                                    Map<String, Object> pageContext,
+                                                    PlannerDecision decision,
+                                                    Map<String, SessionArtifact> artifacts,
+                                                    RagKnowledgeService.Retrieval retrieval,
+                                                    AgentStreamingCallback callback) throws Exception {
+        AgentIntent intent;
+        try {
+            intent = plannerToolCatalog.resolve(decision.toolName());
+        } catch (IllegalArgumentException ex) {
+            return streamLegacyFallbackResponse(session, userId, userRole, message, decision, artifacts, retrieval, callback);
+        }
+        if (intent == AgentIntent.QUERY_RAG_KNOWLEDGE) {
+            return streamKnowledgeAnswerResponse(session, userId, userRole, message, decision, artifacts, retrieval, callback);
+        }
+        return routeToolDecision(session, userId, userRole, message, pageContext, decision, artifacts, retrieval);
+    }
+
+    private AgentChatResponseDTO answerResponse(AgentSessionEntity session,
+                                                Long userId,
+                                                String userRole,
+                                                String message,
+                                                PlannerDecision decision,
+                                                RagKnowledgeService.Retrieval retrieval,
+                                                Map<String, SessionArtifact> artifacts) {
+        if ("legacy_unknown".equals(decision.plannerReason())) {
+            return legacyFallbackResponse(session, userId, userRole, message, decision, artifacts, retrieval);
+        }
+        clearPendingContext(session);
+        return directAnswerResponse(session, decision, retrieval, artifacts);
+    }
+
+    private AgentChatResponseDTO streamAnswerResponse(AgentSessionEntity session,
+                                                      Long userId,
+                                                      String userRole,
+                                                      String message,
+                                                      PlannerDecision decision,
+                                                      RagKnowledgeService.Retrieval retrieval,
+                                                      Map<String, SessionArtifact> artifacts,
+                                                      AgentStreamingCallback callback) throws Exception {
+        if ("legacy_unknown".equals(decision.plannerReason())) {
+            return streamLegacyFallbackResponse(session, userId, userRole, message, decision, artifacts, retrieval, callback);
+        }
+        return answerResponse(session, userId, userRole, message, decision, retrieval, artifacts);
+    }
+
+    private AgentChatResponseDTO directAnswerResponse(AgentSessionEntity session,
+                                                      PlannerDecision decision,
+                                                      RagKnowledgeService.Retrieval retrieval,
+                                                      Map<String, SessionArtifact> artifacts) {
+        AgentChatResponseDTO response = baseResponse(session, "TEXT");
+        response.setMessage(responseComposerService.composeDirectAnswer(decision, retrievalResults(retrieval)));
+        response.setPlannerDecision(decision);
+        response.setArtifactSummary(artifactService.summarizeArtifacts(artifacts));
+        response.setRetrievalStatus(retrievalStatus(retrieval));
+        return response;
+    }
+
+    private AgentChatResponseDTO clarificationResponse(AgentSessionEntity session,
+                                                       PlannerDecision decision,
+                                                       Map<String, SessionArtifact> artifacts,
+                                                       RagKnowledgeService.Retrieval retrieval) {
+        AgentChatResponseDTO response = baseResponse(session, "TEXT");
+        response.setMessage(responseComposerService.composeClarification(decision));
+        response.setPlannerDecision(decision);
+        response.setArtifactSummary(artifactService.summarizeArtifacts(artifacts));
+        response.setRetrievalStatus(retrievalStatus(retrieval));
+        return response;
+    }
+
+    private AgentChatResponseDTO legacyFallbackResponse(AgentSessionEntity session,
+                                                        Long userId,
+                                                        String userRole,
+                                                        String message,
+                                                        PlannerDecision decision,
+                                                        Map<String, SessionArtifact> artifacts,
+                                                        RagKnowledgeService.Retrieval retrieval) {
+        clearPendingContext(session);
+        List<AgentMessageDTO> recentMessages = sessionService.loadRecentMessages(session.getId(), 10);
+        String reply = generalChatService.reply(
+                userId,
+                userRole,
+                String.valueOf(session.getId()),
+                message,
+                recentMessages);
+        if (reply == null) {
+            reply = generalChatService.reply(userId, userRole, String.valueOf(session.getId()), message);
+        }
+        AgentChatResponseDTO response = baseResponse(session, "TEXT");
+        response.setMessage(reply);
+        response.setPlannerDecision(decision);
+        response.setArtifactSummary(artifactService.summarizeArtifacts(artifacts));
+        response.setRetrievalStatus(retrievalStatus(retrieval));
+        return response;
+    }
+
+    private AgentChatResponseDTO streamLegacyFallbackResponse(AgentSessionEntity session,
+                                                              Long userId,
+                                                              String userRole,
+                                                              String message,
+                                                              PlannerDecision decision,
+                                                              Map<String, SessionArtifact> artifacts,
+                                                              RagKnowledgeService.Retrieval retrieval,
+                                                              AgentStreamingCallback callback) throws Exception {
+        clearPendingContext(session);
+        List<AgentMessageDTO> recentMessages = sessionService.loadRecentMessages(session.getId(), 10);
+        String reply = generalChatService.replyStream(
+                userId,
+                userRole,
+                String.valueOf(session.getId()),
+                message,
+                recentMessages,
+                callback);
+        if (reply == null) {
+            reply = generalChatService.reply(userId, userRole, String.valueOf(session.getId()), message);
+        }
+        AgentChatResponseDTO response = baseResponse(session, "TEXT");
+        response.setMessage(reply);
+        response.setPlannerDecision(decision);
+        response.setArtifactSummary(artifactService.summarizeArtifacts(artifacts));
+        response.setRetrievalStatus(retrievalStatus(retrieval));
+        return response;
+    }
+
+    private AgentChatResponseDTO knowledgeAnswerResponse(AgentSessionEntity session,
+                                                         Long userId,
+                                                         String userRole,
+                                                         String message,
+                                                         PlannerDecision decision,
+                                                         Map<String, SessionArtifact> artifacts,
+                                                         RagKnowledgeService.Retrieval retrieval) {
+        clearPendingContext(session);
+        String reply = assistantConversationService.reply(
+                AgentAssistantType.KNOWLEDGE,
+                new AgentAssistantRequest(
+                        userId,
+                        userRole,
+                        String.valueOf(session.getId()),
+                        message,
+                        sessionService.loadRecentMessages(session.getId(), 10))
+        );
+        AgentChatResponseDTO response = baseResponse(session, "TEXT");
+        response.setMessage(reply);
+        response.setPlannerDecision(decision);
+        response.setArtifactSummary(artifactService.summarizeArtifacts(artifacts));
+        response.setRetrievalStatus(retrievalStatus(retrieval));
+        return response;
+    }
+
+    private AgentChatResponseDTO streamKnowledgeAnswerResponse(AgentSessionEntity session,
+                                                               Long userId,
+                                                               String userRole,
+                                                               String message,
+                                                               PlannerDecision decision,
+                                                               Map<String, SessionArtifact> artifacts,
+                                                               RagKnowledgeService.Retrieval retrieval,
+                                                               AgentStreamingCallback callback) throws Exception {
+        clearPendingContext(session);
+        String reply = assistantConversationService.replyStream(
+                AgentAssistantType.KNOWLEDGE,
+                new AgentAssistantRequest(
+                        userId,
+                        userRole,
+                        String.valueOf(session.getId()),
+                        message,
+                        sessionService.loadRecentMessages(session.getId(), 10)),
+                callback
+        );
+        AgentChatResponseDTO response = baseResponse(session, "TEXT");
+        response.setMessage(reply);
+        response.setPlannerDecision(decision);
+        response.setArtifactSummary(artifactService.summarizeArtifacts(artifacts));
+        response.setRetrievalStatus(retrievalStatus(retrieval));
+        return response;
+    }
+
+    private RecognizedIntent toRecognizedIntent(AgentIntent intent,
+                                                PlannerDecision decision,
+                                                Map<String, SessionArtifact> artifacts) {
+        Map<String, Object> slots = new LinkedHashMap<>();
+        if (decision.arguments() != null) {
+            slots.putAll(decision.arguments());
+        }
+        if (decision.artifactRef() != null && artifacts.containsKey(decision.artifactRef())) {
+            SessionArtifact artifact = artifacts.get(decision.artifactRef());
+            if (artifact.payload() != null) {
+                artifact.payload().forEach(slots::putIfAbsent);
+            }
+        }
+        return new RecognizedIntent(intent, 0.95, slots);
+    }
+
+    private RecognizedIntent toRecognizedIntent(PlannerDecision decision) {
+        if (decision.mode() != PlannerMode.TOOL_CALL) {
+            return new RecognizedIntent(AgentIntent.UNKNOWN, 0.0, Map.of());
+        }
+        try {
+            return new RecognizedIntent(plannerToolCatalog.resolve(decision.toolName()), 0.95, decision.arguments());
+        } catch (IllegalArgumentException ex) {
+            return new RecognizedIntent(AgentIntent.UNKNOWN, 0.0, Map.of());
+        }
+    }
+
+    private AgentChatResponseDTO baseResponse(AgentSessionEntity session, String responseType) {
+        AgentChatResponseDTO response = new AgentChatResponseDTO();
+        response.setSessionId(String.valueOf(session.getId()));
+        response.setResponseType(responseType);
+        return response;
     }
 
     private AgentExecutionResultDTO enterSecondConfirmationStage(AgentActionEntity action) {
@@ -210,26 +573,6 @@ public class AgentOrchestrator {
         }
     }
 
-    @Transactional
-    public AgentExecutionResultDTO cancel(Long userId, String userRole, Long actionId) {
-        AgentActionEntity action = actionConfirmationService.requireActionForCancellation(userId, userRole, actionId);
-
-        Map<String, Object> result = cancelledResult();
-        if (!STATUS_CANCELLED.equals(action.getStatus())) {
-            action.setStatus(STATUS_CANCELLED);
-            action.setResultJson(writeJson(result));
-            actionRepository.save(action);
-        }
-
-        AgentExecutionResultDTO dto = new AgentExecutionResultDTO();
-        dto.setActionId(action.getId());
-        dto.setIntent(action.getIntent());
-        dto.setStatus(action.getStatus());
-        dto.setMessage("操作已取消。");
-        dto.setResult(result);
-        return dto;
-    }
-
     private Map<String, Object> cancelledResult() {
         return Map.of("status", STATUS_CANCELLED, "message", "操作已取消。");
     }
@@ -245,32 +588,22 @@ public class AgentOrchestrator {
         return dto;
     }
 
-    @Transactional(readOnly = true)
-    public AgentActionDTO getAction(Long userId, String userRole, Long actionId) {
-        return sessionService.getAction(userId, userRole, actionId);
-    }
-
-    @Transactional(readOnly = true)
-    public List<AgentSessionDTO> listSessions(Long userId, String userRole) {
-        return sessionService.listSessions(userId, userRole);
-    }
-
-    @Transactional(readOnly = true)
-    public AgentSessionDTO getSession(Long userId, String userRole, Long sessionId) {
-        return sessionService.getSession(userId, userRole, sessionId);
-    }
-
-    private RecognizedIntent mergePendingContext(AgentSessionEntity session, RecognizedIntent current) {
-        if (session.getPendingIntent() == null || session.getPendingIntent().isBlank()) {
-            return current;
+    private RagKnowledgeService.Retrieval safeRetrieval(Long userId, String userRole, String message) {
+        RagKnowledgeService.Retrieval retrieval = ragKnowledgeService.retrieve(userId, userRole, message);
+        if (retrieval != null) {
+            return retrieval;
         }
-        AgentIntent pendingIntent = AgentIntent.valueOf(session.getPendingIntent());
-        if (current.intent() != AgentIntent.UNKNOWN && current.intent() != pendingIntent) {
-            return current;
-        }
-        Map<String, Object> slots = new LinkedHashMap<>(readPendingSlots(session.getPendingSlotsJson()));
-        slots.putAll(current.slots());
-        return new RecognizedIntent(pendingIntent, Math.max(current.confidence(), 0.8), slots, current.missingSlots());
+        return new RagKnowledgeService.Retrieval(List.of(), RagKnowledgeService.RetrievalStatus.DISABLED);
+    }
+
+    private String retrievalStatus(RagKnowledgeService.Retrieval retrieval) {
+        return retrieval == null || retrieval.status() == null
+                ? RagKnowledgeService.RetrievalStatus.DISABLED.name()
+                : retrieval.status().name();
+    }
+
+    private List<?> retrievalResults(RagKnowledgeService.Retrieval retrieval) {
+        return retrieval == null || retrieval.results() == null ? List.of() : retrieval.results();
     }
 
     private void savePendingContext(AgentSessionEntity session, RecognizedIntent recognizedIntent) {
@@ -305,6 +638,7 @@ public class AgentOrchestrator {
             return;
         }
         Map<String, Object> pendingSlots = new LinkedHashMap<>();
+        pendingSlots.put("selectionMode", AgentAssignmentDraftService.GENERATED_QUESTIONS);
         Object topic = source.get("topic");
         if (topic != null && !String.valueOf(topic).isBlank()) {
             pendingSlots.put("title", String.valueOf(topic) + "课堂练习");
@@ -332,42 +666,11 @@ public class AgentOrchestrator {
         return builder.toString();
     }
 
-    private AgentChatResponseDTO textResponse(AgentSessionEntity session, String message) {
-        AgentChatResponseDTO response = new AgentChatResponseDTO();
-        response.setSessionId(String.valueOf(session.getId()));
-        response.setResponseType("TEXT");
-        response.setMessage(message);
-        return response;
-    }
-
-    private AgentChatResponseDTO dataResponse(AgentSessionEntity session, AgentIntent intent, Map<String, Object> slots,
-                                              Long userId, String userRole) {
-        Map<String, Object> result = toolRegistry.resolve(intent).execute(userId, userRole, slots);
-        AgentChatResponseDTO response = new AgentChatResponseDTO();
-        response.setSessionId(String.valueOf(session.getId()));
-        response.setResponseType("DATA");
-        response.setMessage("查询完成。");
-        response.setData(result);
-        return response;
-    }
-
     private String writeJson(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to serialize agent action payload.", ex);
-        }
-    }
-
-    private Map<String, Object> readPendingSlots(String pendingSlotsJson) {
-        if (pendingSlotsJson == null || pendingSlotsJson.isBlank()) {
-            return Map.of();
-        }
-        try {
-            return objectMapper.readValue(pendingSlotsJson, new TypeReference<>() {
-            });
-        } catch (JsonProcessingException ex) {
-            return Map.of();
         }
     }
 
@@ -380,6 +683,18 @@ public class AgentOrchestrator {
             });
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to parse agent action payload.", ex);
+        }
+    }
+
+    private Map<String, Object> readPendingSlots(String pendingSlotsJson) {
+        if (pendingSlotsJson == null || pendingSlotsJson.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(pendingSlotsJson, new TypeReference<>() {
+            });
+        } catch (JsonProcessingException ex) {
+            return Map.of();
         }
     }
 
@@ -398,4 +713,61 @@ public class AgentOrchestrator {
         }
     }
 
+    private RecognizedIntent mergePendingContext(AgentSessionEntity session, RecognizedIntent current, String message) {
+        if (session.getPendingIntent() == null || session.getPendingIntent().isBlank()) {
+            return current;
+        }
+        if (current.intent() == AgentIntent.UNKNOWN && isLikelySmallTalk(message)) {
+            return current;
+        }
+        AgentIntent pendingIntent = AgentIntent.valueOf(session.getPendingIntent());
+        if (current.intent() != AgentIntent.UNKNOWN && current.intent() != pendingIntent) {
+            return current;
+        }
+        Map<String, Object> slots = new LinkedHashMap<>(readPendingSlots(session.getPendingSlotsJson()));
+        if (current.slots() != null) {
+            current.slots().forEach((key, value) -> {
+                if (value != null) {
+                    slots.put(key, value);
+                }
+            });
+        }
+        return new RecognizedIntent(pendingIntent, Math.max(current.confidence(), 0.8), slots, current.missingSlots());
+    }
+
+    private boolean isLikelySmallTalk(String message) {
+        if (message == null) {
+            return false;
+        }
+        String normalized = message.trim().toLowerCase();
+        return normalized.equals("hi")
+                || normalized.equals("hello")
+                || normalized.equals("你好")
+                || normalized.equals("您好")
+                || normalized.equals("你是谁")
+                || normalized.equals("你是什么模型");
+    }
+
+    private RecognizedIntent mergeAttachmentsFromPageContext(RecognizedIntent intent, Map<String, Object> pageContext) {
+        if (pageContext == null
+                || (intent.intent() != AgentIntent.PUBLISH_ASSIGNMENT && intent.intent() != AgentIntent.PUBLISH_EXAM)) {
+            return intent;
+        }
+        Object attachments = pageContext.get("attachments");
+        if (!(attachments instanceof List<?> attachmentList) || attachmentList.isEmpty()) {
+            return intent;
+        }
+        Map<String, Object> slots = new LinkedHashMap<>(intent.slots());
+        slots.put("attachments", attachmentList);
+        return new RecognizedIntent(intent.intent(), intent.confidence(), slots, intent.missingSlots());
+    }
+
+    private void persistExecutionArtifacts(AgentActionEntity action, AgentIntent intent, AgentExecutionResultDTO result) {
+        if (result == null || result.getResult() == null || !"EXECUTED".equals(result.getStatus())) {
+            return;
+        }
+        AgentSessionEntity session = sessionService.resolveSessionOwner(action.getSessionId());
+        artifactService.saveToolArtifacts(session, plannerToolCatalog.reverseResolve(intent), result.getResult());
+        sessionService.save(session);
+    }
 }

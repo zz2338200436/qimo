@@ -35,4 +35,14 @@ class QuestionBankDocumentLoaderTest {
         assertThat(documents).hasSize(1);
         assertThat(documents.get(0).title()).isEqualTo("Java基础题库");
     }
+
+    @Test
+    void resolvesRelativeDocsPathFromRepositoryRootStyleConfiguration() {
+        QuestionBankDocumentLoader loader = new QuestionBankDocumentLoader();
+
+        List<QuestionBankDocument> documents = loader.load(List.of("../docs/question-bank/java/java-basic-sample.md"));
+
+        assertThat(documents).hasSize(1);
+        assertThat(documents.get(0).title()).isEqualTo("Java基础中等题库样例");
+    }
 }

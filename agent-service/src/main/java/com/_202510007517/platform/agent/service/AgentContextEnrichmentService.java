@@ -1,5 +1,6 @@
 package com._202510007517.platform.agent.service;
 
+import com._202510007517.platform.agent.domain.AgentSessionEntity;
 import com._202510007517.platform.agent.model.AgentIntent;
 import com._202510007517.platform.agent.model.RecognizedIntent;
 import com._202510007517.platform.assignment.api.dto.AssignmentStudentScoreDTO;
@@ -25,19 +26,47 @@ public class AgentContextEnrichmentService {
     private final CourseFeignClient courseClient;
     private final AssignmentFeignClient assignmentClient;
     private final ExamFeignClient examClient;
+    private final AgentArtifactService artifactService;
 
     public AgentContextEnrichmentService(CourseFeignClient courseClient,
                                          AssignmentFeignClient assignmentClient,
-                                         ExamFeignClient examClient) {
+                                         ExamFeignClient examClient,
+                                         AgentArtifactService artifactService) {
         this.courseClient = courseClient;
         this.assignmentClient = assignmentClient;
         this.examClient = examClient;
+        this.artifactService = artifactService;
     }
 
     public RecognizedIntent enrich(Long userId, String userRole, RecognizedIntent recognizedIntent) {
         recognizedIntent = enrichAssignmentContext(userId, userRole, recognizedIntent);
         recognizedIntent = enrichExamContext(userId, userRole, recognizedIntent);
         return enrichCourseContext(userId, userRole, recognizedIntent);
+    }
+
+    public RecognizedIntent enrichFromSessionArtifacts(AgentSessionEntity session, RecognizedIntent recognizedIntent) {
+        if (session == null) {
+            return recognizedIntent;
+        }
+        return switch (recognizedIntent.intent()) {
+            case QUERY_ASSIGNMENT_DETAIL, QUERY_ASSIGNMENT_SUBMISSIONS ->
+                    enrichFromEntityArtifact(recognizedIntent,
+                            artifactService.loadArtifacts(session).get("latest_published_assignment"),
+                            "assignmentId", "title", "resolvedAssignmentTitle", "courseId", "courseId");
+            case QUERY_EXAM_DETAIL, QUERY_EXAM_SUBMISSIONS ->
+                    enrichFromEntityArtifact(recognizedIntent,
+                            artifactService.loadArtifacts(session).get("latest_published_exam"),
+                            "examId", "title", "resolvedExamTitle", "courseId", "courseId");
+            case QUERY_COURSE_DETAIL ->
+                    enrichFromEntityArtifact(recognizedIntent,
+                            artifactService.loadArtifacts(session).get("latest_created_course"),
+                            "courseId", "courseName", "resolvedCourseName", null, null);
+            case QUERY_CLASS_DETAIL ->
+                    enrichFromEntityArtifact(recognizedIntent,
+                            artifactService.loadArtifacts(session).get("latest_created_class"),
+                            "classId", "className", "resolvedClassName", null, null);
+            default -> recognizedIntent;
+        };
     }
 
     private RecognizedIntent enrichCourseContext(Long userId, String userRole, RecognizedIntent recognizedIntent) {
@@ -47,6 +76,17 @@ public class AgentContextEnrichmentService {
         Map<String, Object> slots = recognizedIntent.slots();
         if (hasValue(slots.get("courseId"))) {
             return recognizedIntent;
+        }
+
+        if (recognizedIntent.intent() == AgentIntent.PUBLISH_ASSIGNMENT
+                && shouldSelectFirstAvailableClassForTest(slots)) {
+            return resolveFirstAvailableCourseAssignment(userId, recognizedIntent);
+        }
+
+        if (recognizedIntent.intent() == AgentIntent.PUBLISH_ASSIGNMENT
+                && hasValue(slots.get("className"))
+                && !hasValue(slots.get("courseName"))) {
+            return resolveCourseFromClassName(userId, recognizedIntent);
         }
 
         if (recognizedIntent.intent() == AgentIntent.QUERY_COURSE_DETAIL && !hasValue(slots.get("courseName"))) {
@@ -67,6 +107,42 @@ public class AgentContextEnrichmentService {
         List<CourseDTO> matches = findCourseMatches(userId, courseName, semester, className);
         if (matches.size() == 1) {
             return withResolvedCourse(recognizedIntent, matches.get(0));
+        }
+        if (matches.isEmpty()) {
+            return withMissingSlot(recognizedIntent, "可识别课程");
+        }
+        return withMissingSlot(recognizedIntent, "更明确的课程");
+    }
+
+    private boolean shouldSelectFirstAvailableClassForTest(Map<String, Object> slots) {
+        if (!AgentAssignmentDraftService.FIRST_AVAILABLE_CLASS_FOR_TEST.equals(String.valueOf(slots.get("targetSelectionMode")))) {
+            return false;
+        }
+        return !hasValue(slots.get("courseName"))
+                && !hasValue(slots.get("classId"))
+                && !hasValue(slots.get("className"));
+    }
+
+    private RecognizedIntent resolveFirstAvailableCourseAssignment(Long teacherId, RecognizedIntent recognizedIntent) {
+        List<CourseAssignmentDTO> assignments = safeList(courseClient.listCourseAssignments(teacherId, null, null)).stream()
+                .filter(assignment -> hasValue(assignment.getCourseId()))
+                .toList();
+        if (assignments.isEmpty()) {
+            return withMissingSlot(recognizedIntent, "课程或班级");
+        }
+        return withResolvedCourseAssignment(recognizedIntent, assignments.get(0));
+    }
+
+    private RecognizedIntent resolveCourseFromClassName(Long teacherId, RecognizedIntent recognizedIntent) {
+        Map<String, Object> slots = recognizedIntent.slots();
+        String className = String.valueOf(slots.get("className"));
+        String semester = asStringOrNull(slots.get("semester"));
+        List<CourseAssignmentDTO> matches = safeList(courseClient.listCourseAssignments(teacherId, null, null)).stream()
+                .filter(assignment -> matches(normalize(className), assignment.getClassName()))
+                .filter(assignment -> !hasValue(semester) || matches(normalize(semester), assignment.getSemester()))
+                .toList();
+        if (matches.size() == 1) {
+            return withResolvedCourseAssignment(recognizedIntent, matches.get(0));
         }
         if (matches.isEmpty()) {
             return withMissingSlot(recognizedIntent, "可识别课程");
@@ -250,6 +326,24 @@ public class AgentContextEnrichmentService {
                 enrichedSlots, recognizedIntent.missingSlots());
     }
 
+    private RecognizedIntent withResolvedCourseAssignment(RecognizedIntent recognizedIntent,
+                                                          CourseAssignmentDTO assignment) {
+        Map<String, Object> enrichedSlots = new LinkedHashMap<>(recognizedIntent.slots());
+        enrichedSlots.put("courseId", assignment.getCourseId());
+        if (hasValue(assignment.getClassId())) {
+            enrichedSlots.put("classId", assignment.getClassId());
+        }
+        if (hasValue(assignment.getCourseName())) {
+            enrichedSlots.put("resolvedCourseName", assignment.getCourseName());
+        }
+        if (hasValue(assignment.getClassName())) {
+            enrichedSlots.put("className", assignment.getClassName());
+            enrichedSlots.put("resolvedClassName", assignment.getClassName());
+        }
+        return new RecognizedIntent(recognizedIntent.intent(), recognizedIntent.confidence(),
+                enrichedSlots, recognizedIntent.missingSlots());
+    }
+
     private boolean needsCourseResolution(AgentIntent intent) {
         return switch (intent) {
             case PUBLISH_ASSIGNMENT, UPDATE_ASSIGNMENT, PUBLISH_EXAM, UPDATE_EXAM, QUERY_COURSE_DETAIL,
@@ -281,6 +375,40 @@ public class AgentContextEnrichmentService {
             return null;
         }
         return String.valueOf(value);
+    }
+
+    private RecognizedIntent enrichFromEntityArtifact(RecognizedIntent recognizedIntent,
+                                                      SessionArtifact artifact,
+                                                      String idKey,
+                                                      String sourceTitleKey,
+                                                      String targetTitleKey,
+                                                      String secondarySourceKey,
+                                                      String secondaryTargetKey) {
+        if (artifact == null || artifact.payload() == null || hasValue(recognizedIntent.slots().get(idKey))) {
+            return recognizedIntent;
+        }
+        Object id = artifact.payload().get(idKey);
+        if (!hasValue(id)) {
+            return recognizedIntent;
+        }
+        Map<String, Object> enrichedSlots = new LinkedHashMap<>(recognizedIntent.slots());
+        enrichedSlots.put(idKey, asLongOrNull(id));
+        copyIfPresent(enrichedSlots, artifact.payload(), sourceTitleKey, targetTitleKey);
+        if (secondarySourceKey != null && secondaryTargetKey != null) {
+            Object secondary = artifact.payload().get(secondarySourceKey);
+            if (hasValue(secondary)) {
+                enrichedSlots.put(secondaryTargetKey, asLongOrNull(secondary));
+            }
+        }
+        return new RecognizedIntent(recognizedIntent.intent(), recognizedIntent.confidence(),
+                enrichedSlots, recognizedIntent.missingSlots());
+    }
+
+    private void copyIfPresent(Map<String, Object> target, Map<String, Object> source, String sourceKey, String targetKey) {
+        Object value = source.get(sourceKey);
+        if (hasValue(value)) {
+            target.put(targetKey, value);
+        }
     }
 
     private <T> List<T> safeList(List<T> values) {

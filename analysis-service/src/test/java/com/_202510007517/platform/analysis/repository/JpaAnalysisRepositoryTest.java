@@ -187,7 +187,8 @@ class JpaAnalysisRepositoryTest {
                 .containsEntry("pendingAssignments", 0)
                 .containsEntry("pendingExams", 0)
                 .containsEntry("missingSubmissions", 0)
-                .containsEntry("warningCount", 0);
+                .containsEntry("warningCount", 0)
+                .containsEntry("overallProgress", 75.0);
         assertThat((List<String>) dashboard.get("courseNames")).containsExactly("课程 2");
         assertThat((List<Double>) dashboard.get("averageScores")).containsExactly(85.0);
         assertThat((List<Map<String, Object>>) dashboard.get("recentActivities"))

@@ -11,6 +11,7 @@
     <link href="lib/font-awesome.min.css" rel="stylesheet">
     <!-- Chart.js -->
     <script src="lib/chart.umd.min.js"></script>
+    <script src="common-ui.js?v=20260629-feedback-layer-2"></script>
     <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
     <style>
         /* 全局样式 */
@@ -33,7 +34,7 @@
             z-index: 1000;
         }
         
-        .sidebar.collapsed {
+        .sidebar.desktop-collapsed {
             width: 80px;
         }
         
@@ -96,7 +97,7 @@
             transition: opacity 0.3s ease;
         }
         
-        .sidebar.collapsed .menu-item span {
+        .sidebar.desktop-collapsed .menu-item span {
             opacity: 0;
         }
         
@@ -498,7 +499,7 @@
                 transform: translateX(-250px);
             }
             
-            #sidebar.collapsed {
+            #sidebar.mobile-open {
                 transform: translateX(0);
                 width: 100%;
             }
@@ -649,6 +650,38 @@
             white-space: nowrap;
         }
 
+        .teacher-workspace-guide {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            display: grid;
+            gap: 8px;
+            margin-bottom: 18px;
+            padding: 16px 18px;
+        }
+
+        .teacher-workspace-guide strong,
+        .teacher-section-label {
+            color: #0f172a;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .teacher-workspace-guide p,
+        .teacher-section-label span {
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        .teacher-section-label {
+            align-items: center;
+            display: flex;
+            justify-content: space-between;
+            margin: 0 0 10px;
+        }
+
         @media (max-width: 1200px) {
             .knowledge-card-body {
                 grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -689,28 +722,11 @@
     <!-- 侧边栏导航组件 -->
     <div id="sidebar-container"></div>
     <script>
-        // 加载侧边栏组件
-        fetch('components/teacher-sidebar-nav.html?v=20260608-theme-4')
-            .then(response => response.text())
-            .then(data => {
-                document.getElementById('sidebar-container').innerHTML = data;
-                // 确保侧边栏组件完全加载后初始化
-                setTimeout(() => {
-                    try {
-                        if (window.initSidebar) {
-                            window.initSidebar();
-                        } else {
-                            // 尝试直接调用，可能脚本已经内联执行
-                            if (typeof initSidebar === 'function') {
-                                initSidebar();
-                            }
-                        }
-                    } catch (error) {
-                        console.error('初始化侧边栏失败:', error);
-                    }
-                }, 100);
-            })
-            .catch(error => console.error('加载侧边栏组件失败:', error));
+        if (window.CommonUI) {
+            window.CommonUI.loadTeacherSidebar('sidebar-container');
+        } else {
+            console.error('CommonUI 未加载，无法初始化教师端侧边栏');
+        }
     </script>
     
     <!-- 主内容区 -->
@@ -727,6 +743,15 @@
         
         <!-- 内容区域 -->
         <div class="content-container teacher-content">
+            <section class="teacher-workspace-guide" aria-label="知识点分析页操作顺序">
+                <strong>先筛选教学范围，再查看统计和薄弱项。</strong>
+                <p>筛选区控制分析口径，统计卡和列表只展示当前范围内的掌握情况。</p>
+            </section>
+
+            <div class="teacher-section-label">
+                <strong>筛选条件</strong>
+                <span>按班级、课程、学生和知识点收窄分析范围。</span>
+            </div>
             <!-- 筛选区域 -->
             <div class="filter-section" id="filterSection">
                 <div class="filter-header" id="filterHeader">
@@ -773,6 +798,10 @@
                 </div>
             </div>
             
+            <div class="teacher-section-label">
+                <strong>分析数据区</strong>
+                <span>查看当前筛选范围内的统计概览和薄弱知识点。</span>
+            </div>
             <!-- 统计卡片 -->
             <div class="stats-cards">
                 <div class="stat-card">
@@ -1197,16 +1226,8 @@
         }
 
         function initializeTeacherKnowledgeChrome() {
-            const toggleBtn = document.querySelector('.toggle-btn');
-            if (toggleBtn) {
-                toggleBtn.addEventListener('click', function() {
-                    const sidebar = document.getElementById('sidebar');
-                    const mainContent = document.getElementById('mainContent');
-                    if (sidebar && mainContent) {
-                        sidebar.classList.toggle('collapsed');
-                        mainContent.classList.toggle('collapsed');
-                    }
-                });
+            if (window.CommonUI) {
+                window.CommonUI.bindSidebarToggle('toggleBtn');
             }
         }
 
@@ -2406,6 +2427,10 @@
     
     // 显示错误信息
     function showError(message) {
+        if (window.CommonUI) {
+            window.CommonUI.showToast(message, 'error');
+            return;
+        }
         // 创建错误信息元素
         const errorElement = document.createElement('div');
         errorElement.className = 'alert alert-danger alert-dismissible fade show position-fixed top-50 start-50 translate-middle z-50';
@@ -2448,6 +2473,13 @@
     function showEmptyState(containerSelector, message) {
         const container = document.querySelector(containerSelector);
         if (container) {
+            if (window.CommonUI) {
+                window.CommonUI.renderEmptyState(container, {
+                    title: '暂无知识点数据',
+                    description: message || '当前没有可显示的知识点内容。'
+                });
+                return;
+            }
             container.innerHTML = `
                 <div class="text-center text-muted py-5">
                     <i class="fa fa-info-circle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
@@ -2617,14 +2649,14 @@
         
         // 确保数据存在且格式正确
         if (!knowledgeData || !knowledgeData.knowledgePointDistribution) {
-            knowledgeList.innerHTML = '<p class="text-center text-muted py-4">暂无知识点数据</p>';
+            showEmptyState('.knowledge-list', '暂无知识点数据');
             return;
         }
         
         const knowledgePoints = knowledgeData.knowledgePointDistribution;
         
         if (knowledgePoints.length === 0) {
-            knowledgeList.innerHTML = '<p class="text-center text-muted py-4">暂无知识点数据</p>';
+            showEmptyState('.knowledge-list', '暂无知识点数据');
             return;
         }
         
@@ -2653,6 +2685,7 @@
         
         // 获取待改进学生数
         const atRiskStudentCount = getAtRiskStudentsCount(point, knowledgeData);
+        const difficultyLabel = getKnowledgeDifficultyLabel(point.difficulty);
         
         // 设置卡片内容
         card.innerHTML = `
@@ -2669,7 +2702,7 @@
                     <div class="rating">${getRatingStars(masteryRate)}</div>
                 </div>
                 <div class="knowledge-card-meta">
-                    <p><strong>难度级别：</strong>${point.difficulty || '未知'}</p>
+                    <p><strong>难度级别：</strong>${difficultyLabel}</p>
                     <p><strong>排序索引：</strong>${point.orderIndex || 0}</p>
                 </div>
                 <div class="knowledge-card-risk">
@@ -2721,6 +2754,27 @@
         } else {
             return { level: 'poor', levelText: '较差', color: 'danger' };
         }
+    }
+
+    function getKnowledgeDifficultyLabel(difficulty) {
+        const normalized = String(difficulty || '').trim().toLowerCase();
+        const labelMap = {
+            easy: '基础',
+            medium: '中等',
+            hard: '较难',
+            beginner: '基础',
+            intermediate: '中等',
+            advanced: '较难',
+            low: '基础',
+            high: '较难',
+            '初级': '基础',
+            '中级': '中等',
+            '高级': '较难',
+            '基础': '基础',
+            '中等': '中等',
+            '较难': '较难'
+        };
+        return labelMap[normalized] || difficulty || '未设置';
     }
     
     // 根据掌握程度生成评分星星
@@ -2879,7 +2933,7 @@
     // 更新知识点详情模态框
     function updateKnowledgeDetailModal(knowledgeDetail) {
         const knowledgePointName = knowledgeDetail.pointName || knowledgeDetail.name || '未命名知识点';
-        const knowledgePointDifficulty = knowledgeDetail.difficulty || '未设置';
+        const knowledgePointDifficulty = getKnowledgeDifficultyLabel(knowledgeDetail.difficulty);
         const knowledgePointDescription = knowledgeDetail.description || '暂无知识点描述';
         const knowledgePointOrderIndex = Number.isInteger(knowledgeDetail.orderIndex) ? knowledgeDetail.orderIndex : '未设置';
         const knowledgePointCourseDisplay = knowledgeDetail.courseName || (knowledgeDetail.courseId != null ? `课程ID ${knowledgeDetail.courseId}` : '未关联课程');

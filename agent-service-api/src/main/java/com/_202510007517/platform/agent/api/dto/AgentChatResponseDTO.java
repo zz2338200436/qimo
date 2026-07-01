@@ -6,6 +6,10 @@ public class AgentChatResponseDTO {
     private String message;
     private AgentActionPreviewDTO actionPreview;
     private Object data;
+    private Object plannerDecision;
+    private Object toolResult;
+    private Object artifactSummary;
+    private String retrievalStatus;
 
     public String getSessionId() {
         return sessionId;
@@ -45,5 +49,37 @@ public class AgentChatResponseDTO {
 
     public void setData(Object data) {
         this.data = data;
+    }
+
+    public Object getPlannerDecision() {
+        return plannerDecision;
+    }
+
+    public void setPlannerDecision(Object plannerDecision) {
+        this.plannerDecision = plannerDecision;
+    }
+
+    public Object getToolResult() {
+        return toolResult;
+    }
+
+    public void setToolResult(Object toolResult) {
+        this.toolResult = toolResult;
+    }
+
+    public Object getArtifactSummary() {
+        return artifactSummary;
+    }
+
+    public void setArtifactSummary(Object artifactSummary) {
+        this.artifactSummary = artifactSummary;
+    }
+
+    public String getRetrievalStatus() {
+        return retrievalStatus;
+    }
+
+    public void setRetrievalStatus(String retrievalStatus) {
+        this.retrievalStatus = retrievalStatus;
     }
 }

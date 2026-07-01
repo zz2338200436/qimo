@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -23,6 +26,12 @@ public interface TeacherAssignmentEdgeClient {
     ResponseResult<AssignmentDTO> createAssignment(
             @RequestHeader(CommonTraceConstants.USER_ID_HEADER) String userId,
             @RequestBody TeacherAssignmentUpsertRequestDTO request);
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    ResponseResult<AssignmentDTO> createAssignmentWithFiles(
+            @RequestHeader(CommonTraceConstants.USER_ID_HEADER) String userId,
+            @RequestPart("payload") TeacherAssignmentUpsertRequestDTO request,
+            @RequestPart(value = "files", required = false) MultipartFile[] files);
 
     @PutMapping("/{assignmentId}")
     ResponseResult<AssignmentDTO> updateAssignment(

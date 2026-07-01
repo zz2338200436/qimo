@@ -101,11 +101,11 @@ class GatewayRouteConfigTest {
         assertThat(agentIndex).isNotNegative();
         assertThat(legacyIndex).isGreaterThan(agentIndex);
         assertThat(properties.getProperty(routeKey(agentIndex, "uri")))
-                .isEqualTo("lb://agent-service");
+                .isEqualTo("${AGENT_SERVICE_URL:lb://agent-service}");
         assertThat(properties.getProperty(routePredicateKey(agentIndex, 0)))
                 .isEqualTo("Path=/api/agent/**");
         assertThat(properties.getProperty(routePredicateKey(agentIndex, 1)))
-                .isEqualTo("Method=GET,POST,PUT,DELETE");
+                .isEqualTo("Method=GET,POST,PUT,DELETE,PATCH");
         assertThat(properties.getProperty(routeFilterKey(agentIndex, 0, "name")))
                 .isEqualTo("CircuitBreaker");
         assertThat(properties.getProperty(routeFilterArgKey(agentIndex, 0, "name")))
@@ -124,6 +124,25 @@ class GatewayRouteConfigTest {
                 .isEqualTo("false");
         assertThat(properties.getProperty("resilience4j.circuitbreaker.instances.agent-service.slow-call-duration-threshold"))
                 .isEqualTo("65s");
+    }
+
+    @Test
+    void agentStreamRouteBypassesCircuitBreakerBeforeGenericAgentRoute() {
+        Properties properties = loadGatewayProperties();
+        List<String> routeIds = readRouteIds(properties);
+
+        int streamIndex = routeIds.indexOf("agent-stream-route");
+        int agentIndex = routeIds.indexOf("agent-route");
+
+        assertThat(streamIndex).isNotNegative();
+        assertThat(agentIndex).isGreaterThan(streamIndex);
+        assertThat(properties.getProperty(routeKey(streamIndex, "uri")))
+                .isEqualTo("${AGENT_SERVICE_URL:lb://agent-service}");
+        assertThat(properties.getProperty(routePredicateKey(streamIndex, 0)))
+                .isEqualTo("Path=/api/agent/chat/stream");
+        assertThat(properties.getProperty(routePredicateKey(streamIndex, 1)))
+                .isEqualTo("Method=POST");
+        assertThat(properties.getProperty(routeFilterKey(streamIndex, 0, "name"))).isNull();
     }
 
     @Test

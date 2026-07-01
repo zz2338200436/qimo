@@ -21,11 +21,8 @@
 <!-- 侧边栏导航组件 -->
 <div id="sidebar-container"></div>
 <script>
-    $(function() {
-        $('#sidebar-container').load('components/sidebar-nav.html?v=20260608-theme-4', function() {
-            CommonUI.highlightActiveNavItem({ selector: '.menu-item, .sidebar .menu-item' });
-        });
-    });
+    CommonUI.loadStudentSidebar('sidebar-container')
+        .catch(error => console.error('加载学生侧边栏组件失败:', error));
 </script>
 
 <!-- 主内容区 -->
@@ -194,21 +191,6 @@
         return { courseStatus: aliases[0], courseStatusAliases: aliases };
     }
 
-    // 高亮当前导航项
-    function highlightActiveNavItem() {
-        CommonUI.highlightActiveNavItem({ selector: '.menu-item, .sidebar .menu-item' });
-    }
-    
-    // 侧边栏折叠/展开功能
-    function toggleSidebar() {
-        return CommonUI.toggleSidebar();
-    }
-    
-    // 初始化侧边栏状态
-    function initializeSidebar() {
-        CommonUI.initializeSidebar();
-    }
-    
     // 页面加载完成后执行
     document.addEventListener('DOMContentLoaded', function() {
         if (!checkLoginStatus()) {
@@ -220,15 +202,8 @@
         if (window.isJwtOnlyStudentSession && window.isJwtOnlyStudentSession()) {
             showMessage('检测到当前为 JWT 微服务登录环境，课程列表将直接使用已接通的学生课程接口。', 'success');
         }
-        
-        // 初始化侧边栏状态
-        setTimeout(initializeSidebar, 100); // 延迟执行，确保侧边栏已经加载
-        
-        // 侧边栏切换按钮事件监听
-        const toggleSidebarBtn = document.getElementById('toggleSidebar');
-        if (toggleSidebarBtn) {
-            toggleSidebarBtn.addEventListener('click', toggleSidebar);
-        }
+
+        CommonUI.bindSidebarToggle('toggleSidebar');
         
         // 初始化课程列表
         populateCourseFilterOptions('courseCategory', COURSE_CATEGORY_OPTIONS, '全部类别');
@@ -282,11 +257,10 @@
         
         try {
             showLoading();
-            
-            // 显示骨架屏
-            coursesGrid.innerHTML = '';
-            const skeletonFragment = createSkeletonCards(size);
-            coursesGrid.appendChild(skeletonFragment);
+            CommonUI.setElementLoadingState(coursesGrid, {
+                title: '课程加载中',
+                description: '正在同步你的课程列表和筛选结果...'
+            });
             
             const sessionContext = window.getStudentSessionContext ? window.getStudentSessionContext() : null;
             const userStr = sessionStorage.getItem('user');
@@ -369,15 +343,23 @@
                 // 更新分页
                 updatePagination(page, totalPages);
             } else {
-                // API调用失败，显示错误信息
-                updateCoursesList([]);
+                CommonUI.renderErrorState(coursesGrid, {
+                    title: '课程列表加载失败',
+                    description: '课程数据暂时不可用，请稍后重试。',
+                    actionText: '重新加载',
+                    onAction: () => loadCourses(page, size)
+                });
                 updatePagination(1, 1);
                 showMessage('获取课程列表失败', 'error');
             }
         } catch (error) {
             console.error('加载课程列表失败:', error);
-            // 显示空课程列表和错误信息
-            updateCoursesList([]);
+            CommonUI.renderErrorState(coursesGrid, {
+                title: '课程列表加载失败',
+                description: error.message || '请求失败，请稍后重试。',
+                actionText: '重新加载',
+                onAction: () => loadCourses(page, size)
+            });
             updatePagination(1, 1);
             showMessage('加载课程列表失败: ' + error.message, 'error');
         } finally {
@@ -394,13 +376,10 @@
         coursesGrid.innerHTML = '';
         
         if (courses.length === 0) {
-            const noCourses = document.createElement('div');
-            noCourses.className = 'no-courses';
-            noCourses.innerHTML = `
-                <i class="fas fa-search fa-3x" aria-hidden="true"></i>
-                <p>未找到匹配的课程</p>
-            `;
-            coursesGrid.appendChild(noCourses);
+            CommonUI.renderEmptyState(coursesGrid, {
+                title: '没有匹配的课程',
+                description: '试试调整搜索词或筛选条件，看看其他课程结果。'
+            });
             return;
         }
         
@@ -479,6 +458,31 @@
             minute: '2-digit'
         });
     }
+
+    function getCourseCategoryLabel(category) {
+        const normalized = String(category || '').trim().toLowerCase();
+        const labelMap = {
+            public: '公共课',
+            major: '专业课',
+            elective: '选修课',
+            required: '必修课',
+            practice: '实践课'
+        };
+        return labelMap[normalized] || category || '暂无';
+    }
+
+    function getCourseStatusLabel(status) {
+        const normalized = String(status || '').trim().toLowerCase();
+        const labelMap = {
+            active: '进行中',
+            closed: '已结束',
+            inactive: '未开始',
+            completed: '已结束',
+            in_progress: '进行中',
+            not_started: '未开始'
+        };
+        return labelMap[normalized] || status || '暂无';
+    }
     
     // 创建课程卡片元素（使用DocumentFragment优化）
     function createCourseCard(course) {
@@ -493,6 +497,9 @@
         const descriptionTruncated = truncateText(description, 100);
         const needsExpand = description.length > 100;
         
+        const courseStatusLabel = getCourseStatusLabel(course.courseStatus);
+        const courseCategoryLabel = getCourseCategoryLabel(course.courseCategory);
+
         article.innerHTML = `
             <div class="course-header">
                 <div class="course-info">
@@ -506,8 +513,8 @@
                     </div>
                 </div>
                 <div class="course-status-badge" data-status="${escapeHtml(course.courseStatus || '')}" 
-                     aria-label="课程状态：${escapeHtml(course.courseStatus || '')}">
-                    ${escapeHtml(course.courseStatus || '')}
+                     aria-label="课程状态：${escapeHtml(courseStatusLabel)}">
+                    ${escapeHtml(courseStatusLabel)}
                 </div>
             </div>
             
@@ -528,15 +535,15 @@
             </div>
             
             <div class="course-details-collapsible">
-                <button class="toggle-details-btn" aria-expanded="false" aria-controls="details-${course.id}">
+                    <button class="toggle-details-btn" aria-expanded="false" aria-controls="details-${course.id}">
                     <i class="fas fa-chevron-down"></i>
-                    <span>查看详情</span>
+                    <span>展开信息</span>
                 </button>
                 <div class="details-content" id="details-${course.id}" style="display: none;">
                     <div class="course-details-grid">
                         <div class="detail-item">
                             <i class="fas fa-bookmark" aria-hidden="true"></i>
-                            <span>类别：<strong>${escapeHtml(course.courseCategory || '暂无')}</strong></span>
+                            <span>类别：<strong>${escapeHtml(courseCategoryLabel)}</strong></span>
                         </div>
                         <div class="detail-item">
                             <i class="fas fa-credit-card" aria-hidden="true"></i>
@@ -638,7 +645,7 @@
                 toggleDetailsBtn.setAttribute('aria-expanded', 'false');
                 toggleIcon.classList.remove('fa-chevron-up');
                 toggleIcon.classList.add('fa-chevron-down');
-                toggleDetailsBtn.querySelector('span').textContent = '查看详情';
+                toggleDetailsBtn.querySelector('span').textContent = '展开信息';
             } else {
                 detailsContent.style.display = 'block';
                 toggleDetailsBtn.setAttribute('aria-expanded', 'true');
@@ -717,7 +724,7 @@
         modal.innerHTML = `
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3>${course.courseName}</h3>
+                    <h3>${escapeHtml(course.courseName || '课程详情')}</h3>
                     <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">
                         <i class="fas fa-times"></i>
                     </button>
@@ -725,17 +732,17 @@
                 <div class="modal-body">
                     <div class="detail-section">
                         <h4>基本信息</h4>
-                        <p><strong>课程代码：</strong>${course.courseCode}</p>
-                        <p><strong>教师：</strong>${course.teacherName}</p>
-                        <p><strong>学分：</strong>${course.credit}</p>
-                        <p><strong>类别：</strong>${course.courseCategory}</p>
-                        <p><strong>总学时：</strong>${course.totalHours}小时</p>
-                        <p><strong>学期：</strong>${course.semester}</p>
-                        <p><strong>状态：</strong>${course.courseStatus}</p>
+                        <p><strong>课程代码：</strong>${escapeHtml(course.courseCode || '暂无')}</p>
+                        <p><strong>教师：</strong>${escapeHtml(course.teacherName || '未知教师')}</p>
+                        <p><strong>学分：</strong>${escapeHtml(course.credit || '0')}</p>
+                        <p><strong>类别：</strong>${escapeHtml(getCourseCategoryLabel(course.courseCategory))}</p>
+                        <p><strong>总学时：</strong>${escapeHtml(course.totalHours || '0')}小时</p>
+                        <p><strong>学期：</strong>${escapeHtml(course.semester || '暂无')}</p>
+                        <p><strong>状态：</strong>${escapeHtml(getCourseStatusLabel(course.courseStatus))}</p>
                     </div>
                     <div class="detail-section">
                         <h4>课程描述</h4>
-                        <p>${course.description}</p>
+                        <p>${escapeHtml(course.description || '暂无课程描述')}</p>
                     </div>
                     <div class="detail-section">
                         <h4>时间安排</h4>

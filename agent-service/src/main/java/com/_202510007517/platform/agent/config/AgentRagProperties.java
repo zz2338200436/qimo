@@ -8,8 +8,10 @@ import java.util.Objects;
 
 @ConfigurationProperties(prefix = "agent.rag")
 public class AgentRagProperties {
+    public static final String DEFAULT_DOCUMENT_PATH = "docs/rag/system-platform-knowledge.md";
+
     private boolean enabled = false;
-    private List<String> documentPaths = new ArrayList<>(List.of("docs/rag-knowledge-base.md"));
+    private List<String> documentPaths = new ArrayList<>(List.of(DEFAULT_DOCUMENT_PATH));
     private String embeddingBaseUrl = "http://localhost:11434";
     private String embeddingModel = "qwen3-embedding:0.6b";
     private int maxChunks = 4;
@@ -29,7 +31,7 @@ public class AgentRagProperties {
 
     public void setDocumentPaths(List<String> documentPaths) {
         if (documentPaths == null || documentPaths.isEmpty()) {
-            this.documentPaths = new ArrayList<>(List.of("docs/rag-knowledge-base.md"));
+            this.documentPaths = new ArrayList<>(List.of(DEFAULT_DOCUMENT_PATH));
             return;
         }
 
@@ -38,7 +40,7 @@ public class AgentRagProperties {
                 .filter(documentPath -> !documentPath.isBlank())
                 .toList();
         this.documentPaths = configuredDocumentPaths.isEmpty()
-                ? new ArrayList<>(List.of("docs/rag-knowledge-base.md"))
+                ? new ArrayList<>(List.of(DEFAULT_DOCUMENT_PATH))
                 : new ArrayList<>(configuredDocumentPaths);
     }
 

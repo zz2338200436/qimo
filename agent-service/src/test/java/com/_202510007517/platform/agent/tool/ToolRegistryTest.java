@@ -20,11 +20,11 @@ class ToolRegistryTest {
             new AssignmentDetailLookupTool(null),
             new AssignmentSubmissionLookupTool(null),
             new AssignmentSubmitTool(null),
-            new ExamPublishTool(null, null),
+            new ExamPublishTool(null, null, null),
             new ExamUpdateTool(null),
             new ExamDeleteTool(null),
             new ExamGradeTool(null),
-            new ExamQueryTool(null),
+            new ExamQueryTool(null, null),
             new ExamDetailLookupTool(null),
             new ExamSubmissionLookupTool(null),
             new ExamSubmitTool(null),
@@ -51,10 +51,13 @@ class ToolRegistryTest {
             new LearningSummaryQueryTool(null),
             new ScoreTrendQueryTool(null),
             new KnowledgePointQueryTool(null),
-            new KnowledgeMasteryQueryTool(null),
-            new GenerateQuestionsTool(null),
+            new KnowledgeMasteryQueryTool(null, null),
+            new EarlyWarningQueryTool(null),
+            new GenerateQuestionsTool(null, null),
             new GenerateExamTool(null),
-            new GenerateLearningSuggestionsTool(null)
+            new GenerateLearningSuggestionsTool(null),
+            new InternetSearchTool(null),
+            new WebPageReadTool(null)
     ));
 
     @Test
@@ -345,6 +348,13 @@ class ToolRegistryTest {
     }
 
     @Test
+    void resolvesEarlyWarningQueryToolByIntent() {
+        AgentTool tool = registry.resolve(AgentIntent.QUERY_EARLY_WARNINGS);
+
+        assertThat(tool.intent()).isEqualTo(AgentIntent.QUERY_EARLY_WARNINGS);
+    }
+
+    @Test
     void resolvesGenerateQuestionsToolByIntent() {
         AgentTool tool = registry.resolve(AgentIntent.GENERATE_QUESTIONS);
 
@@ -363,6 +373,12 @@ class ToolRegistryTest {
         AgentTool tool = registry.resolve(AgentIntent.GENERATE_LEARNING_SUGGESTIONS);
 
         assertThat(tool.intent()).isEqualTo(AgentIntent.GENERATE_LEARNING_SUGGESTIONS);
+    }
+
+    @Test
+    void resolvesInternetToolsByIntent() {
+        assertThat(registry.resolve(AgentIntent.INTERNET_SEARCH).intent()).isEqualTo(AgentIntent.INTERNET_SEARCH);
+        assertThat(registry.resolve(AgentIntent.READ_WEB_PAGE).intent()).isEqualTo(AgentIntent.READ_WEB_PAGE);
     }
 
     @Test

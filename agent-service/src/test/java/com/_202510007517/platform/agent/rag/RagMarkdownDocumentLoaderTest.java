@@ -144,4 +144,14 @@ class RagMarkdownDocumentLoaderTest {
         assertThat(documents).hasSize(1);
         assertThat(documents.get(0).title()).isEqualTo("README");
     }
+
+    @Test
+    void resolvesRelativeDocsPathFromRepositoryRootStyleConfiguration() {
+        RagMarkdownDocumentLoader loader = new RagMarkdownDocumentLoader();
+
+        List<RagDocument> documents = loader.load(List.of("docs/rag/system-platform-knowledge.md"));
+
+        assertThat(documents).hasSize(1);
+        assertThat(documents.get(0).title()).isEqualTo("智能学习辅助系统平台知识库");
+    }
 }

@@ -62,6 +62,17 @@ public class NotificationController {
         return ResponseResult.success(notificationQueryService.getUnreadCount(resolveUserId(userIdHeader, studentId, "学生")));
     }
 
+    @GetMapping("/teacher/sent")
+    public ResponseResult<?> getTeacherSentNotifications(
+            @RequestHeader(value = CommonTraceConstants.USER_ID_HEADER, required = false) String userIdHeader,
+            @RequestParam(value = "teacherId", required = false) Long teacherId,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "all") String filter) {
+        return ResponseResult.success(
+                notificationQueryService.getTeacherSentNotifications(resolveUserId(userIdHeader, teacherId, "教师"), page, size, filter));
+    }
+
     @PutMapping("/{notificationId}/read")
     public ResponseResult<Void> markNotificationAsRead(
             @PathVariable Long notificationId,

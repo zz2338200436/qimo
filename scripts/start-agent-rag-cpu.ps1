@@ -2,6 +2,7 @@ param(
     [string]$OllamaExe = "D:\111\Ollama\Ollama\ollama.exe",
     [string]$JavaExe = "D:\111\java\Program Files\Java\jdk-20\bin\java.exe",
     [string]$EmbeddingModel = "qwen3-embedding:0.6b",
+    [string]$RagDocumentPath = "docs/rag/system-platform-knowledge.md",
     [int]$OllamaPort = 11436,
     [int]$AgentPort = 8092,
     [int]$OllamaReadyTimeoutSeconds = 40,
@@ -140,6 +141,7 @@ Set-Location -LiteralPath '$($repoRoot.Replace("'", "''"))'
 `$env:RABBITMQ_HOST = 'localhost'
 `$env:RABBITMQ_PORT = '5672'
 `$env:AGENT_RAG_ENABLED = 'true'
+`$env:AGENT_RAG_DOCUMENT_PATH = '$RagDocumentPath'
 `$env:OLLAMA_BASE_URL = '$ollamaBaseUrl'
 `$env:OLLAMA_EMBEDDING_MODEL = '$EmbeddingModel'
 & '$escapedJavaExe' -Xms96m -Xmx224m -XX:MaxMetaspaceSize=160m -Xss256k -XX:ReservedCodeCacheSize=48m -XX:TieredStopAtLevel=1 -XX:CICompilerCount=2 -jar '$escapedAgentJar' 1>> '$escapedOutLog' 2>> '$escapedErrLog'

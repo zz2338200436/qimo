@@ -6,6 +6,7 @@ import com._202510007517.major_assignment.entity.Course;
 import com._202510007517.major_assignment.entity.User;
 import com._202510007517.major_assignment.mapper.AssignmentMapper;
 import com._202510007517.major_assignment.service.AssignmentService;
+import com._202510007517.major_assignment.service.AssessmentAttachmentService;
 import com._202510007517.major_assignment.service.StudentService;
 import com._202510007517.major_assignment.service.AssignmentSubmissionService;
 import com._202510007517.major_assignment.service.CourseService;
@@ -43,6 +44,9 @@ public class AssignmentServiceImpl implements AssignmentService {
     
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private AssessmentAttachmentService assessmentAttachmentService;
 
     @Override
     @Transactional(readOnly = true)
@@ -100,6 +104,7 @@ public class AssignmentServiceImpl implements AssignmentService {
         assignmentMapper.deleteAssignmentClassesByAssignmentId(id);
         // 删除作业知识点关联记录
         assignmentMapper.deleteAssignmentKnowledgePointsByAssignmentId(id);
+        assessmentAttachmentService.deleteAttachments(AssessmentAttachmentService.ASSIGNMENT_TYPE, id);
         // 最后删除作业本身
         assignmentMapper.delete(id);
     }
@@ -192,6 +197,8 @@ public class AssignmentServiceImpl implements AssignmentService {
             assignmentWithSubmission.put("publishDate", assignment.getPublishDate());
             assignmentWithSubmission.put("teacherId", assignment.getTeacherId());
             assignmentWithSubmission.put("isActive", assignment.getIsActive());
+            assignmentWithSubmission.put("attachments", assessmentAttachmentService.getAttachmentDtos(
+                    AssessmentAttachmentService.ASSIGNMENT_TYPE, assignment.getId()));
             // 课程与教师名称用于前端展示
             Course course = null;
             if (assignment.getCourseId() != null) {
@@ -238,6 +245,8 @@ public class AssignmentServiceImpl implements AssignmentService {
         assignmentDetails.put("isActive", assignment.getIsActive());
         assignmentDetails.put("courseId", assignment.getCourseId());
         assignmentDetails.put("teacherId", assignment.getTeacherId());
+        assignmentDetails.put("attachments", assessmentAttachmentService.getAttachmentDtos(
+                AssessmentAttachmentService.ASSIGNMENT_TYPE, assignmentId));
         
         // 添加提交记录
         List<Map<String, Object>> submissions = assignmentMapper.getSubmissionsByAssignmentId(assignmentId);

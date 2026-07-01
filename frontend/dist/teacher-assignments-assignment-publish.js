@@ -239,6 +239,15 @@
                 }
             }
 
+            const fileInput = document.getElementById('assignment-files');
+            let requestBody = assignmentData;
+            if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                const formData = new FormData();
+                formData.append('payload', new Blob([JSON.stringify(assignmentData)], { type: 'application/json' }));
+                Array.from(fileInput.files).forEach(file => formData.append('files', file));
+                requestBody = formData;
+            }
+
             console.log('提交的作业数据:', assignmentData);
             console.log('publishDate格式:', assignmentData.publishDate);
             console.log('dueDate格式:', assignmentData.dueDate);
@@ -247,7 +256,7 @@
             const teacherAPI = new TeacherAPI(apiService);
 
             console.log('调用teacherAPI.createAssignment开始');
-            const result = await teacherAPI.createAssignment(assignmentData);
+            const result = await teacherAPI.createAssignment(requestBody);
             console.log('调用teacherAPI.createAssignment结束，返回结果:', result);
 
             if (!result) {

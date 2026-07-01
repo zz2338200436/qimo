@@ -1,0 +1,57 @@
+@startuml
+!include 00-style.puml
+top to bottom direction
+
+package "表示层" {
+  [用户端页面]
+  [管理端页面]
+}
+
+package "接入层" {
+  [API Gateway]
+}
+
+package "AI 助手业务层" {
+  [auth-service]
+  [user-service]
+  [agent-service]
+  [ai-service]
+  [analysis-service]
+  [notification-service]
+}
+
+package "教学业务层" {
+  [course-service]
+  [assignment-service]
+  [exam-service]
+  [legacy-adapter]
+}
+
+[用户端页面] --> [API Gateway]
+[管理端页面] --> [API Gateway]
+
+[API Gateway] --> [auth-service]
+[API Gateway] --> [user-service]
+[API Gateway] --> [agent-service]
+[API Gateway] --> [ai-service]
+[API Gateway] --> [analysis-service]
+[API Gateway] --> [notification-service]
+[API Gateway] --> [course-service]
+[API Gateway] --> [assignment-service]
+[API Gateway] --> [exam-service]
+[API Gateway] --> [legacy-adapter]
+
+[agent-service] --> [ai-service]
+[agent-service] --> [analysis-service]
+[agent-service] --> [notification-service]
+[agent-service] --> [course-service]
+[agent-service] --> [assignment-service]
+[agent-service] --> [exam-service]
+
+note right of [agent-service]
+负责编排意图识别、
+RAG 检索、任务规划、
+工具路由和会话审计
+end note
+
+@enduml

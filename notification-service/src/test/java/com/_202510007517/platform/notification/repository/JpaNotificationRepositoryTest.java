@@ -83,6 +83,29 @@ class JpaNotificationRepositoryTest {
     }
 
     @Test
+    void queriesTeacherSentNotificationsThroughJpaRepository() {
+        assertThat(repository).isInstanceOf(JpaNotificationRepository.class);
+        NotificationEntity latest = saveNotification(42L, 7L, "course", "课程资料已发布", 91001L, false,
+                Instant.parse("2026-05-19T11:20:30Z"));
+        NotificationEntity earlier = saveNotification(43L, 7L, "exam", "考试安排提醒", 99301L, false,
+                Instant.parse("2026-05-19T10:20:30Z"));
+        saveNotification(42L, 8L, "course", "其他教师通知", 91002L, false,
+                Instant.parse("2026-05-19T12:20:30Z"));
+
+        assertThat(repository.findTeacherSentNotifications(7L, 0, 10, "all"))
+                .extracting(NotificationEntity::getId)
+                .containsExactly(latest.getId(), earlier.getId());
+        assertThat(repository.findTeacherSentNotifications(7L, 0, 10, "EXAM"))
+                .extracting(NotificationEntity::getId)
+                .containsExactly(earlier.getId());
+        assertThat(repository.findTeacherSentNotifications(7L, 1, 1, "all"))
+                .extracting(NotificationEntity::getId)
+                .containsExactly(earlier.getId());
+        assertThat(repository.countTeacherSentNotifications(7L, "all")).isEqualTo(2);
+        assertThat(repository.countTeacherSentNotifications(7L, "course")).isEqualTo(1);
+    }
+
+    @Test
     void mutatesNotificationsThroughJpaRepository() {
         assertThat(repository).isInstanceOf(JpaNotificationRepository.class);
         NotificationEntity unread = saveNotification(42L, null, "assignment", "作业提交成功", 2001L, false,

@@ -8,6 +8,8 @@ import com._202510007517.platform.ai.repository.AiGenerationRecord;
 import com._202510007517.platform.ai.repository.AiGenerationRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +19,7 @@ import java.util.Map;
 public class AiGenerationService {
 
     private static final String SUCCESS = "SUCCESS";
+    private static final Logger log = LoggerFactory.getLogger(AiGenerationService.class);
 
     private final AiModelClient modelClient;
     private final AiGenerationRepository generationRepository;
@@ -62,17 +65,21 @@ public class AiGenerationService {
         long startedAt = System.nanoTime();
         Map<String, Object> response = call.execute();
         long latencyMs = Math.max(0L, (System.nanoTime() - startedAt) / 1_000_000L);
-        generationRepository.save(new AiGenerationRecord(
-                userId,
-                normalizeRole(userRole),
-                promptKey,
-                requestType,
-                toJson(request),
-                toJson(response),
-                modelClient.modelName(requestType),
-                SUCCESS,
-                null,
-                latencyMs));
+        try {
+            generationRepository.save(new AiGenerationRecord(
+                    userId,
+                    normalizeRole(userRole),
+                    promptKey,
+                    requestType,
+                    toJson(request),
+                    toJson(response),
+                    modelClient.modelName(requestType),
+                    SUCCESS,
+                    null,
+                    latencyMs));
+        } catch (RuntimeException ex) {
+            log.warn("failed to persist ai generation history for requestType={}", requestType, ex);
+        }
         return response;
     }
 

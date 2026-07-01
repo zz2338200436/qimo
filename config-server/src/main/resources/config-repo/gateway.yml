@@ -104,6 +104,16 @@ spring:
                   args:
                     name: assignment-service
                     fallbackUri: forward:/_fallback/assignment-service
+            - id: assignment-attachment-route
+              uri: lb://assignment-service
+              predicates:
+                - Path=/api/attachments/assignment/**
+                - Method=GET
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: assignment-service-attachments
+                    fallbackUri: forward:/_fallback/assignment-service
             - id: assignment-knowledge-route
               uri: lb://assignment-service
               predicates:
@@ -143,6 +153,16 @@ spring:
                 - name: CircuitBreaker
                   args:
                     name: exam-service-teacher
+                    fallbackUri: forward:/_fallback/exam-service
+            - id: exam-attachment-route
+              uri: lb://exam-service
+              predicates:
+                - Path=/api/attachments/exam/**
+                - Method=GET
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: exam-service-attachments
                     fallbackUri: forward:/_fallback/exam-service
             - id: exam-knowledge-route
               uri: lb://exam-service
@@ -194,11 +214,16 @@ spring:
                   args:
                     name: ai-service
                     fallbackUri: forward:/_fallback/ai-service
+            - id: agent-stream-route
+              uri: ${AGENT_SERVICE_URL:lb://agent-service}
+              predicates:
+                - Path=/api/agent/chat/stream
+                - Method=POST
             - id: agent-route
-              uri: lb://agent-service
+              uri: ${AGENT_SERVICE_URL:lb://agent-service}
               predicates:
                 - Path=/api/agent/**
-                - Method=GET,POST,PUT,DELETE
+                - Method=GET,POST,PUT,DELETE,PATCH
               filters:
                 - name: CircuitBreaker
                   args:

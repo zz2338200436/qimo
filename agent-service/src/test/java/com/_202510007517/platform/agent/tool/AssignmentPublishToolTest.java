@@ -7,6 +7,7 @@ import com._202510007517.platform.course.api.dto.CourseDTO;
 import com._202510007517.platform.course.api.feign.CourseFeignClient;
 import org.junit.jupiter.api.Test;
 
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -53,6 +54,32 @@ class AssignmentPublishToolTest {
                 .containsEntry("status", "PERMISSION_DENIED")
                 .containsEntry("message", "当前教师无权在该课程下发布作业。");
         verify(assignmentClient, never()).createAssignment(any(), any());
+    }
+
+    @Test
+    void usesMultipartEndpointWhenAttachmentsArePresent() {
+        CourseDTO course = new CourseDTO();
+        course.setId(100L);
+        when(courseClient.listTeacherCourses(7L, null, null, null, null)).thenReturn(List.of(course));
+        AssignmentDTO assignment = new AssignmentDTO();
+        assignment.setId(301L);
+        when(assignmentClient.createAssignmentWithFiles(eq("7"), any(), any())).thenReturn(ResponseResult.success(assignment));
+
+        Map<String, Object> result = tool.execute(7L, "TEACHER", Map.of(
+                "title", "Spring Cloud实验",
+                "courseId", 100L,
+                "dueDate", "2026-06-20 22:00",
+                "maxScore", 100,
+                "attachments", List.of(Map.of(
+                        "name", "作业附件.txt",
+                        "contentType", "text/plain",
+                        "base64", Base64.getEncoder().encodeToString("hello".getBytes())
+                ))
+        ));
+
+        assertThat(result).containsEntry("status", "EXECUTED");
+        verify(assignmentClient).createAssignmentWithFiles(eq("7"), any(), any());
+        verify(assignmentClient, never()).createAssignment(eq("7"), any());
     }
 
     private static Map<String, Object> publishRequest(Long courseId) {

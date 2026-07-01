@@ -18,6 +18,8 @@ import java.util.Map;
 public class AgentAssignmentDraftService {
     static final String SELECTED_QUESTIONS = "SELECTED_QUESTIONS";
     static final String RANDOM_QUESTION_BANK = "RANDOM_QUESTION_BANK";
+    static final String GENERATED_QUESTIONS = "GENERATED_QUESTIONS";
+    static final String FIRST_AVAILABLE_CLASS_FOR_TEST = "FIRST_AVAILABLE_CLASS_FOR_TEST";
 
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -39,8 +41,11 @@ public class AgentAssignmentDraftService {
         Map<String, Object> slots = new LinkedHashMap<>(intent.slots());
 
         applyCourseContext(slots, context);
+        applyGeneratedQuestionDraftContext(slots, context);
         applySelectedQuestionContext(slots, context);
         applyRandomContext(slots, message);
+        applyTestRandomTargetContext(slots, message);
+        applyDefaultMaxScore(slots);
         applyDefaultDueDate(slots);
 
         return new RecognizedIntent(intent.intent(), intent.confidence(), slots, intent.missingSlots());
@@ -54,6 +59,83 @@ public class AgentAssignmentDraftService {
             putLongIfMissing(slots, "courseId", filter.get("courseId"));
             putLongIfMissing(slots, "classId", filter.get("classId"));
         }
+    }
+
+    private void applyGeneratedQuestionDraftContext(Map<String, Object> slots, Map<String, Object> context) {
+        Object draftValue = context.get("questionDraft");
+        if (!(draftValue instanceof Map<?, ?> draft)) {
+            return;
+        }
+        Object questions = draft.get("questions");
+        if (!(questions instanceof Iterable<?> iterable) || !iterable.iterator().hasNext()) {
+            return;
+        }
+        slots.putIfAbsent("selectionMode", GENERATED_QUESTIONS);
+        slots.putIfAbsent("questions", questions);
+        putLongIfMissing(slots, "courseId", draft.get("courseId"));
+        putLongIfMissing(slots, "classId", draft.get("classId"));
+        putStringIfMissing(slots, "title", draft.get("title"));
+        String studentContent = formatStudentQuestionContent(iterable);
+        if (hasValue(studentContent)) {
+            slots.put("content", studentContent);
+        } else {
+            putStringIfMissing(slots, "content", draft.get("content"));
+        }
+        if (!hasValue(slots.get("content"))) {
+            putStringIfMissing(slots, "content", draft.get("topic"));
+        }
+    }
+
+    private String formatStudentQuestionContent(Iterable<?> questions) {
+        List<String> blocks = new ArrayList<>();
+        int index = 1;
+        for (Object item : questions) {
+            if (!(item instanceof Map<?, ?> question)) {
+                continue;
+            }
+            Object content = firstValue(question, "content", "questionText", "title");
+            if (!hasValue(content)) {
+                content = "暂无题目内容";
+            }
+            StringBuilder block = new StringBuilder();
+            block.append(index).append(". ").append(content);
+            List<String> options = stringList(question.get("options"));
+            for (int i = 0; i < options.size(); i++) {
+                block.append('\n')
+                        .append((char) ('A' + i))
+                        .append(". ")
+                        .append(options.get(i));
+            }
+            blocks.add(block.toString());
+            index++;
+        }
+        if (blocks.isEmpty()) {
+            return "";
+        }
+        return "题目如下：\n" + String.join("\n\n", blocks);
+    }
+
+    private Object firstValue(Map<?, ?> map, String... keys) {
+        for (String key : keys) {
+            Object value = map.get(key);
+            if (hasValue(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private List<String> stringList(Object value) {
+        if (!(value instanceof Iterable<?> iterable)) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        for (Object item : iterable) {
+            if (hasValue(item)) {
+                values.add(String.valueOf(item));
+            }
+        }
+        return values;
     }
 
     private void applySelectedQuestionContext(Map<String, Object> slots, Map<String, Object> context) {
@@ -91,6 +173,57 @@ public class AgentAssignmentDraftService {
         slots.putIfAbsent("content", "随机题库练习");
     }
 
+    private void applyTestRandomTargetContext(Map<String, Object> slots, String message) {
+        String text = message == null ? "" : message.replaceAll("\\s+", "");
+        if (!containsAny(text, "随机", "随便")) {
+            return;
+        }
+        if (!containsAny(text, "班级", "课程")) {
+            return;
+        }
+        if (!containsAny(text, "发布", "发到", "布置")) {
+            return;
+        }
+        if (!containsAny(text, "测试", "试一下", "验证")) {
+            return;
+        }
+        removeGenericPublishTarget(slots);
+        if (hasValue(slots.get("courseId"))
+                || hasValue(slots.get("courseName"))
+                || hasValue(slots.get("classId"))
+                || hasValue(slots.get("className"))) {
+            return;
+        }
+        slots.putIfAbsent("targetSelectionMode", FIRST_AVAILABLE_CLASS_FOR_TEST);
+    }
+
+    private void removeGenericPublishTarget(Map<String, Object> slots) {
+        if (isGenericPublishTarget(slots.get("className"))) {
+            slots.remove("className");
+        }
+        if (isGenericPublishTarget(slots.get("courseName"))) {
+            slots.remove("courseName");
+        }
+    }
+
+    private boolean isGenericPublishTarget(Object value) {
+        if (!hasValue(value)) {
+            return false;
+        }
+        String text = String.valueOf(value).replaceAll("\\s+", "");
+        return "发布".equals(text)
+                || "发布作业".equals(text)
+                || "发".equals(text)
+                || "布置".equals(text);
+    }
+
+    private void applyDefaultMaxScore(Map<String, Object> slots) {
+        if (!GENERATED_QUESTIONS.equals(String.valueOf(slots.get("selectionMode")))) {
+            return;
+        }
+        slots.putIfAbsent("maxScore", 100);
+    }
+
     private void applyDefaultDueDate(Map<String, Object> slots) {
         if (!hasValue(slots.get("selectionMode"))) {
             return;
@@ -117,6 +250,13 @@ public class AgentAssignmentDraftService {
         if (parsed != null) {
             slots.put(key, parsed);
         }
+    }
+
+    private void putStringIfMissing(Map<String, Object> slots, String key, Object value) {
+        if (hasValue(slots.get(key)) || !hasValue(value)) {
+            return;
+        }
+        slots.put(key, String.valueOf(value));
     }
 
     private List<Long> longList(Object value) {
@@ -155,5 +295,14 @@ public class AgentAssignmentDraftService {
 
     private boolean hasValue(Object value) {
         return value != null && !String.valueOf(value).isBlank();
+    }
+
+    private boolean containsAny(String text, String... terms) {
+        for (String term : terms) {
+            if (text.contains(term)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

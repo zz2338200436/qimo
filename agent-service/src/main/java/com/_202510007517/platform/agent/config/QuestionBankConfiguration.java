@@ -73,6 +73,7 @@ public class QuestionBankConfiguration {
             } catch (RuntimeException ex) {
                 log.info("failed to embed question chunk: questionId={}, reason={}",
                         question.questionId(), ex.getClass().getSimpleName());
+                indexedQuestions.add(new QuestionBankIndex.IndexedQuestion(question, List.of()));
             }
         }
         QuestionBankIndex index = new QuestionBankIndex();

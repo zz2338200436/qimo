@@ -79,6 +79,28 @@ class AiSchemaMigrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    @Test
+    void seedsEnoughMediumJavaQuestionsForFiveQuestionGeneration() {
+        Integer knowledgePointCount = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM knowledge_points
+                WHERE point_name = 'Java基础'
+                  AND difficulty = '中等'
+                """, Integer.class);
+        Integer questionCount = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM questions q
+                JOIN knowledge_points kp ON kp.id = q.knowledge_point_id
+                WHERE kp.point_name = 'Java基础'
+                  AND COALESCE(q.difficulty, kp.difficulty) = '中等'
+                """, Integer.class);
+
+        assertThat(knowledgePointCount).isNotNull();
+        assertThat(knowledgePointCount).isGreaterThan(0);
+        assertThat(questionCount).isNotNull();
+        assertThat(questionCount).isGreaterThanOrEqualTo(5);
+    }
+
     private boolean tableExists(String tableName) {
         Integer count = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)

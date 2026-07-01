@@ -306,5 +306,15 @@ class AssignmentSubmittedNotificationHandlerTest {
         public int countUnreadByStudentId(Long studentId) {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public List<NotificationEntity> findTeacherSentNotifications(Long teacherId, int offset, int limit, String filter) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long countTeacherSentNotifications(Long teacherId, String filter) {
+            throw new UnsupportedOperationException();
+        }
     }
 }

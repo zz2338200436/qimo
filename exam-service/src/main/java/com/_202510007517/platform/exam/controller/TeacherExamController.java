@@ -18,7 +18,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -62,7 +65,7 @@ public class TeacherExamController {
         );
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseResult<ExamRecord> createExam(
             @RequestHeader(value = CommonTraceConstants.USER_ID_HEADER, required = false) String userIdHeader,
             @RequestBody @Valid TeacherExamUpsertRequestDTO request) {
@@ -71,13 +74,36 @@ public class TeacherExamController {
         );
     }
 
-    @PutMapping("/{examId}")
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseResult<ExamRecord> createExamWithFiles(
+            @RequestHeader(value = CommonTraceConstants.USER_ID_HEADER, required = false) String userIdHeader,
+            @RequestPart("payload") @Valid TeacherExamUpsertRequestDTO request,
+            @RequestPart(value = "files", required = false) MultipartFile[] files) {
+        return ResponseResult.created(
+                examApplicationService.createTeacherExam(resolveTeacherId(userIdHeader), request, files)
+        );
+    }
+
+    @PutMapping(value = "/{examId}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseResult<ExamRecord> updateExam(
             @RequestHeader(value = CommonTraceConstants.USER_ID_HEADER, required = false) String userIdHeader,
             @PathVariable Long examId,
             @RequestBody @Valid TeacherExamUpsertRequestDTO request) {
         return ResponseResult.success(
                 examApplicationService.updateTeacherExam(resolveTeacherId(userIdHeader), examId, request),
+                "操作成功",
+                200
+        );
+    }
+
+    @PutMapping(value = "/{examId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseResult<ExamRecord> updateExamWithFiles(
+            @RequestHeader(value = CommonTraceConstants.USER_ID_HEADER, required = false) String userIdHeader,
+            @PathVariable Long examId,
+            @RequestPart("payload") @Valid TeacherExamUpsertRequestDTO request,
+            @RequestPart(value = "files", required = false) MultipartFile[] files) {
+        return ResponseResult.success(
+                examApplicationService.updateTeacherExam(resolveTeacherId(userIdHeader), examId, request, files),
                 "操作成功",
                 200
         );

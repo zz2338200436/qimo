@@ -21,6 +21,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -109,6 +110,53 @@ class TeacherExamControllerTest {
     }
 
     @Test
+    void createTeacherExamAcceptsMultipartAttachments() throws Exception {
+        ExamRecord created = new ExamRecord();
+        created.setId(9005L);
+        created.setTitle("TeacherExamCrudSmoke");
+        created.setCourseId(2L);
+        when(examApplicationService.createTeacherExam(
+                org.mockito.ArgumentMatchers.eq(7L),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()))
+                .thenReturn(created);
+
+        mockMvc.perform(multipart("/api/teacher/exams")
+                        .file(new org.springframework.mock.web.MockMultipartFile(
+                                "payload",
+                                "",
+                                "application/json",
+                                """
+                                        {
+                                          "title": "TeacherExamCrudSmoke",
+                                          "description": "teacher exam smoke",
+                                          "courseId": 2,
+                                          "startTime": "2026-05-20T01:00:00.000Z",
+                                          "endTime": "2026-05-20T02:30:00.000Z",
+                                          "publishDate": "2026-05-19T01:00:00.000Z",
+                                          "duration": 90,
+                                          "isActive": true,
+                                          "isOnline": true,
+                                          "location": ""
+                                        }
+                                        """.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                        .file(new org.springframework.mock.web.MockMultipartFile(
+                                "files",
+                                "考试说明.pdf",
+                                "application/pdf",
+                                "content".getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                        .header(CommonTraceConstants.USER_ID_HEADER, "7"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("创建成功"))
+                .andExpect(jsonPath("$.data.id").value(9005));
+
+        verify(examApplicationService).createTeacherExam(
+                org.mockito.ArgumentMatchers.eq(7L),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void updateTeacherExamReturnsUpdatedRecord() throws Exception {
         ExamRecord updated = new ExamRecord();
         updated.setId(9005L);
@@ -140,6 +188,59 @@ class TeacherExamControllerTest {
     }
 
     @Test
+    void updateTeacherExamAcceptsMultipartAttachments() throws Exception {
+        ExamRecord updated = new ExamRecord();
+        updated.setId(9005L);
+        updated.setTitle("TeacherExamCrudSmoke-Edited");
+        updated.setCourseId(2L);
+        when(examApplicationService.updateTeacherExam(
+                org.mockito.ArgumentMatchers.eq(7L),
+                org.mockito.ArgumentMatchers.eq(9005L),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()))
+                .thenReturn(updated);
+
+        mockMvc.perform(multipart("/api/teacher/exams/9005")
+                        .file(new org.springframework.mock.web.MockMultipartFile(
+                                "payload",
+                                "",
+                                "application/json",
+                                """
+                                        {
+                                          "title": "TeacherExamCrudSmoke-Edited",
+                                          "description": "teacher exam smoke updated",
+                                          "courseId": 2,
+                                          "startTime": "2026-05-20T01:00:00.000Z",
+                                          "endTime": "2026-05-20T02:30:00.000Z",
+                                          "publishDate": "2026-05-19T01:00:00.000Z",
+                                          "duration": 90,
+                                          "isActive": true,
+                                          "isOnline": true,
+                                          "location": ""
+                                        }
+                                        """.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                        .file(new org.springframework.mock.web.MockMultipartFile(
+                                "files",
+                                "考试补充说明.pdf",
+                                "application/pdf",
+                                "content".getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                        .with(request -> {
+                            request.setMethod("PUT");
+                            return request;
+                        })
+                        .header(CommonTraceConstants.USER_ID_HEADER, "7"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("操作成功"))
+                .andExpect(jsonPath("$.data.id").value(9005));
+
+        verify(examApplicationService).updateTeacherExam(
+                org.mockito.ArgumentMatchers.eq(7L),
+                org.mockito.ArgumentMatchers.eq(9005L),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void deleteTeacherExamReturnsNoContentEnvelope() throws Exception {
         mockMvc.perform(delete("/api/teacher/exams/9005")
                         .header(CommonTraceConstants.USER_ID_HEADER, "7"))
@@ -161,6 +262,11 @@ class TeacherExamControllerTest {
         submission.setContent("answer");
         submission.setTimeTaken(35);
         submission.setGraded(false);
+        submission.setAttachments(List.of(Map.of(
+                "id", 8001L,
+                "name", "学生考试附件.pdf",
+                "downloadUrl", "/api/attachments/exam/8001/download"
+        )));
 
         when(examApplicationService.listTeacherExamSubmissions(7L, 9001L)).thenReturn(List.of(submission));
 
@@ -168,7 +274,9 @@ class TeacherExamControllerTest {
                         .header(CommonTraceConstants.USER_ID_HEADER, "7"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("获取考试提交列表成功"))
-                .andExpect(jsonPath("$.data[0].studentName").value("Student Forty Two"));
+                .andExpect(jsonPath("$.data[0].studentName").value("Student Forty Two"))
+                .andExpect(jsonPath("$.data[0].attachments[0].name").value("学生考试附件.pdf"))
+                .andExpect(jsonPath("$.data[0].attachments[0].downloadUrl").value("/api/attachments/exam/8001/download"));
     }
 
     @Test
@@ -228,6 +336,11 @@ class TeacherExamControllerTest {
         submission.setContent("answer");
         submission.setScore(88);
         submission.setTeacherComment("well done");
+        submission.setAttachments(List.of(Map.of(
+                "id", 8001L,
+                "name", "学生考试附件.pdf",
+                "downloadUrl", "/api/attachments/exam/8001/download"
+        )));
 
         when(examApplicationService.getTeacherExamSubmissionDetail(7L, 9101L)).thenReturn(submission);
 
@@ -235,7 +348,9 @@ class TeacherExamControllerTest {
                         .header(CommonTraceConstants.USER_ID_HEADER, "7"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("获取考试提交记录详情成功"))
-                .andExpect(jsonPath("$.data.score").value(88));
+                .andExpect(jsonPath("$.data.score").value(88))
+                .andExpect(jsonPath("$.data.attachments[0].name").value("学生考试附件.pdf"))
+                .andExpect(jsonPath("$.data.attachments[0].downloadUrl").value("/api/attachments/exam/8001/download"));
     }
 
     @Test

@@ -34,6 +34,45 @@
         return text;
     }
 
+    function renderSubmissionAttachmentLinksHtml(attachments) {
+        if (!Array.isArray(attachments) || attachments.length === 0) {
+            return '<span class="text-muted">无附件</span>';
+        }
+
+        return attachments.map(attachment => {
+            const name = escapeSubmissionText(
+                attachment.name
+                    || attachment.originalFilename
+                    || attachment.fileName
+                    || `附件${attachment.id || ''}`
+            );
+            const inferredDownloadUrl = attachment.id
+                ? `/api/attachments/${attachment.assessmentType === 'exam_submission' || attachment.type === 'exam' ? 'exam' : 'assignment'}/${attachment.id}/download`
+                : '';
+            const downloadUrl = escapeSubmissionText(
+                attachment.downloadUrl
+                    || attachment.url
+                    || inferredDownloadUrl
+            );
+            return `
+                <button type="button"
+                        class="btn btn-sm btn-outline-primary me-2 mb-2"
+                        data-download-url="${downloadUrl}"
+                        data-download-name="${name}"
+                        onclick="downloadAttachmentFromButton(this)">
+                    <i class="fa fa-download"></i> ${name}
+                </button>
+            `;
+        }).join('');
+    }
+
+    function setSubmissionAttachmentContainer(containerId, attachments) {
+        const container = document.getElementById(containerId);
+        if (container) {
+            container.innerHTML = renderSubmissionAttachmentLinksHtml(attachments);
+        }
+    }
+
     async function gradeAssignment(assignmentId) {
         try {
             const modalElement = document.getElementById('gradeAssignmentModal');
@@ -113,11 +152,13 @@
             const content = formatSubmissionContent(submission.content) || '-';
             const contentPreview = content.length > 50 ? `${content.substring(0, 50)}...` : content;
             const studentName = submission.studentName || `学生${submission.studentId || '-'}`;
+            const attachmentsHtml = renderSubmissionAttachmentLinksHtml(submission.attachments);
 
             row.innerHTML = `
                 <td>${studentName}</td>
                 <td>${submissionDate}</td>
                 <td>${contentPreview}</td>
+                <td>${attachmentsHtml}</td>
                 <td>${status}</td>
                 <td>${score}</td>
                 <td>
@@ -153,6 +194,7 @@
             document.getElementById('grade-submission-content').value = formatSubmissionContent(submission.content);
             document.getElementById('grade-score').value = submission.score || '';
             document.getElementById('grade-comment').value = submission.teacherComment || '';
+            setSubmissionAttachmentContainer('grade-submission-attachments', submission.attachments);
 
             hideModalById('viewSubmissionModal');
 
@@ -256,11 +298,13 @@
             const studentName = submission.studentName || `学生${submission.studentId || '-'}`;
             const content = formatSubmissionContent(submission.content || submission.answerContent || '');
             const contentPreview = content.length > 50 ? `${content.substring(0, 50)}...` : (content || '-');
+            const attachmentsHtml = renderSubmissionAttachmentLinksHtml(submission.attachments);
 
             row.innerHTML = `
                 <td>${studentName}</td>
                 <td>${submissionDate}</td>
                 <td title="${content.replace(/"/g, '&quot;')}">${contentPreview}</td>
+                <td>${attachmentsHtml}</td>
                 <td>${timeTaken}</td>
                 <td>${status}</td>
                 <td>${score}</td>
@@ -287,6 +331,7 @@
                 formatSubmissionContent(submission.content || submission.answerContent || '') || '（无提交内容）';
             document.getElementById('grade-exam-score').value = submission.score || '';
             document.getElementById('grade-exam-comment').value = submission.teacherComment || '';
+            setSubmissionAttachmentContainer('grade-exam-submission-attachments', submission.attachments);
 
             const modal = new bootstrap.Modal(document.getElementById('gradeExamSubmissionModal'));
             modal.show();
@@ -387,6 +432,7 @@
             const contentHtml = displayContent
                 ? `<div class="submission-content" style="white-space: pre-wrap; word-break: break-word;">${escapeSubmissionText(displayContent)}</div>`
                 : '<p class="text-muted">暂无提交内容</p>';
+            const attachmentsHtml = renderSubmissionAttachmentLinksHtml(submission.attachments);
 
             const submissionHTML = `
                 <div class="card mb-3">
@@ -410,6 +456,12 @@
                     <div class="card-body">
                         <h6 class="card-title">提交内容</h6>
                         ${contentHtml}
+                    </div>
+                </div>
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">提交附件</h6>
+                        ${attachmentsHtml}
                     </div>
                 </div>
                 ${submission.teacherComment ? `
@@ -444,6 +496,11 @@
             currentSubmissionId = submissionId;
             document.getElementById('gradeSubmissionForm').reset();
             document.getElementById('grade-submission-id').value = submissionId;
+            const submission = await fetchAPI(`/api/teacher/submissions/${submissionId}`);
+            document.getElementById('grade-submission-content').value = formatSubmissionContent(submission.content);
+            document.getElementById('grade-score').value = submission.score || '';
+            document.getElementById('grade-comment').value = submission.teacherComment || '';
+            setSubmissionAttachmentContainer('grade-submission-attachments', submission.attachments);
 
             hideModalById('viewSubmissionModal');
 
@@ -459,8 +516,10 @@
         try {
             const submission = await fetchAPI(`/api/teacher/submissions/${submissionId}`);
             document.getElementById('grade-submission-id').value = submissionId;
+            document.getElementById('grade-submission-content').value = formatSubmissionContent(submission.content);
             document.getElementById('grade-score').value = submission.score || '';
             document.getElementById('grade-comment').value = submission.teacherComment || '';
+            setSubmissionAttachmentContainer('grade-submission-attachments', submission.attachments);
             currentSubmissionId = submissionId;
 
             hideModalById('viewSubmissionModal');

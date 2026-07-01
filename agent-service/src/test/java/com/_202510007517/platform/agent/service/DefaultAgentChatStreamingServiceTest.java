@@ -18,6 +18,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -64,7 +65,8 @@ class DefaultAgentChatStreamingServiceTest {
         CountDownLatch firstSend = new CountDownLatch(1);
         List<String> chunks = new CopyOnWriteArrayList<>();
 
-        when(orchestrator.chat(eq(7L), eq("STUDENT"), eq("session-1"), eq("提交作业"), eq(Map.of())))
+        when(orchestrator.streamChat(eq(7L), eq("STUDENT"), argThat((AgentChatRequestDTO request) ->
+                "session-1".equals(request.getSessionId()) && "提交作业".equals(request.getMessage())), any()))
                 .thenAnswer(invocation -> {
                     chatStarted.countDown();
                     assertThat(allowChatReturn.await(2, TimeUnit.SECONDS)).isTrue();
@@ -86,7 +88,42 @@ class DefaultAgentChatStreamingServiceTest {
         allowChatReturn.countDown();
 
         assertThat(waitFor(() -> joined(chunks).contains("event:result"), 2_000)).isTrue();
-        assertThat(joined(chunks)).contains("event:done");
+        assertThat(waitFor(() -> joined(chunks).contains("event:done"), 2_000)).isTrue();
+    }
+
+    @Test
+    void emitsDeltaBeforeStreamingOrchestratorCompletes() throws Exception {
+        CountDownLatch allowStreamReturn = new CountDownLatch(1);
+        CountDownLatch firstSend = new CountDownLatch(1);
+        List<String> chunks = new CopyOnWriteArrayList<>();
+
+        when(orchestrator.streamChat(eq(7L), eq("STUDENT"), argThat((AgentChatRequestDTO request) ->
+                "session-1".equals(request.getSessionId()) && "你好".equals(request.getMessage())), any()))
+                .thenAnswer(invocation -> {
+                    AgentStreamingCallback callback = invocation.getArgument(3);
+                    callback.onPartialResponse("你");
+                    assertThat(allowStreamReturn.await(2, TimeUnit.SECONDS)).isTrue();
+                    callback.onPartialResponse("好");
+
+                    AgentChatResponseDTO response = new AgentChatResponseDTO();
+                    response.setSessionId("284");
+                    response.setResponseType("TEXT");
+                    response.setMessage("你好");
+                    return response;
+                });
+
+        SseEmitter emitter = service.streamChat(7L, "STUDENT", "session-1", "你好");
+        attachHandler(emitter, chunks, firstSend);
+
+        assertThat(firstSend.await(1, TimeUnit.SECONDS)).isTrue();
+        assertThat(waitFor(() -> joined(chunks).contains("event:delta"), 1_000)).isTrue();
+        assertThat(joined(chunks)).contains("\"text\":\"你\"");
+        assertThat(joined(chunks)).doesNotContain("event:result");
+
+        allowStreamReturn.countDown();
+
+        assertThat(waitFor(() -> joined(chunks).contains("event:result"), 2_000)).isTrue();
+        assertThat(joined(chunks)).contains("\"message\":\"你好\"");
     }
 
     private void attachHandler(SseEmitter emitter, List<String> chunks, CountDownLatch firstSend) throws Exception {

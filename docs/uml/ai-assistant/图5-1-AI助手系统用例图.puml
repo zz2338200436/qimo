@@ -1,0 +1,43 @@
+@startuml
+!include 00-style.puml
+left to right direction
+
+actor "普通用户" as User
+actor "管理员" as Admin
+
+rectangle "AI 助手系统" {
+  usecase "多轮智能问答" as UC1
+  usecase "上传学习资料" as UC2
+  usecase "知识库检索" as UC3
+  usecase "任务规划" as UC4
+  usecase "工具调用" as UC5
+  usecase "结果总结与追溯" as UC6
+  usecase "会话管理" as UC7
+  usecase "通知处理" as UC8
+  usecase "用户权限管理" as UC9
+  usecase "模型参数与审计配置" as UC10
+  usecase "知识库索引维护" as UC11
+}
+
+User --> UC1
+User --> UC2
+User --> UC3
+User --> UC4
+User --> UC5
+User --> UC6
+User --> UC7
+User --> UC8
+
+Admin --> UC9
+Admin --> UC10
+Admin --> UC11
+Admin --> UC6
+
+UC1 ..> UC3 : <<include>>
+UC1 ..> UC4 : <<include>>
+UC4 ..> UC5 : <<include>>
+UC6 ..> UC5 : <<extend>>
+UC11 ..> UC3 : <<include>>
+UC10 ..> UC6 : <<include>>
+
+@enduml

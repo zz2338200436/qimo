@@ -1,5 +1,6 @@
 package com._202510007517.platform.agent.config;
 
+import com._202510007517.platform.agent.assistant.GeneralAssistant;
 import com._202510007517.platform.agent.service.IntentRecognitionService;
 import com._202510007517.platform.agent.service.FallbackGeneralChatService;
 import com._202510007517.platform.agent.service.AgentDataMaskingPolicy;
@@ -9,8 +10,9 @@ import com._202510007517.platform.agent.service.LlmIntentRecognitionService;
 import com._202510007517.platform.agent.service.RuleBasedIntentRecognitionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -43,8 +45,26 @@ public class AgentIntentRecognitionConfiguration {
     }
 
     @Bean
+    @ConditionalOnProperty(prefix = "agent.llm", name = "enabled", havingValue = "true")
+    StreamingChatModel agentStreamingChatModel(AgentLlmProperties properties) {
+        if (!"openai".equalsIgnoreCase(properties.getProvider())) {
+            throw new IllegalArgumentException("Unsupported agent.llm.provider: " + properties.getProvider());
+        }
+        if (properties.getApiKey() == null || properties.getApiKey().isBlank()) {
+            throw new IllegalStateException("agent.llm.api-key is required when agent.llm.enabled=true");
+        }
+        return OpenAiStreamingChatModel.builder()
+                .baseUrl(properties.getBaseUrl())
+                .apiKey(properties.getApiKey())
+                .modelName(properties.getModelName())
+                .temperature(properties.getTemperature())
+                .timeout(Duration.ofSeconds(properties.getTimeoutSeconds()))
+                .build();
+    }
+
+    @Bean
     @Primary
-    @ConditionalOnBean(ChatModel.class)
+    @ConditionalOnProperty(prefix = "agent.llm", name = "enabled", havingValue = "true")
     IntentRecognitionService llmIntentRecognitionService(ChatModel agentChatModel,
                                                          RuleBasedIntentRecognitionService fallback,
                                                          ObjectMapper objectMapper,
@@ -55,10 +75,10 @@ public class AgentIntentRecognitionConfiguration {
 
     @Bean
     @Primary
-    @ConditionalOnBean(ChatModel.class)
-    GeneralChatService llmGeneralChatService(ChatModel agentChatModel,
+    @ConditionalOnProperty(prefix = "agent.llm", name = "enabled", havingValue = "true")
+    GeneralChatService llmGeneralChatService(GeneralAssistant generalAssistant,
                                              AgentDataMaskingPolicy dataMaskingPolicy) {
-        return new LlmGeneralChatService(agentChatModel, dataMaskingPolicy);
+        return new LlmGeneralChatService(generalAssistant, dataMaskingPolicy);
     }
 
     @Bean

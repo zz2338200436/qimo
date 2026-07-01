@@ -4,8 +4,8 @@
 .runtime-logs
 **/target
 **/node_modules
-data/mysql/db
-data/redis
+data/mysql/db*
+data/redis*
 logs
 *.pid
 *.log

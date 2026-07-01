@@ -19,9 +19,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com._202510007517.platform.user.api.dto.UserProfileDTO;
 import com._202510007517.platform.user.api.feign.UserFeignClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -46,17 +49,34 @@ public class AssignmentApplicationService {
     private final UserFeignClient userFeignClient;
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
+    private final AssessmentAttachmentService attachmentService;
 
     public AssignmentApplicationService(AssignmentRepository assignmentRepository,
                                         CourseFeignClient courseFeignClient,
                                         UserFeignClient userFeignClient,
                                         OutboxEventRepository outboxEventRepository,
                                         ObjectMapper objectMapper) {
+        this(assignmentRepository,
+                courseFeignClient,
+                userFeignClient,
+                outboxEventRepository,
+                objectMapper,
+                AssessmentAttachmentService.none());
+    }
+
+    @Autowired
+    public AssignmentApplicationService(AssignmentRepository assignmentRepository,
+                                        CourseFeignClient courseFeignClient,
+                                        UserFeignClient userFeignClient,
+                                        OutboxEventRepository outboxEventRepository,
+                                        ObjectMapper objectMapper,
+                                        AssessmentAttachmentService attachmentService) {
         this.assignmentRepository = assignmentRepository;
         this.courseFeignClient = courseFeignClient;
         this.userFeignClient = userFeignClient;
         this.outboxEventRepository = outboxEventRepository;
         this.objectMapper = objectMapper;
+        this.attachmentService = attachmentService;
     }
 
     public AssignmentDTO getAssignment(Long assignmentId) {
@@ -77,6 +97,13 @@ public class AssignmentApplicationService {
 
     @Transactional(rollbackFor = Exception.class)
     public AssignmentSubmissionDTO submit(Long assignmentId, AssignmentSubmitRequestDTO request) {
+        return submit(assignmentId, request, null);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public AssignmentSubmissionDTO submit(Long assignmentId,
+                                          AssignmentSubmitRequestDTO request,
+                                          MultipartFile[] files) {
         AssignmentRecord assignment = assignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("作业不存在"));
         if (request == null || request.getStudentId() == null) {
@@ -105,7 +132,14 @@ public class AssignmentApplicationService {
         assignment.setStatus("submitted");
         assignmentRepository.updateAssignment(assignment);
         persistSubmissionEvent(assignment, saved, classIds);
-        return toSubmissionDto(saved);
+        try {
+            attachmentService.saveSubmissionAttachments(saved.getId(), request.getStudentId(), files);
+        } catch (IOException ex) {
+            throw new IllegalStateException("保存作业提交附件失败", ex);
+        }
+        AssignmentSubmissionDTO dto = toSubmissionDto(saved);
+        dto.setAttachments(attachmentService.getSubmissionAttachmentDtos(saved.getId()));
+        return dto;
     }
 
     public List<AssignmentSubmissionDTO> listSubmissions(Long assignmentId) {
@@ -180,6 +214,7 @@ public class AssignmentApplicationService {
         detail.put("isActive", assignment.getIsActive());
         detail.put("courseId", assignment.getCourseId());
         detail.put("teacherId", assignment.getTeacherId());
+        detail.put("attachments", attachmentService.getAttachmentDtos(assignmentId));
 
         CourseDTO course = loadCourse(assignment.getCourseId());
         if (course != null) {
@@ -223,6 +258,7 @@ public class AssignmentApplicationService {
                     item.put("teacherComment", submission.getTeacherComment());
                     item.put("graded", Boolean.TRUE.equals(submission.getGraded()));
                     item.put("status", resolveSubmissionStatus(submission));
+                    item.put("attachments", attachmentService.getSubmissionAttachmentDtos(submission.getId()));
                     return item;
                 })
                 .toList();
@@ -387,10 +423,10 @@ public class AssignmentApplicationService {
         return teacherIds;
     }
 
-    private static Map<String, Object> toStudentAssignmentMap(AssignmentRecord assignment,
-                                                              AssignmentSubmissionRecord submission,
-                                                              String courseName,
-                                                              String teacherName) {
+    private Map<String, Object> toStudentAssignmentMap(AssignmentRecord assignment,
+                                                       AssignmentSubmissionRecord submission,
+                                                       String courseName,
+                                                       String teacherName) {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("id", assignment.getId());
         item.put("title", assignment.getTitle());
@@ -402,11 +438,12 @@ public class AssignmentApplicationService {
         item.put("teacherId", assignment.getTeacherId());
         item.put("teacherName", teacherName);
         item.put("isActive", assignment.getIsActive());
+        item.put("attachments", attachmentService.getAttachmentDtos(assignment.getId()));
         item.put("submission", submission != null ? toStudentSubmissionMap(submission) : null);
         return item;
     }
 
-    private static Map<String, Object> toStudentSubmissionMap(AssignmentSubmissionRecord submission) {
+    private Map<String, Object> toStudentSubmissionMap(AssignmentSubmissionRecord submission) {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("id", submission.getId());
         item.put("submissionDate", submission.getSubmissionDate());
@@ -417,6 +454,7 @@ public class AssignmentApplicationService {
         item.put("graded", Boolean.TRUE.equals(submission.getGraded()));
         item.put("content", submission.getContent());
         item.put("status", resolveSubmissionStatus(submission));
+        item.put("attachments", attachmentService.getSubmissionAttachmentDtos(submission.getId()));
         return item;
     }
 

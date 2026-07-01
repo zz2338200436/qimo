@@ -24,6 +24,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -107,6 +108,48 @@ class AssignmentApplicationServiceTest {
     }
 
     @Test
+    void submitPersistsUploadedSubmissionAttachments() throws Exception {
+        FakeAssignmentRepository repository = new FakeAssignmentRepository();
+        CourseFeignClient courseFeignClient = mock(CourseFeignClient.class);
+        AssessmentAttachmentService attachmentService = mock(AssessmentAttachmentService.class);
+        List<Map<String, Object>> attachments = List.of(Map.of(
+                "id", 7001L,
+                "name", "作业附件.pdf",
+                "downloadUrl", "/api/attachments/assignment/7001/download"
+        ));
+        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile(
+                "files",
+                "作业附件.pdf",
+                "application/pdf",
+                "file content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        when(courseFeignClient.listStudentClassIds(42L)).thenReturn(List.of(501L));
+        when(attachmentService.getSubmissionAttachmentDtos(3001L)).thenReturn(attachments);
+
+        AssignmentApplicationService service = new AssignmentApplicationService(
+                repository,
+                courseFeignClient,
+                mock(UserFeignClient.class),
+                new InMemoryOutboxEventRepository(),
+                objectMapper,
+                attachmentService);
+        AssignmentSubmitRequestDTO request = new AssignmentSubmitRequestDTO();
+        request.setStudentId(42L);
+        request.setContent("my answer");
+        request.setSubmissionDate("2026-09-01 10:00:00");
+
+        AssignmentSubmissionDTO submission = service.submit(
+                2001L,
+                request,
+                new org.springframework.web.multipart.MultipartFile[]{file});
+
+        verify(attachmentService).saveSubmissionAttachments(
+                org.mockito.ArgumentMatchers.eq(3001L),
+                org.mockito.ArgumentMatchers.eq(42L),
+                org.mockito.ArgumentMatchers.any());
+        assertThat(submission.getAttachments()).isEqualTo(attachments);
+    }
+
+    @Test
     void getAssignmentRejectsMissingId() {
         AssignmentApplicationService service = new AssignmentApplicationService(
                 new FakeAssignmentRepository(), mock(CourseFeignClient.class), mock(UserFeignClient.class),
@@ -139,6 +182,35 @@ class AssignmentApplicationServiceTest {
     }
 
     @Test
+    void listStudentAssignmentsIncludesAttachments() {
+        FakeAssignmentRepository repository = new FakeAssignmentRepository();
+        CourseFeignClient courseFeignClient = mock(CourseFeignClient.class);
+        AssessmentAttachmentService attachmentService = mock(AssessmentAttachmentService.class);
+        List<Map<String, Object>> attachments = List.of(Map.of(
+                "id", 1L,
+                "name", "实验说明.docx",
+                "downloadUrl", "/api/attachments/assignment/1/download"
+        ));
+        when(courseFeignClient.listStudentClassIds(42L)).thenReturn(List.of(501L));
+        when(attachmentService.getAttachmentDtos(2001L)).thenReturn(attachments);
+
+        AssignmentApplicationService service = new AssignmentApplicationService(
+                repository,
+                courseFeignClient,
+                mock(UserFeignClient.class),
+                new InMemoryOutboxEventRepository(),
+                objectMapper,
+                attachmentService);
+
+        Map<String, Object> page = service.listStudentAssignments(42L, 1, 10, "dueDate", "DESC", null, null, true);
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> content = (List<Map<String, Object>>) page.get("content");
+        assertThat(content).hasSize(1);
+        assertThat(content.get(0)).containsEntry("attachments", attachments);
+    }
+
+    @Test
     void getStudentAssignmentDetailReturnsSubmissionDetails() {
         FakeAssignmentRepository repository = new FakeAssignmentRepository();
         CourseFeignClient courseFeignClient = mock(CourseFeignClient.class);
@@ -159,6 +231,61 @@ class AssignmentApplicationServiceTest {
     }
 
     @Test
+    void getStudentAssignmentDetailIncludesAttachments() {
+        FakeAssignmentRepository repository = new FakeAssignmentRepository();
+        CourseFeignClient courseFeignClient = mock(CourseFeignClient.class);
+        UserFeignClient userFeignClient = mock(UserFeignClient.class);
+        AssessmentAttachmentService attachmentService = mock(AssessmentAttachmentService.class);
+        List<Map<String, Object>> attachments = List.of(Map.of(
+                "id", 1L,
+                "name", "实验说明.docx",
+                "downloadUrl", "/api/attachments/assignment/1/download"
+        ));
+        when(courseFeignClient.listStudentClassIds(42L)).thenReturn(List.of(501L));
+        when(attachmentService.getAttachmentDtos(2001L)).thenReturn(attachments);
+
+        AssignmentApplicationService service = new AssignmentApplicationService(
+                repository,
+                courseFeignClient,
+                userFeignClient,
+                new InMemoryOutboxEventRepository(),
+                objectMapper,
+                attachmentService);
+
+        Map<String, Object> detail = service.getStudentAssignmentDetail(42L, 2001L);
+
+        assertThat(detail).containsEntry("attachments", attachments);
+    }
+
+    @Test
+    void getStudentAssignmentDetailIncludesSubmissionAttachments() {
+        FakeAssignmentRepository repository = new FakeAssignmentRepository();
+        CourseFeignClient courseFeignClient = mock(CourseFeignClient.class);
+        AssessmentAttachmentService attachmentService = mock(AssessmentAttachmentService.class);
+        List<Map<String, Object>> attachments = List.of(Map.of(
+                "id", 7001L,
+                "name", "作业附件.pdf",
+                "downloadUrl", "/api/attachments/assignment/7001/download"
+        ));
+        when(courseFeignClient.listStudentClassIds(42L)).thenReturn(List.of(501L));
+        when(attachmentService.getSubmissionAttachmentDtos(3001L)).thenReturn(attachments);
+
+        AssignmentApplicationService service = new AssignmentApplicationService(
+                repository,
+                courseFeignClient,
+                mock(UserFeignClient.class),
+                new InMemoryOutboxEventRepository(),
+                objectMapper,
+                attachmentService);
+
+        Map<String, Object> detail = service.getStudentAssignmentDetail(42L, 2001L);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> submission = (Map<String, Object>) detail.get("submission");
+        assertThat(submission).containsEntry("attachments", attachments);
+    }
+
+    @Test
     void listStudentSubmissionsReturnsOwnAssignmentSubmissions() {
         FakeAssignmentRepository repository = new FakeAssignmentRepository();
         CourseFeignClient courseFeignClient = mock(CourseFeignClient.class);
@@ -174,6 +301,33 @@ class AssignmentApplicationServiceTest {
         assertThat(submissions.get(0)).containsEntry("courseName", "分布式框架技术");
         assertThat(submissions.get(0)).containsEntry("title", "Homework 1");
         assertThat(submissions.get(0)).containsEntry("graded", true);
+    }
+
+    @Test
+    void listStudentSubmissionsIncludesSubmissionAttachments() {
+        FakeAssignmentRepository repository = new FakeAssignmentRepository();
+        CourseFeignClient courseFeignClient = mock(CourseFeignClient.class);
+        AssessmentAttachmentService attachmentService = mock(AssessmentAttachmentService.class);
+        List<Map<String, Object>> attachments = List.of(Map.of(
+                "id", 7001L,
+                "name", "作业附件.pdf",
+                "downloadUrl", "/api/attachments/assignment/7001/download"
+        ));
+        when(courseFeignClient.getCourse(101L)).thenReturn(course(101L, "分布式框架技术"));
+        when(attachmentService.getSubmissionAttachmentDtos(3001L)).thenReturn(attachments);
+
+        AssignmentApplicationService service = new AssignmentApplicationService(
+                repository,
+                courseFeignClient,
+                mock(UserFeignClient.class),
+                new InMemoryOutboxEventRepository(),
+                objectMapper,
+                attachmentService);
+
+        List<Map<String, Object>> submissions = service.listStudentSubmissions(42L);
+
+        assertThat(submissions).hasSize(1);
+        assertThat(submissions.get(0)).containsEntry("attachments", attachments);
     }
 
     @Test

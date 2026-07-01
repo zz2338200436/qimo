@@ -38,39 +38,79 @@ public class LocalMockAiModelClient implements AiModelClient {
     public Map<String, Object> generateQuestions(GenerateQuestionsRequestDTO request) {
         String normalizedDifficulty = normalizeDifficulty(request.getDifficulty());
         List<Map<String, Object>> questions = findQuestionBankQuestions(request, normalizedDifficulty);
+        int requestedCount = Math.max(1, request.getCount());
+        int actualCount = questions.size();
+        boolean partial = actualCount > 0 && actualCount < requestedCount;
 
         Map<String, Object> result = new HashMap<>();
         result.put("topic", request.getTopic());
-        result.put("count", request.getCount());
+        result.put("count", requestedCount);
+        result.put("actualCount", actualCount);
+        result.put("partial", partial);
         result.put("difficulty", normalizedDifficulty);
         result.put("questions", questions);
         if (questions.isEmpty()) {
             result.put("message", NO_MATCH_MESSAGE);
+        } else if (partial) {
+            result.put("message", "题库仅匹配到 " + actualCount + "/" + requestedCount + " 道题，请补充题库或放宽主题/难度条件");
         }
         return result;
     }
 
     @Override
     public Map<String, Object> generateExam(GenerateExamRequestDTO request) {
-        List<Map<String, Object>> questions = new ArrayList<>();
-        for (int i = 1; i <= 5; i++) {
-            questions.add(choiceQuestion(i, request.getCourseName() + "选择题 " + i, request.getDifficulty(), 10));
-        }
-        for (int i = 6; i <= 8; i++) {
-            questions.add(textQuestion(i, request.getCourseName() + "填空题 " + (i - 5), request.getDifficulty(), "填空题", 10));
-        }
-        for (int i = 9; i <= 10; i++) {
-            questions.add(textQuestion(i, request.getCourseName() + "简答题 " + (i - 8), request.getDifficulty(), "简答题", 25));
-        }
+        String normalizedDifficulty = normalizeDifficulty(request.getDifficulty());
+
+        // 优先从题库中匹配真实题目
+        List<Map<String, Object>> bankQuestions = findExamQuestionsFromBank(
+                request.getCourseName(), normalizedDifficulty);
 
         Map<String, Object> exam = new HashMap<>();
-        exam.put("title", request.getCourseName() + "模拟试卷");
+        exam.put("title", request.getCourseName() + " 模拟试卷");
         exam.put("courseName", request.getCourseName());
         exam.put("totalScore", request.getTotalScore());
         exam.put("duration", request.getDuration());
-        exam.put("difficulty", request.getDifficulty());
-        exam.put("questions", questions);
+        exam.put("difficulty", normalizedDifficulty);
+
+        if (!bankQuestions.isEmpty()) {
+            exam.put("questions", bankQuestions);
+            exam.put("source", "question-bank");
+        } else {
+            // 题库无匹配题目时给出明确提示，不再生成占位题目
+            exam.put("questions", List.of());
+            exam.put("message", "题库暂无「" + request.getCourseName() + "」相关题目，请先维护题库或联系管理员。");
+        }
         return exam;
+    }
+
+    /** 从题库按课程名/主题查询适合组成试卷的真实题目 */
+    private List<Map<String, Object>> findExamQuestionsFromBank(String courseName, String difficulty) {
+        String topicLike = "%" + courseName.trim() + "%";
+        // 一次查询获取尽可能多的匹配题目（上限30道），前端按类型自行分配
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                    SELECT q.id,
+                           q.content,
+                           q.correct_answer,
+                           q.difficulty,
+                           q.options,
+                           q.score,
+                           q.type,
+                           q.analysis,
+                           kp.point_name
+                    FROM questions q
+                    JOIN knowledge_points kp ON kp.id = q.knowledge_point_id
+                    WHERE (q.content LIKE ? OR kp.point_name LIKE ? OR kp.description LIKE ?)
+                      AND (q.difficulty = ? OR (q.difficulty IS NULL AND kp.difficulty = ?))
+                    ORDER BY RAND()
+                    LIMIT 30
+                    """, topicLike, topicLike, topicLike, difficulty, difficulty);
+            return rows.stream()
+                    .map(this::toQuestionPayload)
+                    .toList();
+        } catch (DataAccessException ex) {
+            return List.of();
+        }
     }
 
     @Override
@@ -94,27 +134,48 @@ public class LocalMockAiModelClient implements AiModelClient {
     }
 
     private List<Map<String, Object>> findQuestionBankQuestions(GenerateQuestionsRequestDTO request, String difficulty) {
-        String topicLike = "%" + request.getTopic().trim() + "%";
         Integer limit = Math.max(1, request.getCount());
+        String topic = Objects.toString(request.getTopic(), "").trim();
 
         try {
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
-                    SELECT q.id,
-                           q.content,
-                           q.correct_answer,
-                           q.difficulty,
-                           q.options,
-                           q.score,
-                           q.type,
-                           q.analysis,
-                           kp.point_name
-                    FROM questions q
-                    JOIN knowledge_points kp ON kp.id = q.knowledge_point_id
-                    WHERE (q.content LIKE ? OR kp.point_name LIKE ? OR kp.description LIKE ?)
-                      AND (q.difficulty = ? OR (q.difficulty IS NULL AND kp.difficulty = ?))
-                    ORDER BY q.id
-                    LIMIT ?
-                    """, topicLike, topicLike, topicLike, difficulty, difficulty, limit);
+            List<Map<String, Object>> rows;
+            if (topic.isBlank()) {
+                rows = jdbcTemplate.queryForList("""
+                        SELECT q.id,
+                               q.content,
+                               q.correct_answer,
+                               q.difficulty,
+                               q.options,
+                               q.score,
+                               q.type,
+                               q.analysis,
+                               kp.point_name
+                        FROM questions q
+                        JOIN knowledge_points kp ON kp.id = q.knowledge_point_id
+                        WHERE (q.difficulty = ? OR (q.difficulty IS NULL AND kp.difficulty = ?))
+                        ORDER BY RAND()
+                        LIMIT ?
+                        """, difficulty, difficulty, limit);
+            } else {
+                String topicLike = "%" + topic + "%";
+                rows = jdbcTemplate.queryForList("""
+                        SELECT q.id,
+                               q.content,
+                               q.correct_answer,
+                               q.difficulty,
+                               q.options,
+                               q.score,
+                               q.type,
+                               q.analysis,
+                               kp.point_name
+                        FROM questions q
+                        JOIN knowledge_points kp ON kp.id = q.knowledge_point_id
+                        WHERE (q.content LIKE ? OR kp.point_name LIKE ? OR kp.description LIKE ?)
+                          AND (q.difficulty = ? OR (q.difficulty IS NULL AND kp.difficulty = ?))
+                        ORDER BY RAND()
+                        LIMIT ?
+                        """, topicLike, topicLike, topicLike, difficulty, difficulty, limit);
+            }
             return rows.stream()
                     .map(this::toQuestionPayload)
                     .toList();

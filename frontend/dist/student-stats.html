@@ -1285,11 +1285,15 @@
 
         function buildEmptyStatsPayload() {
             return {
-                studyTime: 0,
-                completedTasks: 0,
-                averageScore: 0.0,
-                knowledgeMastery: 0.0
+                studyTime: null,
+                completedTasks: null,
+                averageScore: null,
+                knowledgeMastery: null
             };
+        }
+
+        function hasMeaningfulStatValue(value) {
+            return Number.isFinite(Number(value));
         }
 
         function buildEmptyScoreChartData(timeRange = 'month') {

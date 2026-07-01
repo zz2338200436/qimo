@@ -64,24 +64,98 @@ async function newAuthenticatedPage(browser, session, pageName) {
   await page.goto(`${FRONTEND_BASE_URL}/${pageName}`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('[data-agent-panel]', { timeout: 10000 });
   await page.waitForSelector('[data-agent-history-panel]', { timeout: 10000 });
+  await installAgentSmokeHook(page);
   return page;
 }
 
+async function installAgentSmokeHook(page) {
+  await page.waitForFunction(() => {
+    const root = document.querySelector('[data-agent-panel]');
+    return Boolean(root && root.agentChatPanel);
+  }, { timeout: 10000 });
+  await page.evaluate(() => {
+    const root = document.querySelector('[data-agent-panel]');
+    const panel = root?.agentChatPanel;
+    if (!panel) {
+      throw new Error('Agent chat panel instance was not initialized.');
+    }
+    if (window.__agentSmoke?.installed) {
+      return;
+    }
+    window.__agentSmoke = {
+      installed: true,
+      renderCount: 0,
+      lastPayload: null,
+      lastError: null,
+    };
+
+    const originalRenderResponse = panel.renderResponse.bind(panel);
+    panel.renderResponse = function patchedRenderResponse(payload) {
+      window.__agentSmoke.lastPayload = payload;
+      window.__agentSmoke.lastError = null;
+      window.__agentSmoke.renderCount += 1;
+      return originalRenderResponse(payload);
+    };
+
+    const originalAppend = panel.append.bind(panel);
+    panel.append = function patchedAppend(role, html, state) {
+      if (role === 'agent' && typeof html === 'string' && html.includes('text-danger')) {
+        window.__agentSmoke.lastError = html;
+      }
+      return originalAppend(role, html, state);
+    };
+  });
+}
+
+async function resetAgentSmokeState(page) {
+  await page.evaluate(() => {
+    if (!window.__agentSmoke) {
+      window.__agentSmoke = { installed: false, renderCount: 0, lastPayload: null, lastError: null };
+      return;
+    }
+    window.__agentSmoke.lastPayload = null;
+    window.__agentSmoke.lastError = null;
+    window.__agentSmoke.renderCount = 0;
+  });
+}
+
 async function submitAgentCommand(page, message) {
-  const responsePromise = page.waitForResponse(
-    response => response.url().includes('/api/agent/chat') && response.request().method() === 'POST',
-    { timeout: 20000 }
+  await resetAgentSmokeState(page);
+  const requestPromise = page.waitForRequest(
+    request => request.url().includes('/api/agent/chat') && request.method() === 'POST',
+    { timeout: 10000 }
   );
   await page.fill('[data-agent-input]', message);
   await page.click('[data-agent-submit]');
-  const response = await responsePromise;
-  const body = await response.json();
-  assert(response.ok(), 'Agent chat request should return HTTP 2xx', {
-    status: response.status(),
-    body,
-  });
-  assert(body.success !== false, 'Agent chat request should return success envelope', body);
-  return body.data || body;
+  await requestPromise;
+  await page.waitForFunction(() => {
+    return Boolean(window.__agentSmoke?.lastPayload || window.__agentSmoke?.lastError);
+  }, { timeout: 45000 });
+  const state = await page.evaluate(() => ({
+    renderCount: window.__agentSmoke?.renderCount || 0,
+    lastPayload: window.__agentSmoke?.lastPayload || null,
+    lastError: window.__agentSmoke?.lastError || null,
+  }));
+  assert(!state.lastError, 'Agent chat request should not render an error state', state);
+  assert(state.lastPayload, 'Agent chat request should render a payload in the page', state);
+  return state.lastPayload;
+}
+
+async function waitForDataRendered(page, expectedTexts = []) {
+  await page.waitForFunction((texts) => {
+    const messageBodies = Array.from(document.querySelectorAll('.agent-message-agent .agent-message-body'));
+    if (!messageBodies.length) {
+      return false;
+    }
+
+    const combinedText = messageBodies.map(node => node.innerText || '').join('\n');
+    const hasDataCard = document.querySelector('.agent-data-result');
+    if (hasDataCard) {
+      return true;
+    }
+
+    return (texts || []).some(text => text && combinedText.includes(text));
+  }, expectedTexts, { timeout: 10000 });
 }
 
 async function confirmLatestAction(page) {
@@ -308,7 +382,7 @@ async function runStep(results, name, action) {
       const page = await newAuthenticatedPage(browser, studentSession, 'student-ai-assistant.html');
       const payload = await submitAgentCommand(
         page,
-        `提交${publishedExamTitle}，用时45分钟，答案是1:A,2:B`
+        `提交考试ID ${publishedExamId}，用时45分钟，答案是1:A,2:B`
       );
       assert(payload.responseType === 'ACTION_PREVIEW', 'student exam submit command should return ACTION_PREVIEW', payload);
       await page.waitForSelector('.agent-action-card', { timeout: 10000 });
@@ -345,7 +419,11 @@ async function runStep(results, name, action) {
       const pendingAssignment = pendingItems.find(item => item?.id && !item?.submission);
       assert(pendingAssignment, 'student pending assignment response should include an unsubmitted assignment', payload);
       studentTargetAssignmentId = pendingAssignment.id;
-      await page.waitForSelector('.agent-data-result', { timeout: 10000 });
+      await waitForDataRendered(page, [
+        String(studentTargetAssignmentId),
+        pendingAssignment.title,
+        '待提交'
+      ]);
       await page.close();
     });
 

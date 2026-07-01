@@ -149,7 +149,7 @@ http://localhost:8888/exam-service/prod
 http://localhost:8888/agent-service/docker
 ```
 
-`gateway/default` 应返回 `gateway.yml` 与 `application.yml` 两类配置源，并包含 `spring.cloud.gateway.server.webflux.routes`、限流和熔断配置。`exam-service/dev` 应返回 localhost 数据库连接和 `root` 默认密码，`exam-service/docker` 应返回 mysql 容器连接和 `dev_only_pwd` 默认密码，`exam-service/prod` 应只返回环境变量占位。`agent-service/docker` 应返回 `sc_agent` 数据源，并默认关闭 `agent.llm.enabled`，避免本地 Compose 在未提供模型 API key 时启动失败。
+`gateway/default` 应返回 `gateway.yml` 与 `application.yml` 两类配置源，并包含 `spring.cloud.gateway.server.webflux.routes`、限流和熔断配置。`exam-service/dev` 应返回 localhost 数据库连接和 `root` 默认密码，`exam-service/docker` 应返回 mysql 容器连接和 `dev_only_pwd` 默认密码，`exam-service/prod` 应只返回环境变量占位。`agent-service/docker` 应返回 `sc_agent` 数据源，并默认启用 `agent.llm.enabled`，前提是容器启动时已经提供可用的模型 API key。`scripts/start-dev-local-stack.ps1` 则走 `agent-service/src/main/resources/application.yml` 的 `dev` profile，本地会显式开启 `AGENT_RAG_ENABLED=true` 和 `AGENT_QUESTION_BANK_ENABLED=true`，避免把脚本模式误认为容器默认态。
 
 ## 报告表述
 

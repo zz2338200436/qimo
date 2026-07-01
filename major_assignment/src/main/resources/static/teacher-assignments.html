@@ -35,7 +35,7 @@
             transition: width 0.3s ease;
         }
 
-        .sidebar.collapsed {
+        .sidebar.desktop-collapsed {
             width: 80px;
         }
 
@@ -763,6 +763,38 @@
             gap: 12px;
         }
 
+        .teacher-workspace-guide {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            display: grid;
+            gap: 8px;
+            margin-bottom: 18px;
+            padding: 16px 18px;
+        }
+
+        .teacher-workspace-guide strong,
+        .teacher-section-label {
+            color: #0f172a;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .teacher-workspace-guide p,
+        .teacher-section-label span {
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        .teacher-section-label {
+            align-items: center;
+            display: flex;
+            justify-content: space-between;
+            margin: 0 0 10px;
+        }
+
         .tabs.teacher-tab-panel,
         .search-filter.teacher-filter-panel,
         .data-table.teacher-table-panel,
@@ -837,6 +869,11 @@
                 </div>
             </div>
 
+            <section class="teacher-workspace-guide" aria-label="作业考试页操作顺序">
+                <strong>先发布任务，再跟进提交与批改。</strong>
+                <p>顶部统计用于快速判断待处理量，标签页承接作业、考试和提交记录三条路径。</p>
+            </section>
+
             <!-- 统计卡片 -->
             <div class="stats-cards">
                 <div class="stat-card teacher-stat-panel">
@@ -887,6 +924,10 @@
 
                 <!-- 作业管理内容 -->
                 <div class="tab-content" id="assignments-content">
+                    <div class="teacher-section-label">
+                        <strong>筛选条件</strong>
+                        <span>按课程、名称和状态定位作业。</span>
+                    </div>
                     <!-- 搜索和筛选 -->
                     <div class="search-filter teacher-filter-panel">
                         <div class="search-group">
@@ -920,6 +961,10 @@
                         </div>
                     </div>
 
+                    <div class="teacher-section-label">
+                        <strong>任务数据区</strong>
+                        <span>查看当前任务并进入发布、编辑、批改相关操作。</span>
+                    </div>
                     <!-- 作业列表 -->
                     <div class="data-table teacher-table-panel">
                         <table class="table">
@@ -1178,11 +1223,7 @@
                         </div>
                         <div class="form-group">
                             <label for="edit-assignment-files">已上传附件</label>
-                            <div class="card">
-                                <div class="card-body">
-                                    <p><i class="fa fa-file"></i> Python基础作业1.docx <button class="btn btn-sm btn-danger" style="float: right;"><i class="fa fa-trash"></i></button></p>
-                                </div>
-                            </div>
+                            <div id="edit-assignment-existing-files" class="card"></div>
                             <input type="file" id="edit-assignment-files" name="assignmentFiles" multiple style="margin-top: 10px;">
                         </div>
                         <div class="form-group">
@@ -1249,12 +1290,6 @@
                                 <li>列表和字典的使用</li>
                             </ol>
                             <p>要求：代码整洁，有适当注释，运行结果正确。</p>
-                        </div>
-                    </div>
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h6 class="card-title">附件</h6>
-                            <p><i class="fa fa-file"></i> <a href="#">Python基础作业1.docx</a></p>
                         </div>
                     </div>
                     <div class="card">
@@ -1414,11 +1449,7 @@
                         </div>
                         <div class="form-group">
                             <label for="edit-exam-papers">已上传试卷</label>
-                            <div class="card">
-                                <div class="card-body">
-                                    <p><i class="fa fa-file"></i> 数据结构与算法单元测试.docx <button class="btn btn-sm btn-danger" style="float: right;"><i class="fa fa-trash"></i></button></p>
-                                </div>
-                            </div>
+                            <div id="edit-exam-existing-files" class="card"></div>
                             <input type="file" id="edit-exam-papers" name="examPapers" multiple style="margin-top: 10px;">
                         </div>
                     </form>
@@ -1477,6 +1508,7 @@
                                         <th>学生姓名</th>
                                         <th>提交时间</th>
                                         <th>提交内容</th>
+                                        <th>附件</th>
                                         <th>状态</th>
                                         <th>得分</th>
                                         <th>操作</th>
@@ -1531,6 +1563,10 @@
                             <small class="form-text text-muted">此内容为学生提交的作业内容，仅供查看</small>
                         </div>
                         <div class="form-group">
+                            <label>提交附件</label>
+                            <div id="grade-submission-attachments" class="border rounded p-2 bg-light text-muted">无附件</div>
+                        </div>
+                        <div class="form-group">
                             <label for="grade-score">得分 *</label>
                             <input type="number" id="grade-score" name="score" class="form-control" min="0" max="100" required>
                         </div>
@@ -1575,6 +1611,7 @@
                                         <th>学生姓名</th>
                                         <th>提交时间</th>
                                         <th>提交内容</th>
+                                        <th>附件</th>
                                         <th>用时（分钟）</th>
                                         <th>状态</th>
                                         <th>得分</th>
@@ -1611,6 +1648,10 @@
                             <small class="form-text text-muted">此内容为学生提交的考试答案，仅供查看</small>
                         </div>
                         <div class="form-group">
+                            <label>提交附件</label>
+                            <div id="grade-exam-submission-attachments" class="border rounded p-2 bg-light text-muted">无附件</div>
+                        </div>
+                        <div class="form-group">
                             <label for="grade-exam-score">得分 *</label>
                             <input type="number" id="grade-exam-score" name="score" class="form-control" min="0" max="100" required>
                         </div>
@@ -1633,15 +1674,15 @@
         <div class="loading-spinner"></div>
     </div>
     <!-- 引入外部API脚本 -->
-    <script src="api.js?v=20260611-assignment-detail-1"></script>
-    <script src="teacher-assignments-assignment-crud.js?v=20260611-assignment-detail-1"></script>
-<script src="teacher-assignments-assignment-publish.js?v=20260602-2"></script>
+    <script src="api.js?v=20260630-attachments-2"></script>
+    <script src="teacher-assignments-assignment-crud.js?v=20260630-attachments-2"></script>
+<script src="teacher-assignments-assignment-publish.js?v=20260630-attachments-2"></script>
     <script src="teacher-assignments-lists.js?v=20260609-view-action-1"></script>
-    <script src="teacher-assignments-exam-crud.js?v=20260611-assignment-detail-1"></script>
-    <script src="teacher-assignments-exam-publish.js?v=20260602-1"></script>
+    <script src="teacher-assignments-exam-crud.js?v=20260630-attachments-2"></script>
+    <script src="teacher-assignments-exam-publish.js?v=20260630-attachments-2"></script>
     <script src="teacher-assignments-shell.js?v=20260602-2"></script>
     <script src="teacher-assignments-submission-filters.js?v=20260524-1"></script>
-    <script src="teacher-assignments-grading.js?v=20260611-content-display-1"></script>
+    <script src="teacher-assignments-grading.js?v=20260630-submission-attachments-1"></script>
 
     <script>
         // 通用函数：为教师端加载右上角用户下拉菜单，并执行组件内脚本

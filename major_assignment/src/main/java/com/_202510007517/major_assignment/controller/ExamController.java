@@ -9,6 +9,7 @@ import com._202510007517.major_assignment.entity.Notification;
 import com._202510007517.major_assignment.entity.dto.PageResult;
 import com._202510007517.major_assignment.entity.dto.ResponseResult;
 import com._202510007517.major_assignment.service.CourseService;
+import com._202510007517.major_assignment.service.AssessmentAttachmentService;
 import com._202510007517.major_assignment.service.ExamService;
 import com._202510007517.major_assignment.service.ExamSubmissionService;
 import com._202510007517.major_assignment.service.NotificationService;
@@ -20,6 +21,8 @@ import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 import jakarta.servlet.http.HttpServletRequest;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -52,6 +55,9 @@ public class ExamController extends BaseController {
     
     @Autowired
     private KnowledgePointService knowledgePointService;
+
+    @Autowired
+    private AssessmentAttachmentService assessmentAttachmentService;
     
     @Autowired
     private com._202510007517.major_assignment.mapper.ExamMapper examMapper;
@@ -222,8 +228,22 @@ public class ExamController extends BaseController {
         return ResponseResult.success(result, "获取考试列表成功", 200);
     }
     
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseResult<Exam> createExam(@RequestBody Map<String, Object> requestBody, HttpServletRequest requestContext) {
+        return createExamInternal(requestBody, null, requestContext);
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseResult<Exam> createExamWithFiles(
+            @RequestPart("payload") Map<String, Object> requestBody,
+            @RequestPart(value = "files", required = false) MultipartFile[] files,
+            HttpServletRequest requestContext) {
+        return createExamInternal(requestBody, files, requestContext);
+    }
+
+    private ResponseResult<Exam> createExamInternal(Map<String, Object> requestBody,
+                                                   MultipartFile[] files,
+                                                   HttpServletRequest requestContext) {
         LogUtil.logRequest(logger, "POST", "/api/teacher/exams", requestBody, getCurrentUserId(requestContext));
         
         try {
@@ -287,6 +307,11 @@ public class ExamController extends BaseController {
             
             // 保存考试
             examService.create(exam);
+            assessmentAttachmentService.saveAttachments(
+                    AssessmentAttachmentService.EXAM_TYPE,
+                    exam.getId(),
+                    teacherId,
+                    files);
             LogUtil.logOperation(logger, "创建考试", "考试标题: " + exam.getTitle(), getCurrentUserId(requestContext), true);
             
             // 处理知识点关联

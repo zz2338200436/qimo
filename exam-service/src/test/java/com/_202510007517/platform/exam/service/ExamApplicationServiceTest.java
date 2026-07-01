@@ -103,6 +103,35 @@ class ExamApplicationServiceTest {
     }
 
     @Test
+    void listStudentExamsIncludesAttachments() {
+        AssessmentAttachmentService attachmentService = org.mockito.Mockito.mock(AssessmentAttachmentService.class);
+        examApplicationService = new ExamApplicationService(
+                examRepository,
+                courseFeignClient,
+                assignmentFeignClient,
+                outboxEventRepository,
+                objectMapper,
+                attachmentService);
+        List<Map<String, Object>> attachments = List.of(Map.of(
+                "id", 1L,
+                "name", "考试说明.pdf",
+                "downloadUrl", "/api/attachments/exam/1/download"
+        ));
+        when(courseFeignClient.listStudentClassIds(42L)).thenReturn(List.of(2L));
+        when(examRepository.findByClassIds(List.of(2L))).thenReturn(List.of(openExam));
+        when(examRepository.findSubmission(9001L, 42L)).thenReturn(Optional.empty());
+        when(courseFeignClient.getCourse(2L)).thenReturn(courseDto(2L, "CourseSmokeA"));
+        when(attachmentService.getAttachmentDtos(9001L)).thenReturn(attachments);
+
+        Map<String, Object> page = examApplicationService.listStudentExams(42L, 1, 10, "startTime", "DESC", null, null, null);
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> content = (List<Map<String, Object>>) page.get("content");
+        assertThat(content).hasSize(1);
+        assertThat(content.get(0)).containsEntry("attachments", attachments);
+    }
+
+    @Test
     void getStudentExamDetailIncludesSubmissionWhenPresent() {
         when(courseFeignClient.listStudentClassIds(42L)).thenReturn(List.of(2L));
         when(examRepository.isExamVisibleToClasses(9001L, List.of(2L))).thenReturn(true);
@@ -124,6 +153,68 @@ class ExamApplicationServiceTest {
         assertThat(detail).containsEntry("title", "StudentExamSmoke-Open");
         assertThat(detail).containsEntry("courseName", "CourseSmokeA");
         assertThat(detail).containsKey("submission");
+    }
+
+    @Test
+    void getStudentExamDetailIncludesAttachments() {
+        AssessmentAttachmentService attachmentService = org.mockito.Mockito.mock(AssessmentAttachmentService.class);
+        examApplicationService = new ExamApplicationService(
+                examRepository,
+                courseFeignClient,
+                assignmentFeignClient,
+                outboxEventRepository,
+                objectMapper,
+                attachmentService);
+        List<Map<String, Object>> attachments = List.of(Map.of(
+                "id", 1L,
+                "name", "考试说明.pdf",
+                "downloadUrl", "/api/attachments/exam/1/download"
+        ));
+        when(courseFeignClient.listStudentClassIds(42L)).thenReturn(List.of(2L));
+        when(examRepository.isExamVisibleToClasses(9001L, List.of(2L))).thenReturn(true);
+        when(examRepository.findExam(9001L)).thenReturn(Optional.of(openExam));
+        when(attachmentService.getAttachmentDtos(9001L)).thenReturn(attachments);
+
+        Map<String, Object> detail = examApplicationService.getStudentExamDetail(42L, 9001L);
+
+        assertThat(detail).containsEntry("attachments", attachments);
+    }
+
+    @Test
+    void getStudentExamDetailIncludesSubmissionAttachments() {
+        AssessmentAttachmentService attachmentService = org.mockito.Mockito.mock(AssessmentAttachmentService.class);
+        examApplicationService = new ExamApplicationService(
+                examRepository,
+                courseFeignClient,
+                assignmentFeignClient,
+                outboxEventRepository,
+                objectMapper,
+                attachmentService);
+        ExamSubmissionRecord submission = new ExamSubmissionRecord();
+        submission.setId(9004L);
+        submission.setExamId(9001L);
+        submission.setStudentId(42L);
+        submission.setContent("{\"q1\":\"A\"}");
+        submission.setSubmissionDate("2026-05-17 09:00:00");
+        submission.setTimeTaken(48);
+        submission.setGraded(false);
+        List<Map<String, Object>> attachments = List.of(Map.of(
+                "id", 8001L,
+                "name", "考试附件.pdf",
+                "downloadUrl", "/api/attachments/exam/8001/download"
+        ));
+
+        when(courseFeignClient.listStudentClassIds(42L)).thenReturn(List.of(2L));
+        when(examRepository.isExamVisibleToClasses(9001L, List.of(2L))).thenReturn(true);
+        when(examRepository.findExam(9001L)).thenReturn(Optional.of(openExam));
+        when(examRepository.findSubmission(9001L, 42L)).thenReturn(Optional.of(submission));
+        when(attachmentService.getSubmissionAttachmentDtos(9004L)).thenReturn(attachments);
+
+        Map<String, Object> detail = examApplicationService.getStudentExamDetail(42L, 9001L);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> submissionMap = (Map<String, Object>) detail.get("submission");
+        assertThat(submissionMap).containsEntry("attachments", attachments);
     }
 
     @Test
@@ -155,6 +246,59 @@ class ExamApplicationServiceTest {
         verify(examRepository).upsertSubmission(org.mockito.ArgumentMatchers.eq(9001L), org.mockito.ArgumentMatchers.eq(42L), org.mockito.ArgumentMatchers.eq(48), contentCaptor.capture());
         assertThat(contentCaptor.getValue()).contains("\"q1\":\"A\"");
         assertThat(contentCaptor.getValue()).contains("\"essay\":\"Answer\"");
+    }
+
+    @Test
+    void submitPersistsUploadedSubmissionAttachments() throws Exception {
+        AssessmentAttachmentService attachmentService = org.mockito.Mockito.mock(AssessmentAttachmentService.class);
+        examApplicationService = new ExamApplicationService(
+                examRepository,
+                courseFeignClient,
+                assignmentFeignClient,
+                outboxEventRepository,
+                objectMapper,
+                attachmentService);
+        when(courseFeignClient.listStudentClassIds(42L)).thenReturn(List.of(2L));
+        when(examRepository.isExamVisibleToClasses(9001L, List.of(2L))).thenReturn(true);
+        when(examRepository.findExam(9001L)).thenReturn(Optional.of(openExam));
+        ExamSubmitRequestDTO request = new ExamSubmitRequestDTO();
+        request.setStudentId(42L);
+        request.setTimeTaken(48);
+        Map<String, String> answers = new LinkedHashMap<>();
+        answers.put("q1", "A");
+        request.setAnswers(answers);
+        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile(
+                "files",
+                "考试附件.pdf",
+                "application/pdf",
+                "file content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        ExamSubmissionRecord saved = new ExamSubmissionRecord();
+        saved.setId(9004L);
+        saved.setExamId(9001L);
+        saved.setStudentId(42L);
+        saved.setSubmissionDate("2026-05-17 09:00:00");
+        saved.setTimeTaken(48);
+        saved.setGraded(false);
+        List<Map<String, Object>> attachments = List.of(Map.of(
+                "id", 8001L,
+                "name", "考试附件.pdf",
+                "downloadUrl", "/api/attachments/exam/8001/download"
+        ));
+        when(examRepository.upsertSubmission(org.mockito.ArgumentMatchers.eq(9001L), org.mockito.ArgumentMatchers.eq(42L), org.mockito.ArgumentMatchers.eq(48), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(saved);
+        when(attachmentService.getSubmissionAttachmentDtos(9004L)).thenReturn(attachments);
+
+        ExamSubmissionDTO result = examApplicationService.submit(
+                9001L,
+                request,
+                new org.springframework.web.multipart.MultipartFile[]{file});
+
+        verify(attachmentService).saveSubmissionAttachments(
+                org.mockito.ArgumentMatchers.eq(9004L),
+                org.mockito.ArgumentMatchers.eq(42L),
+                org.mockito.ArgumentMatchers.any());
+        assertThat(result.getAttachments()).isEqualTo(attachments);
     }
 
     @Test
@@ -444,6 +588,51 @@ class ExamApplicationServiceTest {
     }
 
     @Test
+    void createTeacherExamPersistsUploadedAttachments() throws Exception {
+        AssessmentAttachmentService attachmentService = org.mockito.Mockito.mock(AssessmentAttachmentService.class);
+        examApplicationService = new ExamApplicationService(
+                examRepository,
+                courseFeignClient,
+                assignmentFeignClient,
+                outboxEventRepository,
+                objectMapper,
+                attachmentService);
+        TeacherExamUpsertRequestDTO request = new TeacherExamUpsertRequestDTO();
+        request.setTitle("TeacherExamCrudSmoke");
+        request.setDescription("teacher exam smoke");
+        request.setCourseId(2L);
+        request.setStartTime("2026-05-20T01:00:00.000Z");
+        request.setEndTime("2026-05-20T02:30:00.000Z");
+        request.setPublishDate("2026-05-19T01:00:00.000Z");
+        request.setDuration(90L);
+        request.setIsActive(true);
+        request.setIsOnline(true);
+        request.setLocation("");
+        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile(
+                "files",
+                "考试说明.pdf",
+                "application/pdf",
+                "content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        when(courseFeignClient.getCourse(2L)).thenReturn(courseDto(2L, "CourseSmokeA"));
+        when(examRepository.insert(org.mockito.ArgumentMatchers.any())).thenAnswer(invocation -> {
+            ExamRecord record = invocation.getArgument(0);
+            record.setId(9005L);
+            return record;
+        });
+
+        examApplicationService.createTeacherExam(
+                7L,
+                request,
+                new org.springframework.web.multipart.MultipartFile[]{file});
+
+        verify(attachmentService).saveAttachments(
+                org.mockito.ArgumentMatchers.eq(9005L),
+                org.mockito.ArgumentMatchers.eq(7L),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void updateTeacherExamAcceptsDatetimeLocalValuesFromTeacherForm() {
         TeacherExamUpsertRequestDTO request = new TeacherExamUpsertRequestDTO();
         request.setTitle("TeacherExamCrudSmokeUpdated");
@@ -467,6 +656,48 @@ class ExamApplicationServiceTest {
         verify(examRepository).update(updateCaptor.capture());
         assertThat(updateCaptor.getValue().getStartTime()).isEqualTo("2026-06-11 09:43:00");
         assertThat(updateCaptor.getValue().getEndTime()).isEqualTo("2026-06-11 11:13:00");
+    }
+
+    @Test
+    void updateTeacherExamPersistsNewUploadedAttachments() throws Exception {
+        AssessmentAttachmentService attachmentService = org.mockito.Mockito.mock(AssessmentAttachmentService.class);
+        examApplicationService = new ExamApplicationService(
+                examRepository,
+                courseFeignClient,
+                assignmentFeignClient,
+                outboxEventRepository,
+                objectMapper,
+                attachmentService);
+        TeacherExamUpsertRequestDTO request = new TeacherExamUpsertRequestDTO();
+        request.setTitle("TeacherExamCrudSmokeUpdated");
+        request.setDescription("teacher exam updated");
+        request.setCourseId(2L);
+        request.setStartTime("2026-06-11T09:43:00");
+        request.setEndTime("2026-06-11T11:13:00");
+        request.setPublishDate("2026-06-11T09:40:00");
+        request.setDuration(90L);
+        request.setIsActive(true);
+        request.setIsOnline(true);
+        request.setLocation("");
+        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile(
+                "files",
+                "考试补充说明.pdf",
+                "application/pdf",
+                "content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        when(examRepository.findExam(9001L)).thenReturn(Optional.of(openExam), Optional.of(openExam));
+        when(courseFeignClient.getCourse(2L)).thenReturn(courseDto(2L, "CourseSmokeA"));
+
+        examApplicationService.updateTeacherExam(
+                7L,
+                9001L,
+                request,
+                new org.springframework.web.multipart.MultipartFile[]{file});
+
+        verify(attachmentService).saveAttachments(
+                org.mockito.ArgumentMatchers.eq(9001L),
+                org.mockito.ArgumentMatchers.eq(7L),
+                org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -508,6 +739,14 @@ class ExamApplicationServiceTest {
 
     @Test
     void listTeacherExamSubmissionsReturnsTeacherVisibleRows() {
+        AssessmentAttachmentService attachmentService = org.mockito.Mockito.mock(AssessmentAttachmentService.class);
+        examApplicationService = new ExamApplicationService(
+                examRepository,
+                courseFeignClient,
+                assignmentFeignClient,
+                outboxEventRepository,
+                objectMapper,
+                attachmentService);
         ExamSubmissionRecord submission = new ExamSubmissionRecord();
         submission.setId(9101L);
         submission.setExamId(9001L);
@@ -517,18 +756,33 @@ class ExamApplicationServiceTest {
         submission.setSubmissionDate("2026-05-17 08:00:00");
         submission.setTimeTaken(35);
         submission.setGraded(false);
+        List<Map<String, Object>> attachments = List.of(Map.of(
+                "id", 8001L,
+                "name", "学生考试附件.pdf",
+                "downloadUrl", "/api/attachments/exam/8001/download"
+        ));
 
         when(examRepository.findExam(9001L)).thenReturn(Optional.of(openExam));
         when(examRepository.findSubmissionsByExamId(9001L)).thenReturn(List.of(submission));
+        when(attachmentService.getSubmissionAttachmentDtos(9101L)).thenReturn(attachments);
 
         List<ExamSubmissionRecord> submissions = examApplicationService.listTeacherExamSubmissions(7L, 9001L);
 
         assertThat(submissions).hasSize(1);
         assertThat(submissions.get(0).getStudentName()).isEqualTo("Student Forty Two");
+        assertThat(submissions.get(0).getAttachments()).isEqualTo(attachments);
     }
 
     @Test
     void listTeacherExamSubmissionsReturnsLegacyPagedEnvelopeWithFilters() {
+        AssessmentAttachmentService attachmentService = org.mockito.Mockito.mock(AssessmentAttachmentService.class);
+        examApplicationService = new ExamApplicationService(
+                examRepository,
+                courseFeignClient,
+                assignmentFeignClient,
+                outboxEventRepository,
+                objectMapper,
+                attachmentService);
         ExamSubmissionRecord submission = new ExamSubmissionRecord();
         submission.setId(9101L);
         submission.setExamId(9001L);
@@ -539,10 +793,16 @@ class ExamApplicationServiceTest {
         submission.setSubmissionDate("2026-05-17 08:00:00");
         submission.setTimeTaken(35);
         submission.setGraded(false);
+        List<Map<String, Object>> attachments = List.of(Map.of(
+                "id", 8001L,
+                "name", "学生考试附件.pdf",
+                "downloadUrl", "/api/attachments/exam/8001/download"
+        ));
 
         when(examRepository.findSubmissionsByTeacherId(7L, 9001L, 42L, false, "id", "DESC", 0, 10))
                 .thenReturn(List.of(submission));
         when(examRepository.countSubmissionsByTeacherId(7L, 9001L, 42L, false)).thenReturn(1);
+        when(attachmentService.getSubmissionAttachmentDtos(9101L)).thenReturn(attachments);
 
         Map<String, Object> page = examApplicationService.listTeacherExamSubmissions(
                 7L,
@@ -562,6 +822,38 @@ class ExamApplicationServiceTest {
         List<ExamSubmissionRecord> submissions = (List<ExamSubmissionRecord>) page.get("submissions");
         assertThat(submissions).hasSize(1);
         assertThat(submissions.get(0).getExamTitle()).isEqualTo("StudentExamSmoke-Open");
+        assertThat(submissions.get(0).getAttachments()).isEqualTo(attachments);
+    }
+
+    @Test
+    void getTeacherExamSubmissionDetailIncludesSubmissionAttachments() {
+        AssessmentAttachmentService attachmentService = org.mockito.Mockito.mock(AssessmentAttachmentService.class);
+        examApplicationService = new ExamApplicationService(
+                examRepository,
+                courseFeignClient,
+                assignmentFeignClient,
+                outboxEventRepository,
+                objectMapper,
+                attachmentService);
+        ExamSubmissionRecord submission = new ExamSubmissionRecord();
+        submission.setId(9101L);
+        submission.setExamId(9001L);
+        submission.setStudentId(42L);
+        submission.setContent("answer");
+        submission.setGraded(false);
+        List<Map<String, Object>> attachments = List.of(Map.of(
+                "id", 8001L,
+                "name", "学生考试附件.pdf",
+                "downloadUrl", "/api/attachments/exam/8001/download"
+        ));
+
+        when(examRepository.findSubmissionById(9101L)).thenReturn(Optional.of(submission));
+        when(examRepository.findExam(9001L)).thenReturn(Optional.of(openExam));
+        when(attachmentService.getSubmissionAttachmentDtos(9101L)).thenReturn(attachments);
+
+        ExamSubmissionRecord result = examApplicationService.getTeacherExamSubmissionDetail(7L, 9101L);
+
+        assertThat(result.getAttachments()).isEqualTo(attachments);
     }
 
     @Test

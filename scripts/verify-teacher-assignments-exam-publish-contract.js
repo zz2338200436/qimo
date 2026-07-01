@@ -13,13 +13,13 @@ const pageContent = fs.readFileSync('frontend/dist/teacher-assignments.html', 'u
 
 assertIncludes(
   pageContent,
-  'api.js?v=20260611-assignment-detail-1',
+  'api.js?v=20260630-attachments-2',
   'teacher assignments page should bust cache for the fixed API module.'
 );
 
 assertIncludes(
   pageContent,
-  'teacher-assignments-exam-publish.js?v=20260602-1',
+  'teacher-assignments-exam-publish.js?v=20260630-attachments-2',
   'teacher assignments page should bust cache for the fixed exam publish module.'
 );
 
@@ -38,7 +38,10 @@ assertIncludes(
 [
   'async function submitAddExam() {',
   'serializeExamLocalDateTime(examStart)',
-  'const result = await teacherAPI.createExam(examData);',
+  "const fileInput = document.getElementById('exam-papers');",
+  "formData.append('payload', new Blob([JSON.stringify(examData)], { type: 'application/json' }));",
+  "Array.from(fileInput.files).forEach(file => formData.append('files', file));",
+  'const result = await teacherAPI.createExam(requestBody);',
   'if (!result || result.success === false) {',
   "showMessage('考试发布失败：' + (result?.message || 'API返回空结果'), 'error');",
   'await loadExams();',
@@ -52,6 +55,18 @@ assertIncludes(
     examPublishContent,
     snippet,
     'teacher assignments exam publish module contract mismatch.'
+  );
+});
+
+[
+  'createExam(data) {',
+  'if (data instanceof FormData) {',
+  "return this.apiService.request('/api/teacher/exams', {"
+].forEach(snippet => {
+  assertIncludes(
+    apiContent,
+    snippet,
+    'TeacherAPI.createExam should send exam attachments with multipart FormData.'
   );
 });
 
@@ -100,6 +115,8 @@ assertIncludes(
 
 [
   'updateExam(examId, data) {',
+  'if (data instanceof FormData) {',
+  "return this.apiService.request(`/api/teacher/exams/${examId}`, {",
   'courseId: data.courseId',
   'startTime: data.startTime',
   'endTime: data.endTime',
@@ -115,6 +132,41 @@ assertIncludes(
     'TeacherAPI.updateExam should send camelCase fields expected by backend validation.'
   );
 });
+
+[
+  'function renderExamAttachmentLinksHtml(attachments) {',
+  'function renderEditExamAttachments(attachments) {',
+  'attachments: normalizeExamAttachments(response.data)',
+  'renderEditExamAttachments(exam.attachments);',
+  'data-download-url="${escapeHtml(path)}"',
+  'data-download-name="${escapeHtml(name)}"',
+  'onclick="downloadAttachmentFromButton(this)"',
+  "const fileInput = document.getElementById('edit-exam-papers');",
+  "formData.append('payload', new Blob([JSON.stringify(examData)], { type: 'application/json' }));",
+  "Array.from(fileInput.files).forEach(file => formData.append('files', file));",
+  'const response = await teacherAPI.updateExam(parseInt(examId), requestBody);'
+].forEach(snippet => {
+  assertIncludes(
+    examCrudContent,
+    snippet,
+    'teacher assignments exam edit should display existing attachments and upload newly selected files.'
+  );
+});
+
+assertIncludes(
+  pageContent,
+  'id="edit-exam-existing-files"',
+  'teacher assignments page should render a real exam attachment container in the edit modal.'
+);
+if (pageContent.includes('数据结构与算法单元测试.docx')) {
+  throw new Error('teacher assignments page should not show hard-coded fake exam attachments.');
+}
+if (examCrudContent.includes('href="${escapeHtml(path)}" download')) {
+  throw new Error('teacher exam attachments should not use bare anchor downloads because they omit Authorization.');
+}
+if (examCrudContent.includes("onclick=\"downloadAttachment('${escapeHtml(path)}'")) {
+  throw new Error('teacher exam attachments should not pass escaped filenames through inline JavaScript strings.');
+}
 
 [
   'course_id: data.courseId',

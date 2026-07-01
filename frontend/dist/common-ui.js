@@ -1,5 +1,10 @@
 (function attachCommonUi(global) {
-    const SIDEBAR_STORAGE_KEY = 'sidebarCollapsed';
+    const SIDEBAR_STORAGE_KEY = 'sidebarDesktopCollapsed';
+    const MOBILE_SIDEBAR_BREAKPOINT = 768;
+
+    function isMobileViewport() {
+        return global.innerWidth <= MOBILE_SIDEBAR_BREAKPOINT;
+    }
 
     function getCurrentPageName() {
         return global.location.pathname.split('/').pop() || 'index.html';
@@ -25,14 +30,34 @@
     function applySidebarState(isCollapsed, options = {}) {
         const sidebar = document.getElementById(options.sidebarId || 'sidebar');
         const mainContent = document.getElementById(options.mainContentId || 'mainContent');
+        const overlay = document.getElementById(options.overlayId || 'sidebarOverlay');
 
         if (!sidebar) {
             return;
         }
 
-        sidebar.classList.toggle('collapsed', !!isCollapsed);
-        if (mainContent) {
-            mainContent.classList.toggle('collapsed', !!isCollapsed);
+        if (isMobileViewport()) {
+            sidebar.classList.remove('desktop-collapsed');
+            sidebar.classList.toggle('mobile-open', !!isCollapsed);
+            if (mainContent) {
+                mainContent.classList.remove('collapsed');
+            }
+            if (overlay) {
+                overlay.classList.toggle('active', !!isCollapsed);
+                overlay.hidden = !isCollapsed;
+            }
+            document.body.classList.toggle('sidebar-mobile-open', !!isCollapsed);
+        } else {
+            sidebar.classList.remove('mobile-open');
+            sidebar.classList.toggle('desktop-collapsed', !!isCollapsed);
+            if (mainContent) {
+                mainContent.classList.toggle('collapsed', !!isCollapsed);
+            }
+            if (overlay) {
+                overlay.classList.remove('active');
+                overlay.hidden = true;
+            }
+            document.body.classList.remove('sidebar-mobile-open');
         }
     }
 
@@ -45,10 +70,63 @@
     }
 
     function toggleSidebar(options = {}) {
+        if (isMobileViewport()) {
+            const sidebar = document.getElementById(options.sidebarId || 'sidebar');
+            const nextOpen = !(sidebar && sidebar.classList.contains('mobile-open'));
+            applySidebarState(nextOpen, options);
+            return nextOpen;
+        }
+
         const nextCollapsed = !isSidebarCollapsed();
         localStorage.setItem(SIDEBAR_STORAGE_KEY, String(nextCollapsed));
         applySidebarState(nextCollapsed, options);
         return nextCollapsed;
+    }
+
+    function closeMobileSidebar(options = {}) {
+        if (!isMobileViewport()) {
+            return false;
+        }
+        applySidebarState(false, options);
+        return true;
+    }
+
+    function ensureSidebarOverlay(options = {}) {
+        const overlayId = options.overlayId || 'sidebarOverlay';
+        let overlay = document.getElementById(overlayId);
+        if (overlay) {
+            return overlay;
+        }
+
+        overlay = document.createElement('button');
+        overlay.type = 'button';
+        overlay.id = overlayId;
+        overlay.className = 'sidebar-overlay';
+        overlay.hidden = true;
+        overlay.setAttribute('aria-label', '关闭侧边栏');
+        overlay.addEventListener('click', () => closeMobileSidebar(options));
+        document.body.appendChild(overlay);
+        return overlay;
+    }
+
+    function bindSidebarDismissHandlers(options = {}) {
+        ensureSidebarOverlay(options);
+
+        if (!global.__commonUiSidebarEscapeBound) {
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    closeMobileSidebar(options);
+                }
+            });
+            global.__commonUiSidebarEscapeBound = true;
+        }
+
+        if (!global.__commonUiSidebarResizeBound) {
+            global.addEventListener('resize', () => {
+                applySidebarState(isSidebarCollapsed(), options);
+            });
+            global.__commonUiSidebarResizeBound = true;
+        }
     }
 
     function clearMessageContainer(messageContainer) {
@@ -189,6 +267,101 @@
         element.disabled = false;
     }
 
+    function resolveElement(target) {
+        if (!target) {
+            return null;
+        }
+        if (typeof target === 'string') {
+            return document.querySelector(target);
+        }
+        return target;
+    }
+
+    function clearState(target) {
+        const element = resolveElement(target);
+        if (!element) {
+            return null;
+        }
+        element.innerHTML = '';
+        element.removeAttribute('data-feedback-state');
+        return element;
+    }
+
+    function buildStateActionHtml(options = {}) {
+        if (!options.actionText) {
+            return '';
+        }
+        return `
+            <button type="button" class="btn btn-primary btn-sm feedback-state-action">
+                ${options.actionText}
+            </button>
+        `;
+    }
+
+    function renderStateBlock(target, options = {}) {
+        const element = clearState(target);
+        if (!element) {
+            return null;
+        }
+
+        const iconClass = options.iconClass || 'fa-info-circle';
+        const title = options.title || '';
+        const description = options.description || '';
+        const stateClass = options.stateClass || 'info';
+
+        element.dataset.feedbackState = stateClass;
+        element.innerHTML = `
+            <div class="feedback-state feedback-state-${stateClass}">
+                <div class="feedback-state-icon" aria-hidden="true">
+                    <i class="fa ${iconClass}"></i>
+                </div>
+                <div class="feedback-state-body">
+                    ${title ? `<div class="feedback-state-title">${title}</div>` : ''}
+                    ${description ? `<div class="feedback-state-text">${description}</div>` : ''}
+                    ${buildStateActionHtml(options)}
+                </div>
+            </div>
+        `;
+
+        if (typeof options.onAction === 'function') {
+            const actionButton = element.querySelector('.feedback-state-action');
+            if (actionButton) {
+                actionButton.addEventListener('click', options.onAction);
+            }
+        }
+
+        return element;
+    }
+
+    function setElementLoadingState(target, options = {}) {
+        return renderStateBlock(target, {
+            stateClass: 'loading',
+            iconClass: 'fa-spinner fa-spin',
+            title: options.title || '加载中',
+            description: options.description || '正在获取数据，请稍候...'
+        });
+    }
+
+    function renderEmptyState(target, options = {}) {
+        return renderStateBlock(target, {
+            stateClass: 'empty',
+            iconClass: options.iconClass || 'fa-inbox',
+            title: options.title || '暂无数据',
+            description: options.description || '当前没有可显示的内容。'
+        });
+    }
+
+    function renderErrorState(target, options = {}) {
+        return renderStateBlock(target, {
+            stateClass: 'error',
+            iconClass: options.iconClass || 'fa-exclamation-circle',
+            title: options.title || '加载失败',
+            description: options.description || '请求失败，请稍后重试。',
+            actionText: options.actionText || '',
+            onAction: options.onAction
+        });
+    }
+
     function reportResourceLoadFailure(message, options = {}) {
         console.error(message);
 
@@ -283,6 +456,28 @@
         return loadUserDropdown(containerId, 'teacher');
     }
 
+    async function loadStudentSidebar(containerId, options = {}) {
+        const container = document.getElementById(containerId);
+        if (!container) {
+            return false;
+        }
+
+        const response = await fetch(options.componentUrl || 'components/sidebar-nav.html?v=20260608-theme-4');
+        if (!response.ok) {
+            throw new Error(`加载学生侧边栏失败: ${response.status} ${response.statusText}`);
+        }
+
+        container.innerHTML = await response.text();
+
+        global.setTimeout(() => {
+            bindSidebarDismissHandlers(options);
+            highlightActiveNavItem({ selector: '.sidebar .menu-item, .menu-item' });
+            initializeSidebar(options);
+        }, Number.isFinite(options.delayMs) ? options.delayMs : 100);
+
+        return true;
+    }
+
     async function loadTeacherSidebar(containerId, options = {}) {
         const container = document.getElementById(containerId);
         if (!container) {
@@ -298,10 +493,8 @@
 
         global.setTimeout(() => {
             highlightActiveNavItem({ selector: '.sidebar .menu-item, .menu-item' });
+            bindSidebarDismissHandlers(options);
             initializeSidebar();
-            if (typeof global.initSidebar === 'function') {
-                global.initSidebar();
-            }
             highlightActiveNavItem({ selector: '.sidebar .menu-item, .menu-item' });
             initializeSidebar();
         }, Number.isFinite(options.delayMs) ? options.delayMs : 100);
@@ -315,6 +508,7 @@
             return;
         }
 
+        bindSidebarDismissHandlers(options);
         button.addEventListener('click', () => toggleSidebar(options));
     }
 
@@ -322,18 +516,25 @@
         highlightActiveNavItem,
         initializeSidebar,
         toggleSidebar,
+        closeMobileSidebar,
+        bindSidebarDismissHandlers,
         showToast,
         showErrorToast,
         showSuccessToast,
         showMessage,
         showButtonLoading,
         hideButtonLoading,
+        clearState,
+        setElementLoadingState,
+        renderEmptyState,
+        renderErrorState,
         reportResourceLoadFailure,
         handleApiError,
         requireStudentSession,
         requireTeacherSession,
         loadUserDropdown,
         loadTeacherUserDropdown,
+        loadStudentSidebar,
         loadTeacherSidebar,
         bindSidebarToggle,
         isSidebarCollapsed

@@ -54,6 +54,31 @@ public interface NotificationJpaRepository extends JpaRepository<NotificationEnt
     List<NotificationEntity> findAllStudentNotifications(@Param("studentId") Long studentId,
                                                          @Param("filter") String filter);
 
+    @Query("""
+            SELECT n
+            FROM NotificationEntity n
+            WHERE n.teacherId = :teacherId
+              AND (
+                  :filter = 'all'
+                  OR n.type = :filter
+              )
+            ORDER BY n.createdAt DESC, n.id DESC
+            """)
+    List<NotificationEntity> findTeacherSentNotifications(@Param("teacherId") Long teacherId,
+                                                          @Param("filter") String filter,
+                                                          Pageable pageable);
+
+    @Query("""
+            SELECT COUNT(n)
+            FROM NotificationEntity n
+            WHERE n.teacherId = :teacherId
+              AND (
+                  :filter = 'all'
+                  OR n.type = :filter
+              )
+            """)
+    long countTeacherSentNotifications(@Param("teacherId") Long teacherId, @Param("filter") String filter);
+
     int countByStudentIdAndReadFalse(Long studentId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)

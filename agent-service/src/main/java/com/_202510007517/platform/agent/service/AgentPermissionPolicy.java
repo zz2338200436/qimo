@@ -21,6 +21,7 @@ public class AgentPermissionPolicy {
             AgentIntent.UPDATE_EXAM,
             AgentIntent.DELETE_EXAM,
             AgentIntent.GRADE_EXAM,
+            AgentIntent.QUERY_EXAMS,
             AgentIntent.QUERY_EXAM_DETAIL,
             AgentIntent.QUERY_EXAM_SUBMISSIONS,
             AgentIntent.CREATE_COURSE,
@@ -34,10 +35,13 @@ public class AgentPermissionPolicy {
             AgentIntent.QUERY_TEACHER_DASHBOARD,
             AgentIntent.QUERY_LEARNING_SUMMARY,
             AgentIntent.QUERY_SCORE_TREND,
+            AgentIntent.QUERY_EARLY_WARNINGS,
             AgentIntent.QUERY_KNOWLEDGE_POINTS,
             AgentIntent.QUERY_KNOWLEDGE_MASTERY,
             AgentIntent.QUERY_QUESTION_BANK,
             AgentIntent.QUERY_RAG_KNOWLEDGE,
+            AgentIntent.INTERNET_SEARCH,
+            AgentIntent.READ_WEB_PAGE,
             AgentIntent.GENERATE_QUESTIONS,
             AgentIntent.GENERATE_EXAM,
             AgentIntent.SEND_NOTIFICATION,
@@ -61,6 +65,8 @@ public class AgentPermissionPolicy {
             AgentIntent.QUERY_STUDENT_STATS,
             AgentIntent.QUERY_STUDY_TIME_DISTRIBUTION,
             AgentIntent.QUERY_RAG_KNOWLEDGE,
+            AgentIntent.INTERNET_SEARCH,
+            AgentIntent.READ_WEB_PAGE,
             AgentIntent.GENERATE_LEARNING_SUGGESTIONS
     );
 

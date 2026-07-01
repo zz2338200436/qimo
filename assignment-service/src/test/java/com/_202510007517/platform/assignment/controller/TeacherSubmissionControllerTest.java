@@ -50,6 +50,11 @@ class TeacherSubmissionControllerTest {
         dto.setId(3001L);
         dto.setTitle("Homework 1");
         dto.setStudentName("李同学");
+        dto.setAttachments(List.of(Map.of(
+                "id", 7001L,
+                "name", "学生作业附件.pdf",
+                "downloadUrl", "/api/attachments/assignment/7001/download"
+        )));
         when(queryService.getAssignmentSubmission(7L, 3001L)).thenReturn(dto);
 
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new TeacherSubmissionController(queryService, commandService)).build();
@@ -59,7 +64,9 @@ class TeacherSubmissionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.id").value(3001))
-                .andExpect(jsonPath("$.data.studentName").value("李同学"));
+                .andExpect(jsonPath("$.data.studentName").value("李同学"))
+                .andExpect(jsonPath("$.data.attachments[0].name").value("学生作业附件.pdf"))
+                .andExpect(jsonPath("$.data.attachments[0].downloadUrl").value("/api/attachments/assignment/7001/download"));
     }
 
     @Test

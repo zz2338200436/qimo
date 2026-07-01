@@ -23,7 +23,8 @@ author: 架构组
 
 当前交付同时支持两种运行方式：
 
-- 本地 Docker Compose：使用根目录 `docker-compose.yml` 启动 MySQL、Redis、RabbitMQ、Prometheus、Grafana、Registry、Config Server、Gateway、旧单体与 9 个业务服务。
+- 本地 Spring Cloud 联调栈：使用 `scripts/start-dev-local-stack.ps1` 启动 MySQL、Redis、RabbitMQ、前端预览，以及本地 JVM 方式运行的 `registry-server`、`config-server`、`gateway` 和各业务服务。
+- 完整 Docker Compose 平台：使用根目录 `docker-compose.yml` 启动 MySQL、Redis、RabbitMQ、Prometheus、Grafana、Registry、Config Server、Gateway、旧单体与业务服务。
 - 观测栈独立启动：使用 `docker-compose.obs.yml` 单独拉起 Prometheus、Grafana、Loki、Promtail、Tempo。
 
 ### 2.2 中间件
@@ -102,6 +103,25 @@ CI 中镜像标签采用 `{service}-{gitShortSha}-{date}`，例如 `gateway-a1b2
 docker compose -f docker-compose.dev.yml up -d
 ```
 
+如果使用 `scripts/start-dev-local-stack.ps1`，当前实际运行拓扑与“完整平台 Compose”不同：
+
+- Docker 只启动基础设施容器：`mysql`、`redis`、`rabbitmq`
+- `registry-server`、`config-server`、`gateway`、`agent-service` 及其余业务服务均由本地 `mvn spring-boot:run` 启动
+- 前端由本地 Python 预览服务承载，访问入口为 `http://localhost:5500`
+- 该模式更适合课程项目日常联调，因为它保留了 Spring Cloud 的注册发现、配置中心、统一网关和业务服务拆分关系，同时避免每次改 Java 代码都重建镜像
+- 在该脚本模式下，`agent-service` 会自动推导 `AGENT_LLM_ENABLED`，并默认注入 `AGENT_RAG_ENABLED=true`
+- 在该脚本模式下，`agent-service` 还会默认注入 `AGENT_QUESTION_BANK_ENABLED=true`
+- 如需显式关闭知识库问答，必须在当前 shell 中手工设置 `AGENT_RAG_ENABLED=false`
+- 如需显式关闭题库检索，必须在当前 shell 中手工设置 `AGENT_QUESTION_BANK_ENABLED=false`
+- 题目相关自然语言请求默认优先走本地题库检索，不回退到 `ai-service` 现生成；普通聊天与题库问答分开处理
+- 本地知识库问答依赖 Ollama 嵌入服务，默认读取：
+  - `OLLAMA_BASE_URL=http://localhost:11434`
+  - `OLLAMA_EMBEDDING_MODEL=qwen3-embedding:0.6b`
+- 本地题库检索默认读取 `docs/question-bank/seeded`
+- `docs/question-bank/java/java-basic-sample.md` 这类 sample 文档仅用于测试与示例，不应作为本地运行时默认题库路径，否则会与 seeded 正式题库重复计数
+
+排查本地联调问题时，先确认自己处于哪种运行模式，不要把脚本模式误判为“所有服务都在 Docker 中”。如果课程报告或答辩材料需要描述运行拓扑，优先按“前端 -> Gateway -> Eureka/Config Server -> 各业务服务 -> MySQL/Redis/RabbitMQ”的 Spring Cloud 项目主线来表述。
+
 ### 4.2 完整平台
 
 需要完整微服务、Gateway 与旧单体兼容路由时使用：
@@ -170,6 +190,8 @@ Gateway 仍保留 `legacy-route` 时，`docker-compose.yml` 中会同时启动 `
 - Redis：`REDIS_HOST`、`REDIS_PORT`、`REDIS_PASSWORD`
 - RabbitMQ：`RABBITMQ_HOST`、`RABBITMQ_PORT`、`RABBITMQ_USERNAME`、`RABBITMQ_PASSWORD`
 - Agent LLM：`AGENT_LLM_ENABLED`、`AGENT_LLM_API_KEY`、`XIAOMI_API_KEY`
+- Agent RAG：`AGENT_RAG_ENABLED`、`OLLAMA_BASE_URL`、`OLLAMA_EMBEDDING_MODEL`
+- Agent Question Bank：`AGENT_QUESTION_BANK_ENABLED`、`AGENT_QUESTION_BANK_DOCUMENT_PATH`
 - OTLP Trace：`MANAGEMENT_OTLP_TRACING_EXPORT_ENABLED`、`OTEL_EXPORTER_OTLP_ENDPOINT`
 
 ## 8. 运维手册
@@ -213,3 +235,4 @@ Gateway 仍保留 `legacy-route` 时，`docker-compose.yml` 中会同时启动 `
 | 2026-05-10 | 架构组 | 初版骨架 |
 | 2026-05-14 | Codex | 补充本地联调阶段的 MySQL 多 schema 初始化约定与 docker-compose 开发环境说明 |
 | 2026-05-19 | Codex | 补充多阶段 Dockerfile 模板、完整 `docker-compose.yml`、Helm 目录约定、CI/CD 阶段链与环境 Profile/Namespace 映射说明 |
+| 2026-06-23 | Codex | 明确 `start-dev-local-stack.ps1` 只启动基础设施容器，补充本地 `agent-service` 的 LLM/RAG 启动规则与 Ollama 依赖说明 |

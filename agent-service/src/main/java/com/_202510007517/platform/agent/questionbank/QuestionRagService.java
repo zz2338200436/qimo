@@ -3,11 +3,13 @@ package com._202510007517.platform.agent.questionbank;
 import com._202510007517.platform.agent.config.QuestionBankProperties;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 
 public class QuestionRagService {
     private static final String NO_MATCH_MESSAGE = "题库暂无匹配题目，请先维护题库或调整主题/难度";
@@ -15,13 +17,22 @@ public class QuestionRagService {
     private final QuestionBankProperties properties;
     private final EmbeddingClient embeddingClient;
     private final QuestionBankIndex index;
+    private final Random random;
 
     public QuestionRagService(QuestionBankProperties properties,
                               EmbeddingClient embeddingClient,
                               QuestionBankIndex index) {
+        this(properties, embeddingClient, index, new Random());
+    }
+
+    QuestionRagService(QuestionBankProperties properties,
+                       EmbeddingClient embeddingClient,
+                       QuestionBankIndex index,
+                       Random random) {
         this.properties = properties;
         this.embeddingClient = embeddingClient;
         this.index = index;
+        this.random = random == null ? new Random() : random;
     }
 
     public Map<String, Object> generateQuestions(String userRole, String topic, String difficulty, int count) {
@@ -35,20 +46,40 @@ public class QuestionRagService {
                                                  String type) {
         int requestedCount = Math.max(1, count);
         String normalizedDifficulty = normalizeDifficulty(difficulty);
+        String normalizedTopic = normalizeTopic(topic);
         if (!properties.isEnabled()) {
-            return result(topic, requestedCount, 0, false, normalizedDifficulty, List.of(), "题库题目生成功能未启用。");
+            return result(normalizedTopic, requestedCount, 0, false, normalizedDifficulty, List.of(), "题库题目生成功能未启用。");
         }
 
-        String queryText = buildQueryText(topic, normalizedDifficulty, type);
-        List<Double> queryVector = embeddingClient.embed(queryText);
-        List<QuestionChunk> candidates = index.search(
-                queryVector,
-                userRole,
-                topic,
-                normalizedDifficulty,
-                type,
-                properties.getMaxCandidates(),
-                properties.getMinScore());
+        String queryText = buildQueryText(normalizedTopic, normalizedDifficulty, type);
+        List<QuestionChunk> candidates;
+        if (normalizedTopic == null) {
+            candidates = randomize(index.filter(
+                    userRole,
+                    null,
+                    normalizedDifficulty,
+                    type,
+                    properties.getMaxCandidates()));
+        } else {
+            try {
+                List<Double> queryVector = embeddingClient.embed(queryText);
+                candidates = index.search(
+                        queryVector,
+                        userRole,
+                        normalizedTopic,
+                        normalizedDifficulty,
+                        type,
+                        properties.getMaxCandidates(),
+                        properties.getMinScore());
+            } catch (RuntimeException ex) {
+                candidates = index.filter(
+                        userRole,
+                        normalizedTopic,
+                        normalizedDifficulty,
+                        type,
+                        properties.getMaxCandidates());
+            }
+        }
         List<Map<String, Object>> questions = candidates.stream()
                 .limit(requestedCount)
                 .map(this::toPayload)
@@ -61,7 +92,13 @@ public class QuestionRagService {
         } else if (partial) {
             message = "题库仅匹配到 " + actualCount + "/" + requestedCount + " 道题，请补充题库或放宽主题/难度条件";
         }
-        return result(topic, requestedCount, actualCount, partial, normalizedDifficulty, questions, message);
+        return result(normalizedTopic,
+                requestedCount,
+                actualCount,
+                partial,
+                normalizedDifficulty,
+                questions,
+                message);
     }
 
     private Map<String, Object> result(String topic,
@@ -97,6 +134,14 @@ public class QuestionRagService {
         appendIfPresent(parts, difficulty);
         appendIfPresent(parts, type);
         return String.join(" ", parts);
+    }
+
+    private String normalizeTopic(String topic) {
+        String text = Objects.toString(topic, "").trim();
+        if (text.isEmpty() || isGenericTopic(text) || isOnlyPunctuation(text)) {
+            return null;
+        }
+        return text;
     }
 
     private String normalizeDifficulty(String value) {
@@ -151,6 +196,57 @@ public class QuestionRagService {
         if (!trimmed.isEmpty()) {
             parts.add(trimmed);
         }
+    }
+
+    private boolean isGenericTopic(String topic) {
+        String normalized = topic.trim()
+                .replace("随机题目", "")
+                .replace("随机", "")
+                .replace("基于刚才内容", "")
+                .replace("基于当前内容", "")
+                .replace("基于上述内容", "")
+                .replace("基于前面内容", "")
+                .replace("基于刚才", "")
+                .replace("基于当前", "")
+                .replace("基于上述", "")
+                .replace("基于前面", "")
+                .replace("刚才内容", "")
+                .replace("当前内容", "")
+                .replace("上述内容", "")
+                .replace("前面内容", "")
+                .replace("刚才", "")
+                .replace("当前", "")
+                .replace("上述", "")
+                .replace("前面", "")
+                .replace("基于", "")
+                .replace("课堂练习题", "")
+                .replace("课堂练习", "")
+                .replace("练习题", "")
+                .replace("练习", "")
+                .replace("题库", "")
+                .replace("题目", "")
+                .replace("题", "")
+                .replace("课程", "")
+                .replace("综合练习", "")
+                .replace("综合", "")
+                .replaceAll("\\s+", "");
+        return normalized.isBlank();
+    }
+
+    private boolean isOnlyPunctuation(String topic) {
+        return topic != null && topic.trim().matches("^[\\p{Punct}“”‘’\"'`·、，。！？；：（）【】《》〈〉…—-]+$");
+    }
+
+    private List<QuestionChunk> randomize(List<QuestionChunk> candidates) {
+        if (candidates == null || candidates.size() < 2) {
+            return candidates == null ? List.of() : candidates;
+        }
+        List<QuestionChunk> shuffled = new ArrayList<>(candidates);
+        for (int i = shuffled.size() - 1; i > 0; i--) {
+            int swapIndex = random.nextInt(i + 1);
+            Collections.swap(shuffled, i, swapIndex);
+        }
+        return shuffled;
     }
 
     @FunctionalInterface

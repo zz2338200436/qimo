@@ -10,7 +10,10 @@ const pageContent = fs.readFileSync('frontend/dist/teacher-assignments.html', 'u
 const gradingContent = fs.readFileSync('frontend/dist/teacher-assignments-grading.js', 'utf8');
 
 [
-  'teacher-assignments-grading.js?v=20260611-content-display-1'
+  'teacher-assignments-grading.js?v=20260630-submission-attachments-1',
+  'id="grade-submission-attachments"',
+  'id="grade-exam-submission-attachments"',
+  '<th>附件</th>'
 ].forEach(snippet => {
   assertIncludes(pageContent, snippet, 'teacher assignments page should bust the grading module cache.');
 });
@@ -21,7 +24,10 @@ const gradingContent = fs.readFileSync('frontend/dist/teacher-assignments-gradin
   'return String(parsed.content);',
   "formatSubmissionContent(submission.content || submission.answerContent || '') || '（无提交内容）'",
   'const displayContent = formatSubmissionContent(submission.content);',
-  'const content = formatSubmissionContent(submission.content || submission.answerContent || \'\');'
+  'const content = formatSubmissionContent(submission.content || submission.answerContent || \'\');',
+  'function renderSubmissionAttachmentLinksHtml(attachments)',
+  'downloadAttachmentFromButton(this)',
+  'renderSubmissionAttachmentLinksHtml(submission.attachments)'
 ].forEach(snippet => {
   assertIncludes(gradingContent, snippet, 'teacher submission content display contract mismatch.');
 });

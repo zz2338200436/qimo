@@ -225,6 +225,7 @@ public class JpaAnalysisRepository implements AnalysisRepository {
         response.put("knowledgeEvidenceCount", masteryRows.stream()
                 .mapToInt(row -> ((Number) row.get("evidenceCount")).intValue())
                 .sum());
+        response.put("overallProgress", averageTeacherMasteryProgress(masteryRows));
         return response;
     }
 
@@ -531,12 +532,12 @@ public class JpaAnalysisRepository implements AnalysisRepository {
         };
     }
 
-    private static Instant resolveSince(String timeRange) {
+    private Instant resolveSince(String timeRange) {
         if (timeRange == null || timeRange.isBlank() || "all".equalsIgnoreCase(timeRange)) {
             return null;
         }
         String normalized = timeRange.trim().toLowerCase(Locale.ROOT);
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         return switch (normalized) {
             case "7d", "week" -> now.minus(java.time.Duration.ofDays(7));
             case "30d", "month" -> now.minus(java.time.Duration.ofDays(30));
@@ -569,6 +570,22 @@ public class JpaAnalysisRepository implements AnalysisRepository {
             }
         }
         return count == 0 ? 0.0 : total / count;
+    }
+
+    private static double averageTeacherMasteryProgress(List<Map<String, Object>> masteryRows) {
+        if (masteryRows.isEmpty()) {
+            return 0.0;
+        }
+        double total = 0.0;
+        int count = 0;
+        for (Map<String, Object> row : masteryRows) {
+            double mastery = numberValue(row.get("mastery"));
+            if (mastery > 0.0) {
+                total += mastery;
+                count++;
+            }
+        }
+        return count == 0 ? 0.0 : roundOne(total / count);
     }
 
     private void mergeScoreTrendHours(

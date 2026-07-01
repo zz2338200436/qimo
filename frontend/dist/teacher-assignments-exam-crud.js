@@ -1,4 +1,13 @@
 (function attachTeacherAssignmentsExamCrud(global) {
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function normalizeExamDateTimeText(value) {
         return String(value || '').trim().replace(' ', 'T');
     }
@@ -56,6 +65,79 @@
         return parseExamDateTimeForInput(dateTimeString);
     }
 
+    function normalizeExamAttachments(rawExam) {
+        if (!rawExam || typeof rawExam !== 'object') {
+            return [];
+        }
+
+        if (Array.isArray(rawExam.attachments)) {
+            return rawExam.attachments;
+        }
+
+        if (rawExam.exam && Array.isArray(rawExam.exam.attachments)) {
+            return rawExam.exam.attachments;
+        }
+
+        return [];
+    }
+
+    function renderExamAttachmentLinksHtml(attachments) {
+        if (!Array.isArray(attachments) || attachments.length === 0) {
+            return '';
+        }
+
+        const items = attachments.map(attachment => {
+            const name = attachment.name || attachment.originalFilename || '附件';
+            const size = attachment.size ? ` · ${(Number(attachment.size) / 1024).toFixed(1)} KB` : '';
+            const path = attachment.downloadUrl || `/api/attachments/exam/${attachment.id}/download`;
+            return `
+                <button type="button" class="btn btn-outline-primary btn-sm me-2 mb-2" data-download-url="${escapeHtml(path)}" data-download-name="${escapeHtml(name)}" onclick="downloadAttachmentFromButton(this)">
+                    <i class="fa fa-download"></i> ${escapeHtml(name)}${escapeHtml(size)}
+                </button>
+            `;
+        }).join('');
+
+        return `
+            <div class="mb-3">
+                <strong>附件:</strong>
+                <div class="mt-2">${items}</div>
+            </div>
+        `;
+    }
+
+    function renderEditExamAttachments(attachments) {
+        const container = document.getElementById('edit-exam-existing-files');
+        if (!container) {
+            return;
+        }
+
+        if (!Array.isArray(attachments) || attachments.length === 0) {
+            container.innerHTML = `
+                <div class="card-body text-muted">
+                    <i class="fa fa-paperclip"></i> 暂无已上传附件
+                </div>
+            `;
+            return;
+        }
+
+        const items = attachments.map(attachment => {
+            const name = attachment.name || attachment.originalFilename || '附件';
+            const size = attachment.size ? ` · ${(Number(attachment.size) / 1024).toFixed(1)} KB` : '';
+            const path = attachment.downloadUrl || `/api/attachments/exam/${attachment.id}/download`;
+            return `
+                <div class="d-flex align-items-center justify-content-between gap-3 py-2 border-bottom">
+                    <div>
+                        <i class="fa fa-file"></i>
+                        <button type="button" class="btn btn-link p-0 align-baseline" data-download-url="${escapeHtml(path)}" data-download-name="${escapeHtml(name)}" onclick="downloadAttachmentFromButton(this)">${escapeHtml(name)}</button>
+                        <small class="text-muted">${escapeHtml(size)}</small>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = `<div class="card-body">${items}</div>`;
+    }
+
     async function viewExam(examId) {
         console.log('查看考试:', examId);
         try {
@@ -65,7 +147,10 @@
 
             const response = await teacherAPI.getExamById(examId);
             if (response.success) {
-                const exam = response.data;
+                const exam = {
+                    ...response.data,
+                    attachments: normalizeExamAttachments(response.data)
+                };
                 const viewExamBody = document.getElementById('viewExamBody');
                 if (viewExamBody) {
                     viewExamBody.innerHTML = `
@@ -104,8 +189,9 @@
                             </div>
                             <div class="mb-3">
                                 <strong>考试说明:</strong>
-                                <div class="mt-2">${exam.description}</div>
+                                <div class="mt-2">${escapeHtml(exam.description)}</div>
                             </div>
+                            ${renderExamAttachmentLinksHtml(exam.attachments)}
                         </div>
                     `;
                 }
@@ -141,13 +227,17 @@
 
             const response = await teacherAPI.getExamById(examId);
             if (response.success) {
-                const exam = response.data;
+                const exam = {
+                    ...response.data,
+                    attachments: normalizeExamAttachments(response.data)
+                };
                 document.getElementById('edit-exam-id').value = exam.id;
                 document.getElementById('edit-exam-title').value = exam.title;
                 document.getElementById('edit-exam-course').value = exam.courseId;
                 document.getElementById('edit-exam-description').value = exam.description;
                 document.getElementById('edit-exam-start').value = parseExamDateTimeForInput(exam.startTime);
                 document.getElementById('edit-exam-duration').value = exam.duration;
+                renderEditExamAttachments(exam.attachments);
 
                 const modal = new bootstrap.Modal(document.getElementById('editExamModal'));
                 modal.show();
@@ -224,7 +314,16 @@
                 location: ''
             };
 
-            const response = await teacherAPI.updateExam(parseInt(examId), examData);
+            const fileInput = document.getElementById('edit-exam-papers');
+            let requestBody = examData;
+            if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                const formData = new FormData();
+                formData.append('payload', new Blob([JSON.stringify(examData)], { type: 'application/json' }));
+                Array.from(fileInput.files).forEach(file => formData.append('files', file));
+                requestBody = formData;
+            }
+
+            const response = await teacherAPI.updateExam(parseInt(examId), requestBody);
 
             hideLoading();
 

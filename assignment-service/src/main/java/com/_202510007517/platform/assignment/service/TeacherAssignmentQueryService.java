@@ -10,6 +10,7 @@ import com._202510007517.platform.course.api.dto.CourseDTO;
 import com._202510007517.platform.course.api.feign.CourseFeignClient;
 import com._202510007517.platform.user.api.dto.UserProfileDTO;
 import com._202510007517.platform.user.api.feign.UserFeignClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -37,13 +38,23 @@ public class TeacherAssignmentQueryService {
     private final AssignmentRepository assignmentRepository;
     private final CourseFeignClient courseFeignClient;
     private final UserFeignClient userFeignClient;
+    private final AssessmentAttachmentService attachmentService;
 
     public TeacherAssignmentQueryService(AssignmentRepository assignmentRepository,
                                          CourseFeignClient courseFeignClient,
                                          UserFeignClient userFeignClient) {
+        this(assignmentRepository, courseFeignClient, userFeignClient, AssessmentAttachmentService.none());
+    }
+
+    @Autowired
+    public TeacherAssignmentQueryService(AssignmentRepository assignmentRepository,
+                                         CourseFeignClient courseFeignClient,
+                                         UserFeignClient userFeignClient,
+                                         AssessmentAttachmentService attachmentService) {
         this.assignmentRepository = assignmentRepository;
         this.courseFeignClient = courseFeignClient;
         this.userFeignClient = userFeignClient;
+        this.attachmentService = attachmentService;
     }
 
     public Map<String, Object> listAssignments(Long teacherId,
@@ -94,6 +105,7 @@ public class TeacherAssignmentQueryService {
 
         AssignmentDTO dto = toTeacherAssignment(assignment, courseNames, teacherNames);
         dto.setSubmissions(listAssignmentSubmissions(teacherId, assignmentId));
+        dto.setAttachments(attachmentService.getAttachmentDtos(assignmentId));
         return dto;
     }
 
@@ -199,9 +211,9 @@ public class TeacherAssignmentQueryService {
         return dto;
     }
 
-    private static AssignmentSubmissionDTO toSubmissionDto(AssignmentSubmissionRecord record,
-                                                           String assignmentTitle,
-                                                           Map<Long, String> studentNames) {
+    private AssignmentSubmissionDTO toSubmissionDto(AssignmentSubmissionRecord record,
+                                                    String assignmentTitle,
+                                                    Map<Long, String> studentNames) {
         AssignmentSubmissionDTO dto = new AssignmentSubmissionDTO();
         dto.setId(record.getId());
         dto.setAssignmentId(record.getAssignmentId());
@@ -216,6 +228,7 @@ public class TeacherAssignmentQueryService {
         dto.setScore(record.getScore());
         dto.setTeacherComment(record.getTeacherComment());
         dto.setStatus(resolveSubmissionStatus(record));
+        dto.setAttachments(attachmentService.getSubmissionAttachmentDtos(record.getId()));
         return dto;
     }
 

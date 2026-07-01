@@ -1,0 +1,43 @@
+@startuml
+!include 00-style.puml
+top to bottom direction
+
+node "浏览器客户端" as Browser {
+  artifact "学生端/教师端页面"
+}
+
+node "网关节点\ngateway.jar" as GatewayNode {
+  artifact "Spring Cloud Gateway"
+}
+
+node "服务注册与配置" as InfraNode {
+  artifact "registry-server"
+  artifact "config-server"
+}
+
+node "业务服务集群" as ServiceNode {
+  artifact "auth-service.jar"
+  artifact "user-service.jar"
+  artifact "agent-service.jar"
+  artifact "ai-service.jar"
+  artifact "analysis-service.jar"
+  artifact "notification-service.jar"
+  artifact "course-service.jar"
+  artifact "assignment-service.jar"
+  artifact "exam-service.jar"
+}
+
+database "MySQL\nsc_auth/sc_user/sc_agent/\nsc_ai/sc_analysis/sc_notification/..." as MySQL
+database "Redis" as Redis
+queue "RabbitMQ" as MQ
+collections "向量索引\nInMemoryRagIndex" as VectorIndex
+
+Browser --> GatewayNode : HTTPS / API
+GatewayNode --> InfraNode : 注册发现 / 配置拉取
+GatewayNode --> ServiceNode : HTTP / Feign / LB
+ServiceNode --> MySQL : JPA / MyBatis
+ServiceNode --> Redis : 缓存 / 黑名单 / 会话辅助
+ServiceNode --> MQ : 事件投递与消费
+ServiceNode --> VectorIndex : RAG 检索
+
+@enduml

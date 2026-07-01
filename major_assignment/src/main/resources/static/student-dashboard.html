@@ -24,12 +24,8 @@
 <!-- 侧边栏导航组件 -->
 <div id="sidebar-container"></div>
 <script>
-    $(function() {
-        $('#sidebar-container').load('components/sidebar-nav.html?v=20260608-theme-4', function() {
-            CommonUI.highlightActiveNavItem({ selector: '.sidebar .menu-item, .menu-item' });
-            CommonUI.initializeSidebar();
-        });
-    });
+    CommonUI.loadStudentSidebar('sidebar-container')
+        .catch(error => console.error('加载学生侧边栏组件失败:', error));
 </script>
 
 <!-- 主内容区 -->
@@ -109,7 +105,7 @@
                         <i class="fas fa-graduation-cap"></i>
                     </div>
                 </div>
-                <div class="stat-value" id="progressPercentage">0%</div>
+                <div class="stat-value" id="progressPercentage">--</div>
                 <div class="stat-change" id="progressPercentageMetaLabel">
                     当前学习进度估算
                 </div>
@@ -336,6 +332,7 @@
     function buildCourseProgressChartData(courseList) {
         const safeList = Array.isArray(courseList) ? courseList : [];
         return {
+            ids: safeList.map(course => course.id ?? course.courseId ?? null),
             names: safeList.map(course => course.courseName || course.name || '未知课程'),
             progress: safeList.map(normalizeStudentCourseProgress)
         };
@@ -344,9 +341,16 @@
     function deriveDashboardProgressFromCourses(courseList) {
         const progressValues = (Array.isArray(courseList) ? courseList : []).map(normalizeStudentCourseProgress);
         if (!progressValues.length) {
-            return 0;
+            return null;
         }
         return Math.round(progressValues.reduce((sum, value) => sum + value, 0) / progressValues.length);
+    }
+
+    function resolveDashboardProgressMeta(stats) {
+        if (stats && Number.isFinite(Number(stats.progress))) {
+            return '根据已接通课程数据估算';
+        }
+        return '暂无可计算的学习进度';
     }
 
     async function populateDashboardStudyTimeFromConnectedSources(studentAPI, chartData) {
@@ -376,6 +380,8 @@
             if (courses && courses.success && courses.data) {
                 courseList = courses.data.content || courses.data || [];
                 const progressData = buildCourseProgressChartData(courseList);
+                chartData.courses = courseList;
+                chartData.courseIds = progressData.ids;
                 chartData.courseNames = progressData.names;
                 chartData.courseProgress = progressData.progress;
             }
@@ -565,6 +571,8 @@
                     // 获取课程列表用于进度图表
                     if (data.courses && Array.isArray(data.courses)) {
                         const progressData = buildCourseProgressChartData(data.courses);
+                        chartData.courses = data.courses;
+                        chartData.courseIds = progressData.ids;
                         chartData.courseNames = progressData.names;
                         chartData.courseProgress = progressData.progress;
                         if (!statsData.courses) {
@@ -580,6 +588,8 @@
                             if (courses && courses.success && courses.data) {
                                 const courseList = courses.data.content || courses.data || [];
                                 const progressData = buildCourseProgressChartData(courseList);
+                                chartData.courses = courseList;
+                                chartData.courseIds = progressData.ids;
                                 chartData.courseNames = progressData.names;
                                 chartData.courseProgress = progressData.progress;
                                 if (!statsData.courses) {
@@ -654,6 +664,8 @@
                         const progressData = buildCourseProgressChartData(fallbackCourseList);
                         statsData.courses = fallbackCourseList.length;
                         statsData.progress = deriveDashboardProgressFromCourses(fallbackCourseList);
+                        chartData.courses = fallbackCourseList;
+                        chartData.courseIds = progressData.ids;
                         chartData.courseNames = progressData.names;
                         chartData.courseProgress = progressData.progress;
                     }
@@ -792,13 +804,16 @@
                 animateValue('courseCount', 0, stats.courses || 0, 600);
                 animateValue('assignmentCount', 0, stats.assignments || 0, 600);
                 animateValue('examCount', 0, stats.exams || 0, 600);
-                animateProgress('progressPercentage', 0, stats.progress || 0, 600);
+                animateProgress('progressPercentage', 0, stats.progress, 600);
                 
                 // 更新变化趋势
                 updateStatMeta('courseCount', metaLabelOverrides.courses);
                 updateStatMeta('assignmentCount', metaLabelOverrides.assignments);
                 updateStatMeta('examCount', metaLabelOverrides.exams);
                 updateStatMeta('progressPercentage', metaLabelOverrides.progress);
+                if (!Number.isFinite(Number(stats.progress))) {
+                    updateStatMeta('progressPercentage', resolveDashboardProgressMeta(stats));
+                }
                 
                 // 恢复不透明度
                 statValues.forEach(value => {
@@ -859,6 +874,11 @@
     // 进度百分比动画函数
     function animateProgress(id, start, end, duration) {
         const obj = document.getElementById(id);
+        if (!Number.isFinite(Number(end))) {
+            obj.textContent = '--';
+            return;
+        }
+        end = Number(end);
         const range = end - start;
         const minTimer = 50;
         let stepTime;
@@ -922,23 +942,42 @@
                 return normalizedCourseProgress;
             }
             const progressByCourse = new Map();
+            const progressByCourseId = new Map();
             knowledgePoints.forEach(point => {
                 const courseName = point.courseName || point.course || point.name;
+                const courseId = point.courseId ?? point.course_id ?? null;
                 const progress = normalizeProgressValue(point.mastery ?? point.masteryRate ?? point.averageMastery);
-                if (!courseName || progress <= 0) {
+                if (progress <= 0) {
                     return;
                 }
-                const current = progressByCourse.get(courseName) || { total: 0, count: 0 };
-                current.total += progress;
-                current.count += 1;
-                progressByCourse.set(courseName, current);
+                if (courseId !== null && courseId !== undefined && String(courseId).trim() !== '') {
+                    const idKey = String(courseId);
+                    const currentById = progressByCourseId.get(idKey) || { total: 0, count: 0 };
+                    currentById.total += progress;
+                    currentById.count += 1;
+                    progressByCourseId.set(idKey, currentById);
+                }
+                if (courseName) {
+                    const current = progressByCourse.get(courseName) || { total: 0, count: 0 };
+                    current.total += progress;
+                    current.count += 1;
+                    progressByCourse.set(courseName, current);
+                }
             });
-            if (progressByCourse.size === 0) {
+            if (progressByCourse.size === 0 && progressByCourseId.size === 0) {
                 return normalizedCourseProgress;
             }
+            const courseIds = Array.isArray(chartsData.courseIds) ? chartsData.courseIds : [];
             return (chartsData.courseNames || []).map((name, index) => {
-                const current = progressByCourse.get(name);
-                return current ? Math.round((current.total / current.count) * 10) / 10 : normalizedCourseProgress[index] || 0;
+                const courseId = courseIds[index];
+                const current = courseId !== null && courseId !== undefined
+                    ? progressByCourseId.get(String(courseId))
+                    : null;
+                if (current) {
+                    return Math.round((current.total / current.count) * 10) / 10;
+                }
+                const currentByName = progressByCourse.get(name);
+                return currentByName ? Math.round((currentByName.total / currentByName.count) * 10) / 10 : normalizedCourseProgress[index] || 0;
             });
         } catch (error) {
             console.warn('课程进度兜底计算失败:', error);
@@ -1188,7 +1227,7 @@
             courses: 0,
             assignments: 0,
             exams: 0,
-            progress: 0
+            progress: null
         };
         
         // 空图表数据

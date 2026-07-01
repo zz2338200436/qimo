@@ -12,6 +12,18 @@ function assertNotIncludes(content, needle, message) {
   }
 }
 
+function assertMirrorFileMatches(frontendPath, staticPath, label) {
+  const frontendContent = fs.readFileSync(frontendPath, 'utf8');
+  const staticContent = fs.readFileSync(staticPath, 'utf8');
+
+  if (frontendContent !== staticContent) {
+    throw new Error(
+      `${label} mirror mismatch. Keep frontend/dist and major_assignment/src/main/resources/static in sync.\n` +
+      `frontend: ${frontendPath}\nstatic: ${staticPath}`
+    );
+  }
+}
+
 const pageContent = fs.readFileSync('frontend/dist/teacher-ai-tools.html', 'utf8');
 const apiContent = fs.readFileSync('frontend/dist/api.js', 'utf8');
 const agentChatContent = fs.readFileSync('frontend/dist/agent-chat-panel.js', 'utf8');
@@ -19,14 +31,24 @@ const agentChatStyleContent = fs.readFileSync('frontend/dist/agent-chat-panel.cs
 const agentHistoryContent = fs.readFileSync('frontend/dist/agent-history-panel.js', 'utf8');
 
 [
+  [
+    'frontend/dist/teacher-ai-tools.html',
+    'major_assignment/src/main/resources/static/teacher-ai-tools.html',
+    'teacher-ai-tools.html'
+  ],
+  [
+    'frontend/dist/agent-history-panel.js',
+    'major_assignment/src/main/resources/static/agent-history-panel.js',
+    'agent-history-panel.js'
+  ]
+].forEach(([frontendPath, staticPath, label]) => {
+  assertMirrorFileMatches(frontendPath, staticPath, label);
+});
+
+[
   '<h2 class="page-title">辅助工具</h2>',
-  '<h3 class="agent-panel-title">学习助手</h3>',
-  '服务已开通',
-  'placeholder="输入你的需求"',
-  '<h3>历史记录</h3>',
+  'placeholder="输入课程、作业、题目、试卷或教学目标..."',
   'teacher-ai-chat-shell',
-  'class="teacher-ai-panel-actions"',
-  'teacher-ai-history-button',
   'data-agent-history-toggle',
   'data-agent-history-close',
   'class="agent-history-hover-corner"',
@@ -34,11 +56,43 @@ const agentHistoryContent = fs.readFileSync('frontend/dist/agent-history-panel.j
   'class="agent-history-panel agent-history-drawer"',
   'agent-input-shell',
   'data-teacher-ai-empty-state',
-  '可以这样开始',
-  '选择一个示例快速填入输入框，也可以直接输入具体要求。',
-  'data-teacher-ai-example="生成课堂练习题"',
-  'data-teacher-ai-example="生成一份试卷"',
-  'data-teacher-ai-example="生成学习建议"',
+  '今天要处理什么？',
+  '可以直接查询课程、考试、题库信息，或继续输入题目与试卷需求。',
+  'teacher-ai-history-rail-label',
+  '历史会话',
+  '搜索会话',
+  '新建对话',
+  '打开历史会话',
+  '搜索历史会话',
+  '创建新对话',
+  'teacher-ai-history-heading',
+  '选择要继续的对话',
+  'teacher-ai-history-group-copy',
+  '按时间浏览最近的生成与追问记录',
+  'agent-history-item-eyebrow',
+  'agent-history-item-summary',
+  'agent-history-item-status',
+  'data-teacher-ai-example="查看课程列表"',
+  'data-teacher-ai-example="查看考试列表"',
+  'data-teacher-ai-example="查询题库概览"',
+  'data-teacher-ai-web-search',
+  '联网搜索',
+  'teacher-ai-input-web-search-active',
+  'aria-pressed="false"',
+  '<i class="fa fa-search" aria-hidden="true"></i>',
+  "const webSearchMessage = `联网搜索 ${rawMessage}`;",
+  'webSearchButton.setAttribute(\'aria-pressed\', String(isActive));',
+  'event.detail.message = webSearchMessage;',
+  'event.detail.displayMessage = rawMessage;',
+  'teacher-ai-bottom-note',
+  '回答会结合课程、作业与历史会话',
+  'class="teacher-ai-followup-prompts"',
+  '基于刚才内容生成课堂练习题',
+  '把刚才内容整理成教案大纲',
+  '继续追问并给出可复制的板书要点',
+  'fa-times',
+  'scrollbar-gutter: stable;',
+  'agent-history-item.agent-history-item-current::before',
   'function initializeTeacherAiEmptyState()',
   'async function requestTeacherAi(endpoint, payload) {',
   "const accessToken = sessionStorage.getItem('token');",
@@ -61,6 +115,27 @@ const agentHistoryContent = fs.readFileSync('frontend/dist/agent-history-panel.j
   '.teacher-ai-chat-shell {'
 ].forEach(snippet => {
   assertIncludes(pageContent, snippet, 'teacher ai tools contract mismatch.');
+});
+
+[
+  'async requestSessionDetail(sessionId) {',
+  'renderSessionHistory(session) {',
+  "window.dispatchEvent(new CustomEvent('agent-session-cleared'));"
+].forEach(snippet => {
+  assertIncludes(agentChatContent, snippet, 'teacher ai chat session hydration contract mismatch.');
+});
+
+[
+  'function getIntentPresentation(value) {',
+  'function getSessionSummary(session) {',
+  'function getSessionMeta(session) {',
+  "window.addEventListener('agent-session-cleared', () => {",
+  '继续补充题型、难度或知识点要求。',
+  '最近内容：',
+  'aria-label="继续会话：',
+  'agent-history-item-footer'
+].forEach(snippet => {
+  assertIncludes(agentHistoryContent, snippet, 'teacher ai history contract mismatch.');
 });
 
 [
@@ -144,6 +219,20 @@ const agentHistoryContent = fs.readFileSync('frontend/dist/agent-history-panel.j
   );
 });
 
+[
+  'class="agent-history-preview teacher-agent-history-preview"',
+  'data-agent-history-preview',
+  '最近会话',
+  '打开历史记录可继续最近的教学问答和已确认操作。',
+  'data-agent-history-preview-open'
+].forEach(snippet => {
+  assertNotIncludes(
+    pageContent,
+    snippet,
+    'teacher ai tools should keep history in the header drawer button instead of a duplicate recent-session card.'
+  );
+});
+
 assertIncludes(
   apiContent,
   "currentPage === 'teacher-ai-tools.html'",
@@ -152,11 +241,11 @@ assertIncludes(
 
 [
   'function renderAgentText(value) {',
+  'function renderAgentRichText(value) {',
   'function hasValue(value) {',
-  ".replace(/\\*\\*([^*\\n][^*\\n]*?)\\*\\*/g, '<strong>$1</strong>');",
+  ".replace(/\\*\\*([^*\\n][^*\\n]*?)\\*\\*/g, '<strong>$1</strong>')",
+  ".replace(/`([^`\\n]+?)`/g, '<code>$1</code>');",
   'const AGENT_FIELD_LABELS = {',
-  "status: '状态'",
-  "aiResult: '处理结果'",
   "difficulty: '难度'",
   "topic: '主题'",
   "count: '数量'",
@@ -172,7 +261,32 @@ assertIncludes(
   'function renderQuestionCard(question, index) {',
   'function renderCourseCard(course, options = {}) {',
   'function renderCourseDetailCard(course) {',
+  'function buildQuestionDraftSummary(value, questions) {',
+  'function buildQuestionDraftCommands(value, questions) {',
+  'function renderQuestionDraftPanel(value, questions) {',
+  'function buildResponseTitle(payload) {',
   'function renderQuestionList(questions) {',
+  'class="agent-question-draft"',
+  'class="agent-question-draft-toolbar"',
+  'class="agent-question-draft-summary"',
+  'data-agent-question-action="publish"',
+  'data-agent-question-action="regenerate"',
+  'data-agent-question-action="edit"',
+  'data-agent-copy-questions',
+  'data-agent-question-draft-payload',
+  'data-agent-publish-course',
+  'data-agent-publish-class',
+  'data-agent-publish-confirm',
+  'data-agent-publish-cancel',
+  "this.fetchTeacherOptions('/api/teacher/courses')",
+  "this.fetchTeacherOptions('/api/teacher/classes')",
+  "context.questionDraft = { ...options.questionDraft };",
+  "agentCommandAction: 'publish_question_draft'",
+  'async sendJsonChat(message, options = {})',
+  'forceJson: true',
+  '题目草稿',
+  '已生成',
+  '题库充足',
   'class="agent-course-card"',
   'class="agent-course-detail-card"',
   'class="agent-course-meta"',
@@ -181,8 +295,10 @@ assertIncludes(
   'class="agent-question-content"',
   'class="agent-question-options"',
   'class="agent-question-meta"',
-  "<p>${renderAgentText(payload.message || '已处理')}</p>",
-  "<p><strong>${renderAgentText(payload.message || '执行完成')}</strong></p>",
+  "body.innerHTML = renderAgentRichText(text);",
+  "this.append('agent', renderAgentRichText(payload.message || '已处理'), '', options);",
+  'const responseTitle = buildResponseTitle(payload);',
+  '<p><strong>${renderAgentText(responseTitle)}</strong></p>',
   'function formatMessageTime(value = new Date()) {',
   'class="agent-message-content"',
   'class="agent-message-time"',
@@ -197,7 +313,10 @@ assertIncludes(
   "this.currentController.abort();",
   "signal: controller?.signal",
   "error?.name === 'AbortError'",
-  "this.removeThinking();"
+  "this.removeThinking();",
+  "const event = new CustomEvent('agent-before-send'",
+  "this.formEl?.dispatchEvent(event);",
+  "this.append('user', renderAgentRichText(options.displayMessage || message));"
 ].forEach(snippet => {
   assertIncludes(agentChatContent, snippet, 'agent chat panel should show thinking state and expose pause behavior.');
 });
@@ -217,6 +336,14 @@ assertNotIncludes(
   '.agent-message-content',
   '.agent-message-time',
   '.agent-data-result',
+  '.agent-question-draft',
+  '.agent-question-draft-header',
+  '.agent-question-draft-toolbar',
+  '.agent-question-draft-summary',
+  '.agent-question-action',
+  '.agent-question-publish-panel',
+  '.agent-question-publish-fields',
+  '.agent-question-publish-actions',
   '.agent-question-card',
   '.agent-question-header',
   '.agent-question-option',
@@ -226,6 +353,8 @@ assertNotIncludes(
   '.agent-form .btn.agent-submit-paused',
   '.agent-panel.chatgpt-like',
   '.agent-input-shell',
+  '.agent-panel.chatgpt-like .agent-message-body h4',
+  '.agent-panel.chatgpt-like .agent-message-body code',
   '.agent-history-panel.agent-history-drawer',
   '.agent-history-panel.agent-history-drawer.agent-history-open',
   '.agent-form .agent-command-input',
@@ -236,7 +365,41 @@ assertNotIncludes(
 });
 
 [
-  "this.toggleEl = document.querySelector('[data-agent-history-toggle]');",
+  'teacher-ai-followup-prompts',
+  'position: sticky;',
+  'max-width: 900px;',
+  'grid-template-rows: minmax(0, 1fr) auto auto;'
+].forEach(snippet => {
+  assertIncludes(pageContent, snippet, 'teacher ai tools conversation layout should keep the composer visible and the reading lane constrained.');
+});
+
+if ((pageContent.match(/<button[^>]*data-teacher-ai-web-search/g) || []).length !== 1) {
+  throw new Error('teacher ai tools should expose exactly one internet search toggle in the composer.');
+}
+
+const webSearchButtonMatch = pageContent.match(/<button[^>]*data-teacher-ai-web-search[\s\S]*?<\/button>/);
+if (!webSearchButtonMatch) {
+  throw new Error('teacher ai tools should render the web-search toggle button.');
+}
+
+if (webSearchButtonMatch[0].includes('teacher-ai-input-web-search-label') || />\s*联网搜索\s*</.test(webSearchButtonMatch[0])) {
+  throw new Error('teacher ai tools web-search toggle should be icon-only, with no visible text label.');
+}
+
+[
+  'class="teacher-ai-example-prompt teacher-ai-web-search"',
+  "const message = query ? `联网搜索 ${query}` : '联网搜索 ';",
+  'input.form?.requestSubmit();'
+].forEach(snippet => {
+  assertNotIncludes(
+    pageContent,
+    snippet,
+    'teacher ai tools should not keep the old duplicate web-search starter or auto-submit behavior.'
+  );
+});
+
+[
+  "this.toggleEls = Array.from(document.querySelectorAll('[data-agent-history-toggle]'));",
   "this.closeEl = root.querySelector('[data-agent-history-close]');",
   "this.backdropEl = document.querySelector('[data-agent-history-backdrop]');",
   "this.hoverZoneEl = document.querySelector('[data-agent-history-hover-zone]');",
