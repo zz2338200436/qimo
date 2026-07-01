@@ -6,6 +6,7 @@ import com._202510007517.major_assignment.entity.Course;
 import com._202510007517.major_assignment.entity.User;
 import com._202510007517.major_assignment.mapper.AssignmentMapper;
 import com._202510007517.major_assignment.service.AssignmentService;
+import com._202510007517.major_assignment.service.AssessmentAttachmentService;
 import com._202510007517.major_assignment.service.StudentService;
 import com._202510007517.major_assignment.service.AssignmentSubmissionService;
 import com._202510007517.major_assignment.service.CourseService;
@@ -44,23 +45,26 @@ public class AssignmentServiceImpl implements AssignmentService {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private AssessmentAttachmentService assessmentAttachmentService;
+
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.ASSIGNMENTS, key = "'all'")
+    @Cacheable(value = CacheConstants.ASSIGNMENTS, key = "'all'", unless = "#result == null")
     public List<Assignment> getAllAssignments() {
         return assignmentMapper.getAllAssignments();
     }
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.ASSIGNMENTS, key = "#id")
+    @Cacheable(value = CacheConstants.ASSIGNMENTS, key = "#id", unless = "#result == null")
     public Assignment getAssignmentById(Long id) {
         return assignmentMapper.getAssignmentById(id);
     }
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.ASSIGNMENTS, key = "'course_' + #courseId")
+    @Cacheable(value = CacheConstants.ASSIGNMENTS, key = "'course_' + #courseId", unless = "#result == null")
     public List<Assignment> getAssignmentsByCourseId(Long courseId) {
         return assignmentMapper.getAssignmentsByCourseId(courseId);
     }
@@ -100,6 +104,7 @@ public class AssignmentServiceImpl implements AssignmentService {
         assignmentMapper.deleteAssignmentClassesByAssignmentId(id);
         // 删除作业知识点关联记录
         assignmentMapper.deleteAssignmentKnowledgePointsByAssignmentId(id);
+        assessmentAttachmentService.deleteAttachments(AssessmentAttachmentService.ASSIGNMENT_TYPE, id);
         // 最后删除作业本身
         assignmentMapper.delete(id);
     }
@@ -109,8 +114,8 @@ public class AssignmentServiceImpl implements AssignmentService {
     public Map<String, Object> getAssignmentsWithPagination(Long studentId, Integer page, Integer size, String sortBy, String order, 
                                                          Long courseId, Boolean submitted, Boolean isActive) {
         // 安全处理分页参数
-        int safePage = PageUtils.safePage(page, 1);
-        int safeSize = PageUtils.safeSize(size, 10, 100);
+        int requestedPage = page == null ? 1 : page;
+        int requestedSize = size == null ? PageUtils.DEFAULT_PAGE_SIZE : size;
         
         // 直接基于学生ID查询其关联到的所有作业（通过班级和课程关联）
         List<Assignment> studentAssignments = assignmentMapper.getAssignmentsByStudentId(studentId);
@@ -173,12 +178,15 @@ public class AssignmentServiceImpl implements AssignmentService {
         
         // 计算总数
         int totalElements = filteredAssignments.size();
+        PageUtils.PageWindow window = PageUtils.resolvePageWindow(requestedPage, requestedSize, totalElements);
         
         // 应用分页
-        List<Assignment> pagedAssignments = PageUtils.paginate(filteredAssignments, safePage, safeSize);
+        List<Assignment> pagedAssignments = PageUtils.paginate(filteredAssignments, window.page(), window.size());
         
         // 为每个作业添加学生的提交信息
         List<Map<String, Object>> assignmentsWithSubmissions = new ArrayList<>();
+        Map<Long, Course> courseCache = new HashMap<>();
+        Map<Long, User> teacherCache = new HashMap<>();
         for (Assignment assignment : pagedAssignments) {
             Map<String, Object> assignmentWithSubmission = new HashMap<>();
             assignmentWithSubmission.put("id", assignment.getId());
@@ -189,12 +197,20 @@ public class AssignmentServiceImpl implements AssignmentService {
             assignmentWithSubmission.put("publishDate", assignment.getPublishDate());
             assignmentWithSubmission.put("teacherId", assignment.getTeacherId());
             assignmentWithSubmission.put("isActive", assignment.getIsActive());
+            assignmentWithSubmission.put("attachments", assessmentAttachmentService.getAttachmentDtos(
+                    AssessmentAttachmentService.ASSIGNMENT_TYPE, assignment.getId()));
             // 课程与教师名称用于前端展示
-            Course course = courseService.findById(assignment.getCourseId());
+            Course course = null;
+            if (assignment.getCourseId() != null) {
+                course = courseCache.computeIfAbsent(assignment.getCourseId(), courseService::findById);
+            }
             if (course != null) {
                 assignmentWithSubmission.put("courseName", course.getCourseName());
             }
-            User teacher = userService.findById(assignment.getTeacherId());
+            User teacher = null;
+            if (assignment.getTeacherId() != null) {
+                teacher = teacherCache.computeIfAbsent(assignment.getTeacherId(), userService::findById);
+            }
             if (teacher != null) {
                 assignmentWithSubmission.put("teacherName", teacher.getName());
             }
@@ -207,7 +223,7 @@ public class AssignmentServiceImpl implements AssignmentService {
         }
         
         // 使用工具类构建分页响应
-        return PageUtils.buildPageResponse(assignmentsWithSubmissions, safePage, safeSize, totalElements);
+        return PageUtils.buildPageResponse(assignmentsWithSubmissions, window.page(), window.size(), totalElements);
     }
     
     @Override
@@ -229,6 +245,8 @@ public class AssignmentServiceImpl implements AssignmentService {
         assignmentDetails.put("isActive", assignment.getIsActive());
         assignmentDetails.put("courseId", assignment.getCourseId());
         assignmentDetails.put("teacherId", assignment.getTeacherId());
+        assignmentDetails.put("attachments", assessmentAttachmentService.getAttachmentDtos(
+                AssessmentAttachmentService.ASSIGNMENT_TYPE, assignmentId));
         
         // 添加提交记录
         List<Map<String, Object>> submissions = assignmentMapper.getSubmissionsByAssignmentId(assignmentId);

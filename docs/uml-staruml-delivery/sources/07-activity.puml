@@ -1,0 +1,34 @@
+@startuml
+start
+:学生打开考试页面;
+:填写答案并点击提交;
+if (JWT 有效且未限流?) then (是)
+  :Gateway 转发到 exam-service;
+else (否)
+  :返回登录或限流提示;
+  stop
+endif
+if (考试开放且学生有权限?) then (是)
+  :保存 ExamSubmissionRecord;
+else (否)
+  :返回不可提交原因;
+  stop
+endif
+if (可自动阅卷?) then (是)
+  :计算得分并标记 graded;
+else (否)
+  :进入待人工批改;
+endif
+:写入 ExamFinishedEvent outbox;
+:返回提交结果;
+:OutboxRelay 发布到 RabbitMQ;
+fork
+  :Analysis 更新成绩趋势和知识点掌握;
+  if (达到预警条件?) then (是)
+    :生成 EarlyWarning;
+  endif
+fork again
+  :Notification 创建考试/预警通知;
+end fork
+stop
+@enduml

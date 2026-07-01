@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: ${LEGACY_DB_URL}
+    username: ${LEGACY_DB_USERNAME:${DB_USERNAME}}
+    password: ${LEGACY_DB_PASSWORD:${DB_PASSWORD}}

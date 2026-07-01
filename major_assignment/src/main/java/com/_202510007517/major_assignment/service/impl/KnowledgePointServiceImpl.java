@@ -2,6 +2,7 @@ package com._202510007517.major_assignment.service.impl;
 
 import com._202510007517.major_assignment.entity.KnowledgePoint;
 import com._202510007517.major_assignment.mapper.KnowledgePointMapper;
+import com._202510007517.major_assignment.service.CourseService;
 import com._202510007517.major_assignment.service.KnowledgePointService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class KnowledgePointServiceImpl implements KnowledgePointService {
@@ -20,6 +22,9 @@ public class KnowledgePointServiceImpl implements KnowledgePointService {
     
     @Autowired
     private KnowledgePointMapper knowledgePointMapper;
+
+    @Autowired
+    private CourseService courseService;
     
     @Override
     @Transactional
@@ -52,6 +57,42 @@ public class KnowledgePointServiceImpl implements KnowledgePointService {
     
     @Override
     public List<Map<String, Object>> getKnowledgePointsByCourseId(Long courseId) {
+        return knowledgePointMapper.getKnowledgePointsByCourseId(courseId);
+    }
+
+    @Override
+    public List<Map<String, Object>> getKnowledgePointsByTeacherId(Long teacherId) {
+        List<Long> courseIds = courseService.findCourseIdsByTeacherId(teacherId);
+        if (courseIds == null || courseIds.isEmpty()) {
+            return List.of();
+        }
+
+        return knowledgePointMapper.findByCourseIds(courseIds)
+                .stream()
+                .map(point -> {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("id", point.getId());
+                    item.put("pointName", point.getPointName());
+                    item.put("description", point.getDescription());
+                    item.put("difficulty", point.getDifficulty());
+                    item.put("orderIndex", point.getOrderIndex());
+                    item.put("courseId", point.getCourseId());
+                    return item;
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Map<String, Object>> getKnowledgePointsByTeacherId(Long teacherId, Long courseId) {
+        if (courseId == null) {
+            return getKnowledgePointsByTeacherId(teacherId);
+        }
+
+        List<Long> courseIds = courseService.findCourseIdsByTeacherId(teacherId);
+        if (courseIds == null || !courseIds.contains(courseId)) {
+            return List.of();
+        }
+
         return knowledgePointMapper.getKnowledgePointsByCourseId(courseId);
     }
     

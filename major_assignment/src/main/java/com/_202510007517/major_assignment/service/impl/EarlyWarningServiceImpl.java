@@ -1,11 +1,12 @@
 package com._202510007517.major_assignment.service.impl;
 
 import com._202510007517.major_assignment.entity.EarlyWarning;
-import com._202510007517.major_assignment.entity.dto.WarningStatsDTO;
 import com._202510007517.major_assignment.entity.dto.PageResult;
+import com._202510007517.major_assignment.entity.dto.WarningStatsDTO;
 import com._202510007517.major_assignment.entity.dto.WarningStatusUpdateDTO;
 import com._202510007517.major_assignment.mapper.EarlyWarningMapper;
 import com._202510007517.major_assignment.service.EarlyWarningService;
+import com._202510007517.major_assignment.utils.PageUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.List;
@@ -48,37 +49,18 @@ public class EarlyWarningServiceImpl implements EarlyWarningService {
     public PageResult<EarlyWarning> getWarningList(Long teacherId, Long classId, Long courseId, 
                                           String warningType, String status, 
                                           Integer page, Integer size) {
-        // 计算偏移量
-        Integer offset = (page - 1) * size;
+        Long totalElements = earlyWarningMapper.countWarningsByCondition(teacherId, classId, courseId,
+                warningType, status);
+        int total = totalElements != null ? totalElements.intValue() : 0;
+        PageUtils.PageWindow window = PageUtils.resolvePageWindow(page, size, total);
         
         // 获取预警列表
         List<EarlyWarning> warnings = earlyWarningMapper.findWarningsByCondition(teacherId, classId, courseId, 
-                                                                               warningType, status, offset, size);
+                                                                               warningType, status, window.offset(), window.size());
         
         // 处理预警数据
         processWarnings(warnings);
-        
-        // 获取总记录数
-        Long totalElements = earlyWarningMapper.countWarningsByCondition(teacherId, classId, courseId, 
-                                                                       warningType, status);
-        
-        // 计算总页数
-        int totalPages = (int) Math.ceil((double) totalElements / size);
-        
-        // 构建分页结果
-        PageResult<EarlyWarning> result = new PageResult<>();
-        result.setContent(warnings);
-        result.setPageNumber(page);
-        result.setPageSize(size);
-        result.setTotalElements(totalElements);
-        result.setTotalPages(totalPages);
-        result.setFirst(page == 1);
-        result.setLast(page >= totalPages);
-        result.setOffset(offset);
-        result.setNumberOfElements(warnings.size());
-        result.setEmpty(warnings.isEmpty());
-        
-        return result;
+        return PageUtils.buildPageResult(warnings, window.page(), window.size(), totalElements != null ? totalElements : 0L);
     }
     
     @Override

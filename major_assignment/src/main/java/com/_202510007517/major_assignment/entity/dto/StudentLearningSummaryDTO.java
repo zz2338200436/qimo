@@ -17,6 +17,7 @@ public class StudentLearningSummaryDTO {
     @Data
     public static class StudentPerformanceDTO {
         private Long studentId;
+        private Long courseId;
         private String realName;
         private String className;
         private String courseName;

@@ -7,7 +7,7 @@ import com._202510007517.major_assignment.utils.LogUtil;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
 import java.util.Map;
@@ -20,6 +20,29 @@ public class KnowledgePointController extends BaseController {
     
     @Autowired
     private KnowledgePointService knowledgePointService;
+
+    /**
+     * 获取教师可见知识点列表。
+     * 兼容 teacher-knowledge 页的根列表读取：
+     * - 传 courseId 时返回该课程知识点
+     * - 不传时返回当前教师全部课程下的知识点
+     */
+    @GetMapping
+    public ResponseResult<List<Map<String, Object>>> getKnowledgePoints(
+            @RequestParam(required = false) Long courseId,
+            HttpServletRequest requestContext) {
+        Map<String, Object> requestParams = courseId != null ? Map.of("courseId", courseId) : null;
+        LogUtil.logRequest(logger, "GET", "/api/teacher/knowledge-points", requestParams, getCurrentUserId(requestContext));
+
+        if (!isLoggedIn(requestContext)) {
+            return ResponseResult.failure("未授权，请重新登录", 401);
+        }
+
+        List<Map<String, Object>> knowledgePoints = courseId != null
+                ? knowledgePointService.getKnowledgePointsByTeacherId(getCurrentUserId(requestContext), courseId)
+                : knowledgePointService.getKnowledgePointsByTeacherId(getCurrentUserId(requestContext));
+        return ResponseResult.success(knowledgePoints, "获取知识点列表成功", 200);
+    }
     
     /**
      * 创建知识点
@@ -27,16 +50,16 @@ public class KnowledgePointController extends BaseController {
     @PostMapping
     public ResponseResult<KnowledgePoint> createKnowledgePoint(
             @RequestBody KnowledgePoint knowledgePoint,
-            HttpSession session) {
-        LogUtil.logRequest(logger, "POST", "/api/teacher/knowledge-points", knowledgePoint, getCurrentUserId(session));
+            HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "POST", "/api/teacher/knowledge-points", knowledgePoint, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         try {
             KnowledgePoint created = knowledgePointService.createKnowledgePoint(knowledgePoint);
-            LogUtil.logOperation(logger, "创建知识点", "知识点: " + created.getPointName(), getCurrentUserId(session), true);
+            LogUtil.logOperation(logger, "创建知识点", "知识点: " + created.getPointName(), getCurrentUserId(requestContext), true);
             return ResponseResult.success(created, "创建知识点成功", 201);
         } catch (Exception e) {
             LogUtil.logError(logger, "创建知识点失败", e);
@@ -51,16 +74,16 @@ public class KnowledgePointController extends BaseController {
     public ResponseResult<KnowledgePoint> updateKnowledgePoint(
             @PathVariable Long id,
             @RequestBody KnowledgePoint knowledgePoint,
-            HttpSession session) {
-        LogUtil.logRequest(logger, "PUT", "/api/teacher/knowledge-points/" + id, knowledgePoint, getCurrentUserId(session));
+            HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "PUT", "/api/teacher/knowledge-points/" + id, knowledgePoint, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         try {
             KnowledgePoint updated = knowledgePointService.updateKnowledgePoint(id, knowledgePoint);
-            LogUtil.logOperation(logger, "更新知识点", "知识点ID: " + id, getCurrentUserId(session), true);
+            LogUtil.logOperation(logger, "更新知识点", "知识点ID: " + id, getCurrentUserId(requestContext), true);
             return ResponseResult.success(updated, "更新知识点成功", 200);
         } catch (Exception e) {
             LogUtil.logError(logger, "更新知识点失败", e);
@@ -74,16 +97,16 @@ public class KnowledgePointController extends BaseController {
     @DeleteMapping("/{id}")
     public ResponseResult<Void> deleteKnowledgePoint(
             @PathVariable Long id,
-            HttpSession session) {
-        LogUtil.logRequest(logger, "DELETE", "/api/teacher/knowledge-points/" + id, null, getCurrentUserId(session));
+            HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "DELETE", "/api/teacher/knowledge-points/" + id, null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
         try {
             knowledgePointService.deleteKnowledgePoint(id);
-            LogUtil.logOperation(logger, "删除知识点", "知识点ID: " + id, getCurrentUserId(session), true);
+            LogUtil.logOperation(logger, "删除知识点", "知识点ID: " + id, getCurrentUserId(requestContext), true);
             return ResponseResult.success(null, "删除知识点成功", 200);
         } catch (Exception e) {
             LogUtil.logError(logger, "删除知识点失败", e);
@@ -97,10 +120,10 @@ public class KnowledgePointController extends BaseController {
     @GetMapping("/{id}")
     public ResponseResult<KnowledgePoint> getKnowledgePointById(
             @PathVariable Long id,
-            HttpSession session) {
-        LogUtil.logRequest(logger, "GET", "/api/teacher/knowledge-points/" + id, null, getCurrentUserId(session));
+            HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "GET", "/api/teacher/knowledge-points/" + id, null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -117,10 +140,10 @@ public class KnowledgePointController extends BaseController {
     @GetMapping("/course/{courseId}")
     public ResponseResult<List<Map<String, Object>>> getKnowledgePointsByCourse(
             @PathVariable Long courseId,
-            HttpSession session) {
-        LogUtil.logRequest(logger, "GET", "/api/teacher/knowledge-points/course/" + courseId, null, getCurrentUserId(session));
+            HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "GET", "/api/teacher/knowledge-points/course/" + courseId, null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -134,10 +157,10 @@ public class KnowledgePointController extends BaseController {
     @GetMapping("/assignment/{assignmentId}")
     public ResponseResult<List<Map<String, Object>>> getKnowledgePointsByAssignment(
             @PathVariable Long assignmentId,
-            HttpSession session) {
-        LogUtil.logRequest(logger, "GET", "/api/teacher/knowledge-points/assignment/" + assignmentId, null, getCurrentUserId(session));
+            HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "GET", "/api/teacher/knowledge-points/assignment/" + assignmentId, null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -152,10 +175,10 @@ public class KnowledgePointController extends BaseController {
     public ResponseResult<Void> setAssignmentKnowledgePoints(
             @PathVariable Long assignmentId,
             @RequestBody Map<String, Object> requestBody,
-            HttpSession session) {
-        LogUtil.logRequest(logger, "POST", "/api/teacher/knowledge-points/assignment/" + assignmentId, requestBody, getCurrentUserId(session));
+            HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "POST", "/api/teacher/knowledge-points/assignment/" + assignmentId, requestBody, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -171,7 +194,7 @@ public class KnowledgePointController extends BaseController {
             }
             
             knowledgePointService.setAssignmentKnowledgePoints(assignmentId, knowledgePointIds);
-            LogUtil.logOperation(logger, "设置作业知识点", "作业ID: " + assignmentId, getCurrentUserId(session), true);
+            LogUtil.logOperation(logger, "设置作业知识点", "作业ID: " + assignmentId, getCurrentUserId(requestContext), true);
             return ResponseResult.success(null, "设置作业知识点成功", 200);
         } catch (Exception e) {
             LogUtil.logError(logger, "设置作业知识点失败", e);
@@ -185,10 +208,10 @@ public class KnowledgePointController extends BaseController {
     @GetMapping("/exam/{examId}")
     public ResponseResult<List<Map<String, Object>>> getKnowledgePointsByExam(
             @PathVariable Long examId,
-            HttpSession session) {
-        LogUtil.logRequest(logger, "GET", "/api/teacher/knowledge-points/exam/" + examId, null, getCurrentUserId(session));
+            HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "GET", "/api/teacher/knowledge-points/exam/" + examId, null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -203,10 +226,10 @@ public class KnowledgePointController extends BaseController {
     public ResponseResult<Void> setExamKnowledgePoints(
             @PathVariable Long examId,
             @RequestBody Map<String, Object> requestBody,
-            HttpSession session) {
-        LogUtil.logRequest(logger, "POST", "/api/teacher/knowledge-points/exam/" + examId, requestBody, getCurrentUserId(session));
+            HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "POST", "/api/teacher/knowledge-points/exam/" + examId, requestBody, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -222,7 +245,7 @@ public class KnowledgePointController extends BaseController {
             }
             
             knowledgePointService.setExamKnowledgePoints(examId, knowledgePointIds);
-            LogUtil.logOperation(logger, "设置考试知识点", "考试ID: " + examId, getCurrentUserId(session), true);
+            LogUtil.logOperation(logger, "设置考试知识点", "考试ID: " + examId, getCurrentUserId(requestContext), true);
             return ResponseResult.success(null, "设置考试知识点成功", 200);
         } catch (Exception e) {
             LogUtil.logError(logger, "设置考试知识点失败", e);
@@ -236,10 +259,10 @@ public class KnowledgePointController extends BaseController {
     @GetMapping("/stats/course/{courseId}")
     public ResponseResult<List<Map<String, Object>>> getKnowledgePointMasteryStats(
             @PathVariable Long courseId,
-            HttpSession session) {
-        LogUtil.logRequest(logger, "GET", "/api/teacher/knowledge-points/stats/course/" + courseId, null, getCurrentUserId(session));
+            HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "GET", "/api/teacher/knowledge-points/stats/course/" + courseId, null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -254,10 +277,10 @@ public class KnowledgePointController extends BaseController {
     public ResponseResult<List<Map<String, Object>>> getStudentKnowledgeMastery(
             @PathVariable Long studentId,
             @PathVariable Long courseId,
-            HttpSession session) {
-        LogUtil.logRequest(logger, "GET", "/api/teacher/knowledge-points/mastery/student/" + studentId + "/course/" + courseId, null, getCurrentUserId(session));
+            HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "GET", "/api/teacher/knowledge-points/mastery/student/" + studentId + "/course/" + courseId, null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -272,10 +295,10 @@ public class KnowledgePointController extends BaseController {
     public ResponseResult<Void> analyzeStudentKnowledgeMastery(
             @PathVariable Long studentId,
             @PathVariable Long courseId,
-            HttpSession session) {
-        LogUtil.logRequest(logger, "POST", "/api/teacher/knowledge-points/analyze/student/" + studentId + "/course/" + courseId, null, getCurrentUserId(session));
+            HttpServletRequest requestContext) {
+        LogUtil.logRequest(logger, "POST", "/api/teacher/knowledge-points/analyze/student/" + studentId + "/course/" + courseId, null, getCurrentUserId(requestContext));
         
-        if (!isLoggedIn(session)) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
@@ -288,3 +311,4 @@ public class KnowledgePointController extends BaseController {
         }
     }
 }
+

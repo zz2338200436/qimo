@@ -1,5 +1,6 @@
 package com._202510007517.major_assignment.config;
 
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -8,6 +9,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 /**
@@ -37,6 +39,14 @@ public class SecurityConfig {
     public BCryptPasswordEncoder bCryptPasswordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
+    @Bean
+    public FilterRegistrationBean<MultiRoleSessionFilter> multiRoleSessionFilterRegistration(
+            MultiRoleSessionFilter filter) {
+        FilterRegistrationBean<MultiRoleSessionFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
     
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -50,17 +60,26 @@ public class SecurityConfig {
             //   - /api/auth/**   —— 登录/登出/令牌刷新，无会话前提
             //   - /api/public/** —— 公开资源（包括验证码图片）
             //
+            // Spring Security 6 默认使用 XorCsrfTokenRequestAttributeHandler，
+            // 返回给前端的 cookie 值是经过 XOR 混淆的，前端直接回填为 X-XSRF-TOKEN
+            // 头时服务端校验不通过（必须走 _csrf 请求属性或 Spring Security taglib）。
+            // 这里切回 CsrfTokenRequestAttributeHandler，让前端从 XSRF-TOKEN cookie
+            // 读出的明文 token 能直接作为 X-XSRF-TOKEN 提交（单体应用默认语义）。
+            //
             // 说明（Spring Cloud 迁移后由 Gateway + JWT 负责同源校验）：
             //   - /api/teacher/**、/api/student/**、/api/knowledge-points/**、
             //     /api/early-warnings/**、/api/notifications/** 不再全量忽略 CSRF；
-            //     前端 axios 需要从 XSRF-TOKEN Cookie 读取并附加 X-XSRF-TOKEN 请求头。
-            .csrf(csrf -> csrf
-                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                .ignoringRequestMatchers(
-                    "/api/auth/**",
-                    "/api/public/**"
-                )
-            )
+            //     前端 axios / fetch 需要从 XSRF-TOKEN Cookie 读取并附加 X-XSRF-TOKEN 请求头。
+            .csrf(csrf -> {
+                CsrfTokenRequestAttributeHandler plainHandler = new CsrfTokenRequestAttributeHandler();
+                plainHandler.setCsrfRequestAttributeName(null);
+                csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                    .csrfTokenRequestHandler(plainHandler)
+                    .ignoringRequestMatchers(
+                        "/api/auth/**",
+                        "/api/public/**"
+                    );
+            })
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
             )

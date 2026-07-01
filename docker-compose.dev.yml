@@ -1,0 +1,28 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: qimo-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: major_assignment
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/mysql/db:/var/lib/mysql
+      - ./data/mysql/init:/docker-entrypoint-initdb.d
+  redis:
+    image: redis:7.4
+    container_name: qimo-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: qimo-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"

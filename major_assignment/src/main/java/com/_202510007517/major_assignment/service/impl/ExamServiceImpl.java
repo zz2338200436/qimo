@@ -5,6 +5,7 @@ import com._202510007517.major_assignment.entity.Course;
 import com._202510007517.major_assignment.entity.Exam;
 import com._202510007517.major_assignment.entity.User;
 import com._202510007517.major_assignment.mapper.ExamMapper;
+import com._202510007517.major_assignment.service.AssessmentAttachmentService;
 import com._202510007517.major_assignment.service.ExamService;
 import com._202510007517.major_assignment.service.ExamSubmissionService;
 import com._202510007517.major_assignment.service.CourseService;
@@ -37,23 +38,26 @@ public class ExamServiceImpl implements ExamService {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private AssessmentAttachmentService assessmentAttachmentService;
+
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.EXAMS, key = "'all'")
+    @Cacheable(value = CacheConstants.EXAMS, key = "'all'", unless = "#result == null")
     public List<Exam> getAllExams() {
         return examMapper.getAllExams();
     }
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.EXAMS, key = "#id")
+    @Cacheable(value = CacheConstants.EXAMS, key = "#id", unless = "#result == null")
     public Exam getExamById(Long id) {
         return examMapper.getExamById(id);
     }
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.EXAMS, key = "'course_' + #courseId")
+    @Cacheable(value = CacheConstants.EXAMS, key = "'course_' + #courseId", unless = "#result == null")
     public List<Exam> getExamsByCourseId(Long courseId) {
         return examMapper.getExamsByCourseId(courseId);
     }
@@ -91,6 +95,7 @@ public class ExamServiceImpl implements ExamService {
         examMapper.deleteExamSubmissionsByExamId(id);
         // 再删除相关的班级关联记录
         examMapper.deleteExamClassesByExamId(id);
+        assessmentAttachmentService.deleteAttachments(AssessmentAttachmentService.EXAM_TYPE, id);
         // 最后删除考试本身
         examMapper.delete(id);
     }
@@ -100,8 +105,8 @@ public class ExamServiceImpl implements ExamService {
     public Map<String, Object> getExamsWithPagination(Long studentId, Integer page, Integer size, String sortBy, String order, 
                                                    Long courseId, Boolean isActive, Boolean submitted) {
         // 安全处理分页参数
-        int safePage = PageUtils.safePage(page, 1);
-        int safeSize = PageUtils.safeSize(size, 10, 100);
+        int requestedPage = page == null ? 1 : page;
+        int requestedSize = size == null ? PageUtils.DEFAULT_PAGE_SIZE : size;
         
         // 直接基于学生ID查询其关联到的所有考试（通过exam_classes表关联）
         List<Exam> studentExams = examMapper.getExamsByStudentId(studentId);
@@ -132,12 +137,15 @@ public class ExamServiceImpl implements ExamService {
         
         // 计算总数
         int totalElements = filteredExams.size();
+        PageUtils.PageWindow window = PageUtils.resolvePageWindow(requestedPage, requestedSize, totalElements);
         
         // 应用分页
-        List<Exam> pagedExams = PageUtils.paginate(filteredExams, safePage, safeSize);
+        List<Exam> pagedExams = PageUtils.paginate(filteredExams, window.page(), window.size());
         
         // 为每个考试补充课程、教师和提交信息
         List<Map<String, Object>> examsWithDetails = new ArrayList<>();
+        Map<Long, Course> courseCache = new HashMap<>();
+        Map<Long, User> teacherCache = new HashMap<>();
         for (Exam exam : pagedExams) {
             Map<String, Object> examMap = new HashMap<>();
             examMap.put("id", exam.getId());
@@ -152,13 +160,21 @@ public class ExamServiceImpl implements ExamService {
             examMap.put("publishDate", exam.getPublishDate());
             examMap.put("courseId", exam.getCourseId());
             examMap.put("teacherId", exam.getTeacherId());
+            examMap.put("attachments", assessmentAttachmentService.getAttachmentDtos(
+                    AssessmentAttachmentService.EXAM_TYPE, exam.getId()));
             
             // 课程、教师名称
-            Course course = courseService.findById(exam.getCourseId());
+            Course course = null;
+            if (exam.getCourseId() != null) {
+                course = courseCache.computeIfAbsent(exam.getCourseId(), courseService::findById);
+            }
             if (course != null) {
                 examMap.put("courseName", course.getCourseName());
             }
-            User teacher = userService.findById(exam.getTeacherId());
+            User teacher = null;
+            if (exam.getTeacherId() != null) {
+                teacher = teacherCache.computeIfAbsent(exam.getTeacherId(), userService::findById);
+            }
             if (teacher != null) {
                 examMap.put("teacherName", teacher.getName());
             }
@@ -169,7 +185,7 @@ public class ExamServiceImpl implements ExamService {
         }
         
         // 使用工具类构建分页响应
-        return PageUtils.buildPageResponse(examsWithDetails, safePage, safeSize, totalElements);
+        return PageUtils.buildPageResponse(examsWithDetails, window.page(), window.size(), totalElements);
     }
 
     @Override
@@ -195,6 +211,8 @@ public class ExamServiceImpl implements ExamService {
         examDetails.put("publishDate", exam.getPublishDate());
         examDetails.put("courseId", exam.getCourseId());
         examDetails.put("teacherId", exam.getTeacherId());
+        examDetails.put("attachments", assessmentAttachmentService.getAttachmentDtos(
+                AssessmentAttachmentService.EXAM_TYPE, examId));
         
         // 由于缺少getCourseName和getTeacherName方法，暂时不获取这些信息
         // 可以后续通过其他服务或直接从数据库获取

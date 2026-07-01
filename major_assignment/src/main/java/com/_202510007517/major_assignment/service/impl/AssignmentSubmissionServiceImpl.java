@@ -7,6 +7,7 @@ import com._202510007517.major_assignment.mapper.AssignmentSubmissionMapper;
 import com._202510007517.major_assignment.service.AssignmentSubmissionService;
 import com._202510007517.major_assignment.service.KnowledgeMasteryService;
 import com._202510007517.major_assignment.service.EarlyWarningAnalysisService;
+import com._202510007517.major_assignment.utils.PageUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -169,9 +170,19 @@ public class AssignmentSubmissionServiceImpl implements AssignmentSubmissionServ
     }
 
     @Override
-    public List<AssignmentSubmission> getSubmissionsWithPagination(Integer page, Integer size, String sortBy, String order, Long assignmentId, Long studentId, Boolean graded) {
-        Integer offset = (page - 1) * size;
-        return assignmentSubmissionMapper.findWithPagination(assignmentId, studentId, graded, sortBy, order, offset, size);
+    public List<AssignmentSubmission> getSubmissionsWithPagination(Integer page, Integer size, Integer total, String sortBy, String order, Long assignmentId, Long studentId, Boolean graded) {
+        PageUtils.PageWindow window = PageUtils.resolvePageWindow(
+                page == null ? 1 : page,
+                size == null ? PageUtils.DEFAULT_PAGE_SIZE : size,
+                total == null ? 0 : total);
+        return assignmentSubmissionMapper.findWithPagination(
+                assignmentId,
+                studentId,
+                graded,
+                sortBy,
+                order,
+                window.offset(),
+                window.size());
     }
 
     @Override

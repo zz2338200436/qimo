@@ -1,0 +1,39 @@
+package com._202510007517.platform.ai.api.dto;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+public class GenerateQuestionsRequestDTO {
+
+    private String topic;
+
+    @Min(1)
+    @Max(50)
+    private Integer count;
+
+    @jakarta.validation.constraints.NotBlank
+    private String difficulty;
+
+    public String getTopic() {
+        return topic;
+    }
+
+    public void setTopic(String topic) {
+        this.topic = topic;
+    }
+
+    public Integer getCount() {
+        return count;
+    }
+
+    public void setCount(Integer count) {
+        this.count = count;
+    }
+
+    public String getDifficulty() {
+        return difficulty;
+    }
+
+    public void setDifficulty(String difficulty) {
+        this.difficulty = difficulty;
+    }
+}

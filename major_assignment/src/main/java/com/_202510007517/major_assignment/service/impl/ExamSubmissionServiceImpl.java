@@ -5,6 +5,7 @@ import com._202510007517.major_assignment.mapper.ExamMapper;
 import com._202510007517.major_assignment.mapper.ExamSubmissionMapper;
 import com._202510007517.major_assignment.service.ExamSubmissionService;
 import com._202510007517.major_assignment.service.KnowledgeMasteryService;
+import com._202510007517.major_assignment.utils.PageUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -26,7 +27,8 @@ public class ExamSubmissionServiceImpl implements ExamSubmissionService {
     
     @Override
     public ExamSubmission submitExam(Long examId, Long studentId, Integer timeTaken, Map<String, String> answers) {
-        ExamSubmission submission = new ExamSubmission();
+        ExamSubmission existingSubmission = submissionMapper.findByExamAndStudent(examId, studentId);
+        ExamSubmission submission = existingSubmission != null ? existingSubmission : new ExamSubmission();
         submission.setExamId(examId);
         submission.setStudentId(studentId);
         submission.setSubmissionDate(new Date());
@@ -47,7 +49,12 @@ public class ExamSubmissionServiceImpl implements ExamSubmissionService {
             }
         }
         
-        int result = submissionMapper.insertSubmission(submission);
+        int result;
+        if (existingSubmission != null) {
+            result = submissionMapper.fullUpdateSubmission(submission);
+        } else {
+            result = submissionMapper.insertSubmission(submission);
+        }
         
         if (result > 0) {
             return submission;
@@ -126,9 +133,12 @@ public class ExamSubmissionServiceImpl implements ExamSubmissionService {
     }
     
     @Override
-    public List<ExamSubmission> getSubmissionsWithPagination(Integer page, Integer size, String sortBy, String order, Long examId, Long studentId, Boolean graded) {
-        Integer offset = (page - 1) * size;
-        return submissionMapper.findWithPagination(examId, studentId, graded, sortBy, order, offset, size);
+    public List<ExamSubmission> getSubmissionsWithPagination(Integer page, Integer size, Integer total, String sortBy, String order, Long examId, Long studentId, Boolean graded) {
+        PageUtils.PageWindow window = PageUtils.resolvePageWindow(
+                page == null ? 1 : page,
+                size == null ? PageUtils.DEFAULT_PAGE_SIZE : size,
+                total == null ? 0 : total);
+        return submissionMapper.findWithPagination(examId, studentId, graded, sortBy, order, window.offset(), window.size());
     }
     
     @Override

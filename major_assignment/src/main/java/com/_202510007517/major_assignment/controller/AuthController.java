@@ -4,12 +4,16 @@ import com._202510007517.major_assignment.constants.CacheConstants;
 import com._202510007517.major_assignment.constants.ErrorMessages;
 import com._202510007517.major_assignment.constants.RoleConstants;
 import com._202510007517.major_assignment.constants.SuccessMessages;
+import com._202510007517.major_assignment.client.AuthServiceClient;
+import com._202510007517.major_assignment.client.UserServiceProfileClient;
 import com._202510007517.major_assignment.entity.User;
 import com._202510007517.major_assignment.entity.dto.ChangePasswordDTO;
 import com._202510007517.major_assignment.entity.dto.LoginRequestDTO;
 import com._202510007517.major_assignment.entity.dto.ResponseResult;
 import com._202510007517.major_assignment.service.UserService;
 import com._202510007517.major_assignment.utils.LogUtil;
+import com._202510007517.platform.user.api.dto.UpdateUserProfileDTO;
+import com._202510007517.platform.user.api.dto.UserProfileDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -36,12 +40,19 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/auth")
 @Tag(name = "认证管理", description = "用户认证相关接口")
+@Deprecated(since = "stage-2-auth-service", forRemoval = false)
 public class AuthController extends BaseController {
     
     private static final Logger logger = LogUtil.getLogger(AuthController.class);
     
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private UserServiceProfileClient userServiceProfileClient;
+
+    @Autowired
+    private AuthServiceClient authServiceClient;
     
     @Autowired
     private BCryptPasswordEncoder bCryptPasswordEncoder;
@@ -172,47 +183,25 @@ public class AuthController extends BaseController {
     }
     
     @PutMapping("/me")
-    public ResponseResult<Map<String, Object>> updateProfile(@RequestBody Map<String, Object> requestData, HttpSession session) {
-        if (!isLoggedIn(session)) {
+    public ResponseResult<Map<String, Object>> updateProfile(@RequestBody Map<String, Object> requestData,
+                                                             HttpServletRequest request) {
+        if (!isLoggedIn(request)) {
             return ResponseResult.failure(ErrorMessages.UNAUTHORIZED, 401);
         }
         
         try {
-            Long userId = getCurrentUserId(session);
-            User user = userService.findById(userId);
-            
-            // 更新用户信息
-            String name = (String) requestData.get("name");
-            String email = (String) requestData.get("email");
-            String phone = (String) requestData.get("phone");
-            
-            if (name != null) {
-                user.setName(name);
+            Long userId = getCurrentUserId(request);
+            UpdateUserProfileDTO update = new UpdateUserProfileDTO();
+            update.setName((String) requestData.get("name"));
+            update.setEmail((String) requestData.get("email"));
+            update.setPhone((String) requestData.get("phone"));
+
+            UserProfileDTO updatedUser = userServiceProfileClient.updateUserProfile(userId, update)
+                    .orElse(null);
+            if (updatedUser == null) {
+                return ResponseResult.failure("用户服务暂不可用，个人信息未更新", 503);
             }
-            if (email != null) {
-                user.setEmail(email);
-            }
-            if (phone != null) {
-                user.setPhone(phone);
-            }
-            
-            userService.update(user);
-            
-            // 获取更新后的用户信息
-            User updatedUser = userService.findById(userId);
-            List<String> roles = userService.getRolesByUserId(userId);
-            List<String> rolesUpper = roles != null && !roles.isEmpty() 
-                ? roles.stream().map(String::toUpperCase).collect(Collectors.toList())
-                : List.of(RoleConstants.STUDENT);
-            
-            Map<String, Object> userData = Map.of(
-                "id", updatedUser.getId(),
-                "username", updatedUser.getUsername(),
-                "name", updatedUser.getName(),
-                "email", updatedUser.getEmail(),
-                "phone", updatedUser.getPhone(),
-                "roles", rolesUpper
-            );
+            Map<String, Object> userData = toUserData(updatedUser);
             
             return ResponseResult.success(userData, SuccessMessages.PROFILE_UPDATE_SUCCESS, 200);
         } catch (Exception e) {
@@ -222,14 +211,14 @@ public class AuthController extends BaseController {
     }
     
     @PutMapping("/change-password")
-    public ResponseResult<Map<String, Object>> changePassword(@RequestBody @Valid ChangePasswordDTO requestData, HttpSession session) {
-        if (!isLoggedIn(session)) {
+    public ResponseResult<Map<String, Object>> changePassword(@RequestBody @Valid ChangePasswordDTO requestData,
+                                                              HttpServletRequest request) {
+        if (!isLoggedIn(request)) {
             return ResponseResult.failure(ErrorMessages.UNAUTHORIZED, 401);
         }
         
         try {
-            Long userId = getCurrentUserId(session);
-            User user = userService.findById(userId);
+            Long userId = getCurrentUserId(request);
             
             // 获取密码数据
             String currentPassword = requestData.getCurrentPassword();
@@ -239,19 +228,13 @@ public class AuthController extends BaseController {
                 return ResponseResult.failure(ErrorMessages.PASSWORD_SAME, 400);
             }
             
-            // 验证当前密码
-            boolean passwordMatch = bCryptPasswordEncoder.matches(currentPassword, user.getPassword());
-            if (!passwordMatch) {
-                return ResponseResult.failure(ErrorMessages.CURRENT_PASSWORD_ERROR, 400);
-            }
-
             if (!isPasswordStrong(newPassword)) {
                 return ResponseResult.failure(ErrorMessages.PASSWORD_WEAK, 400);
             }
             
-            // 更新密码
-            user.setPassword(bCryptPasswordEncoder.encode(newPassword));
-            userService.update(user);
+            if (!authServiceClient.changePassword(userId, currentPassword, newPassword)) {
+                return ResponseResult.failure(ErrorMessages.CURRENT_PASSWORD_ERROR, 400);
+            }
             
             return ResponseResult.success(null, SuccessMessages.PASSWORD_CHANGED, 200);
         } catch (Exception e) {
@@ -261,17 +244,22 @@ public class AuthController extends BaseController {
     }
     
     @PutMapping("/notification-settings")
-    public ResponseResult<Map<String, Object>> saveNotificationSettings(@RequestBody Map<String, Object> requestData, HttpSession session) {
-        if (!isLoggedIn(session)) {
+    public ResponseResult<Map<String, Object>> saveNotificationSettings(@RequestBody Map<String, Object> requestData,
+                                                                        HttpServletRequest request) {
+        if (!isLoggedIn(request)) {
             return ResponseResult.failure(ErrorMessages.UNAUTHORIZED, 401);
         }
         
         try {
+            HttpSession session = request.getSession(true);
+            Long userId = getCurrentUserId(request);
+            String settingsKeyPrefix = "notificationSettings:" + userId + ":";
+
             // 通知设置暂时保存在session中，实际项目中应该保存在数据库表中
-            session.setAttribute("emailNotifications", requestData.getOrDefault("emailNotifications", true));
-            session.setAttribute("assignmentNotifications", requestData.getOrDefault("assignmentNotifications", true));
-            session.setAttribute("examNotifications", requestData.getOrDefault("examNotifications", true));
-            session.setAttribute("warningNotifications", requestData.getOrDefault("warningNotifications", true));
+            session.setAttribute(settingsKeyPrefix + "emailNotifications", requestData.getOrDefault("emailNotifications", true));
+            session.setAttribute(settingsKeyPrefix + "assignmentNotifications", requestData.getOrDefault("assignmentNotifications", true));
+            session.setAttribute(settingsKeyPrefix + "examNotifications", requestData.getOrDefault("examNotifications", true));
+            session.setAttribute(settingsKeyPrefix + "warningNotifications", requestData.getOrDefault("warningNotifications", true));
             
             return ResponseResult.success(null, SuccessMessages.NOTIFICATION_SETTINGS_SUCCESS, 200);
         } catch (Exception e) {
@@ -306,5 +294,19 @@ public class AuthController extends BaseController {
         boolean hasLetter = password.chars().anyMatch(Character::isLetter);
         boolean hasDigit = password.chars().anyMatch(Character::isDigit);
         return hasLetter && hasDigit;
+    }
+
+    private Map<String, Object> toUserData(UserProfileDTO user) {
+        Map<String, Object> userData = new java.util.HashMap<>();
+        userData.put("id", user.getId());
+        userData.put("username", user.getUsername());
+        userData.put("name", user.getName());
+        userData.put("email", user.getEmail());
+        userData.put("phone", user.getPhone());
+        List<String> rolesUpper = user.getRoles() != null && !user.getRoles().isEmpty()
+                ? user.getRoles().stream().map(String::toUpperCase).collect(Collectors.toList())
+                : List.of(RoleConstants.STUDENT);
+        userData.put("roles", rolesUpper);
+        return userData;
     }
 }

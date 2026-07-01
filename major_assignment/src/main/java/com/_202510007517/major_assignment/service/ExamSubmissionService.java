@@ -14,6 +14,6 @@ public interface ExamSubmissionService {
     List<ExamSubmission> getSubmissionsByStudentId(Long studentId);
     boolean deleteSubmission(Long submissionId);
     boolean updateSubmission(ExamSubmission submission);
-    List<ExamSubmission> getSubmissionsWithPagination(Integer page, Integer size, String sortBy, String order, Long examId, Long studentId, Boolean graded);
+    List<ExamSubmission> getSubmissionsWithPagination(Integer page, Integer size, Integer total, String sortBy, String order, Long examId, Long studentId, Boolean graded);
     Integer countSubmissions(Long examId, Long studentId, Boolean graded);
 }

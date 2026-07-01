@@ -1,0 +1,45 @@
+{
+    "login": {
+        "student": {
+            "title": "学生登录",
+            "subtitle": "智能后台学习辅助系统"
+        },
+        "teacher": {
+            "title": "教师登录",
+            "subtitle": "智能后台学习辅助系统"
+        },
+        "form": {
+            "username": "用户名",
+            "username_placeholder": "请输入您的用户名",
+            "password": "密码",
+            "password_placeholder": "请输入您的密码",
+            "captcha": "验证码",
+            "captcha_placeholder": "请输入验证码",
+            "remember_me": "记住我",
+            "submit": "登录",
+            "submitting": "登录中..."
+        },
+        "links": {
+            "forgot_password": "忘记密码？",
+            "contact_admin": "联系管理员",
+            "no_account": "还没有账号？",
+            "switch_to_teacher": "您是教师？",
+            "switch_to_student": "您是学生？",
+            "click_to_login": "点击登录"
+        },
+        "errors": {
+            "empty_fields": "请填写完整的登录信息",
+            "invalid_credentials": "登录失败：请检查您的用户名和密码",
+            "not_student": "登录失败：您不是学生用户",
+            "not_teacher": "登录失败：您不是教师用户",
+            "no_user_info": "登录失败：无法获取用户信息",
+            "no_role_info": "登录失败：无法获取用户角色信息",
+            "request_failed": "请求失败，请稍后重试"
+        },
+        "language": {
+            "zh_CN": "中文",
+            "en_US": "English",
+            "ja_JP": "日本語"
+        }
+    }
+}

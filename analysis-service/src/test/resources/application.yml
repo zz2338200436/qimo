@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: analysis-service
+  config:
+    import:
+      - optional:classpath:application-common.yml
+  cloud:
+    config:
+      enabled: false

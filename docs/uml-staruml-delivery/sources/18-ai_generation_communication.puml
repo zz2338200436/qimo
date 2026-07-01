@@ -1,0 +1,18 @@
+@startuml
+left to right direction
+object 教师
+object AiGenerationRequest
+object AiService
+object CourseContext
+object PromptBuilder
+object ExternalModel
+object AiGenerationRecord
+object ExamDraft
+教师 -- AiGenerationRequest : 1 输入约束
+AiGenerationRequest -- AiService : 2 生成命令
+AiService -- CourseContext : 3 查询上下文
+AiService -- PromptBuilder : 4 构造 prompt
+PromptBuilder -- ExternalModel : 5 调用模型
+ExternalModel -- AiGenerationRecord : 6 返回结果
+AiGenerationRecord -- ExamDraft : 7 保存草稿
+@enduml

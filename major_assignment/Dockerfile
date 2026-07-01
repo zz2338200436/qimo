@@ -1,0 +1,28 @@
+FROM maven:3.9-eclipse-temurin-17 AS builder
+
+ARG MODULE_NAME=major_assignment
+ARG JAR_NAME=major_assignment-0.0.1-SNAPSHOT.jar
+
+WORKDIR /workspace
+COPY . .
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn --batch-mode --settings docker/maven-settings.xml -pl ${MODULE_NAME} -am package -DskipTests
+
+FROM eclipse-temurin:17-jre-jammy
+
+ARG MODULE_NAME=major_assignment
+ARG JAR_NAME=major_assignment-0.0.1-SNAPSHOT.jar
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=builder /workspace/${MODULE_NAME}/target/${JAR_NAME} /app/app.jar
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=75s --retries=5 \
+  CMD curl --silent --output /dev/null http://127.0.0.1:8080/ || exit 1
+
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

@@ -2,6 +2,7 @@ package com._202510007517.major_assignment.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.env.Environment;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.IntConsumer;
 
 /**
  * Prod Profile 启动阶段快速失败校验器。
@@ -46,9 +48,16 @@ public class ProdConfigValidator implements ApplicationRunner {
     };
 
     private final Environment environment;
+    private final IntConsumer exitHandler;
 
+    @Autowired
     public ProdConfigValidator(Environment environment) {
+        this(environment, System::exit);
+    }
+
+    ProdConfigValidator(Environment environment, IntConsumer exitHandler) {
         this.environment = environment;
+        this.exitHandler = exitHandler;
     }
 
     @Override
@@ -71,7 +80,7 @@ public class ProdConfigValidator implements ApplicationRunner {
         log.error("请检查对应环境变量是否已在运行环境中注入。");
         log.error("=========================================================");
         // 显式快速失败：保证容器编排立即感知启动失败（R4.4）
-        System.exit(1);
+        exitHandler.accept(1);
     }
 
     private boolean isProdProfileActive() {
@@ -84,12 +93,20 @@ public class ProdConfigValidator implements ApplicationRunner {
         for (String[] field : REQUIRED_FIELDS) {
             String propertyKey = field[0];
             String envName = field[1];
-            String value = environment.getProperty(propertyKey);
+            String value = resolvePropertyOrNull(propertyKey);
             if (isBlank(value)) {
                 missing.add(propertyKey + " (env: " + envName + ")");
             }
         }
         return missing;
+    }
+
+    private String resolvePropertyOrNull(String propertyKey) {
+        try {
+            return environment.getProperty(propertyKey);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     private static boolean isBlank(String value) {

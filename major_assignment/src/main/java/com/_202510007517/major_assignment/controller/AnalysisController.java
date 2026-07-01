@@ -1,11 +1,13 @@
 package com._202510007517.major_assignment.controller;
 
+import com._202510007517.major_assignment.annotation.RequireLogin;
+import com._202510007517.major_assignment.constants.RoleConstants;
 import com._202510007517.major_assignment.entity.dto.ResponseResult;
-import com._202510007517.major_assignment.service.EarlyWarningAnalysisService;
 import com._202510007517.major_assignment.mapper.StudentMapper;
+import com._202510007517.major_assignment.service.EarlyWarningAnalysisService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpSession;
+
 import java.util.List;
 import java.util.Map;
 
@@ -15,6 +17,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/teacher/analysis")
+@RequireLogin(roles = {RoleConstants.TEACHER})
 public class AnalysisController extends BaseController {
     
     @Autowired
@@ -27,11 +30,7 @@ public class AnalysisController extends BaseController {
      * 手动触发学情预警分析
      */
     @PostMapping("/warnings/trigger")
-    public ResponseResult<Void> triggerWarningAnalysis(HttpSession session) {
-        if (!isLoggedIn(session)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
+    public ResponseResult<Void> triggerWarningAnalysis() {
         try {
             // 异步执行分析任务
             new Thread(() -> {
@@ -48,11 +47,7 @@ public class AnalysisController extends BaseController {
      * 手动触发知识点分析更新
      */
     @PostMapping("/knowledge-points/trigger")
-    public ResponseResult<Void> triggerKnowledgePointAnalysis(HttpSession session) {
-        if (!isLoggedIn(session)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
+    public ResponseResult<Void> triggerKnowledgePointAnalysis() {
         try {
             // 异步执行分析任务
             new Thread(() -> {
@@ -70,12 +65,7 @@ public class AnalysisController extends BaseController {
      */
     @PostMapping("/student/{studentId}/course/{courseId}/trigger")
     public ResponseResult<Void> triggerStudentAnalysis(@PathVariable Long studentId, 
-                                                      @PathVariable Long courseId,
-                                                      HttpSession session) {
-        if (!isLoggedIn(session)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
+                                                      @PathVariable Long courseId) {
         try {
             // 异步执行学生特定分析
             new Thread(() -> {
@@ -93,12 +83,7 @@ public class AnalysisController extends BaseController {
      */
     @PostMapping("/class/{classId}/course/{courseId}/batch-trigger")
     public ResponseResult<Void> triggerClassAnalysis(@PathVariable Long classId,
-                                                    @PathVariable Long courseId,
-                                                    HttpSession session) {
-        if (!isLoggedIn(session)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
+                                                    @PathVariable Long courseId) {
         try {
             // 获取班级所有学生
             List<Map<String, Object>> students = studentMapper.getStudentsByClassId(classId);

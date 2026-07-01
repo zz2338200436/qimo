@@ -1,0 +1,17 @@
+[
+  {
+    "label": "生成课程核心 9 张 UML 图",
+    "id": "tools.smart-learning-uml.generate-core",
+    "command": "smart-learning-uml:generate-core"
+  },
+  {
+    "label": "生成推荐 24 张 UML 图",
+    "id": "tools.smart-learning-uml.generate-all",
+    "command": "smart-learning-uml:generate-all"
+  },
+  {
+    "label": "智能学习 UML 使用说明",
+    "id": "tools.smart-learning-uml.help",
+    "command": "smart-learning-uml:show-help"
+  }
+]

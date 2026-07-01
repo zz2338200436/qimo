@@ -17,13 +17,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/teacher/courses")
 @Validated
+@RequireLogin(roles = {RoleConstants.TEACHER})
 public class CourseController extends BaseController {
     
     // Logger实例
@@ -33,8 +34,7 @@ public class CourseController extends BaseController {
     private CourseService courseService;
     
     @GetMapping
-    @RequireLogin(roles = {RoleConstants.TEACHER})
-    public ResponseResult<PageResult<Course>> getCourses(HttpSession session, 
+    public ResponseResult<PageResult<Course>> getCourses(HttpServletRequest requestContext, 
                                                   @RequestParam(value = "page", defaultValue = "1") @Min(1) Integer page, 
                                                   @RequestParam(value = "size", defaultValue = "10") @Min(1) @Max(100) Integer size,
                                                   @RequestParam(value = "sortBy", defaultValue = "id") String sortBy,
@@ -43,7 +43,7 @@ public class CourseController extends BaseController {
                                                   @RequestParam(value = "courseStatus", required = false) String courseStatus,
                                                   @RequestParam(value = "courseCode", required = false) String courseCode,
                                                   @RequestParam(value = "category", required = false) String category) {
-        Long currentUserId = getCurrentUserId(session);
+        Long currentUserId = getCurrentUserId(requestContext);
         
         // 记录请求日志
         LogUtil.logRequest(logger, "GET", "/api/teacher/courses", null, currentUserId);
@@ -51,19 +51,7 @@ public class CourseController extends BaseController {
         Long teacherId = currentUserId;
         // 调用带分页和搜索参数的服务方法
         List<Course> courses = courseService.findByTeacherIdWithSearch(teacherId, courseName, courseCode, category, courseStatus);
-        
-        // 构建分页结果
-        PageResult<Course> pageResult = new PageResult<>();
-        pageResult.setContent(courses);
-        pageResult.setPageNumber(page);
-        pageResult.setPageSize(size);
-        pageResult.setTotalElements((long) courses.size());
-        pageResult.setTotalPages((int) Math.ceil((double) courses.size() / size));
-        pageResult.setFirst(page == 1);
-        pageResult.setLast(page >= pageResult.getTotalPages());
-        pageResult.setOffset((long) (page - 1) * size);
-        pageResult.setNumberOfElements(courses.size());
-        pageResult.setEmpty(courses.isEmpty());
+        PageResult<Course> pageResult = buildPageResultFromInMemoryList(courses, page, size);
         
         // 记录响应日志
         LogUtil.logResponse(logger, "GET", "/api/teacher/courses", 200, pageResult, teacherId);
@@ -71,9 +59,8 @@ public class CourseController extends BaseController {
     }
     
     @PostMapping
-    @RequireLogin(roles = {RoleConstants.TEACHER})
-    public ResponseResult<Course> createCourse(@RequestBody @Valid Course course, HttpSession session) {
-        Long currentUserId = getCurrentUserId(session);
+    public ResponseResult<Course> createCourse(@RequestBody @Valid Course course, HttpServletRequest requestContext) {
+        Long currentUserId = getCurrentUserId(requestContext);
         
         // 记录请求日志
         LogUtil.logRequest(logger, "POST", "/api/teacher/courses", course, currentUserId);
@@ -100,9 +87,8 @@ public class CourseController extends BaseController {
     }
     
     @PutMapping("/{id}")
-    @RequireLogin(roles = {RoleConstants.TEACHER})
-    public ResponseResult<Course> updateCourse(@PathVariable Long id, @RequestBody @Valid Course course, HttpSession session) {
-        Long currentUserId = getCurrentUserId(session);
+    public ResponseResult<Course> updateCourse(@PathVariable Long id, @RequestBody @Valid Course course, HttpServletRequest requestContext) {
+        Long currentUserId = getCurrentUserId(requestContext);
         
         // 记录请求日志
         LogUtil.logRequest(logger, "PUT", "/api/teacher/courses/" + id, course, currentUserId);
@@ -130,9 +116,8 @@ public class CourseController extends BaseController {
     }
     
     @DeleteMapping("/{id}")
-    @RequireLogin(roles = {RoleConstants.TEACHER})
-    public ResponseResult<Void> deleteCourse(@PathVariable Long id, HttpSession session) {
-        Long currentUserId = getCurrentUserId(session);
+    public ResponseResult<Void> deleteCourse(@PathVariable Long id, HttpServletRequest requestContext) {
+        Long currentUserId = getCurrentUserId(requestContext);
         
         // 记录请求日志
         LogUtil.logRequest(logger, "DELETE", "/api/teacher/courses/" + id, null, currentUserId);
@@ -154,9 +139,8 @@ public class CourseController extends BaseController {
     }
     
     @GetMapping("/{courseId}/students")
-    @RequireLogin(roles = {RoleConstants.TEACHER})
-    public ResponseResult<List<Map<String, Object>>> getCourseStudents(@PathVariable Long courseId, HttpSession session) {
-        Long currentUserId = getCurrentUserId(session);
+    public ResponseResult<List<Map<String, Object>>> getCourseStudents(@PathVariable Long courseId, HttpServletRequest requestContext) {
+        Long currentUserId = getCurrentUserId(requestContext);
         
         // 记录请求日志
         LogUtil.logRequest(logger, "GET", "/api/teacher/courses/" + courseId + "/students", null, currentUserId);
@@ -169,9 +153,8 @@ public class CourseController extends BaseController {
     }
     
     @GetMapping("/{courseId}")
-    @RequireLogin(roles = {RoleConstants.TEACHER})
-    public ResponseResult<Course> getCourseDetails(@PathVariable Long courseId, HttpSession session) {
-        Long currentUserId = getCurrentUserId(session);
+    public ResponseResult<Course> getCourseDetails(@PathVariable Long courseId, HttpServletRequest requestContext) {
+        Long currentUserId = getCurrentUserId(requestContext);
         
         // 记录请求日志
         LogUtil.logRequest(logger, "GET", "/api/teacher/courses/" + courseId, null, currentUserId);

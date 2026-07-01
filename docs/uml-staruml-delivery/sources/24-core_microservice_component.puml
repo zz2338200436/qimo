@@ -1,0 +1,39 @@
+@startuml
+component Gateway
+component AuthService
+component UserService
+component CourseService
+component AssignmentService
+component ExamService
+component AnalysisService
+component NotificationService
+component AiService
+component CommonEvents
+queue RabbitMQ
+database MySQL
+Gateway --> AuthService
+Gateway --> UserService
+Gateway --> CourseService
+Gateway --> AssignmentService
+Gateway --> ExamService
+Gateway --> AnalysisService
+Gateway --> AiService
+AuthService ..> UserService
+AssignmentService ..> CourseService
+ExamService ..> CourseService
+AiService ..> CourseService
+AiService ..> ExamService
+AssignmentService ..> CommonEvents
+ExamService ..> CommonEvents
+AnalysisService ..> CommonEvents
+CommonEvents ..> RabbitMQ
+AnalysisService --> NotificationService
+AuthService --> MySQL
+UserService --> MySQL
+CourseService --> MySQL
+AssignmentService --> MySQL
+ExamService --> MySQL
+AnalysisService --> MySQL
+NotificationService --> MySQL
+AiService --> MySQL
+@enduml

@@ -1,5 +1,7 @@
 package com._202510007517.major_assignment.service.impl;
 
+import com._202510007517.major_assignment.client.AuthServiceClient;
+import com._202510007517.major_assignment.client.UserServiceProfileClient;
 import com._202510007517.major_assignment.entity.Course;
 import com._202510007517.major_assignment.entity.User;
 import com._202510007517.major_assignment.entity.dto.StudentDashboardDTO;
@@ -9,8 +11,8 @@ import com._202510007517.major_assignment.service.StudentService;
 import com._202510007517.major_assignment.service.UserService;
 import com._202510007517.major_assignment.utils.PageUtils;
 import com._202510007517.major_assignment.utils.TypeUtils;
+import com._202510007517.platform.user.api.dto.UpdateUserProfileDTO;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,38 +33,49 @@ public class StudentServiceImpl implements StudentService {
     
     @Autowired
     private UserService userService;
-    
+
     @Autowired
-    private BCryptPasswordEncoder bCryptPasswordEncoder;
+    private UserServiceProfileClient userServiceProfileClient;
+
+    @Autowired
+    private AuthServiceClient authServiceClient;
 
     @Override
     @Transactional(readOnly = true)
     public List<Course> getStudentCourses(Long studentId) {
-        return studentMapper.getStudentCourses(studentId);
+        List<Course> courses = studentMapper.getStudentCourses(studentId);
+        populateCourseProgress(studentId, courses);
+        return courses;
+    }
+
+    private void populateCourseProgress(Long studentId, List<Course> courses) {
+        if (courses != null) {
+            for (Course course : courses) {
+                if (course != null && course.getId() != null) {
+                    Integer progress = studentMapper.getCourseProgress(studentId, course.getId());
+                    course.setProgress(progress != null ? progress : 0);
+                }
+            }
+        }
     }
 
     @Override
     @Transactional(readOnly = true)
     public Map<String, Object> getStudentCoursesWithPagination(Long studentId, Integer page, Integer size, String sortBy, String order, String courseStatus, String semester, String courseCategory, String searchQuery) {
-        int safePage = PageUtils.safePage(page, 1);
-        int safeSize = PageUtils.safeSize(size, 10, 100);
+        int safePage = PageUtils.clampPageNum(page == null ? 1 : page);
+        int safeSize = PageUtils.clampPageSize(size == null ? PageUtils.DEFAULT_PAGE_SIZE : size);
         String safeSortBy = sanitizeSortBy(sortBy);
         String safeOrder = sanitizeOrder(order);
         String trimmedSearch = searchQuery == null ? null : searchQuery.trim();
 
         int totalElements = studentMapper.countStudentCoursesWithFilters(
                 studentId, courseStatus, semester, courseCategory, trimmedSearch);
-
-        int totalPages = (int) Math.ceil((double) totalElements / safeSize);
-        totalPages = Math.max(totalPages, 1);
-
-        safePage = Math.min(safePage, totalPages);
-        int offset = (safePage - 1) * safeSize;
+        PageUtils.PageWindow window = PageUtils.resolvePageWindow(safePage, safeSize, totalElements);
 
         List<Course> pagedCourses = studentMapper.getStudentCoursesWithFilters(
                 studentId,
-                offset,
-                safeSize,
+                window.offset(),
+                window.size(),
                 safeSortBy,
                 safeOrder,
                 courseStatus,
@@ -70,38 +83,9 @@ public class StudentServiceImpl implements StudentService {
                 courseCategory,
                 trimmedSearch
         );
+        populateCourseProgress(studentId, pagedCourses);
 
-        Map<String, Object> result = new java.util.HashMap<>();
-
-        result.put("content", pagedCourses);
-
-        Map<String, Object> pageable = new java.util.HashMap<>();
-        pageable.put("pageNumber", safePage - 1); // 前端从1开始，后端从0开始
-        pageable.put("pageSize", safeSize);
-
-        Map<String, Object> sort = new java.util.HashMap<>();
-        sort.put("empty", false);
-        sort.put("sorted", true);
-        sort.put("unsorted", false);
-        pageable.put("sort", sort);
-
-        pageable.put("offset", offset);
-        pageable.put("paged", true);
-        pageable.put("unpaged", false);
-
-        result.put("pageable", pageable);
-
-        result.put("totalPages", totalPages);
-        result.put("totalElements", totalElements);
-        result.put("last", safePage >= totalPages);
-        result.put("size", safeSize);
-        result.put("number", safePage - 1); // 前端从1开始，后端从0开始
-        result.put("sort", sort);
-        result.put("first", safePage == 1);
-        result.put("numberOfElements", pagedCourses.size());
-        result.put("empty", pagedCourses.isEmpty());
-
-        return result;
+        return PageUtils.buildPageResponse(pagedCourses, window.page(), window.size(), totalElements);
     }
 
     private String sanitizeSortBy(String sortBy) {
@@ -144,14 +128,12 @@ public class StudentServiceImpl implements StudentService {
                 .collect(Collectors.toList());
         double totalStudyTime = studyTimeDistribution.stream().mapToDouble(Double::doubleValue).sum();
         response.put("studyTime", totalStudyTime);
-        response.put("studyTimeChange", 0);
         response.put("studyTimeDistribution", studyTimeDistribution);
         
         // 任务完成情况
         Object completedAssignmentsObj = rawStats.getOrDefault("completedAssignments", 0);
         Integer completedAssignments = TypeUtils.safeInt(completedAssignmentsObj, 0);
         response.put("completedTasks", completedAssignments);
-        response.put("completedTasksChange", 0);
         
         // 平均成绩：从数据库获取真实成绩平均值
         Object averageScoreObj = rawStats.getOrDefault("averageScore", 0.0);
@@ -181,7 +163,6 @@ public class StudentServiceImpl implements StudentService {
         }
         
         response.put("averageScore", Math.round(averageScore * 10.0) / 10.0); // 保留一位小数
-        response.put("averageScoreChange", 0.0);
         
         // 获取知识点列表
         List<Map<String, Object>> knowledgePoints = studentMapper.getKnowledgePoints(studentId, semester, courseId, timeRange);
@@ -211,7 +192,6 @@ public class StudentServiceImpl implements StudentService {
             }
         }
         response.put("knowledgeMastery", Math.round(knowledgeMastery * 10.0) / 10.0); // 保留一位小数
-        response.put("knowledgeMasteryChange", 0.0);
         
         // 转换知识点数据格式，添加practiceCount字段
         List<Map<String, Object>> formattedKnowledgePoints = knowledgePoints.stream().map(point -> {
@@ -252,7 +232,6 @@ public class StudentServiceImpl implements StudentService {
         // 直接使用实际课程列表的数量，避免统计表或聚合 SQL 出错导致数量不一致
         int courseCount = courses != null ? courses.size() : 0;
         result.setCourseCount(courseCount);
-        result.setCourseCountChange(0);
         
         // 转换Course为CourseDTO并设置到result中
         List<StudentDashboardDTO.CourseDTO> courseDTOs = courses.stream()
@@ -273,11 +252,9 @@ public class StudentServiceImpl implements StudentService {
         int pendingAssignments = TypeUtils.safeInt(performanceStats.get("pendingAssignments"),
                 TypeUtils.safeInt(rawStats.getOrDefault("pendingAssignments", 0), 0));
         result.setPendingAssignments(Math.max(pendingAssignments, 0));
-        result.setPendingAssignmentsChange(0);
         
         int upcomingExams = TypeUtils.safeInt(performanceStats.getOrDefault("upcomingExams", 0), 0);
         result.setUpcomingExams(Math.max(upcomingExams, 0));
-        result.setUpcomingExamsChange(0);
         
         // 设置整体进度：基于完成率，而不是分数
         double progress = TypeUtils.safeDouble(performanceStats.getOrDefault("overallProgress",
@@ -286,7 +263,6 @@ public class StudentServiceImpl implements StudentService {
         progress = Math.max(0.0, Math.min(progress, 100.0));
         
         result.setOverallProgress(progress);
-        result.setOverallProgressChange(0.0);
         
         // 从数据库获取学习进度数据
         List<Map<String, Object>> progressTrend = studentMapper.getLearningProgressTrend(studentId);
@@ -319,16 +295,6 @@ public class StudentServiceImpl implements StudentService {
         result.setGradesDistribution(gradesDistribution);
         
         return result;
-    }
-    
-    // 辅助方法：创建模拟课程DTO
-    private StudentDashboardDTO.CourseDTO createMockCourseDTO(Long id, String name, String teacherName, int progress) {
-        StudentDashboardDTO.CourseDTO courseDTO = new StudentDashboardDTO.CourseDTO();
-        courseDTO.setId(id);
-        courseDTO.setName(name);
-        courseDTO.setTeacherName(teacherName);
-        courseDTO.setProgress(progress);
-        return courseDTO;
     }
     
     // 辅助方法：创建最近活动对象
@@ -483,12 +449,15 @@ public class StudentServiceImpl implements StudentService {
         // className在course_classes表的class_name字段
         // 这些信息通常由管理员或系统设置，学生不能直接修改
         
-        // 如果有任何更新，保存到数据库
-        if (hasUpdate) {
-            userService.update(user);
+        if (!hasUpdate) {
+            return false;
         }
-        
-        return hasUpdate;
+
+        UpdateUserProfileDTO request = new UpdateUserProfileDTO();
+        request.setName(user.getName());
+        request.setEmail(user.getEmail());
+        request.setPhone(user.getPhone());
+        return userServiceProfileClient.updateUserProfile(studentId, request).isPresent();
     }
 
     @Override
@@ -504,19 +473,7 @@ public class StudentServiceImpl implements StudentService {
             return false;
         }
 
-        // 获取当前用户
-        User user = userService.findById(studentId);
-        if (user == null) {
-            return false;
-        }
-
-        // 验证当前密码
-        if (!bCryptPasswordEncoder.matches(currentPassword, user.getPassword())) {
-            return false;
-        }
-
-        // 验证新密码不能与当前密码相同
-        if (bCryptPasswordEncoder.matches(newPassword, user.getPassword())) {
+        if (currentPassword.equals(newPassword)) {
             return false;
         }
 
@@ -535,10 +492,7 @@ public class StudentServiceImpl implements StudentService {
             return false;
         }
 
-        // 加密新密码并更新
-        user.setPassword(bCryptPasswordEncoder.encode(newPassword));
-        userService.update(user);
-        return true;
+        return authServiceClient.changePassword(studentId, currentPassword, newPassword);
     }
 
     @Override
@@ -585,16 +539,9 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean uploadAvatar(Long studentId, String avatarUrl) {
-        // 获取当前用户
-        User user = userService.findById(studentId);
-        if (user == null) {
-            return false;
-        }
-
-        // 更新头像URL
-        user.setAvatar(avatarUrl);
-        userService.update(user);
-        return true;
+        UpdateUserProfileDTO request = new UpdateUserProfileDTO();
+        request.setAvatar(avatarUrl);
+        return userServiceProfileClient.updateUserProfile(studentId, request).isPresent();
     }
 
     @Override

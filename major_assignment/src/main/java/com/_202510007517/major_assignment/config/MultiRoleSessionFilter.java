@@ -41,8 +41,8 @@ import java.util.stream.Collectors;
  *       写入并最终通过 {@link MDC#clear()} 清理，确保线程池复用时上下文彻底清空（Design §7.2）。</li>
  * </ol>
  * <p>
- * <b>幂等性（R2 Idempotence）</b>：若 {@link SecurityContextHolder} 当前请求已包含 "已认证" 主体，
- * 本 Filter 直接放行，不再重复查 Redis，也不覆写 context。
+ * <b>幂等性（R2 Idempotence）</b>：若当前请求已同步写入 {@link #CURRENT_USER_ATTR} 且
+ * {@link SecurityContextHolder} 当前请求已包含 "已认证" 主体，本 Filter 直接放行，不再重复查 Redis。
  * </p>
  */
 @Component
@@ -82,20 +82,29 @@ public class MultiRoleSessionFilter implements Filter {
             MDC.put(MDC_URI, requestPath);
             MDC.put(MDC_METHOD, httpRequest.getMethod());
 
-            // —— R2 幂等性：若已存在已认证 Authentication，直接放行，不重复写入 —— //
+            // —— R2 幂等性：只有 request attribute 已同步好时才提前放行 —— //
             Authentication existing = SecurityContextHolder.getContext().getAuthentication();
-            if (isAuthenticated(existing)) {
+            if (isAuthenticated(existing) && httpRequest.getAttribute(CURRENT_USER_ATTR) instanceof AuthUser) {
                 writeMdcFromAuth(existing);
                 chain.doFilter(request, response);
                 return;
             }
 
             // —— 解析会话 —— //
-            String cookieName = sessionManager.getSessionCookieNameByPath(requestPath);
-            String sessionId = sessionManager.getSessionId(httpRequest, cookieName);
+            String cookieName = null;
+            String sessionId = null;
             MultiRoleSessionManager.SessionData sessionData = null;
-            if (sessionId != null) {
-                sessionData = sessionManager.getSessionData(sessionId, cookieName);
+            String roleHint = resolveRoleHint(httpRequest);
+            for (String candidateCookieName : sessionManager.getSessionCookieNamesByPath(requestPath, roleHint)) {
+                String candidateSessionId = sessionManager.getSessionId(httpRequest, candidateCookieName);
+                MultiRoleSessionManager.SessionData candidateSessionData =
+                        sessionManager.getSessionData(candidateSessionId, candidateCookieName);
+                if (isValidSession(candidateSessionData)) {
+                    cookieName = candidateCookieName;
+                    sessionId = candidateSessionId;
+                    sessionData = candidateSessionData;
+                    break;
+                }
             }
 
             if (isValidSession(sessionData)) {
@@ -191,6 +200,30 @@ public class MultiRoleSessionFilter implements Filter {
             return "";
         }
         return String.join(",", roles);
+    }
+
+    private String resolveRoleHint(HttpServletRequest request) {
+        String roleHint = request.getHeader("X-Role-Context");
+        if (roleHint != null && !roleHint.isBlank()) {
+            return roleHint;
+        }
+
+        String referer = request.getHeader("Referer");
+        if (referer == null || referer.isBlank()) {
+            return null;
+        }
+
+        String refererLower = referer.toLowerCase();
+        if (refererLower.contains("teacher-")) {
+            return "TEACHER";
+        }
+        if (refererLower.contains("student-")) {
+            return "STUDENT";
+        }
+        if (refererLower.contains("admin-")) {
+            return "ADMIN";
+        }
+        return null;
     }
 
     /**

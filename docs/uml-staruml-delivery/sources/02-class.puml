@@ -1,0 +1,64 @@
+@startuml
+skinparam classAttributeIconSize 0
+package Auth {
+  class AuthController <<controller>>
+  class AuthApplicationService <<service>>
+  class JwtTokenService <<service>>
+  class AuthCredentialEntity <<entity>>
+}
+package User {
+  class UserEntity <<entity>>
+  class RoleEntity <<entity>>
+}
+package Course {
+  class TeacherCourseAdminController <<controller>>
+  class CourseApplicationService <<service>>
+  interface CourseRepository
+  class CourseEntity <<entity>>
+  class CourseClassEntity <<entity>>
+}
+package Assignment {
+  class StudentAssignmentController <<controller>>
+  class AssignmentApplicationService <<service>>
+  interface AssignmentRepository
+  class AssignmentRecord
+  class AssignmentSubmissionRecord
+}
+package Exam {
+  class StudentExamController <<controller>>
+  class ExamApplicationService <<service>>
+  interface ExamRepository
+  class ExamRecord
+  class ExamSubmissionRecord
+}
+package Analysis {
+  class AnalysisQueryService <<service>>
+  class EarlyWarningEntity <<entity>>
+}
+package Notification {
+  class NotificationEntity <<entity>>
+}
+package AI {
+  class AiGenerationEntity <<entity>>
+}
+AuthController --> AuthApplicationService
+AuthApplicationService --> JwtTokenService
+AuthApplicationService --> AuthCredentialEntity
+AuthApplicationService ..> UserEntity : Feign 查询角色
+TeacherCourseAdminController --> CourseApplicationService
+CourseApplicationService --> CourseRepository
+CourseRepository --> CourseEntity
+CourseRepository --> CourseClassEntity
+StudentAssignmentController --> AssignmentApplicationService
+AssignmentApplicationService --> AssignmentRepository
+AssignmentRepository --> AssignmentRecord
+AssignmentRepository --> AssignmentSubmissionRecord
+StudentExamController --> ExamApplicationService
+ExamApplicationService --> ExamRepository
+ExamRepository --> ExamRecord
+ExamRepository --> ExamSubmissionRecord
+ExamApplicationService ..> AnalysisQueryService : ExamFinishedEvent
+AnalysisQueryService --> EarlyWarningEntity
+AnalysisQueryService ..> NotificationEntity : EarlyWarningRaisedEvent
+AiGenerationEntity ..> ExamApplicationService : 生成结果由业务服务落库
+@enduml

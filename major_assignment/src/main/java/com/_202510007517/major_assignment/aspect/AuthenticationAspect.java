@@ -40,11 +40,28 @@ public class AuthenticationAspect {
      */
     @Around("@annotation(com._202510007517.major_assignment.annotation.RequireLogin)")
     public Object checkLogin(ProceedingJoinPoint joinPoint) throws Throwable {
+        RequireLogin requireLogin = resolveRequireLogin(joinPoint);
+        if (requireLogin == null || !requireLogin.required()) {
+            return joinPoint.proceed();
+        }
+
+        return enforceLogin(joinPoint, requireLogin);
+    }
+
+    @Around("@within(com._202510007517.major_assignment.annotation.RequireLogin)")
+    public Object checkLoginAtTypeLevel(ProceedingJoinPoint joinPoint) throws Throwable {
+        RequireLogin requireLogin = resolveRequireLogin(joinPoint);
+        if (requireLogin == null || !requireLogin.required()) {
+            return joinPoint.proceed();
+        }
+
+        return enforceLogin(joinPoint, requireLogin);
+    }
+
+    private Object enforceLogin(ProceedingJoinPoint joinPoint, RequireLogin requireLogin) throws Throwable {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         Method method = signature.getMethod();
-        RequireLogin requireLogin = method.getAnnotation(RequireLogin.class);
-
-        if (requireLogin == null || !requireLogin.required()) {
+        if (method == null) {
             return joinPoint.proceed();
         }
 
@@ -69,6 +86,22 @@ public class AuthenticationAspect {
         }
 
         return joinPoint.proceed();
+    }
+
+    private RequireLogin resolveRequireLogin(ProceedingJoinPoint joinPoint) {
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        Method method = signature.getMethod();
+        RequireLogin requireLogin = method.getAnnotation(RequireLogin.class);
+
+        if (requireLogin != null) {
+            return requireLogin;
+        }
+
+        Class<?> declaringClass = method.getDeclaringClass();
+        if (declaringClass != null) {
+            return declaringClass.getAnnotation(RequireLogin.class);
+        }
+        return null;
     }
 
     private boolean isAuthenticated(Authentication auth) {

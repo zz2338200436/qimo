@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: ${ANALYSIS_DB_URL:jdbc:mysql://mysql:3306/sc_analysis?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${ANALYSIS_DB_USERNAME:dev_user}
+    password: ${ANALYSIS_DB_PASSWORD:dev_only_pwd}

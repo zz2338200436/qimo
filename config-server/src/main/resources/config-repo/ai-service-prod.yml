@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: ${AI_DB_URL}
+    username: ${AI_DB_USERNAME:${DB_USERNAME}}
+    password: ${AI_DB_PASSWORD:${DB_PASSWORD}}

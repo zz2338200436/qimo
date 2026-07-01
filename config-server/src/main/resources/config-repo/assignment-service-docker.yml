@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: ${ASSIGNMENT_DB_URL:jdbc:mysql://mysql:3306/sc_assignment?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${ASSIGNMENT_DB_USERNAME:dev_user}
+    password: ${ASSIGNMENT_DB_PASSWORD:dev_only_pwd}

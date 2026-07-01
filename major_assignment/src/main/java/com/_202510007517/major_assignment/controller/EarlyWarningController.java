@@ -1,110 +1,91 @@
 package com._202510007517.major_assignment.controller;
 
+import com._202510007517.major_assignment.annotation.RequireLogin;
+import com._202510007517.major_assignment.constants.RoleConstants;
 import com._202510007517.major_assignment.entity.EarlyWarning;
 import com._202510007517.major_assignment.entity.dto.ResponseResult;
 import com._202510007517.major_assignment.entity.dto.WarningStatsDTO;
 import com._202510007517.major_assignment.entity.dto.PageResult;
 import com._202510007517.major_assignment.entity.dto.WarningStatusUpdateDTO;
+import com._202510007517.major_assignment.exception.ResourceNotFoundException;
 import com._202510007517.major_assignment.service.EarlyWarningService;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api")
+@RequireLogin(roles = {RoleConstants.TEACHER})
 public class EarlyWarningController extends BaseController {
     
     @Autowired
     private EarlyWarningService earlyWarningService;
     
     @GetMapping("/early-warnings/teacher/pending")
-    public ResponseResult<List<EarlyWarning>> getUnresolvedWarnings(HttpSession session) {
-        if (!isLoggedIn(session)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
-        Long teacherId = getCurrentUserId(session);
+    public ResponseResult<List<EarlyWarning>> getUnresolvedWarnings(HttpServletRequest requestContext) {
+        Long teacherId = getCurrentUserId(requestContext);
         List<EarlyWarning> warnings = earlyWarningService.getUnresolvedWarnings(teacherId);
         
         return ResponseResult.success(warnings, "获取未处理预警数据成功", 200);
     }
     
     @GetMapping("/early-warnings/teacher/stats")
-    public ResponseResult<WarningStatsDTO> getWarningStats(HttpSession session,
+    public ResponseResult<WarningStatsDTO> getWarningStats(HttpServletRequest requestContext,
                                                           @RequestParam(required = false) Long classId,
                                                           @RequestParam(required = false) Long courseId) {
-        if (!isLoggedIn(session)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
-        Long teacherId = getCurrentUserId(session);
+        Long teacherId = getCurrentUserId(requestContext);
         WarningStatsDTO stats = earlyWarningService.getWarningStats(teacherId, classId, courseId);
         
         return ResponseResult.success(stats, "获取预警统计数据成功", 200);
     }
     
     @GetMapping("/early-warnings/teacher/list")
-    public ResponseResult<PageResult<EarlyWarning>> getWarningList(HttpSession session,
+    public ResponseResult<PageResult<EarlyWarning>> getWarningList(HttpServletRequest requestContext,
                                                                  @RequestParam(required = false) Long classId,
                                                                  @RequestParam(required = false) Long courseId,
                                                                  @RequestParam(required = false) String warningType,
                                                                  @RequestParam(required = false) String status,
                                                                  @RequestParam(defaultValue = "1") Integer page,
                                                                  @RequestParam(defaultValue = "10") Integer size) {
-        if (!isLoggedIn(session)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
-        Long teacherId = getCurrentUserId(session);
+        Long teacherId = getCurrentUserId(requestContext);
         PageResult<EarlyWarning> result = earlyWarningService.getWarningList(teacherId, classId, courseId,
-                                                                           warningType, status, page, size);
+                                                                           warningType, status,
+                                                                           clampPageNum(page), clampPageSize(size));
         
         return ResponseResult.success(result, "获取预警列表成功", 200);
     }
     
     @GetMapping("/early-warnings/teacher/detail/{warningId}")
-    public ResponseResult<EarlyWarning> getWarningDetail(HttpSession session,
+    public ResponseResult<EarlyWarning> getWarningDetail(HttpServletRequest requestContext,
                                                         @PathVariable Long warningId) {
-        if (!isLoggedIn(session)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
         EarlyWarning warning = earlyWarningService.getWarningDetail(warningId);
         if (warning == null) {
-            return ResponseResult.failure("预警不存在", 404);
+            throw new ResourceNotFoundException("预警不存在");
         }
         
         return ResponseResult.success(warning, "获取预警详情成功", 200);
     }
     
     @GetMapping("/teacher/early-warnings/course/{courseId}")
-    public ResponseResult<List<EarlyWarning>> getCourseEarlyWarnings(HttpSession session,
+    public ResponseResult<List<EarlyWarning>> getCourseEarlyWarnings(HttpServletRequest requestContext,
                                                                     @PathVariable Long courseId,
                                                                     @RequestParam(required = false) String warningType,
                                                                     @RequestParam(required = false) String warningLevel,
                                                                     @RequestParam(required = false) Boolean isResolved) {
-        if (!isLoggedIn(session)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
         List<EarlyWarning> warnings = earlyWarningService.getByCourseId(courseId, warningType, warningLevel, isResolved);
         return ResponseResult.success(warnings, "获取课程学情预警列表成功", 200);
     }
     
     @PutMapping("/early-warnings/teacher/status/{warningId}")
-    public ResponseResult<Void> updateWarningStatus(HttpSession session,
+    public ResponseResult<Void> updateWarningStatus(HttpServletRequest requestContext,
                                                   @PathVariable Long warningId,
                                                   @RequestBody WarningStatusUpdateDTO updateDTO) {
-        if (!isLoggedIn(session)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
-        Long userId = getCurrentUserId(session);
+        Long userId = getCurrentUserId(requestContext);
         boolean success = earlyWarningService.updateWarningStatus(warningId, updateDTO, userId);
         if (success) {
             return ResponseResult.success(null, "更新预警状态成功", 200);
@@ -114,14 +95,10 @@ public class EarlyWarningController extends BaseController {
     }
     
     @PutMapping("/teacher/early-warnings/{warningId}/resolve")
-    public ResponseResult<Void> resolveWarning(HttpSession session,
+    public ResponseResult<Void> resolveWarning(HttpServletRequest requestContext,
                                              @PathVariable Long warningId,
                                              @RequestBody WarningStatusUpdateDTO updateDTO) {
-        if (!isLoggedIn(session)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
-        Long userId = getCurrentUserId(session);
+        Long userId = getCurrentUserId(requestContext);
         // 设置状态为已处理
         updateDTO.setStatus("resolved");
         boolean success = earlyWarningService.updateWarningStatus(warningId, updateDTO, userId);
@@ -133,13 +110,9 @@ public class EarlyWarningController extends BaseController {
     }
     
     @PostMapping("/early-warnings/teacher")
-    public ResponseResult<EarlyWarning> addEarlyWarning(HttpSession session, @RequestBody EarlyWarning earlyWarning) {
-        if (!isLoggedIn(session)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
+    public ResponseResult<EarlyWarning> addEarlyWarning(HttpServletRequest requestContext, @RequestBody EarlyWarning earlyWarning) {
         // 设置创建者ID为当前登录用户ID
-        Long teacherId = getCurrentUserId(session);
+        Long teacherId = getCurrentUserId(requestContext);
         earlyWarning.setTeacherId(teacherId);
         
         boolean success = earlyWarningService.addEarlyWarning(earlyWarning);
@@ -151,11 +124,7 @@ public class EarlyWarningController extends BaseController {
     }
     
     @DeleteMapping("/early-warnings/teacher/{warningId}")
-    public ResponseResult<Void> deleteEarlyWarning(HttpSession session, @PathVariable Long warningId) {
-        if (!isLoggedIn(session)) {
-            return ResponseResult.failure("未授权，请重新登录", 401);
-        }
-        
+    public ResponseResult<Void> deleteEarlyWarning(HttpServletRequest requestContext, @PathVariable Long warningId) {
         boolean success = earlyWarningService.deleteEarlyWarning(warningId);
         if (success) {
             return ResponseResult.success(null, "删除预警成功", 200);
@@ -165,18 +134,13 @@ public class EarlyWarningController extends BaseController {
     }
     
     @GetMapping("/early-warnings/teacher/export")
-    public void exportWarnings(HttpSession session,
+    public void exportWarnings(HttpServletRequest requestContext,
                              @RequestParam(required = false) Long classId,
                              @RequestParam(required = false) Long courseId,
                              @RequestParam(required = false) String warningType,
                              @RequestParam(required = false) String status,
                              HttpServletResponse response) throws IOException {
-        if (!isLoggedIn(session)) {
-            response.sendError(401, "未授权，请重新登录");
-            return;
-        }
-        
-        Long teacherId = getCurrentUserId(session);
+        Long teacherId = getCurrentUserId(requestContext);
         List<EarlyWarning> warnings = earlyWarningService.getWarningsForExport(teacherId, classId, courseId,
                                                                              warningType, status);
         

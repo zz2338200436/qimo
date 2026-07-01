@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: ${AI_DB_URL:jdbc:mysql://mysql:3306/sc_ai?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${AI_DB_USERNAME:dev_user}
+    password: ${AI_DB_PASSWORD:dev_only_pwd}

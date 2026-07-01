@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能后台学习辅助系统 - AI学习助手</title>
+    <link href="lib/bootstrap.min.css" rel="stylesheet">
+    <link href="lib/font-awesome.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+        <!-- 全局样式文件 -->
+    <script src="common-ui.js?v=20260629-feedback-layer-3"></script>
+    <link href="styles.css?v=20260608-pagination-1" rel="stylesheet">
+    <link href="agent-chat-panel.css?v=20260630-teacher-history-runtime-1" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #334155;
+            min-height: 100vh;
+        }
+        
+
+        
+        /* 主内容区 - 由组件控制样式 */
+        .main-content {
+            transition: margin-left 0.3s ease;
+        }
+        
+        /* 顶部导航栏 */
+        .top-navbar {
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .navbar-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .toggle-btn {
+            background: #f1f5f9;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            color: #475569;
+        }
+        
+        .breadcrumb {
+            margin: 0;
+            background: none;
+            font-size: 14px;
+        }
+        
+        .breadcrumb-item.active {
+            color: #64748b;
+        }
+        
+        .navbar-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .notification-btn {
+            position: relative;
+            background: none;
+            border: none;
+            color: #475569;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .user-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .user-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #334155;
+        }
+        
+        .user-role {
+            font-size: 12px;
+            color: #64748b;
+        }
+        
+        /* 内容容器 */
+        .content-container {
+            padding: 20px;
+        }
+        
+        /* AI助手页面样式 */
+        .ai-assistant-container {
+            margin: 0 auto;
+        }
+        
+        .student-ai-page {
+            min-height: calc(100vh - 72px);
+            padding: 24px 28px 34px;
+            background:
+                radial-gradient(circle at 50% 18%, rgba(13, 148, 136, 0.10), transparent 34%),
+                linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        }
+
+        .student-ai-chat-shell {
+            --student-ai-chat-column-width: 920px;
+            align-items: start;
+            display: grid;
+            gap: 16px;
+            justify-items: center;
+            min-height: calc(100vh - 130px);
+            position: relative;
+            padding: clamp(24px, 4vh, 44px) 30px 28px 104px;
+            transition: padding 0.26s ease;
+        }
+
+        .student-ai-chat-shell .agent-panel.chatgpt-like {
+            background: transparent;
+            border: 0;
+            box-shadow: none;
+            max-width: var(--student-ai-chat-column-width);
+            min-height: calc(100vh - 158px);
+            overflow: visible;
+            grid-template-rows: auto minmax(0, 1fr);
+            transition: max-width 0.26s ease, min-height 0.26s ease;
+        }
+
+        .student-ai-chat-shell .agent-panel.chatgpt-like .agent-panel-header {
+            display: none;
+        }
+
+        .student-ai-history-rail {
+            align-items: center;
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid rgba(226, 232, 240, 0.96);
+            border-radius: 999px;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+            display: inline-flex;
+            gap: 6px;
+            padding: 8px;
+            position: fixed;
+            right: 22px;
+            top: 104px;
+            z-index: 1081;
+        }
+
+        .student-ai-chat-shell.agent-history-open .student-ai-history-rail {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.96);
+        }
+
+        .student-ai-history-rail-button {
+            align-items: center;
+            background: transparent;
+            border: 0;
+            border-radius: 999px;
+            color: #111827;
+            display: inline-flex;
+            font-size: 14px;
+            font-weight: 700;
+            gap: 0;
+            height: 46px;
+            justify-content: center;
+            padding: 0;
+            position: relative;
+            transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+            white-space: nowrap;
+            width: 46px;
+        }
+
+        .student-ai-history-rail-button:hover,
+        .student-ai-history-rail-button:focus-visible {
+            background: #f3f4f6;
+            color: #2563eb;
+            outline: none;
+            transform: translateY(-1px);
+        }
+
+        .student-ai-history-rail-button i {
+            font-size: 18px;
+        }
+
+        .student-ai-history-rail-label {
+            border: 0;
+            clip: rect(0, 0, 0, 0);
+            clip-path: inset(50%);
+            height: 1px;
+            line-height: 1;
+            overflow: hidden;
+            position: absolute;
+            white-space: nowrap;
+            width: 1px;
+        }
+
+        .student-ai-history-rail-button::after {
+            background: rgba(15, 23, 42, 0.92);
+            border-radius: 10px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+            color: #ffffff;
+            content: attr(data-tooltip);
+            font-size: 12px;
+            font-weight: 700;
+            left: 50%;
+            opacity: 0;
+            padding: 8px 10px;
+            pointer-events: none;
+            position: absolute;
+            top: calc(100% + 10px);
+            transform: translateX(-50%) translateY(-4px);
+            transition: opacity 0.18s ease, transform 0.18s ease;
+            white-space: nowrap;
+            z-index: 2;
+        }
+
+        .student-ai-history-rail-button:hover::after,
+        .student-ai-history-rail-button:focus-visible::after {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .student-ai-chat-shell .agent-panel.chatgpt-like .agent-panel-body {
+            background: transparent;
+            gap: 0;
+            grid-template-rows: minmax(0, 1fr) auto auto;
+        }
+
+        .student-ai-chat-shell .agent-panel.chatgpt-like .agent-messages {
+            align-items: center;
+            background: transparent;
+            display: flex;
+            justify-content: center;
+            min-height: clamp(560px, 70vh, 760px);
+            padding: 18px 0 18px;
+            transition: min-height 0.28s ease, padding 0.28s ease, align-items 0.28s ease, justify-content 0.28s ease;
+        }
+
+        .student-ai-chat-shell:not(.agent-shell-has-conversation) .agent-panel.chatgpt-like .agent-panel-body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            min-height: calc(100vh - 144px);
+        }
+
+        .student-ai-chat-shell:not(.agent-shell-has-conversation) .agent-panel.chatgpt-like .agent-messages {
+            align-items: center;
+            display: flex;
+            flex: 0 0 auto;
+            justify-content: center;
+            min-height: 0;
+            padding: 0;
+            width: 100%;
+        }
+
+        .student-ai-chat-shell .agent-panel.chatgpt-like .agent-messages:has(.agent-message) {
+            align-items: stretch;
+            justify-content: flex-start;
+        }
+
+        .student-ai-empty-state {
+            align-self: center;
+            margin: 0 auto;
+            max-width: 720px;
+            text-align: center;
+            transform: translateY(0);
+            transform-origin: top center;
+            transition: opacity 0.22s ease, transform 0.28s ease, max-height 0.28s ease, margin 0.28s ease;
+            width: 100%;
+        }
+
+        .student-ai-empty-hint {
+            color: #475569;
+            margin: 0 auto;
+            max-width: 540px;
+        }
+
+        .student-ai-empty-hint strong {
+            color: #0f172a;
+            display: block;
+            font-size: 38px;
+            font-weight: 800;
+            line-height: 1.14;
+            margin: 0;
+        }
+
+        .student-ai-empty-hint p {
+            color: #526277;
+            font-size: 15px;
+            line-height: 1.6;
+            margin: 12px auto 0;
+            max-width: 500px;
+        }
+
+        .student-ai-example-prompts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            margin: 22px auto 0;
+            max-width: 720px;
+        }
+
+        .student-ai-example-prompt {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(213, 243, 237, 0.9);
+            border-radius: 999px;
+            box-shadow: 0 14px 30px rgba(13, 148, 136, 0.06);
+            color: #334155;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 700;
+            min-height: 44px;
+            padding: 0 18px;
+            transition: border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .student-ai-example-prompt:hover,
+        .student-ai-example-prompt:focus {
+            border-color: #5eead4;
+            box-shadow: 0 16px 34px rgba(13, 148, 136, 0.12);
+            color: #0f766e;
+            outline: none;
+        }
+
+        .student-ai-chat-shell .agent-input-shell {
+            background: linear-gradient(180deg, rgba(248, 250, 252, 0), #f8fafc 24%);
+            padding: 8px clamp(16px, 4vw, 48px) 8px;
+            position: sticky;
+            bottom: 0;
+            z-index: 5;
+            transition: padding 0.28s ease, transform 0.28s ease;
+        }
+
+        .student-ai-chat-shell:not(.agent-shell-has-conversation) .agent-input-shell {
+            align-self: center;
+            max-width: var(--student-ai-chat-column-width);
+            position: static;
+            padding-left: 0;
+            padding-right: 0;
+            padding-top: 0;
+            transform: translateY(0);
+            width: min(100%, var(--student-ai-chat-column-width));
+        }
+
+        .student-ai-chat-shell .agent-panel.chatgpt-like .agent-form {
+            align-items: stretch;
+            border-color: rgba(167, 243, 208, 0.72);
+            border-radius: 38px;
+            box-shadow: 0 24px 56px rgba(13, 148, 136, 0.12);
+            max-width: 100%;
+            min-height: 60px;
+            padding: 8px 10px 8px 14px;
+            transition: max-width 0.28s ease, box-shadow 0.28s ease, border-radius 0.28s ease, transform 0.28s ease;
+        }
+
+        .student-ai-chat-shell .agent-panel.chatgpt-like .agent-form textarea {
+            font-size: 15px;
+            line-height: 1.45;
+            max-height: 96px;
+            min-height: 32px;
+            padding: 4px 4px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .student-ai-chat-shell .agent-panel.chatgpt-like .agent-form .btn {
+            background: linear-gradient(145deg, #0d9488, #0f766e);
+            border-color: #0d9488;
+            box-shadow: 0 14px 34px rgba(13, 148, 136, 0.30);
+            height: 40px;
+            min-width: 40px;
+            width: 40px;
+        }
+
+        .student-ai-chat-shell .student-ai-input-attach {
+            background: rgba(255, 255, 255, 0.96);
+        }
+
+        .student-ai-chat-shell .agent-form-actions {
+            padding-top: 2px;
+        }
+
+        .student-ai-chat-shell .agent-form-actions-secondary {
+            padding: 0;
+        }
+
+        .student-ai-bottom-note {
+            color: #94a3b8;
+            font-size: 13px;
+            margin: 12px auto 0;
+            max-width: 100%;
+            padding: 0 8px;
+            text-align: center;
+            transition: opacity 0.22s ease, transform 0.28s ease;
+        }
+
+        .student-ai-chat-shell .agent-attachment-list {
+            max-width: 100%;
+        }
+
+        .student-ai-chat-shell.agent-shell-has-conversation {
+            height: calc(100vh - 84px);
+            overflow: hidden;
+            padding-top: 24px;
+            padding-bottom: 0;
+        }
+
+        .student-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like {
+            height: calc(100vh - 120px);
+            max-width: var(--student-ai-chat-column-width);
+            min-height: calc(100vh - 120px);
+        }
+
+        .student-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-panel-body {
+            height: 100%;
+            min-height: calc(100vh - 120px);
+            overflow: hidden;
+        }
+
+        .student-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-messages-wrap {
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .student-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-messages {
+            align-items: flex-start;
+            flex: 1 1 auto;
+            height: 100%;
+            justify-content: flex-start;
+            max-height: 100%;
+            min-height: 0;
+            padding: 10px 0 2px;
+        }
+
+        .student-ai-chat-shell.agent-shell-has-conversation .agent-messages {
+            align-items: flex-start;
+            justify-content: flex-start;
+        }
+
+        .student-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-message {
+            margin-left: 0;
+            margin-right: 0;
+            max-width: 100%;
+            width: 100%;
+        }
+
+        .student-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-message-agent .agent-message-content {
+            justify-items: start;
+            max-width: min(760px, calc(100% - 54px));
+        }
+
+        .student-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-message-user .agent-message-content {
+            max-width: min(520px, calc(100% - 54px));
+        }
+
+        .student-ai-chat-shell.agent-shell-has-conversation .student-ai-empty-state {
+            margin-top: -10px;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            pointer-events: none;
+            transform: translateY(-30px) scale(0.98);
+        }
+
+        .student-ai-chat-shell.agent-shell-has-conversation .agent-input-shell {
+            box-sizing: border-box;
+            margin-top: auto;
+            padding: 8px 0;
+            transform: translateY(0);
+        }
+
+        .student-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-form {
+            align-items: stretch;
+            border-color: rgba(167, 243, 208, 0.72);
+            border-radius: 38px;
+            box-shadow: 0 24px 56px rgba(13, 148, 136, 0.12);
+            max-width: 100%;
+            min-height: 60px;
+            padding: 8px 10px 8px 14px;
+            transform: translateY(0);
+        }
+
+        .student-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-form textarea {
+            line-height: 1.45;
+            max-height: 96px;
+            min-height: 32px;
+            padding: 4px 4px;
+        }
+
+        .student-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-form .btn {
+            align-self: center;
+            width: 40px;
+        }
+
+        .student-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like .agent-form .btn[data-agent-submit] {
+            height: 46px;
+            min-width: 46px;
+            width: 46px;
+        }
+
+        .student-ai-chat-shell.agent-shell-has-conversation .student-ai-bottom-note {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .student-ai-chat-shell .agent-panel.chatgpt-like .agent-messages,
+        .student-ai-chat-shell .agent-input-shell,
+        .student-ai-chat-shell .student-ai-bottom-note,
+        .student-ai-chat-shell .agent-attachment-list {
+            width: min(100%, var(--student-ai-chat-column-width));
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .student-ai-chat-shell,
+            .student-ai-chat-shell .agent-panel.chatgpt-like,
+            .student-ai-chat-shell .agent-panel.chatgpt-like .agent-panel-header,
+            .student-ai-chat-shell .agent-panel.chatgpt-like .agent-messages,
+            .student-ai-empty-state,
+            .student-ai-chat-shell .agent-input-shell,
+            .student-ai-chat-shell .agent-panel.chatgpt-like .agent-form,
+            .student-ai-bottom-note {
+                transition-duration: 0.01ms !important;
+                transition-delay: 0ms !important;
+            }
+        }
+
+        .agent-history-backdrop {
+            background: rgba(15, 23, 42, 0.24);
+            inset: 0;
+            opacity: 0;
+            pointer-events: none;
+            position: fixed;
+            transition: opacity 0.2s ease;
+            z-index: 1070;
+        }
+
+        .agent-history-backdrop.agent-history-open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .student-ai-chat-shell > .agent-history-panel.agent-history-drawer {
+            background: rgba(255, 255, 255, 0.985);
+            border: 1px solid rgba(203, 213, 225, 0.72);
+            border-radius: 18px;
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+            margin: 0;
+            max-width: min(432px, calc(100vw - 20px));
+            overflow: hidden;
+            transform: translateX(110%);
+            width: 432px;
+            position: fixed;
+            z-index: 1082;
+            visibility: hidden;
+        }
+
+        .student-ai-chat-shell > .agent-history-panel.agent-history-drawer.agent-history-open {
+            transform: translateX(0);
+            visibility: visible;
+        }
+
+        .student-ai-history-shell {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            height: min(calc(100vh - 28px), 920px);
+            min-height: 0;
+            overflow: hidden;
+            padding: 12px 9px 10px;
+            position: relative;
+        }
+
+        .student-ai-history-top {
+            align-items: center;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            min-height: 0;
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            z-index: 2;
+        }
+
+        .student-ai-history-top-actions {
+            align-items: center;
+            display: inline-flex;
+            gap: 6px;
+        }
+
+        .student-ai-history-icon-button {
+            align-items: center;
+            background: #f8fafc;
+            border: 1px solid rgba(226, 232, 240, 0.88);
+            border-radius: 12px;
+            box-shadow: none;
+            color: #64748b;
+            display: inline-flex;
+            font-size: 15px;
+            height: 36px;
+            justify-content: center;
+            transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+            width: 36px;
+        }
+
+        .student-ai-history-icon-button:hover,
+        .student-ai-history-icon-button:focus-visible {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            color: #0f172a;
+            outline: none;
+            transform: none;
+        }
+
+        .student-ai-chat-shell.agent-history-search-active [data-agent-history-search-toggle] {
+            background: #ecfdf5;
+            border-color: #99f6e4;
+            color: #0f766e;
+        }
+
+        .student-ai-history-search {
+            display: none;
+            margin-top: -2px;
+        }
+
+        .student-ai-chat-shell.agent-history-search-active .student-ai-history-search {
+            display: block;
+        }
+
+        .student-ai-history-search-input {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            box-shadow: none;
+            color: #111827;
+            font-size: 13px;
+            min-height: 40px;
+            padding: 0 14px;
+            width: 100%;
+        }
+
+        .student-ai-history-search-input:focus {
+            background: #ffffff;
+            border-color: #5eead4;
+            box-shadow: 0 0 0 4px rgba(94, 234, 212, 0.18);
+            outline: none;
+        }
+
+        .student-ai-history-intro {
+            display: grid;
+            gap: 2px;
+            margin-top: 0;
+            padding: 2px 82px 0 4px;
+        }
+
+        .student-ai-history-heading {
+            color: #0f172a;
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            line-height: 1.12;
+            margin: 0;
+        }
+
+        .student-ai-history-group-copy {
+            color: #64748b;
+            font-size: 11px;
+            line-height: 1.3;
+            margin: 0;
+            max-width: 244px;
+        }
+
+        .student-ai-history-new-chat {
+            align-items: center;
+            background: #f8fafc;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            border-radius: 16px;
+            box-shadow: none;
+            color: #111827;
+            display: inline-flex;
+            font-size: 13px;
+            font-weight: 600;
+            gap: 9px;
+            justify-content: flex-start;
+            min-height: 50px;
+            padding: 0 14px;
+            text-align: left;
+            width: 100%;
+        }
+
+        .student-ai-history-new-chat:hover,
+        .student-ai-history-new-chat:focus-visible {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            box-shadow: inset 0 0 0 1px rgba(203, 213, 225, 0.78);
+            outline: none;
+        }
+
+        .student-ai-history-new-chat i {
+            align-items: center;
+            background: #ecfdf5;
+            border-radius: 999px;
+            color: #0f766e;
+            display: inline-flex;
+            font-size: 10px;
+            height: 22px;
+            justify-content: center;
+            width: 22px;
+        }
+
+        .student-ai-chat-shell .agent-history-body {
+            border-top: 0;
+            display: block;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+            margin-top: 0;
+        }
+
+        .student-ai-chat-shell .agent-history-list {
+            background: transparent;
+            border-right: 0;
+            height: 100%;
+            max-height: none;
+            overflow-x: hidden;
+            overflow-y: auto;
+            padding: 0 2px 10px 0;
+            scrollbar-gutter: stable;
+        }
+
+        .student-ai-chat-shell .agent-history-detail {
+            display: none;
+        }
+
+        .student-ai-chat-shell .agent-history-group + .agent-history-group {
+            margin-top: 10px;
+        }
+
+        .student-ai-chat-shell .agent-history-group-label {
+            color: #94a3b8;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            margin: 0 0 8px;
+            padding: 0 12px;
+            text-transform: uppercase;
+        }
+
+        .student-ai-chat-shell .agent-history-item {
+            align-items: start;
+            background: transparent;
+            border: 0;
+            border-radius: 16px;
+            box-shadow: none;
+            color: #111827;
+            gap: 10px;
+            grid-template-columns: minmax(0, 1fr) auto;
+            margin-bottom: 4px;
+            min-height: 0;
+            padding: 13px 12px 12px 16px;
+            position: relative;
+            text-align: left;
+            transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+        }
+
+        .student-ai-chat-shell .agent-history-item:hover,
+        .student-ai-chat-shell .agent-history-item.active {
+            background: rgba(248, 250, 252, 0.88);
+            box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.9);
+            transform: none;
+        }
+
+        .student-ai-chat-shell .agent-history-item.agent-history-item-current {
+            background: rgba(248, 250, 252, 0.92);
+            box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.95);
+        }
+
+        .student-ai-chat-shell .agent-history-item.agent-history-item-current::before {
+            background: #0d9488;
+            border-radius: 999px;
+            content: "";
+            inset: 14px auto 14px 0;
+            position: absolute;
+            width: 2px;
+        }
+
+        .student-ai-chat-shell .agent-history-item-main {
+            display: grid;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .student-ai-chat-shell .agent-history-item-eyebrow {
+            color: #0d9488;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+        }
+
+        .student-ai-chat-shell .agent-history-item-title {
+            color: #111827;
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.25;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .student-ai-chat-shell .agent-history-item-summary {
+            color: #64748b;
+            display: -webkit-box;
+            font-size: 11px;
+            line-height: 1.45;
+            overflow: hidden;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+        }
+
+        .student-ai-chat-shell .agent-history-item-footer {
+            align-items: center;
+            display: flex;
+            gap: 6px;
+            justify-content: space-between;
+        }
+
+        .student-ai-chat-shell .agent-history-item-meta {
+            color: #94a3b8;
+            font-size: 10px;
+        }
+
+        .student-ai-chat-shell .agent-history-item-status {
+            background: transparent;
+            color: #94a3b8;
+            flex: 0 0 auto;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 0;
+        }
+
+        .student-ai-chat-shell .agent-history-item.agent-history-item-current .agent-history-item-status {
+            background: transparent;
+            color: #0f766e;
+        }
+
+        .student-ai-chat-shell .agent-history-item-more {
+            color: #cbd5e1;
+            font-size: 13px;
+            line-height: 1;
+            padding-top: 24px;
+            transition: color 0.2s ease;
+        }
+
+        .student-ai-chat-shell .agent-history-item:hover .agent-history-item-more,
+        .student-ai-chat-shell .agent-history-item.active .agent-history-item-more {
+            color: #94a3b8;
+        }
+
+        .student-ai-chat-shell .agent-history-list::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .student-ai-chat-shell .agent-history-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .student-ai-chat-shell .agent-history-list::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            background-clip: padding-box;
+            border: 2px solid transparent;
+            border-radius: 999px;
+        }
+
+        .student-ai-chat-shell .agent-history-list::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+            background-clip: padding-box;
+        }
+
+        @media (max-width: 768px) {
+            .student-ai-page {
+                padding: 18px 14px 24px;
+            }
+
+            body.student-theme #sidebar-container + #mainContent,
+            body.student-theme #sidebar-container + .main-content,
+            body.student-theme #sidebar-container + #mainContent.collapsed,
+            body.student-theme #sidebar-container + .main-content.collapsed {
+                margin-left: 0;
+                max-width: 100vw;
+                width: 100%;
+            }
+
+            .student-ai-chat-shell {
+                min-height: calc(100vh - 84px);
+                padding: 16px 14px 24px;
+            }
+
+            .student-ai-chat-shell .agent-panel.chatgpt-like {
+                min-height: calc(100vh - 124px);
+            }
+
+            .student-ai-history-rail {
+                right: 14px;
+                top: 88px;
+                width: max-content;
+            }
+
+            .student-ai-history-rail-button {
+                height: 44px;
+                width: 44px;
+            }
+
+            .student-ai-chat-shell.agent-shell-has-conversation {
+                height: calc(100vh - 84px);
+            }
+
+            .student-ai-chat-shell.agent-shell-has-conversation .agent-panel.chatgpt-like {
+                height: calc(100vh - 124px);
+                min-height: calc(100vh - 124px);
+            }
+
+            .student-ai-chat-shell .agent-panel.chatgpt-like .agent-panel-header {
+                gap: 12px;
+                grid-template-columns: 1fr;
+            }
+
+            .student-ai-panel-actions {
+                justify-content: flex-start;
+            }
+
+            .student-ai-empty-hint strong {
+                font-size: 29px;
+            }
+
+            .student-ai-empty-hint p {
+                font-size: 14px;
+            }
+
+            .student-ai-chat-shell > .agent-history-panel.agent-history-drawer {
+                border-radius: 20px;
+                max-width: calc(100vw - 16px);
+                top: 8px;
+                width: calc(100vw - 16px);
+                right: 8px;
+            }
+
+            .student-ai-history-shell {
+                height: calc(100vh - 16px);
+            }
+        }
+    </style>
+</head>
+<body class="student-theme">
+    <!-- 侧边栏导航组件容器 -->
+    <div id="sidebar-container"></div>
+    
+    <!-- 主内容区 -->
+    <main class="main-content" id="mainContent">
+        <!-- 顶部导航栏 -->
+        <nav class="top-navbar">
+            <div class="navbar-left">
+                <button class="toggle-btn" id="toggleSidebar" aria-label="切换侧边栏">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="student-dashboard.html">首页</a></li>
+                    <li class="breadcrumb-item active">AI学习助手</li>
+                </ol>
+            </div>
+            
+            <div class="navbar-right">
+            <div id="userDropdownContainer"></div>
+        </div>
+        </nav>
+        
+        <!-- 内容容器 -->
+        <div class="content-container student-ai-page">
+            <div class="ai-assistant-container student-ai-chat-shell" data-agent-shell data-agent-restore-session="false">
+                <div class="student-ai-history-rail" aria-label="历史记录快捷入口">
+                    <button type="button" class="student-ai-history-rail-button" data-tooltip="历史会话" data-agent-history-toggle aria-controls="agentHistoryDrawer" aria-expanded="false" aria-label="打开历史会话">
+                        <i class="fa fa-columns" aria-hidden="true"></i>
+                        <span class="student-ai-history-rail-label">历史会话</span>
+                    </button>
+                    <button type="button" class="student-ai-history-rail-button" data-tooltip="搜索会话" data-agent-history-search-toggle aria-label="搜索历史会话">
+                        <i class="fa fa-search" aria-hidden="true"></i>
+                        <span class="student-ai-history-rail-label">搜索会话</span>
+                    </button>
+                    <button type="button" class="student-ai-history-rail-button" data-tooltip="新建对话" data-agent-history-new-session aria-label="创建新对话">
+                        <i class="fa fa-plus-circle" aria-hidden="true"></i>
+                        <span class="student-ai-history-rail-label">新建对话</span>
+                    </button>
+                </div>
+                <section class="agent-panel chatgpt-like" data-agent-panel data-agent-role="STUDENT">
+                    <div class="agent-panel-header"></div>
+                    <div class="agent-panel-body">
+                        <div class="agent-messages" data-agent-messages>
+                            <div class="student-ai-empty-state" data-student-ai-empty-state>
+                                <div class="student-ai-empty-hint">
+                                    <strong>今天想学什么？</strong>
+                                    <p>把题目、知识点或作业要求发给我，我会帮你拆解思路、补齐步骤，并生成适合复习的练习。</p>
+                                </div>
+                                <div class="student-ai-example-prompts" aria-label="快捷问题">
+                                    <button type="button" class="student-ai-example-prompt" data-student-ai-example="查看我的作业">查看我的作业</button>
+                                    <button type="button" class="student-ai-example-prompt" data-student-ai-example="查看考试安排">查看考试安排</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="agent-input-shell">
+                            <form class="agent-form" data-agent-form>
+                                <input type="file" class="agent-attachment-input" data-agent-attachment-input multiple hidden>
+                                <textarea class="form-control agent-command-input" data-agent-input placeholder="输入题目、知识点、作业或考试相关问题..."></textarea>
+                                <div class="agent-form-actions" aria-label="输入辅助操作">
+                                    <div class="agent-form-actions-secondary">
+                                        <button type="button" class="student-ai-input-attach" data-agent-attach-trigger aria-label="添加附件">
+                                            <i class="fa fa-plus" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                    <button type="submit" class="btn btn-success" data-agent-submit aria-label="发送">
+                                        <i class="fa fa-arrow-up" aria-hidden="true"></i><span class="visually-hidden">发送</span>
+                                    </button>
+                                </div>
+                            </form>
+                            <div class="agent-attachment-list" data-agent-attachment-list></div>
+                            <p class="student-ai-bottom-note">回答会结合课程资料 · 历史可随时回看 · 界面保持单一焦点</p>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="agent-history-backdrop" data-agent-history-backdrop></div>
+                <section id="agentHistoryDrawer" class="agent-history-panel agent-history-drawer" data-agent-history-panel role="dialog" aria-modal="true" aria-labelledby="agentHistoryTitle" tabindex="-1">
+                    <div class="student-ai-history-shell">
+                        <div class="student-ai-history-top">
+                            <div class="student-ai-history-top-actions">
+                                <button type="button" class="student-ai-history-icon-button" data-agent-history-search-toggle aria-label="搜索历史会话">
+                                    <i class="fa fa-search" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" class="student-ai-history-icon-button" data-agent-history-close aria-label="关闭历史会话">
+                                    <i class="fa fa-times" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="student-ai-history-intro">
+                            <h3 id="agentHistoryTitle" class="student-ai-history-heading" data-agent-history-title>选择要继续的对话</h3>
+                            <p class="student-ai-history-group-copy" data-agent-history-copy>按时间浏览最近的学习问答和复习记录</p>
+                        </div>
+                        <div class="student-ai-history-search">
+                            <input type="search" class="student-ai-history-search-input" data-agent-history-search-input placeholder="搜索会话标题、状态或时间">
+                        </div>
+                        <button type="button" class="student-ai-history-new-chat" data-agent-history-new-session>
+                            <i class="fa fa-plus-circle" aria-hidden="true"></i>
+                            <span>开启新对话</span>
+                        </button>
+                        <div class="agent-history-body">
+                            <div class="agent-history-list" data-agent-history-list></div>
+                            <div class="agent-history-detail" data-agent-history-detail></div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bootstrap 5 JS -->
+<script src="lib/bootstrap.bundle.min.js"></script>
+    <script>
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 验证用户登录状态
+            const isLoggedIn = await checkLoginStatus();
+            if (!isLoggedIn) {
+                return;
+            }
+
+            if (window.CommonUI) {
+                await window.CommonUI.loadStudentSidebar('sidebar-container');
+                window.CommonUI.bindSidebarToggle('toggleSidebar');
+            }
+
+            initializeStudentAiEmptyState();
+        });
+
+        function initializeStudentAiEmptyState() {
+            const input = document.querySelector('[data-agent-input]');
+            if (!input) {
+                return;
+            }
+
+            document.querySelectorAll('[data-student-ai-example]').forEach(button => {
+                button.addEventListener('click', () => {
+                    input.value = button.dataset.studentAiExample || '';
+                    input.focus();
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+            });
+        }
+        
+        // 检查用户登录状态
+        async function loadStudentUserDropdown(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) {
+                return;
+            }
+
+            try {
+                const resp = await fetch('components/user-dropdown.html?v=20260608-theme-4');
+                if (!resp.ok) {
+                    console.error('加载用户下拉组件失败:', resp.status, resp.statusText);
+                    return;
+                }
+
+                const html = await resp.text();
+                container.innerHTML = html;
+
+                const scripts = container.querySelectorAll('script');
+                scripts.forEach((oldScript) => {
+                    const script = document.createElement('script');
+                    if (oldScript.src) {
+                        script.src = oldScript.src;
+                    } else {
+                        script.textContent = oldScript.textContent;
+                    }
+                    document.body.appendChild(script);
+                    oldScript.remove();
+                });
+
+                if (typeof UserDropdown !== 'undefined') {
+                    new UserDropdown(containerId);
+                }
+            } catch (error) {
+                console.error('加载用户下拉组件异常:', error);
+            }
+        }
+
+        async function checkLoginStatus() {
+            const user = sessionStorage.getItem('user');
+            if (!user) {
+                window.location.href = 'student-login.html';
+                return false;
+            }
+
+            await loadStudentUserDropdown('userDropdownContainer');
+            return true;
+        }
+    </script>
+    <!-- API服务 -->
+    <script src="api.js?v=20260608-theme-4"></script>
+    <script src="agent-chat-panel.js?v=20260701-agent-attachments-1"></script>
+    <script src="agent-history-panel.js?v=20260630-agent-history-runtime-1"></script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: ai-service
+  profiles:
+    default: dev
+  datasource:
+    url: ${AI_DB_URL:${DB_URL:jdbc:mysql://localhost:3306/sc_ai?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}}
+    username: ${AI_DB_USERNAME:${DB_USERNAME:dev_user}}
+    password: ${AI_DB_PASSWORD:${DB_PASSWORD:}}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  flyway:
+    enabled: ${AI_FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+
+server:
+  port: 8088
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+    import:
+      - optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+      - optional:classpath:application-common.yml
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+    import:
+      - optional:classpath:application-common.yml
+  cloud:
+    config:
+      enabled: false
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker | prod
+    import:
+      - configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+      - optional:classpath:application-common.yml
+  cloud:
+    config:
+      fail-fast: true
+      retry:
+        initial-interval: 1000
+        max-attempts: 6
+        max-interval: 5000
+        multiplier: 1.5

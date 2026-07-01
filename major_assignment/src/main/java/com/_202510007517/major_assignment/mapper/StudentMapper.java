@@ -37,6 +37,9 @@ public interface StudentMapper {
                                          @Param("semester") String semester,
                                          @Param("courseId") Long courseId,
                                          @Param("timeRange") String timeRange);
+    Map<String, Object> getTeacherStudentCoursePerformance(@Param("studentId") Long studentId,
+                                                           @Param("courseId") Long courseId,
+                                                           @Param("timeRange") String timeRange);
     List<Map<String, Object>> getKnowledgePoints(@Param("studentId") Long studentId,
                                                   @Param("semester") String semester,
                                                   @Param("courseId") Long courseId,

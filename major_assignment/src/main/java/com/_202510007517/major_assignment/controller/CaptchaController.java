@@ -20,7 +20,7 @@ import java.time.Duration;
 import java.util.Properties;
 
 @RestController
-@RequestMapping("/api/public")
+@RequestMapping({"/api/public", "/api/auth"})
 public class CaptchaController {
 
     private final DefaultKaptcha captchaProducer;
@@ -69,6 +69,7 @@ public class CaptchaController {
         HttpSession session = request.getSession(true);
         String redisKey = CacheConstants.CAPTCHA_NAMESPACE + session.getId();
         redisTemplate.opsForValue().set(redisKey, captchaText, Duration.ofSeconds(CacheConstants.CAPTCHA_TTL));
+        response.setHeader("X-Captcha-Key", session.getId());
 
         // 生成验证码图片
         BufferedImage captchaImage = captchaProducer.createImage(captchaText);

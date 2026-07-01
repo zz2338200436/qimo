@@ -15,7 +15,7 @@ public interface AssignmentSubmissionService {
     List<AssignmentSubmission> getSubmissionsByStudentId(Long studentId);
     boolean deleteSubmission(Long submissionId);
     boolean updateSubmission(AssignmentSubmission submission);
-    List<AssignmentSubmission> getSubmissionsWithPagination(Integer page, Integer size, String sortBy, String order, Long assignmentId, Long studentId, Boolean graded);
+    List<AssignmentSubmission> getSubmissionsWithPagination(Integer page, Integer size, Integer total, String sortBy, String order, Long assignmentId, Long studentId, Boolean graded);
     Integer countSubmissions(Long assignmentId, Long studentId, Boolean graded);
 
 }

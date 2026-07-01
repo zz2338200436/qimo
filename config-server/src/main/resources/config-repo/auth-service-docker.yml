@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: ${AUTH_DB_URL:jdbc:mysql://mysql:3306/sc_auth?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${AUTH_DB_USERNAME:dev_user}
+    password: ${AUTH_DB_PASSWORD:dev_only_pwd}
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}

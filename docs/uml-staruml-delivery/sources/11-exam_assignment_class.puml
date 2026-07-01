@@ -1,0 +1,24 @@
+@startuml
+skinparam classAttributeIconSize 0
+class Course
+class CourseClass
+class Assignment
+class AssignmentPublishScope
+class AssignmentSubmission
+class AssignmentGrade
+class Exam
+class ExamQuestion
+class ExamSubmission
+class ExamGrade
+class LearningEvent
+Course "1" -- "*" Assignment
+Course "1" -- "*" Exam
+CourseClass "1" -- "*" AssignmentPublishScope
+Assignment "1" -- "*" AssignmentSubmission
+AssignmentSubmission "1" -- "0..1" AssignmentGrade
+Exam "1" -- "*" ExamQuestion
+Exam "1" -- "*" ExamSubmission
+ExamSubmission "1" -- "0..1" ExamGrade
+AssignmentGrade ..> LearningEvent
+ExamGrade ..> LearningEvent
+@enduml

@@ -1,0 +1,14 @@
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://registry-server:8761/eureka/}
+  instance:
+    prefer-ip-address: ${EUREKA_PREFER_IP_ADDRESS:false}
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:${spring.application.name}}
+
+spring:
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}

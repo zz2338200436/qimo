@@ -1,0 +1,96 @@
+@startuml
+!include 00-style.puml
+hide empty members
+
+class 用户 {
+  +userId: Long
+  +username: String
+  +status: String
+}
+
+class 角色 {
+  +roleCode: String
+  +roleName: String
+}
+
+class 会话 {
+  +sessionId: Long
+  +userRole: String
+  +status: String
+  +pendingIntent: String
+  +artifactsJson: String
+}
+
+class 消息 {
+  +messageId: Long
+  +role: String
+  +content: Text
+  +metadataJson: String
+  +createdAt: LocalDateTime
+}
+
+class 工具调用 {
+  +actionId: Long
+  +intent: String
+  +status: String
+  +riskLevel: String
+  +requestJson: String
+  +resultJson: String
+}
+
+class 审计日志 {
+  +auditId: Long
+  +operation: String
+  +targetService: String
+  +targetResource: String
+  +success: Boolean
+  +traceId: String
+}
+
+class 知识文档 {
+  +documentId: String
+  +title: String
+  +sourcePath: String
+  +roleScope: String
+}
+
+class 知识片段 {
+  +chunkId: String
+  +sectionTitle: String
+  +content: Text
+  +embedding: Vector
+  +score: Double
+}
+
+class 模型请求 {
+  +generationId: Long
+  +requestType: String
+  +promptKey: String
+  +modelName: String
+  +status: String
+  +latencyMs: Long
+}
+
+用户 "1" -- "1..*" 角色 : 拥有
+用户 "1" -- "0..*" 会话 : 发起
+会话 "1" -- "0..*" 消息 : 包含
+会话 "1" -- "0..*" 工具调用 : 产生
+工具调用 "1" -- "0..*" 审计日志 : 记录
+知识文档 "1" -- "1..*" 知识片段 : 切分
+会话 ..> 知识片段 : 引用证据
+工具调用 ..> 模型请求 : 触发
+消息 ..> 模型请求 : 生成回答
+
+note right of 会话
+对应 agent_sessions
+保存上下文、待确认意图、
+会话级工件摘要
+end note
+
+note right of 工具调用
+对应 agent_actions
+支持确认、取消、执行、
+失败与幂等控制
+end note
+
+@enduml

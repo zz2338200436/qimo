@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <rect width="120" height="120" rx="14" fill="#E5E7EB"/>
+  <circle cx="60" cy="46" r="26" fill="#CBD5E1"/>
+  <path d="M30 98c0-18 13-32 30-32s30 14 30 32" fill="#CBD5E1"/>
+  <text x="60" y="54" text-anchor="middle" font-size="26" font-family="Arial, sans-serif" fill="#94A3B8" dominant-baseline="middle">U</text>
+</svg>
+

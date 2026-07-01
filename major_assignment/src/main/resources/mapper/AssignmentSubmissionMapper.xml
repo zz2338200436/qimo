@@ -38,6 +38,7 @@
         AND asub.submission_date &gt;= #{startDate}
         <if test="endDate != null">AND asub.submission_date &lt;= #{endDate}</if>
         <if test="courseId != null">AND a.course_id = #{courseId}</if>
+        <if test="studentId != null">AND asub.student_id = #{studentId}</if>
         <if test="classId != null">AND cs.class_id = #{classId}</if>
         GROUP BY DATE_FORMAT(asub.submission_date, '%Y-%m-%d')
         ORDER BY day

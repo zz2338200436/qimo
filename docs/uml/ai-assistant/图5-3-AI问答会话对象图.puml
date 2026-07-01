@@ -1,0 +1,59 @@
+@startuml
+!include 00-style.puml
+hide empty members
+
+object "user42:用户" as u {
+  userId = 42
+  username = "student42"
+  status = "ACTIVE"
+}
+
+object "session1001:会话" as s {
+  sessionId = 1001
+  userRole = "STUDENT"
+  status = "ACTIVE"
+  pendingIntent = null
+}
+
+object "msg9001:用户消息" as m1 {
+  role = "USER"
+  content = "解释一致性哈希"
+}
+
+object "chunkA:知识片段" as c1 {
+  documentTitle = "分布式课程讲义"
+  sectionTitle = "一致性哈希"
+  score = 0.91
+}
+
+object "gen501:模型请求" as g1 {
+  requestType = "knowledge-answer"
+  modelName = "LLM"
+  status = "SUCCESS"
+}
+
+object "msg9002:助手回答" as m2 {
+  role = "ASSISTANT"
+  content = "根据资料，一致性哈希..."
+}
+
+object "action3001:工具调用" as a1 {
+  intent = "QUERY_RAG_KNOWLEDGE"
+  status = "EXECUTED"
+}
+
+object "audit7001:审计日志" as l1 {
+  operation = "READ_KNOWLEDGE"
+  targetService = "agent-service"
+  success = true
+}
+
+u -- s
+s -- m1
+s -- m2
+s -- a1
+m2 ..> c1 : 引用
+a1 ..> g1 : 触发
+a1 -- l1
+
+@enduml

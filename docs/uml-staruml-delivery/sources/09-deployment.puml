@@ -1,0 +1,26 @@
+@startuml
+node "开发者电脑/浏览器" as client
+node "qimo-platform Docker Network" {
+  node "gateway:8080\n统一入口" as gateway
+  node "registry-server:8761\nEureka" as registry
+  node "业务服务容器组\nauth/user/course\nassignment/exam\nanalysis/notification/ai" as services
+  node "legacy-monolith:8090->8080\n旧单体兼容" as mono
+  database "mysql:3306\nmajor_assignment + sc_*" as mysql
+  node "redis:6379\nJWT/JTI/限流" as redis
+  queue "rabbitmq:5672/15672\n事件总线" as rabbit
+  node "prometheus:9090\n指标采集" as prom
+  node "grafana:3000\n监控面板" as grafana
+}
+client --> gateway
+gateway ..> registry
+gateway --> services
+gateway --> mono
+gateway --> redis
+services --> mysql
+services --> redis
+services --> rabbit
+mono --> mysql
+prom ..> gateway
+prom ..> services
+grafana --> prom
+@enduml

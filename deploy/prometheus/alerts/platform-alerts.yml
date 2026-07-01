@@ -1,0 +1,37 @@
+groups:
+  - name: qimo-platform
+    rules:
+      - alert: QimoInstance5xxRateHigh
+        expr: |
+          (
+            sum by (service, instance) (
+              rate(http_server_requests_seconds_count{status=~"5..", uri!~"/actuator(/.*)?"}[1m])
+            )
+            /
+            clamp_min(
+              sum by (service, instance) (
+                rate(http_server_requests_seconds_count{uri!~"/actuator(/.*)?"}[1m])
+              ),
+              0.001
+            )
+          ) > 0.05
+        for: 1m
+        labels:
+          severity: P1
+          category: availability
+        annotations:
+          summary: "5xx ratio above 5% on {{ $labels.service }}"
+          description: "{{ $labels.service }} at {{ $labels.instance }} has sustained 5xx ratio above 5% for more than 1 minute."
+
+      - alert: QimoCircuitBreakerOpen
+        expr: |
+          max by (service, instance, name) (
+            resilience4j_circuitbreaker_state{state="open"} == 1
+          ) > 0
+        for: 30s
+        labels:
+          severity: P2
+          category: dependency
+        annotations:
+          summary: "Circuit breaker OPEN on {{ $labels.service }}"
+          description: "Circuit breaker {{ $labels.name }} on {{ $labels.service }} at {{ $labels.instance }} has remained OPEN for more than 30 seconds."

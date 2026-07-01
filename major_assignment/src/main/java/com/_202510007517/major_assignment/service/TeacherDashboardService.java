@@ -8,5 +8,5 @@ import java.util.List;
 public interface TeacherDashboardService {
     TeacherDashboardDTO getDashboardData(Long teacherId, Long classId, Long courseId, String timeRange);
     StudentLearningSummaryDTO getStudentLearningSummary(Long teacherId, Long classId, Long courseId, String timeRange);
-    List<ScoreTrendDTO> getScoreTrend(Long teacherId, Long classId, Long courseId, String timeRange);
+    List<ScoreTrendDTO> getScoreTrend(Long teacherId, Long classId, Long courseId, Long studentId, String timeRange);
 }

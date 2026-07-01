@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: ${NOTIFICATION_DB_URL:jdbc:mysql://mysql:3306/sc_notification?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${NOTIFICATION_DB_USERNAME:dev_user}
+    password: ${NOTIFICATION_DB_PASSWORD:dev_only_pwd}

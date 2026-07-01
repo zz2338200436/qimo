@@ -61,6 +61,6 @@ public interface EarlyWarningMapper {
     /**
      * 获取教师最近的学情预警记录（用于仪表盘最近活动）
      */
-    @Select("SELECT * FROM early_warnings WHERE teacher_id = #{teacherId} ORDER BY trigger_date DESC LIMIT #{limit}")
+    @Select("SELECT ew.*, u.name AS studentName FROM early_warnings ew LEFT JOIN users u ON ew.student_id = u.id WHERE ew.teacher_id = #{teacherId} ORDER BY ew.trigger_date DESC LIMIT #{limit}")
     List<EarlyWarning> findRecentByTeacherId(@Param("teacherId") Long teacherId, @Param("limit") int limit);
 }

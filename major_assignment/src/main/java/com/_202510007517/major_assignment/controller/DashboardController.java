@@ -1,5 +1,6 @@
 package com._202510007517.major_assignment.controller;
 
+import com._202510007517.major_assignment.client.UserServiceProfileClient;
 import com._202510007517.major_assignment.entity.User;
 import com._202510007517.major_assignment.entity.dto.ResponseResult;
 import com._202510007517.major_assignment.mapper.StudentMapper;
@@ -9,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import com._202510007517.major_assignment.entity.dto.StudentDashboardDTO;
 
@@ -21,6 +22,9 @@ public class DashboardController extends BaseController {
     
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private UserServiceProfileClient userServiceProfileClient;
     
     @Autowired
     private StudentService studentService;
@@ -30,15 +34,15 @@ public class DashboardController extends BaseController {
     
     // 获取当前学生的学习表现
     @GetMapping("/student-performance")
-    public ResponseResult<StudentDashboardDTO> getCurrentStudentPerformance(HttpSession session) {
+    public ResponseResult<StudentDashboardDTO> getCurrentStudentPerformance(HttpServletRequest requestContext) {
         logger.debug("获取当前学生学习表现请求");
         
-        if (!isLoggedIn(session)) {
+        if (!isLoggedIn(requestContext)) {
             logger.debug("用户未登录");
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
-        Long studentId = getCurrentUserId(session);
+        Long studentId = getCurrentUserId(requestContext);
         logger.debug("当前学生ID：{}", studentId);
         
         try {
@@ -53,16 +57,14 @@ public class DashboardController extends BaseController {
     
     // 获取指定学生的学习表现
     @GetMapping("/student-performance/{studentId}")
-    public ResponseResult<StudentDashboardDTO> getStudentPerformance(@PathVariable Long studentId, HttpSession session) {
+    public ResponseResult<StudentDashboardDTO> getStudentPerformance(@PathVariable Long studentId, HttpServletRequest requestContext) {
         logger.debug("获取学生学习表现请求：studentId={}", studentId);
         
-        if (!isLoggedIn(session)) {
+        if (!isLoggedIn(requestContext)) {
             return ResponseResult.failure("未授权，请重新登录", 401);
         }
         
-        // 检查学生是否存在
-        User student = userService.findById(studentId);
-        if (student == null) {
+        if (!studentExists(studentId)) {
             return ResponseResult.failure("学生不存在", 404);
         }
         
@@ -72,4 +74,13 @@ public class DashboardController extends BaseController {
         
         return ResponseResult.success(performance, "获取学生学习表现成功", 200);
     }
+
+    private boolean studentExists(Long studentId) {
+        if (userServiceProfileClient.getStudentProfile(studentId).isPresent()) {
+            return true;
+        }
+        User student = userService.findById(studentId);
+        return student != null;
+    }
 }
+

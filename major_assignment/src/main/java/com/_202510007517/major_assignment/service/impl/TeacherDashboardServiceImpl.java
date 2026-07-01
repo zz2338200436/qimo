@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.text.SimpleDateFormat;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -130,6 +131,47 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
             logger.error("获取学生ID列表失败", e);
         }
         totalStudentCount = uniqueStudentIds.size();
+
+        Map<Long, Integer> studentCountByCourseId = new HashMap<>();
+        Map<Long, Double> averageScoreByCourseId = new HashMap<>();
+        if (classId == null && courses.size() > 1) {
+            List<Long> courseIds = new ArrayList<>();
+            for (Course course : courses) {
+                if (course != null && course.getId() != null) {
+                    courseIds.add(course.getId());
+                }
+            }
+            if (!courseIds.isEmpty()) {
+                List<Map<String, Object>> batchStudentCounts = courseMapper.batchGetStudentCountByCourseIds(courseIds);
+                if (batchStudentCounts != null) {
+                    for (Map<String, Object> row : batchStudentCounts) {
+                        Object courseIdObj = row.get("courseId");
+                        Object studentCountObj = row.get("studentCount");
+                        if (courseIdObj instanceof Number) {
+                            Long batchCourseId = ((Number) courseIdObj).longValue();
+                            int batchStudentCount = studentCountObj instanceof Number
+                                    ? ((Number) studentCountObj).intValue()
+                                    : 0;
+                            studentCountByCourseId.put(batchCourseId, batchStudentCount);
+                        }
+                    }
+                }
+            }
+            List<Map<String, Object>> batchAverageScores = courseMapper.batchGetCourseAverageScoresByCourseIds(courseIds);
+            if (batchAverageScores != null) {
+                for (Map<String, Object> row : batchAverageScores) {
+                    Object courseIdObj = row.get("courseId");
+                    Object averageScoreObj = row.get("averageScore");
+                    if (courseIdObj instanceof Number) {
+                        Long batchCourseId = ((Number) courseIdObj).longValue();
+                        double batchAverageScore = averageScoreObj instanceof Number
+                                ? ((Number) averageScoreObj).doubleValue()
+                                : 0.0;
+                        averageScoreByCourseId.put(batchCourseId, batchAverageScore);
+                    }
+                }
+            }
+        }
         
         for (Course course : courses) {
             courseNames.add(course.getCourseName());
@@ -138,6 +180,8 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
             Integer studentCount;
             if (classId != null) {
                 studentCount = courseMapper.getStudentCountByCourseIdAndClassId(course.getId(), classId);
+            } else if (!studentCountByCourseId.isEmpty()) {
+                studentCount = studentCountByCourseId.get(course.getId());
             } else {
                 studentCount = courseMapper.getStudentCountByCourseId(course.getId());
             }
@@ -151,6 +195,8 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
             Double courseAverageScore;
             if (classId != null) {
                 courseAverageScore = courseMapper.getCourseAverageScoreByClassId(course.getId(), classId);
+            } else if (!averageScoreByCourseId.isEmpty()) {
+                courseAverageScore = averageScoreByCourseId.get(course.getId());
             } else {
                 courseAverageScore = courseMapper.getCourseAverageScore(course.getId());
             }
@@ -163,6 +209,9 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
         
         dashboard.setTotalStudents(totalStudentCount);
         dashboard.setAverageScores(averageScores);
+        StudentLearningSummaryDTO learningSummary = getStudentLearningSummary(teacherId, classId, courseId, timeRange);
+        double overallProgress = learningSummary != null ? learningSummary.getOverallProgress() : 0.0;
+        dashboard.setOverallProgress(overallProgress);
         
         // 模拟学生数量变化（较上周）
         int studentCountLastWeek = totalStudentCount > 10 ? totalStudentCount - 12 : totalStudentCount;
@@ -219,62 +268,6 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
         // 模拟未交作业学生变化（较昨日）
         int missingSubmissionsYesterday = missingCount > 10 ? missingCount - 5 : missingCount;
         dashboard.setMissingSubmissionsChange(missingCount - missingSubmissionsYesterday);
-        
-        // 设置ECharts所需的平均分数据（从数据库获取真实数据）
-        List<Double> averageScoresList = new ArrayList<>();
-        for (Course course : courses) {
-            // 获取课程的具体成绩列表
-            List<Double> scores = courseMapper.getCourseScores(course.getId());
-            
-            // 计算平均分
-            Double avgScore = courseMapper.getCourseAverageScore(course.getId());
-            
-            // 如果avgScore为null，手动计算
-            if (avgScore == null) {
-                if (scores != null && !scores.isEmpty()) {
-                    double sum = 0.0;
-                    int validScoreCount = 0;
-                    for (Double score : scores) {
-                        if (score != null) {
-                            sum += score;
-                            validScoreCount++;
-                        }
-                    }
-                    if (validScoreCount > 0) {
-                        avgScore = sum / validScoreCount;
-                    } else {
-                        avgScore = 0.0;
-                    }
-                } else {
-                    avgScore = 0.0;
-                }
-            } else {
-                // 输出详细计算过程
-                if (scores != null && !scores.isEmpty()) {
-                    double sum = 0.0;
-                    int validScoreCount = 0;
-                    for (Double score : scores) {
-                        if (score != null) {
-                            sum += score;
-                            validScoreCount++;
-                        }
-                    }
-                }
-            }
-            
-            averageScoresList.add(avgScore != null ? avgScore : 0.0);
-        }
-        
-        // 计算总体平均成绩
-        if (averageScoresList.size() > 0) {
-            double totalSum = 0.0;
-            for (Double avg : averageScoresList) {
-                totalSum += avg;
-            }
-            double overallAvg = totalSum / averageScoresList.size();
-        }
-        
-        dashboard.setAverageScores(averageScoresList);
         
         // 设置提交率数据（从数据库获取真实数据）
         // 改进：显示每天的实际提交数量，而不是百分比（因为每天的预期提交数不固定）
@@ -429,23 +422,16 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
                     activity.setActivityType("学情预警");
                     activity.setStudentId(warning.getStudentId());
                     
-                    // 获取学生姓名
-                    String studentName = "未知学生";
-                    try {
-                        User user = userMapper.findById(warning.getStudentId());
-                        if (user != null) {
-                            studentName = user.getName();
-                        }
-                    } catch (Exception e) {
-                        // 忽略
-                    }
+                    String studentName = warning.getStudentName() != null && !warning.getStudentName().trim().isEmpty()
+                            ? warning.getStudentName()
+                            : "未知学生";
                     activity.setStudentName(studentName);
                     
                     String warningType = warning.getWarningType() != null ? warning.getWarningType() : "学习";
                     activity.setDetails(studentName + " 触发了" + warningType + "预警");
                     
                     if (warning.getTriggerDate() != null) {
-                        activity.setActivityDate(isoFormat.format(warning.getTriggerDate()));
+                        activity.setActivityDate(isoFormat.format(Date.from(warning.getTriggerDate().toInstant(ZoneOffset.UTC))));
                     } else {
                         activity.setActivityDate(isoFormat.format(new Date()));
                     }
@@ -517,26 +503,6 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
         // 将最近活动添加到dashboard对象中
         dashboard.setRecentActivities(recentActivities);
         
-        // 模拟待批改作业数量变化（较上周）
-        int pendingAssignmentsLastWeek = pendingAssignments > 0 ? pendingAssignments - 2 : 0;
-        dashboard.setPendingAssignmentsChange(pendingAssignments - pendingAssignmentsLastWeek);
-        
-        // 模拟待发布考试数量变化（较上周）
-        int pendingExamsLastWeek = examsCount > 0 ? examsCount - 1 : 0;
-        dashboard.setPendingExamsChange(examsCount - pendingExamsLastWeek);
-        
-        // 模拟未交作业学生数量变化（较上周）
-        int missingSubmissionsLastWeek = missingCount > 0 ? missingCount - 1 : 0;
-        dashboard.setMissingSubmissionsChange(missingCount - missingSubmissionsLastWeek);
-        
-        // 模拟即将截止任务数量变化（较上周）
-        int upcomingDeadlinesLastWeek = upcomingDeadlines > 0 ? upcomingDeadlines - 1 : 0;
-        dashboard.setUpcomingDeadlinesChange(upcomingDeadlines - upcomingDeadlinesLastWeek);
-        
-        // 模拟预警数量变化（较上周）
-        int warningCountLastWeek = warningCount > 0 ? warningCount - 1 : 0;
-        dashboard.setWarningCountChange(warningCount - warningCountLastWeek);
-        
         return dashboard;
     }
 
@@ -556,7 +522,7 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
         }
         
         // 学生ID到课程名称的映射，用于当courseId为null时
-        Map<Long, List<String>> studentCourseMap = new HashMap<>();
+        Map<Long, List<Course>> studentCourseMap = new HashMap<>();
         
         // 获取学生ID列表和课程信息
         if (courseId != null) {
@@ -572,7 +538,10 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
             
             // 为每个学生添加对应的课程
             for (Long studentId : studentIds) {
-                studentCourseMap.put(studentId, Collections.singletonList(selectedCourseName));
+                Course selectedCourse = new Course();
+                selectedCourse.setId(courseId);
+                selectedCourse.setCourseName(selectedCourseName);
+                studentCourseMap.put(studentId, Collections.singletonList(selectedCourse));
             }
         } else {
             // 多课程模式：获取所有课程下的学生，并记录每个学生的课程
@@ -589,21 +558,21 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
                 }
                 
                 for (Long studentId : studentIds) {
-                    studentCourseMap.computeIfAbsent(studentId, k -> new ArrayList<>()).add(course.getCourseName());
+                    studentCourseMap.computeIfAbsent(studentId, k -> new ArrayList<>()).add(course);
                 }
             }
         }
         
         // 汇总统计数据
-        int totalStudents = studentCourseMap.size();
+        int totalStudents = 0;
         double totalScore = 0;
         int totalPendingAssignments = 0;
         double totalProgress = 0;
         
         // 获取每个学生的学习数据
-        for (Map.Entry<Long, List<String>> entry : studentCourseMap.entrySet()) {
+        for (Map.Entry<Long, List<Course>> entry : studentCourseMap.entrySet()) {
             Long studentId = entry.getKey();
-            List<String> studentCourses = entry.getValue();
+            List<Course> studentCourses = entry.getValue();
             
             // 获取学生基本信息
             User user = userMapper.findById(studentId);
@@ -611,30 +580,45 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
                 continue;
             }
             
-            // 直接从数据库获取学生的平均成绩和进度，不依赖StudentService.getStudentPerformance()
-            Map<String, Object> resultMap = studentMapper.getStudentPerformance(studentId);
-            // 手工维护或动态计算的平均成绩
-            double averageScoreValue = resultMap != null && resultMap.get("averageScore") instanceof Number ? ((Number) resultMap.get("averageScore")).doubleValue() : 0.0;
-            // 手工维护或动态计算的整体进度
-            double overallProgressValue = resultMap != null && resultMap.get("overallProgress") instanceof Number ? ((Number) resultMap.get("overallProgress")).doubleValue() : 0.0;
-            // 获取待交作业数量，添加null检查
-            Integer pendingAssignments = resultMap != null && resultMap.get("pendingAssignments") instanceof Number ? ((Number) resultMap.get("pendingAssignments")).intValue() : 0;
-            
-            int averageScore = (int) Math.round(averageScoreValue);
-            int overallProgress = (int) Math.round(overallProgressValue);
+            String className = userMapper.getStudentClassName(studentId);
+            int studentAverageScoreSum = 0;
+            int studentPendingAssignmentsSum = 0;
+            int studentProgressSum = 0;
+            int studentCourseCount = 0;
             
             // 为每个课程创建一个学生表现DTO
-            for (String courseName : studentCourses) {
+            for (Course course : studentCourses) {
+                Map<String, Object> resultMap = studentMapper.getTeacherStudentCoursePerformance(
+                        studentId,
+                        course != null ? course.getId() : null,
+                        timeRange
+                );
+
+                double averageScoreValue = resultMap != null && resultMap.get("averageScore") instanceof Number
+                        ? ((Number) resultMap.get("averageScore")).doubleValue()
+                        : 0.0;
+                Integer pendingAssignments = resultMap != null && resultMap.get("pendingAssignments") instanceof Number
+                        ? ((Number) resultMap.get("pendingAssignments")).intValue()
+                        : 0;
+                Integer courseProgressValue = resultMap != null && resultMap.get("overallProgress") instanceof Number
+                        ? ((Number) resultMap.get("overallProgress")).intValue()
+                        : 0;
+                int averageScore = (int) Math.round(averageScoreValue);
+                int overallProgress = courseProgressValue != null ? courseProgressValue : 0;
+                studentAverageScoreSum += averageScore;
+                studentPendingAssignmentsSum += pendingAssignments;
+                studentProgressSum += overallProgress;
+                studentCourseCount++;
+
                 // 创建学生表现DTO
                 StudentLearningSummaryDTO.StudentPerformanceDTO studentPerformance = new StudentLearningSummaryDTO.StudentPerformanceDTO();
                 studentPerformance.setStudentId(studentId);
+                studentPerformance.setCourseId(course != null ? course.getId() : null);
                 studentPerformance.setRealName(user.getName());
-                // 获取真实班级名称
-                String className = userMapper.getStudentClassName(studentId);
                 studentPerformance.setClassName(className != null ? className : "未知");
                 
                 // 设置课程名称
-                studentPerformance.setCourseName(courseName != null ? courseName : "未知课程");
+                studentPerformance.setCourseName(course != null && course.getCourseName() != null ? course.getCourseName() : "未知课程");
                 
                 // 设置学生表现数据
                 studentPerformance.setAverageScore(averageScore);
@@ -644,26 +628,28 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
                 
                 // 添加到学生表现列表
                 studentPerformances.add(studentPerformance);
-                
-                // 更新汇总统计数据
-                totalScore += studentPerformance.getAverageScore();
-                totalPendingAssignments += studentPerformance.getPendingAssignments();
-                totalProgress += studentPerformance.getOverallProgress();
+            }
+
+            totalStudents++;
+            if (studentCourseCount > 0) {
+                totalScore += (double) studentAverageScoreSum / studentCourseCount;
+                totalPendingAssignments += studentPendingAssignmentsSum;
+                totalProgress += (double) studentProgressSum / studentCourseCount;
             }
         }
         
         // 设置汇总统计数据
         summary.setTotalStudents(totalStudents);
-        summary.setAverageScore(studentPerformances.size() > 0 ? totalScore / studentPerformances.size() : 0);
+        summary.setAverageScore(totalStudents > 0 ? totalScore / totalStudents : 0);
         summary.setTotalPendingAssignments(totalPendingAssignments);
-        summary.setOverallProgress(studentPerformances.size() > 0 ? totalProgress / studentPerformances.size() : 0);
+        summary.setOverallProgress(totalStudents > 0 ? totalProgress / totalStudents : 0);
         summary.setStudentPerformances(studentPerformances);
         
         return summary;
     }
 
     @Override
-    public List<ScoreTrendDTO> getScoreTrend(Long teacherId, Long classId, Long courseId, String timeRange) {
+    public List<ScoreTrendDTO> getScoreTrend(Long teacherId, Long classId, Long courseId, Long studentId, String timeRange) {
         Date endDate = new Date();
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(endDate);
@@ -673,6 +659,8 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
             calendar.add(Calendar.DAY_OF_YEAR, -6);
         } else if ("month".equalsIgnoreCase(timeRange)) {
             calendar.add(Calendar.DAY_OF_YEAR, -29);
+        } else if ("quarter".equalsIgnoreCase(timeRange)) {
+            calendar.add(Calendar.DAY_OF_YEAR, -89);
         } else if ("semester".equalsIgnoreCase(timeRange)) {
             calendar.add(Calendar.DAY_OF_YEAR, -119);
         } else {
@@ -686,6 +674,7 @@ public class TeacherDashboardServiceImpl implements TeacherDashboardService {
                 teacherId,
                 classId,
                 courseId,
+                studentId,
                 startDate,
                 endDate
         );

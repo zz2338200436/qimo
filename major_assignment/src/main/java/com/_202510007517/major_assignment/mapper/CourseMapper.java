@@ -14,7 +14,7 @@ public interface CourseMapper {
                                           @Param("category") String category,
                                           @Param("status") String status);
 
-    @Select("SELECT id, course_name, course_code, description, credit, course_category, total_hours, teacher_id, course_status FROM courses WHERE teacher_id = #{teacherId}")
+    @Select("SELECT id, course_name, course_code, description, credit, course_category, total_hours, teacher_id, course_director, assessment_method, course_status, semester, start_date, end_date, max_students FROM courses WHERE teacher_id = #{teacherId}")
     List<Course> findByTeacherId(Long teacherId);
 
     @Select("SELECT id, course_name, course_code, description, credit, course_category, total_hours, teacher_id, course_director, assessment_method, course_status, semester, start_date, end_date, max_students FROM courses")
@@ -38,6 +38,9 @@ public interface CourseMapper {
 
     // UNION ALL 子查询 → 见 CourseMapper.xml
     Double getCourseAverageScore(Long courseId);
+
+    // foreach + UNION ALL 子查询 → 见 CourseMapper.xml
+    List<Map<String, Object>> batchGetCourseAverageScoresByCourseIds(@Param("courseIds") List<Long> courseIds);
 
     // UNION ALL 子查询 → 见 CourseMapper.xml
     List<Double> getCourseScores(Long courseId);
@@ -134,10 +137,12 @@ public interface CourseMapper {
     // 备注：该方法已为多表 JOIN，应在后续重构中一并迁移到 XML。本次 §7.4 迁移聚焦含动态 SQL / UNION / CASE / foreach 的方法。
     @Select("SELECT cc.id, cc.class_name as className, cc.year, cc.capacity, cc.course_id as courseId, c.course_name as courseName, cc.teacher_id as teacherId, u.name as teacherName, cc.major_id as majorId, m.major_name as majorName FROM course_classes cc LEFT JOIN courses c ON cc.course_id = c.id JOIN users u ON cc.teacher_id = u.id LEFT JOIN majors m ON cc.major_id = m.id WHERE cc.id = #{classId}")
     Map<String, Object> getClassById(Long classId);
+    Integer countManagedClasses(@Param("teacherId") Long teacherId, @Param("classId") Long classId);
 
     // 课程分配相关方法
     List<Map<String, Object>> getClassAssignments(@Param("teacherId") Long teacherId, @Param("courseId") Long courseId, @Param("classId") Long classId);
     Integer countClassAssignments(@Param("teacherId") Long teacherId, @Param("courseId") Long courseId, @Param("classId") Long classId);
+    Integer countManagedAssignments(@Param("teacherId") Long teacherId, @Param("assignmentId") Long assignmentId);
     Map<String, Object> checkCourseAssignmentByClassId(@Param("classId") Long classId, @Param("courseId") Long courseId);
     Map<String, Object> checkCourseAssignmentByClassName(@Param("className") String className, @Param("courseId") Long courseId);
     Map<String, Object> checkClassCourseAssignment(@Param("classId") Long classId, @Param("courseId") Long courseId);

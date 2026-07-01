@@ -21,6 +21,7 @@ public class TeacherDashboardDTO {
     private Integer warningCountChange;
     private List<String> courseNames;
     private List<Double> averageScores;
+    private Double overallProgress;
     private List<String> submissionRateDays;
     private List<Integer> submissionRates;
     private List<RecentActivityDTO> recentActivities;

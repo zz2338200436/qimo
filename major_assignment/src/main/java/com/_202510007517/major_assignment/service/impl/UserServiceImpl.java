@@ -15,6 +15,9 @@ import java.util.List;
 
 @Service
 public class UserServiceImpl implements UserService {
+
+    private static final String USER_WRITES_MOVED_MESSAGE =
+            "用户写操作已迁移至 User_Service/Auth_Service，单体不再直接写 users 表";
     
     @Autowired
     private UserMapper userMapper;
@@ -53,7 +56,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void create(User user) {
-        userMapper.insert(user);
+        throw new UnsupportedOperationException(USER_WRITES_MOVED_MESSAGE);
     }
     
     @Override
@@ -63,9 +66,7 @@ public class UserServiceImpl implements UserService {
         @CacheEvict(value = CacheConstants.USER_ROLES, key = "#user.id")
     })
     public void update(User user) {
-        // 更新时间戳
-        user.setUpdatedAt(java.time.LocalDateTime.now());
-        userMapper.update(user);
+        throw new UnsupportedOperationException(USER_WRITES_MOVED_MESSAGE);
     }
     
     @Override
@@ -75,7 +76,7 @@ public class UserServiceImpl implements UserService {
         @CacheEvict(value = CacheConstants.USER_ROLES, key = "#id")
     })
     public void delete(Long id) {
-        userMapper.delete(id);
+        throw new UnsupportedOperationException(USER_WRITES_MOVED_MESSAGE);
     }
     
     @Override
